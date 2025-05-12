@@ -7,6 +7,7 @@ import { tickets, users, ticketComments, ticketPriorityEnum, ticketStatusEnum, t
 import { eq, or, inArray, and } from 'drizzle-orm'; // Added and
 import { analyzeEmailContent, triageEmailWithAI } from '@/lib/aiService'; // Import both AI functions
 import { getOrderTrackingInfo, OrderTrackingInfo } from '@/lib/shipstationService'; // Import the new service
+import { checkOrderAndGenerateResponse } from '@/lib/orderResponseService'; // Import the new order response service
 import { ticketEventEmitter } from '@/lib/eventEmitter'; // Import event emitter
 
 // --- Constants ---
@@ -298,6 +299,26 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
             return { success: true, message: "Skipped new internal email", skipped: true };
         }
 
+        // === Phase 3: AI Analysis ===
+        let aiAnalysis = null;
+        try {
+            aiAnalysis = await analyzeEmailContent(subject, bodyPreview);
+            console.log(`EmailProcessor (Phase 3): AI Analysis for ${messageId}:`, aiAnalysis);
+
+            // Flag customer request emails
+            if (aiAnalysis && aiAnalysis.likelyCustomerRequest) {
+                console.log(`EmailProcessor: Flagging customer request email ${messageId}`);
+                await graphService.flagEmail(messageId, 'red'); // Flag as customer request
+            }
+        } catch (error) {
+            console.error(`EmailProcessor (Phase 3): AI Analysis failed for ${messageId}:`, error);
+            await alertService.trackErrorAndAlert(
+                'EmailProcessor-AI',
+                `AI analysis failed for email ${messageId}`,
+                error
+            );
+        }
+
         // --- If it's a Reply (Existing Ticket Found) ---
         if (existingTicketId !== null && foundBy) {
             console.log(`EmailProcessor (Phase 4 Handled): Email ${messageId} is a reply to Ticket ${existingTicketId} (found by ${foundBy}). Adding as comment.`);
@@ -336,6 +357,36 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                         eq(tickets.status, ticketStatusEnum.enumValues[4])  // closed
                     )
                 ));
+
+                // NEW: Check for order status inquiry in a reply
+                if (!isInternalSender && existingTicketId !== null) {
+                    try {
+                        console.log(`EmailProcessor: Checking reply for order status inquiry`);
+                        const orderResponse = await checkOrderAndGenerateResponse(
+                            senderName || 'Customer',
+                            subject,
+                            fullBodyContent
+                        );
+                        
+                        if (orderResponse.orderFound && orderResponse.responseText) {
+                            console.log(`EmailProcessor: Order found in reply, adding automated response draft`);
+                            
+                            // Add internal note with suggested reply
+                            await db.insert(ticketComments).values({
+                                ticketId: existingTicketId,
+                                commentText: `**Order Status Found - Suggested Reply:**\n\n${orderResponse.responseText}`,
+                                commenterId: null, // System
+                                isInternalNote: true,
+                                isFromCustomer: false
+                            });
+                            
+                            console.log(`EmailProcessor: Added order status reply suggestion to ticket ${existingTicketId}`);
+                        }
+                    } catch (orderCheckError) {
+                        console.error(`EmailProcessor: Error checking for order status in reply:`, orderCheckError);
+                        // Continue processing normally, this is just an enhancement
+                    }
+                }
 
                 ticketEventEmitter.emit({ type: 'comment_added', ticketId: existingTicketId, commentId: newComment.id });
                 return { success: true, ticketId: existingTicketId, commentId: newComment.id, message: "Reply added to ticket successfully" };
@@ -436,7 +487,7 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
         const fullMessageDetails = await graphService.getMessageById(messageId); // Fetch again for full body
         const fullBody = fullMessageDetails?.body?.content ?? bodyPreview; // Use full body if available
 
-        const analysisResult = await analyzeEmailContent(subject, fullBody); // Use the *extraction* AI
+        let analysisResult = await analyzeEmailContent(subject, fullBody); // Use the *extraction* AI
         const reporterId = await findOrCreateUser(senderEmail, senderName); // Re-confirm user ID
         if (!reporterId) { throw new Error(`User creation failed just before ticket creation for ${senderEmail}`); }
 
@@ -447,6 +498,39 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
         let automationInfo: OrderTrackingInfo | null = null;
         let draftReplyContent: string | null = null; // CoA draft
         let ticketStatus: typeof ticketStatusEnum.enumValues[number] = analysisResult?.prioritySuggestion === 'urgent' ? OPEN_STATUS : DEFAULT_STATUS; // Start as Open if Urgent
+
+        // NEW: Check for order status inquiry and generate response
+        if (senderName && (analysisResult?.orderNumber || analysisResult?.intent === 'order_status_inquiry' || subject.toLowerCase().includes('order'))) {
+            console.log(`EmailProcessor: Checking for order status inquiry from ${senderName}`);
+            automationAttempted = true;
+            
+            const orderResponse = await checkOrderAndGenerateResponse(
+                senderName,
+                subject,
+                fullBody
+            );
+            
+            if (orderResponse.orderFound) {
+                console.log(`EmailProcessor: Order found, generating response`);
+                
+                // Use the generated response as draft reply
+                draftReplyContent = orderResponse.responseText;
+                
+                // Update ticket status to pending if we have a draft
+                if (draftReplyContent) {
+                    ticketStatus = PENDING_CUSTOMER_STATUS;
+                }
+                
+                // If we found an order number not already detected by AI, update it
+                if (orderResponse.orderNumber && !analysisResult?.orderNumber) {
+                    // Update only the orderNumber field, preserving the original type
+                    analysisResult = {
+                        ...analysisResult,
+                        orderNumber: orderResponse.orderNumber
+                    } as typeof analysisResult;
+                }
+            }
+        }
 
         // Check for missing Lot# on COA requests AFTER confirming it's a customer request
          if (analysisResult && 
@@ -497,7 +581,30 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
         // ShipStation Lookup (if applicable)
         if (analysisResult?.orderNumber && (analysisResult.intent === 'order_status_inquiry' || analysisResult.intent === 'tracking_request')) {
             automationAttempted = true;
-            automationInfo = await getOrderTrackingInfo(analysisResult.orderNumber);
+            
+            // Only perform ShipStation lookup if we haven't already done it in the order status check
+            if (!draftReplyContent) {
+                automationInfo = await getOrderTrackingInfo(analysisResult.orderNumber);
+
+                // Try to generate an automated response for order status inquiries
+                if (automationInfo?.found) {
+                    console.log(`EmailProcessor: Attempting to generate order status response for ${messageId}`);
+                    const customerName = senderName || senderEmail.split('@')[0];
+                    const orderResponse = await checkOrderAndGenerateResponse(customerName, subject, fullBody);
+                    
+                    if (orderResponse.responseText) {
+                        console.log(`EmailProcessor: Successfully generated order status response for order ${orderResponse.orderNumber}`);
+                        draftReplyContent = orderResponse.responseText;
+                        
+                        // Set appropriate ticket status based on whether a reply was generated
+                        if (automationInfo.orderStatus === 'shipped' && automationInfo.shipments && automationInfo.shipments.length > 0) {
+                            ticketStatus = DEFAULT_STATUS; // For shipped orders, we provide tracking info and stay in DEFAULT_STATUS
+                        } else {
+                            ticketStatus = PENDING_CUSTOMER_STATUS; // For processing orders, we may need more info
+                        }
+                    }
+                }
+            }
         }
 
         // Prepare Internal Note
@@ -524,6 +631,16 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                 replyLabel += " (COC Information)";
             } else if (analysisResult?.documentType === 'OTHER') {
                 replyLabel += ` (${analysisResult.documentName || "Document Request"})`;
+            } else if (analysisResult?.intent === 'order_status_inquiry' || analysisResult?.intent === 'tracking_request') {
+                replyLabel += " (Order Status)";
+                
+                // Add detailed information about found order status
+                if (automationInfo?.orderStatus === 'shipped' && automationInfo.shipments && automationInfo.shipments.length > 0) {
+                    const shipment = automationInfo.shipments[0];
+                    replyLabel += ` - Shipped via ${shipment.carrier}`;
+                } else if (automationInfo?.orderStatus) {
+                    replyLabel += ` - ${automationInfo.orderStatus.replace('_', ' ').toUpperCase()}`;
+                }
             }
             internalNoteContent += `\n\n---\n\n**${replyLabel}:**\n${draftReplyContent}`;
         }
@@ -569,7 +686,8 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
             success: true, ticketId: newTicket.id,
             message: draftReplyContent ? "Ticket created; reply drafted." : "Ticket created successfully.",
             aiTriageClassification: triageResult.classification,
-            automation_attempted: automationAttempted, automation_info: automationInfo
+            automation_attempted: automationAttempted, 
+            automation_info: automationInfo
         };
 
     } catch (error: any) {

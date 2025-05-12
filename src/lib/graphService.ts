@@ -157,102 +157,177 @@ export async function sendEmailReply(
   fromEmailAddress: string = userEmail
 ): Promise<Message | null> {
   try {
-    // --- Construct Threading Headers ---
-    const internetMessageHeaders: InternetMessageHeader[] = [];
+    // Extract threading information regardless of input type
+    let conversationId: string | undefined;
     
+    // Process the message content to ensure proper HTML formatting
+    // Convert plain text with line breaks to proper HTML paragraphs
+    let formattedContent = messageContent;
+    
+    // Only apply formatting if it doesn't already contain HTML tags
+    if (!formattedContent.includes('<html>') && !formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
+      // Replace plain line breaks with HTML paragraph tags
+      formattedContent = formattedContent
+        .split('\n\n')
+        .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+        
+      // Wrap in basic HTML structure
+      formattedContent = `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; }
+    p { margin-bottom: 10px; }
+    a { color: #0078d4; text-decoration: none; }
+  </style>
+</head>
+<body>
+  ${formattedContent}
+</body>
+</html>`;
+    }
+    
+    // Create a message object to send
+    const messageToSend: any = {
+      subject,
+      body: {
+        contentType: 'HTML',
+        content: formattedContent,
+      },
+      toRecipients: [
+        {
+          emailAddress: {
+            address: toEmailAddress,
+          },
+        },
+      ],
+      // Add CC to sales mailbox
+      ccRecipients: [
+        {
+          emailAddress: {
+            address: userEmail, // This is 'sales@alliancechemical.com' by default
+          },
+        },
+      ],
+      // Initialize an empty array for custom headers
+      internetMessageHeaders: []
+    };
+    
+    // Process the threading information based on input type
     if ('internetMessageId' in threadingInfo) {
-      // Handle legacy Message object format for backward compatibility
+      // Handle case where input is a Message object
       const originalMessage = threadingInfo as Message;
       
       if (originalMessage.internetMessageId) {
-        internetMessageHeaders.push({
-          name: 'In-Reply-To',
+        // Add threading headers with X- prefix as required by Graph API
+        messageToSend.internetMessageHeaders.push({
+          name: 'X-MS-Exchange-Organization-In-Reply-To',
           value: `<${originalMessage.internetMessageId}>`
         });
-        console.log(`GraphService: Setting In-Reply-To: <${originalMessage.internetMessageId}>`);
         
-        // Add References header using existing references + current message ID
+        // Get existing References if available
         const existingRefs = (originalMessage.internetMessageHeaders as InternetMessageHeader[] | undefined)?.find(
-          h => h.name === 'References' || h.name === 'X-References'
+          h => h.name === 'References' || h.name === 'X-References' || h.name === 'X-MS-Exchange-Organization-References'
         )?.value || '';
         
-        internetMessageHeaders.push({
-          name: 'References',
+        // Add references with the Exchange-specific header
+        messageToSend.internetMessageHeaders.push({
+          name: 'X-MS-Exchange-Organization-References',
           value: `${existingRefs} <${originalMessage.internetMessageId}>`.trim()
         });
-        console.log(`GraphService: Setting References: ${internetMessageHeaders.find(h => h.name === 'References')?.value}`);
+        
+        console.log(`GraphService: Added threading headers for message ID: ${originalMessage.internetMessageId}`);
+      }
+      
+      // Set the conversation ID if available
+      if (originalMessage.conversationId) {
+        conversationId = originalMessage.conversationId;
+        console.log(`GraphService: Using conversation ID from original message: ${conversationId}`);
       }
     } else {
-      // Handle new ThreadingInfo interface
+      // Handle case where input is a ThreadingInfo object
       const threading = threadingInfo as ThreadingInfo;
       
       if (threading.inReplyToId) {
-        internetMessageHeaders.push({
-          name: 'In-Reply-To',
+        // Add In-Reply-To header with X- prefix
+        messageToSend.internetMessageHeaders.push({
+          name: 'X-MS-Exchange-Organization-In-Reply-To',
           value: `<${threading.inReplyToId}>`
         });
-        console.log(`GraphService: Setting In-Reply-To: <${threading.inReplyToId}>`);
-      }
-      
-      if (threading.referencesIds && threading.referencesIds.length > 0) {
-        const referencesValue = threading.referencesIds.map(id => `<${id}>`).join(' ');
-        internetMessageHeaders.push({
-          name: 'References',
+        
+        // Build references string
+        let referencesValue: string;
+        if (threading.referencesIds && threading.referencesIds.length > 0) {
+          referencesValue = threading.referencesIds.map(id => `<${id}>`).join(' ');
+        } else {
+          // If no references, use In-Reply-To as the initial reference
+          referencesValue = `<${threading.inReplyToId}>`;
+        }
+        
+        // Add the references header
+        messageToSend.internetMessageHeaders.push({
+          name: 'X-MS-Exchange-Organization-References',
           value: referencesValue
         });
-        console.log(`GraphService: Setting References: ${referencesValue}`);
-      } else if (threading.inReplyToId) {
-        // If only In-Reply-To is available, use it for References as well
-        internetMessageHeaders.push({
-          name: 'References',
-          value: `<${threading.inReplyToId}>`
-        });
-        console.log(`GraphService: Setting References based on In-Reply-To: <${threading.inReplyToId}>`);
+        
+        console.log(`GraphService: Added threading headers using In-Reply-To ID: ${threading.inReplyToId}`);
+      }
+      
+      // Set conversation ID if available
+      if (threading.conversationId) {
+        conversationId = threading.conversationId;
+        console.log(`GraphService: Using conversation ID from threading info: ${conversationId}`);
       }
     }
-    // --- End Construct Threading Headers ---
-
-    // No conversion needed - directly use the provided HTML
-    const htmlContent = messageContent;
-
-    // Define the message request structure inline
-    const replyMessage = {
-      message: {
-        subject: subject,
-        body: {
-          contentType: 'HTML',
-          content: htmlContent,
-        },
-        toRecipients: [
-          {
-            emailAddress: {
-              address: toEmailAddress,
-            },
-          },
-        ],
-        // Add the constructed standard headers
-        internetMessageHeaders: internetMessageHeaders.length > 0 ? internetMessageHeaders : undefined,
-      },
-      saveToSentItems: true,
+    
+    // Add thread-index header to help Outlook with threading
+    messageToSend.internetMessageHeaders.push({
+      name: 'X-Thread-Index',
+      value: `Thread-${Date.now()}`
+    });
+    
+    // Add custom header to indicate this is a reply
+    messageToSend.internetMessageHeaders.push({
+      name: 'X-Auto-Response-Suppress',
+      value: 'All'
+    });
+    
+    // Set the conversation ID in the message itself if available
+    if (conversationId) {
+      messageToSend.conversationId = conversationId;
+    }
+    
+    // Build the final request
+    const requestBody = {
+      message: messageToSend,
+      saveToSentItems: true
     };
 
-    // Log the reply being sent
-    console.log(`GraphService: Attempting to send email reply to ${toEmailAddress} from ${fromEmailAddress} with subject "${subject}"`);
+    // Log the attempt
+    console.log(`GraphService: Attempting to send email reply to ${toEmailAddress} from ${fromEmailAddress}`);
+    console.log(`GraphService: Email subject: "${subject}"`);
+    console.log(`GraphService: CC'ing sales mailbox: ${userEmail}`);
+    
+    if (conversationId) {
+      console.log(`GraphService: Using conversation ID: ${conversationId}`);
+    }
+    
+    console.log(`GraphService: Sending formatted HTML content (${formattedContent.length} chars)`);
 
-    // Use the /sendMail action
+    // Make the API call
     const response = await graphClient
       .api(`/users/${fromEmailAddress}/sendMail`)
-      .post(replyMessage);
+      .post(requestBody);
 
-    console.log(`GraphService: Email reply sent successfully. Response indicates success (actual message object not returned by sendMail).`);
-    // sendMail action doesn't return the full message object immediately
-    return { id: 'sent' } as Message; // Return a minimal success indicator
+    console.log(`GraphService: Email reply sent successfully.`);
+    return { id: 'sent' } as Message;
 
   } catch (error: any) {
     console.error('GraphService: Error sending email reply:', JSON.stringify(error, null, 2));
-    // More detailed error logging
     if (error.details) console.error('GraphService Error Details:', error.details);
     if (error.code) console.error(`GraphService Error Code: ${error.code}`);
+    if (error.body) console.error('GraphService Error Body:', error.body);
     return null;
   }
 }
@@ -377,5 +452,26 @@ export async function deleteSubscription(subscriptionId: string): Promise<boolea
   } catch (error) {
     console.error(`Error deleting subscription ${subscriptionId}:`, error);
     return false;
+  }
+}
+
+/**
+ * Flag an email without marking it as read
+ * @param messageId The ID of the email to flag
+ * @param flagColor Optional flag color (red, blue, green, yellow, purple, orange)
+ */
+export async function flagEmail(messageId: string, flagColor: string = 'red'): Promise<void> {
+  try {
+    await graphClient
+      .api(`/users/${userEmail}/messages/${messageId}`)
+      .update({
+        flag: {
+          flagStatus: 'flagged'
+        }
+      });
+    console.log(`Email ${messageId} has been flagged as important`);
+  } catch (error) {
+    console.error(`Error flagging email ${messageId}:`, error);
+    throw error;
   }
 } 

@@ -56,9 +56,15 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
     }
 
     // Simplified HTML structure
+    const containsGreeting = message.trim().toLowerCase().startsWith('hi ') || 
+                            message.trim().toLowerCase().startsWith('hello ') ||
+                            message.trim().toLowerCase().startsWith('dear ') ||
+                            message.trim().toLowerCase().includes('\nhi ') ||
+                            message.trim().toLowerCase().includes('\nhello ');
+    
     const htmlBody = `
       <div style="font-family: sans-serif; font-size: 14px;">
-        <p>Hello ${recipientName},</p>
+        ${containsGreeting ? '' : `<p>Hello ${recipientName},</p>`}
         ${message}
         <br>
         <p>Regards,<br>${senderName}</p>

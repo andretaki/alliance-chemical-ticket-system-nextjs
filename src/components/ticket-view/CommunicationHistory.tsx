@@ -103,6 +103,10 @@ const isDraftReplyNote = (commentText: string | null): boolean => {
   return !!commentText && commentText.includes('**Suggested Reply');
 };
 
+const checkIsOrderStatusDraft = (commentText: string | null): boolean => {
+  return !!commentText && commentText.includes('**Order Status Found - Suggested Reply');
+};
+
 const extractDraftContent = (commentText: string | null): string => {
   if (!commentText) return '';
   const markerEnd = commentText.indexOf('**\n');
@@ -182,6 +186,7 @@ export default function CommunicationHistory({
 
         // Handle draft replies
         const isDraft = isDraftReplyNote(comment.commentText);
+        const hasOrderStatus = checkIsOrderStatusDraft(comment.commentText);
         const draftContent = isDraft ? extractDraftContent(comment.commentText) : '';
         const commentDate = parseDate(comment.createdAt);
 
@@ -214,25 +219,37 @@ export default function CommunicationHistory({
             
             {/* Message Content */}
             <div className={contentClasses}>
-              {isDraft ? (
+              {isDraft || hasOrderStatus ? (
                 <div className="draft-reply-section mt-2 p-3 border border-primary rounded bg-primary-subtle">
-                  <h6 className="text-primary fw-bold d-flex align-items-center"><i className="fas fa-robot me-2"></i> AI Suggested Reply</h6>
-                  <div className="comment-text pt-1 mb-3" style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>{draftContent}</div>
+                  <h6 className="text-primary fw-bold d-flex align-items-center">
+                    <i className={`fas ${hasOrderStatus ? 'fa-shipping-fast' : 'fa-robot'} me-2`}></i> 
+                    {hasOrderStatus ? 'Order Status Response' : 'AI Suggested Reply'}
+                  </h6>
+                  <div className="comment-text pt-1 mb-3" style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
+                    {hasOrderStatus 
+                      ? extractDraftContent(comment.commentText) 
+                      : draftContent}
+                  </div>
                   <div className="d-flex gap-2">
                     <button 
                       className="btn btn-sm btn-outline-secondary" 
-                      onClick={() => navigator.clipboard.writeText(draftContent)} 
+                      onClick={() => navigator.clipboard.writeText(hasOrderStatus 
+                        ? extractDraftContent(comment.commentText) 
+                        : draftContent)} 
                       title="Copy reply text"
                     >
                       <i className="fas fa-copy"></i> Copy
                     </button>
                     <button 
                       className="btn btn-sm btn-primary" 
-                      onClick={() => handleApproveAndSendDraft(draftContent)} 
+                      onClick={() => handleApproveAndSendDraft(hasOrderStatus 
+                        ? extractDraftContent(comment.commentText) 
+                        : draftContent)} 
                       disabled={isSubmittingComment} 
                       title="Send this reply as an email"
                     >
-                      <i className="fas fa-paper-plane me-1"></i> Approve & Send Email
+                      <i className="fas fa-paper-plane me-1"></i> 
+                      {hasOrderStatus ? 'Send Order Status' : 'Approve & Send Email'}
                     </button>
                   </div>
                 </div>
