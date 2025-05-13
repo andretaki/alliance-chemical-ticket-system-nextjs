@@ -2,6 +2,8 @@ import * as graphService from '@/lib/graphService';
 import { Message } from '@microsoft/microsoft-graph-types';
 import { ticketAttachments } from '@/db/schema';
 import { InferSelectModel } from 'drizzle-orm';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 // Define the type based on the schema
 type TicketAttachment = InferSelectModel<typeof ticketAttachments>;
@@ -39,6 +41,10 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
       conversationId
     } = options;
 
+    // Get the current user's session
+    const session = await getServerSession(authOptions);
+    const userEmail = session?.user?.email || 'sales@alliancechemical.com';
+
     // Create message object for threading
     // Use provided threading info if available, otherwise create dummy info
     const originalMessage: Message = {
@@ -75,12 +81,13 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
       </div>
     `;
 
-    // Send the email using graphService
+    // Send the email using graphService with the user's email
     return await graphService.sendEmailReply(
       recipientEmail,
       subject,
       htmlBody,
-      originalMessage
+      originalMessage,
+      userEmail // Pass the user's email as the sender
     );
   } catch (error) {
     console.error('Email Service: Error sending ticket reply email:', error);
@@ -114,6 +121,10 @@ export async function sendNotificationEmail(options: NotificationEmailOptions): 
       senderName = 'Ticket System' // Default sender name
     } = options;
 
+    // Get the current user's session
+    const session = await getServerSession(authOptions);
+    const userEmail = session?.user?.email || 'sales@alliancechemical.com';
+
     // Prepare the email content with a simple wrapper
     const formattedHtml = `
       <div style="font-family: sans-serif; font-size: 14px;">
@@ -127,7 +138,8 @@ export async function sendNotificationEmail(options: NotificationEmailOptions): 
       recipientEmail,
       subject,
       formattedHtml,
-      {} // Empty object for no threading info
+      {}, // Empty object for no threading info
+      userEmail // Pass the user's email as the sender
     );
 
     console.log(`NotificationService: Notification email sent successfully to ${recipientEmail}.`);

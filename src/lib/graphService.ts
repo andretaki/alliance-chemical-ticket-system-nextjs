@@ -9,7 +9,7 @@ import { Message, MailFolder, InternetMessageHeader } from '@microsoft/microsoft
 const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
 const clientId = process.env.MICROSOFT_GRAPH_CLIENT_ID;
 const clientSecret = process.env.MICROSOFT_GRAPH_CLIENT_SECRET;
-const userEmail = process.env.MICROSOFT_GRAPH_USER_EMAIL || 'sales@alliancechemical.com';
+export const userEmail = process.env.MICROSOFT_GRAPH_USER_EMAIL || 'sales@alliancechemical.com';
 
 // Validate required environment variables
 if (!tenantId || !clientId || !clientSecret) {
@@ -24,7 +24,7 @@ const authProvider = new TokenCredentialAuthenticationProvider(credential, {
 });
 
 // Initialize Microsoft Graph client
-const graphClient = Client.initWithMiddleware({
+export const graphClient = Client.initWithMiddleware({
   authProvider,
   defaultVersion: 'v1.0'
 });
@@ -206,7 +206,7 @@ export async function sendEmailReply(
       ccRecipients: [
         {
           emailAddress: {
-            address: userEmail, // This is 'sales@alliancechemical.com' by default
+            address: 'sales@alliancechemical.com',
           },
         },
       ],

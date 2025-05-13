@@ -1,0 +1,1181 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Email Deep Discovery Report</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f0f2f5; color: #333; line-height: 1.6; }
+        .container { max-width: 1400px; margin: 20px auto; padding: 25px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #4a90e2; }
+        header h1 { color: #2c3e50; margin: 0 0 10px 0; font-size: 2.2em; }
+        header p { color: #555; font-size: 0.9em; margin: 5px 0; }
+        .section { margin-bottom: 35px; padding: 20px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; }
+        .section h2 { color: #34495e; margin-top: 0; padding-bottom: 10px; border-bottom: 1px solid #bdc3c7; font-size: 1.6em; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 20px; }
+        .card { background-color: #fff; padding: 20px; border-radius: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-left: 5px solid #4a90e2; }
+        .card-title { font-size: 1.1em; font-weight: 600; color: #34495e; margin-bottom: 8px; }
+        .card-value { font-size: 2em; font-weight: 700; color: #4a90e2; }
+        .report-table-container { margin-top: 15px; }
+        .data-table { width: 100%; border-collapse: collapse; margin-top: 10px; background-color: #fff; }
+        .data-table th, .data-table td { border: 1px solid #ccc; padding: 10px 12px; text-align: left; font-size: 0.9em; word-break: break-word; }
+        .data-table th { background-color: #eef2f7; font-weight: 600; color: #2c3e50; }
+        .data-table tr:nth-child(even) { background-color: #f8fafd; }
+        .data-table tr:hover { background-color: #e2e8f0; }
+        .examples-section .card { margin-bottom: 20px; border-left-color: #27ae60; }
+        .example-subject { font-weight: bold; margin-bottom: 5px; }
+        .example-details { font-size: 0.85em; color: #555; margin-bottom: 8px; }
+        .example-summary, .example-insights { background-color: #e8f4f8; border: 1px solid #b0c4de; padding: 10px; margin-top: 8px; border-radius: 4px; white-space: pre-wrap; font-family: 'Courier New', Courier, monospace; font-size: 0.85em; max-height: 250px; overflow-y: auto; }
+        .chart-container { margin-top: 20px; padding:15px; background-color: #fff; border-radius: 5px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .tabs { display: flex; flex-wrap: wrap; margin-bottom: -1px; }
+        .tab { padding: 10px 15px; cursor: pointer; background-color: #eef2f7; border: 1px solid #ccc; border-bottom: none; margin-right: 5px; border-radius: 4px 4px 0 0; font-weight: 500; }
+        .tab.active { background-color: #fff; border-bottom: 1px solid #fff; position: relative; top: 1px; }
+        .tab-content { display: none; padding: 20px; border: 1px solid #ccc; border-radius: 0 4px 4px 4px;}
+        .tab-content.active { display: block; }
+        details { margin-bottom: 10px; }
+        summary { cursor: pointer; font-weight: bold; padding: 5px; background-color: #f0f0f0; border-radius: 3px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI Email Deep Discovery Report</h1>
+            <p>Analysis Period: 2025-05-10T15:08:27-05:00 to 2025-05-13T15:08:27-05:00</p>
+            <p>Report Generated: 2025-05-13 15:09:04 GMT-5</p>
+            <p>Script Version: 1.2.1_PureDiscovery</p>
+        </header>
+
+        <section class="section">
+            <h2>Overall Email Statistics</h2>
+            <div class="grid-container">
+                <div class="card"><div class="card-title">Total Emails Fetched</div><div class="card-value">100</div></div>
+                <div class="card"><div class="card-title">External Emails</div><div class="card-value">100</div></div>
+                <div class="card"><div class="card-title">Internal Emails</div><div class="card-value">0</div></div>
+                <div class="card"><div class="card-title">Deep Discovery Sample Size</div><div class="card-value">15</div></div>
+                <div class="card"><div class="card-title">AI Errors (Discovery)</div><div class="card-value" style="color:#2ecc71;">0</div></div>
+                <div class="card"><div class="card-title">Avg. Body Length (Discovery Sample)</div><div class="card-value">1882 chars</div></div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Deep Discovery Analysis Insights</h2>
+            <p>Based on a sample of 15 external emails, analyzed by Gemini (gemini-1.5-flash-latest).</p>
+            <div class="grid-container">
+                
+      <div class="report-table-container">
+        <h4>Discovered Primary Topics</h4>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Count</th><th>% of Sample</th></tr></thead>
+          <tbody><tr><td>Customer request for Safety Data Sheet (SDS)</td><td>1</td><td>6.7%</td></tr><tr><td>Customer Inquiry Regarding Order Delivery</td><td>1</td><td>6.7%</td></tr><tr><td>Order Confirmation and Shipping Details for Perchloroethylene</td><td>1</td><td>6.7%</td></tr><tr><td>Order Fulfillment and Inquiry for Larger Quantity</td><td>1</td><td>6.7%</td></tr><tr><td>Purchase Order Confirmation and Pricing Details for Acetic Acid</td><td>1</td><td>6.7%</td></tr><tr><td>Quotation Request for Chemical Products</td><td>1</td><td>6.7%</td></tr><tr><td>Order processing and delivery confirmation</td><td>1</td><td>6.7%</td></tr><tr><td>Quote Request and Inquiry about Subscription Service for Ethylene Glycol</td><td>1</td><td>6.7%</td></tr><tr><td>Order Discrepancy: Missing Gallons in Purchase Order #208904</td><td>1</td><td>6.7%</td></tr><tr><td>Refund Notification for Order 114-1158581-3977823</td><td>1</td><td>6.7%</td></tr><tr><td>Customer Inquiry: Identifying and Sourcing Retro Aluminum Cleaner</td><td>1</td><td>6.7%</td></tr><tr><td>Quote Request for Bulk Sodium Hydroxide</td><td>1</td><td>6.7%</td></tr><tr><td>Order #4412: Certificate of Analysis Request</td><td>1</td><td>6.7%</td></tr><tr><td>Request for PEG 200 sample and potential order</td><td>1</td><td>6.7%</td></tr><tr><td>Quotation for Propylene Glycol Products</td><td>1</td><td>6.7%</td></tr></tbody>
+        </table>
+      </div>
+                
+      <div class="report-table-container">
+        <h4>Discovered Sentiments</h4>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Count</th><th>% of Sample</th></tr></thead>
+          <tbody><tr><td>neutral</td><td>9</td><td>60.0%</td></tr><tr><td>positive</td><td>5</td><td>33.3%</td></tr><tr><td>negative</td><td>1</td><td>6.7%</td></tr></tbody>
+        </table>
+      </div>
+                
+      <div class="report-table-container">
+        <h4>Discovered Urgencies</h4>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Count</th><th>% of Sample</th></tr></thead>
+          <tbody><tr><td>medium</td><td>10</td><td>66.7%</td></tr><tr><td>low</td><td>5</td><td>33.3%</td></tr></tbody>
+        </table>
+      </div>
+                
+      <div class="report-table-container">
+        <h4>Discovered Complexities</h4>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Count</th><th>% of Sample</th></tr></thead>
+          <tbody><tr><td>simple</td><td>11</td><td>73.3%</td></tr><tr><td>moderate</td><td>4</td><td>26.7%</td></tr></tbody>
+        </table>
+      </div>
+                
+      <div class="report-table-container">
+        <h4>Discovered Automation Potentials</h4>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Count</th><th>% of Sample</th></tr></thead>
+          <tbody><tr><td>medium</td><td>7</td><td>46.7%</td></tr><tr><td>high</td><td>6</td><td>40.0%</td></tr><tr><td>low</td><td>2</td><td>13.3%</td></tr></tbody>
+        </table>
+      </div>
+                
+      <div class="report-table-container">
+        <h4>Aggregated Sub-Topics</h4>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Count</th><th>% of Sample</th></tr></thead>
+          <tbody><tr><td>Product Inquiry</td><td>3</td><td>6.7%</td></tr><tr><td>Order Confirmation</td><td>2</td><td>4.4%</td></tr><tr><td>Pricing Details</td><td>2</td><td>4.4%</td></tr><tr><td>SDS request</td><td>1</td><td>2.2%</td></tr><tr><td>Product: TCE (Trichloroethylene)</td><td>1</td><td>2.2%</td></tr><tr><td>Website issue</td><td>1</td><td>2.2%</td></tr><tr><td>Order Status</td><td>1</td><td>2.2%</td></tr><tr><td>Product: Specialty Denatured Alcohol</td><td>1</td><td>2.2%</td></tr><tr><td>Amazon Order Inquiry</td><td>1</td><td>2.2%</td></tr><tr><td>Shipping and Hazmat Fees</td><td>1</td><td>2.2%</td></tr><tr><td>Payment Terms</td><td>1</td><td>2.2%</td></tr><tr><td>Order Status Update</td><td>1</td><td>2.2%</td></tr><tr><td>Product Availability</td><td>1</td><td>2.2%</td></tr><tr><td>Packaging Options</td><td>1</td><td>2.2%</td></tr><tr><td>Shipping Information</td><td>1</td><td>2.2%</td></tr><tr><td>Chemicals: various industrial chemicals</td><td>1</td><td>2.2%</td></tr><tr><td>Quantity: large quantities in KG</td><td>1</td><td>2.2%</td></tr><tr><td>Location: Addis Ababa, Ethiopia</td><td>1</td><td>2.2%</td></tr><tr><td>Payment method</td><td>1</td><td>2.2%</td></tr><tr><td>Delivery ETA</td><td>1</td><td>2.2%</td></tr><tr><td>DOT Blitz Week impact</td><td>1</td><td>2.2%</td></tr><tr><td>Product Inquiry: Ethylene Glycol</td><td>1</td><td>2.2%</td></tr><tr><td>Subscription Service Inquiry</td><td>1</td><td>2.2%</td></tr><tr><td>Variable Restock Periods</td><td>1</td><td>2.2%</td></tr><tr><td>Order Fulfillment Issue</td><td>1</td><td>2.2%</td></tr><tr><td>Shipping Discrepancy</td><td>1</td><td>2.2%</td></tr><tr><td>Customer Service Request</td><td>1</td><td>2.2%</td></tr><tr><td>Order Refund</td><td>1</td><td>2.2%</td></tr><tr><td>Seller Fulfilled Order</td><td>1</td><td>2.2%</td></tr><tr><td>Sodium Hydroxide Refund</td><td>1</td><td>2.2%</td></tr><tr><td>Historical Product</td><td>1</td><td>2.2%</td></tr><tr><td>Chemical Composition</td><td>1</td><td>2.2%</td></tr><tr><td>Product Inquiry: Sodium Hydroxide</td><td>1</td><td>2.2%</td></tr><tr><td>Quantity: IBC tote</td><td>1</td><td>2.2%</td></tr><tr><td>Shipping Address</td><td>1</td><td>2.2%</td></tr><tr><td>Payment Confirmation</td><td>1</td><td>2.2%</td></tr><tr><td>CoA Request</td><td>1</td><td>2.2%</td></tr><tr><td>Sample Request</td><td>1</td><td>2.2%</td></tr><tr><td>Order Inquiry</td><td>1</td><td>2.2%</td></tr><tr><td>Shipping Logistics</td><td>1</td><td>2.2%</td></tr><tr><td>Bulk Purchase</td><td>1</td><td>2.2%</td></tr></tbody>
+        </table>
+      </div>
+            </div>
+            
+      <div class="report-table-container">
+        <h4>Aggregated Keywords (Top 20)</h4>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Count</th><th>% of Sample</th></tr></thead>
+          <tbody><tr><td>SDS</td><td>2</td><td>1.8%</td></tr><tr><td>Order ID</td><td>2</td><td>1.8%</td></tr><tr><td>CofA</td><td>2</td><td>1.8%</td></tr><tr><td>Alliance Chemical</td><td>2</td><td>1.8%</td></tr><tr><td>TCE</td><td>1</td><td>0.9%</td></tr><tr><td>Trichloroethylene</td><td>1</td><td>0.9%</td></tr><tr><td>Safety Data Sheet</td><td>1</td><td>0.9%</td></tr><tr><td>website</td><td>1</td><td>0.9%</td></tr><tr><td>contact form</td><td>1</td><td>0.9%</td></tr><tr><td>ASIN</td><td>1</td><td>0.9%</td></tr><tr><td>B0CTVF7YBD</td><td>1</td><td>0.9%</td></tr><tr><td>Specialty Denatured Alcohol</td><td>1</td><td>0.9%</td></tr><tr><td>4 Gallon Case</td><td>1</td><td>0.9%</td></tr><tr><td>Amazon</td><td>1</td><td>0.9%</td></tr><tr><td>Report questionable activity</td><td>1</td><td>0.9%</td></tr><tr><td>Perchloroethylene</td><td>1</td><td>0.9%</td></tr><tr><td>PCE</td><td>1</td><td>0.9%</td></tr><tr><td>PERC</td><td>1</td><td>0.9%</td></tr><tr><td>5 Gallon Pail</td><td>1</td><td>0.9%</td></tr><tr><td>72 units</td><td>1</td><td>0.9%</td></tr></tbody>
+        </table>
+      </div>
+            
+      <div class="report-table-container">
+        <h4>Aggregated Suggested Next Actions</h4>
+        <table class="data-table">
+          <thead><tr><th>Item</th><th>Count</th><th>% of Sample</th></tr></thead>
+          <tbody><tr><td>Send the requested SDS to Jana Gosselin</td><td>1</td><td>3.3%</td></tr><tr><td>Review website to ensure SDS is easily accessible</td><td>1</td><td>3.3%</td></tr><tr><td>Check order status using the provided order ID.</td><td>1</td><td>3.3%</td></tr><tr><td>Respond to the customer with the order's current status and estimated delivery date.</td><td>1</td><td>3.3%</td></tr><tr><td>Request full shipping address from John Bucco</td><td>1</td><td>3.3%</td></tr><tr><td>Calculate and communicate final shipping and hazmat costs to John Bucco</td><td>1</td><td>3.3%</td></tr><tr><td>Send invoice to Brian Roy</td><td>1</td><td>3.3%</td></tr><tr><td>Confirm availability of product in 55-gallon container from the same lot</td><td>1</td><td>3.3%</td></tr><tr><td>Send order acknowledgment to Aero Metals, Inc.</td><td>1</td><td>3.3%</td></tr><tr><td>Confirm shipment details with Aero Metals, Inc.</td><td>1</td><td>3.3%</td></tr><tr><td>Generate a quotation for the requested chemicals.</td><td>1</td><td>3.3%</td></tr><tr><td>Send the quotation to Solomon A. at sales@pernoengineering.com</td><td>1</td><td>3.3%</td></tr><tr><td>Confirm payment method with John Bucco</td><td>1</td><td>3.3%</td></tr><tr><td>Provide John Bucco with updated delivery ETA considering DOT Blitz Week</td><td>1</td><td>3.3%</td></tr><tr><td>Review pricing and subscription options for Ethylene Glycol.</td><td>1</td><td>3.3%</td></tr><tr><td>Contact Reese Cory to discuss flexible restocking options and production schedule.</td><td>1</td><td>3.3%</td></tr><tr><td>Verify the received quantity against the Purchase Order.</td><td>1</td><td>3.3%</td></tr><tr><td>Investigate the discrepancy and consider reshipping the missing gallons.</td><td>1</td><td>3.3%</td></tr><tr><td>Verify the refund in Seller Central</td><td>1</td><td>3.3%</td></tr><tr><td>Review the order details for any discrepancies</td><td>1</td><td>3.3%</td></tr><tr><td>Research historical aluminum cleaning products.</td><td>1</td><td>3.3%</td></tr><tr><td>Consult with a chemist specializing in cleaning agents.</td><td>1</td><td>3.3%</td></tr><tr><td>Generate a quote for the requested product and quantity.</td><td>1</td><td>3.3%</td></tr><tr><td>Send the quote to Chris Connell at Chris.c@GDBinternational.com</td><td>1</td><td>3.3%</td></tr><tr><td>Send the requested CoA to Chris Nocera</td><td>1</td><td>3.3%</td></tr><tr><td>Update order status in system</td><td>1</td><td>3.3%</td></tr><tr><td>Send the requested PEG 200 sample to Joan Nagel.</td><td>1</td><td>3.3%</td></tr><tr><td>Follow up with Joan Nagel regarding the potential order and shipping details.</td><td>1</td><td>3.3%</td></tr><tr><td>Review the quotation details.</td><td>1</td><td>3.3%</td></tr><tr><td>Contact Andre Taki if any questions or customization is needed.</td><td>1</td><td>3.3%</td></tr></tbody>
+        </table>
+      </div>
+            
+      <div class="report-table-container">
+        <h4>Discovered Entity Mentions</h4>
+        <table class="data-table">
+          <thead><tr><th>Entity Type</th><th>Total Mentions</th><th>Examples (up to 10)</th></tr></thead>
+          <tbody><tr><td>personNames</td><td>26</td><td>Jana Gosselin, Andre Taki, Herman, John Bucco, Brian Roy, Adnan Heikal, Adnan H., Shannon Barrett, Solomon A., Reese Cory</td></tr><tr><td>companyNames</td><td>24</td><td>Alliance Chemical, CA State University Chico, Amazon, RichClean, Fastenal Company, Aero Metals, Inc., PERNO Engineering, ELM Fieldsight, Alliance-Chemical-Store, UPS</td></tr><tr><td>monetaryAmounts</td><td>23</td><td>140.00, 10,080.00, 93.10, 75.00, 1,000.00, 2,000.00, 82.69, $92.21, $17.51, $3,950.00</td></tr><tr><td>productNames</td><td>20</td><td>TCE, Trichloroethylene, Specialty Denatured Alcohol 200 Proof 3A, Perchloroethylene (PCE, PERC), Acetic Acid Glacial Technical, Chrosion inhibitor LAN-82G, Ammonia 20%, Ethylene Glycol 50/50, gallon, Sodium Hydroxide 50% (Caustic Soda, Lye) - 55 Gallon Drum</td></tr><tr><td>dates</td><td>19</td><td>2025-05-12, 2025-05-13, 2025-05-05, 2025-05-09, 2025-05-06</td></tr><tr><td>locations</td><td>18</td><td>US, VA 23228, Taylor, Texas 76574, 1201 E. Lincolnway La Porte, IN 46350, 204 South Edmond Street Taylor, Texas 76574, Kirkos Subcity; Werada 07 | Legehar, Ras Mekonen St. | Mezid Plaza Bldg. 6th Floor Addis Ababa, Ethiopia, Texas, TX, 75056, Urbana, IL</td></tr><tr><td>orderNumber</td><td>5</td><td>113-7281134-3049000, 45109, 208904, 114-1158581-3977823, 4412</td></tr><tr><td>trackingNumber</td><td>2</td><td>1Z620Y1V0395575271, 1Z620Y1V0393185044</td></tr><tr><td>lotNumber</td><td>1</td><td>70820793549220525AL</td></tr></tbody>
+        </table>
+      </div>
+        </section>
+
+        <section class="section examples-section">
+            <h2>Examples by Discovered Primary Topic</h2>
+            <div class="tabs">
+                
+                    <div class="tab active" onclick="openTab(event, 'topic-0')">Customer request for Safety Data Sheet (SDS) (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-1')">Customer Inquiry Regarding Order Delivery (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-2')">Order Confirmation and Shipping Details for Perchloroethylene (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-3')">Order Fulfillment and Inquiry for Larger Quantity (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-4')">Purchase Order Confirmation and Pricing Details for Acetic Acid (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-5')">Quotation Request for Chemical Products (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-6')">Order processing and delivery confirmation (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-7')">Quote Request and Inquiry about Subscription Service for Ethylene Glycol (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-8')">Order Discrepancy: Missing Gallons in Purchase Order #208904 (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-9')">Refund Notification for Order 114-1158581-3977823 (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-10')">Customer Inquiry: Identifying and Sourcing Retro Aluminum Cleaner (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-11')">Quote Request for Bulk Sodium Hydroxide (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-12')">Order #4412: Certificate of Analysis Request (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-13')">Request for PEG 200 sample and potential order (1)</div>
+                
+                    <div class="tab " onclick="openTab(event, 'topic-14')">Quotation for Propylene Glycol Products (1)</div>
+                
+            </div>
+            
+                <div id="topic-0" class="tab-content active">
+                    <h3>Topic: Customer request for Safety Data Sheet (SDS)</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: RE: New customer message on May 12, 2025 at 3:22 pm</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DJAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Jana Gosselin requested the Safety Data Sheet (SDS) for Trichloroethylene (TCE) via the Alliance Chemical online store contact form. She reported being unable to find it on the website. The email includes contact information for follow-up.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Customer request for Safety Data Sheet (SDS)",
+  "subTopicsOrCategories": [
+    "SDS request",
+    "Product: TCE (Trichloroethylene)",
+    "Website issue"
+  ],
+  "customKeywords": [
+    "SDS",
+    "TCE",
+    "Trichloroethylene",
+    "Safety Data Sheet",
+    "website",
+    "contact form"
+  ],
+  "extractedEntities": {
+    "productNames": [
+      "TCE",
+      "Trichloroethylene"
+    ],
+    "companyNames": [
+      "Alliance Chemical",
+      "CA State University Chico"
+    ],
+    "locations": [
+      "US"
+    ],
+    "dates": [
+      "2025-05-12"
+    ],
+    "personNames": [
+      "Jana Gosselin",
+      "Andre Taki"
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "simple",
+  "automationPotential": "high",
+  "suggestedNextActions": [
+    "Send the requested SDS to Jana Gosselin",
+    "Review website to ensure SDS is easily accessible"
+  ],
+  "rawSummary": "Jana Gosselin requested the Safety Data Sheet (SDS) for Trichloroethylene (TCE) via the Alliance Chemical online store contact form.  She reported being unable to find it on the website. The email includes contact information for follow-up."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-1" class="tab-content ">
+                    <h3>Topic: Customer Inquiry Regarding Order Delivery</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: Order delivery inquiry from Amazon customer Herman(Order: 113-7281134-3049000)</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4GXAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> The email is a customer inquiry from Herman regarding order 113-7281134-3049000, which contains Specialty Denatured Alcohol. The customer's message is simply "Thank you God bless." The email is an automated message from Amazon relaying the customer's inquiry.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Customer Inquiry Regarding Order Delivery",
+  "subTopicsOrCategories": [
+    "Order Status",
+    "Product: Specialty Denatured Alcohol",
+    "Amazon Order Inquiry"
+  ],
+  "customKeywords": [
+    "Order ID",
+    "ASIN",
+    "B0CTVF7YBD",
+    "Specialty Denatured Alcohol",
+    "4 Gallon Case",
+    "Amazon",
+    "Report questionable activity"
+  ],
+  "extractedEntities": {
+    "orderNumber": "113-7281134-3049000",
+    "productNames": [
+      "Specialty Denatured Alcohol 200 Proof 3A"
+    ],
+    "companyNames": [
+      "Amazon"
+    ],
+    "personNames": [
+      "Herman"
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "low",
+  "estimatedComplexity": "simple",
+  "automationPotential": "high",
+  "suggestedNextActions": [
+    "Check order status using the provided order ID.",
+    "Respond to the customer with the order's current status and estimated delivery date."
+  ],
+  "rawSummary": "The email is a customer inquiry from Herman regarding order 113-7281134-3049000, which contains Specialty Denatured Alcohol.  The customer's message is simply \"Thank you God bless.\" The email is an automated message from Amazon relaying the customer's inquiry."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-2" class="tab-content ">
+                    <h3>Topic: Order Confirmation and Shipping Details for Perchloroethylene</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: RE: Merchant New Quote Notification</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DFAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> John Bucco confirmed an order of 72 units of Perchloroethylene from Alliance Chemical. Andre Taki needs the full shipping address to calculate shipping and hazmat fees. The total product cost is \$10,080.00.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Order Confirmation and Shipping Details for Perchloroethylene",
+  "subTopicsOrCategories": [
+    "Product Inquiry",
+    "Shipping and Hazmat Fees",
+    "Payment Terms"
+  ],
+  "customKeywords": [
+    "Perchloroethylene",
+    "PCE",
+    "PERC",
+    "5 Gallon Pail",
+    "72 units",
+    "hazmat fee",
+    "shipping address",
+    "terms",
+    "ACH options"
+  ],
+  "extractedEntities": {
+    "productNames": [
+      "Perchloroethylene (PCE, PERC)"
+    ],
+    "companyNames": [
+      "Alliance Chemical",
+      "RichClean"
+    ],
+    "locations": [
+      "VA 23228"
+    ],
+    "monetaryAmounts": [
+      "140.00",
+      "10,080.00"
+    ],
+    "dates": [
+      "2025-05-12"
+    ],
+    "personNames": [
+      "Andre Taki",
+      "John Bucco"
+    ]
+  },
+  "sentiment": "positive",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "moderate",
+  "automationPotential": "medium",
+  "suggestedNextActions": [
+    "Request full shipping address from John Bucco",
+    "Calculate and communicate final shipping and hazmat costs to John Bucco"
+  ],
+  "rawSummary": "John Bucco confirmed an order of 72 units of Perchloroethylene from Alliance Chemical.  Andre Taki needs the full shipping address to calculate shipping and hazmat fees.  The total product cost is \\$10,080.00."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-3" class="tab-content ">
+                    <h3>Topic: Order Fulfillment and Inquiry for Larger Quantity</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: RE: Order Update</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4GfAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Brian Roy from Fastenal is inquiring about the availability of a product in a larger 55-gallon container, matching the same lot number as a previous 5-gallon order. Adnan Heikal from Alliance Chemical confirms availability and offers to send an invoice. Outstanding documents (CofA, CofC, SDS) are also mentioned.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Order Fulfillment and Inquiry for Larger Quantity",
+  "subTopicsOrCategories": [
+    "Order Status Update",
+    "Product Availability",
+    "Packaging Options"
+  ],
+  "customKeywords": [
+    "instock",
+    "lot number",
+    "55 gallon container",
+    "CofA",
+    "CofC",
+    "SDS"
+  ],
+  "extractedEntities": {
+    "lotNumber": null,
+    "productNames": [],
+    "companyNames": [
+      "Alliance Chemical",
+      "Fastenal Company"
+    ],
+    "locations": [
+      "Taylor, Texas 76574"
+    ],
+    "monetaryAmounts": [],
+    "dates": [
+      "2025-05-13",
+      "2025-05-05",
+      "2025-05-05"
+    ],
+    "personNames": [
+      "Brian Roy",
+      "Adnan Heikal"
+    ]
+  },
+  "sentiment": "positive",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "simple",
+  "automationPotential": "medium",
+  "suggestedNextActions": [
+    "Send invoice to Brian Roy",
+    "Confirm availability of product in 55-gallon container from the same lot"
+  ],
+  "rawSummary": "Brian Roy from Fastenal is inquiring about the availability of a product in a larger 55-gallon container, matching the same lot number as a previous 5-gallon order.  Adnan Heikal from Alliance Chemical confirms availability and offers to send an invoice.  Outstanding documents (CofA, CofC, SDS) are also mentioned."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-4" class="tab-content ">
+                    <h3>Topic: Purchase Order Confirmation and Pricing Details for Acetic Acid</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: RE: New Purchase Order 45109 - Alliance Chemical</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DKAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> This email concerns purchase order 45109 from Aero Metals, Inc. to Alliance Chemical for 4 gallons of Acetic Acid Glacial Technical. Alliance Chemical confirms pricing at $93.10 plus $75.00 shipping, with a 1-2 business day lead time. The order acknowledgment should be sent to the appropriate contact at Aero Metals, Inc.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Purchase Order Confirmation and Pricing Details for Acetic Acid",
+  "subTopicsOrCategories": [
+    "Order Confirmation",
+    "Pricing Details",
+    "Shipping Information"
+  ],
+  "customKeywords": [
+    "Acetic Acid Glacial Technical",
+    "4 Gallon case",
+    "Purchase order 45109",
+    "Alliance Chemical",
+    "Aero Metals, Inc.",
+    "$93.10",
+    "Shipping; $75.00"
+  ],
+  "extractedEntities": {
+    "orderNumber": "45109",
+    "productNames": [
+      "Acetic Acid Glacial Technical"
+    ],
+    "companyNames": [
+      "Aero Metals, Inc.",
+      "Alliance Chemical"
+    ],
+    "locations": [
+      "1201 E. Lincolnway La Porte, IN 46350",
+      "204 South Edmond Street Taylor, Texas 76574"
+    ],
+    "monetaryAmounts": [
+      "93.10",
+      "75.00"
+    ],
+    "dates": [
+      "2025-05-12"
+    ],
+    "personNames": [
+      "Adnan H.",
+      "Shannon Barrett"
+    ]
+  },
+  "sentiment": "positive",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "simple",
+  "automationPotential": "high",
+  "suggestedNextActions": [
+    "Send order acknowledgment to Aero Metals, Inc.",
+    "Confirm shipment details with Aero Metals, Inc."
+  ],
+  "rawSummary": "This email concerns purchase order 45109 from Aero Metals, Inc. to Alliance Chemical for 4 gallons of Acetic Acid Glacial Technical.  Alliance Chemical confirms pricing at $93.10 plus $75.00 shipping, with a 1-2 business day lead time.  The order acknowledgment should be sent to the appropriate contact at Aero Metals, Inc."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-5" class="tab-content ">
+                    <h3>Topic: Quotation Request for Chemical Products</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: QUOTATION</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4D7AAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Solomon A. from PERNO Engineering in Addis Ababa, Ethiopia requests a quotation for various chemical products in large quantities (KG). The email lists seven chemicals and their required amounts.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Quotation Request for Chemical Products",
+  "subTopicsOrCategories": [
+    "Chemicals: various industrial chemicals",
+    "Quantity: large quantities in KG",
+    "Location: Addis Ababa, Ethiopia"
+  ],
+  "customKeywords": [
+    "quotation",
+    "Chrosion inhibitor LAN-82G",
+    "Ammonia 20%",
+    "Sodium nitrite",
+    "Sodium hydroxide 96%",
+    "Hydrochloric Acid 31%",
+    "Citric Acide 99%",
+    "Sulfamate 98%",
+    "KG"
+  ],
+  "extractedEntities": {
+    "productNames": [
+      "Chrosion inhibitor LAN-82G",
+      "Ammonia 20%",
+      "Sodium nitrite",
+      "Sodium hydroxide 96%",
+      "Hydrochloric Acid 31%",
+      "Citric Acide 99%",
+      "Sulfamate 98%"
+    ],
+    "companyNames": [
+      "PERNO Engineering"
+    ],
+    "locations": [
+      "Kirkos Subcity; Werada 07 | Legehar, Ras Mekonen St. | Mezid Plaza Bldg. 6th Floor Addis Ababa, Ethiopia"
+    ],
+    "monetaryAmounts": [
+      "1,000.00",
+      "2,000.00",
+      "1,500.00",
+      "8,000.00",
+      "28,000.00",
+      "400.00",
+      "8,500.00"
+    ],
+    "personNames": [
+      "Solomon A."
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "low",
+  "estimatedComplexity": "simple",
+  "automationPotential": "medium",
+  "suggestedNextActions": [
+    "Generate a quotation for the requested chemicals.",
+    "Send the quotation to Solomon A. at sales@pernoengineering.com"
+  ],
+  "rawSummary": "Solomon A. from PERNO Engineering in Addis Ababa, Ethiopia requests a quotation for various chemical products in large quantities (KG).  The email lists seven chemicals and their required amounts."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-6" class="tab-content ">
+                    <h3>Topic: Order processing and delivery confirmation</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: RE: Merchant New Quote Notification</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DsAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> John Bucco and Andre Taki are coordinating the payment and delivery of an order. The delivery may be delayed due to DOT Blitz Week. They are discussing payment via ACH or wire transfer and confirming the delivery time estimate.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Order processing and delivery confirmation",
+  "subTopicsOrCategories": [
+    "Payment method",
+    "Delivery ETA",
+    "DOT Blitz Week impact"
+  ],
+  "customKeywords": [
+    "ACH",
+    "WIRE",
+    "bank information",
+    "DOT Blitz Week",
+    "delivery",
+    "ETA",
+    "Texas",
+    "invoice"
+  ],
+  "extractedEntities": {
+    "companyNames": [
+      "Alliance Chemical",
+      "RichClean"
+    ],
+    "locations": [
+      "Texas"
+    ],
+    "dates": [
+      "2025-05-12"
+    ],
+    "personNames": [
+      "Andre Taki",
+      "John Bucco"
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "simple",
+  "automationPotential": "low",
+  "suggestedNextActions": [
+    "Confirm payment method with John Bucco",
+    "Provide John Bucco with updated delivery ETA considering DOT Blitz Week"
+  ],
+  "rawSummary": "John Bucco and Andre Taki are coordinating the payment and delivery of an order.  The delivery may be delayed due to DOT Blitz Week.  They are discussing payment via ACH or wire transfer and confirming the delivery time estimate."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-7" class="tab-content ">
+                    <h3>Topic: Quote Request and Inquiry about Subscription Service for Ethylene Glycol</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: Merchant New Quote Notification</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DgAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Reese Cory from ELM Fieldsight in TX requested a quote for 275 gallons of Ethylene Glycol 50/50 and inquired about a subscription service with variable restocking periods to align with their BESS cabinet manufacturing schedule. They need this coolant for their manufacturing process, but usage isn't consistent.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Quote Request and Inquiry about Subscription Service for Ethylene Glycol",
+  "subTopicsOrCategories": [
+    "Product Inquiry: Ethylene Glycol",
+    "Subscription Service Inquiry",
+    "Variable Restock Periods"
+  ],
+  "customKeywords": [
+    "Ethylene Glycol",
+    "50/50",
+    "275 Gallon IBC Tote",
+    "subscription service",
+    "variable restocking periods",
+    "BESS cabinets"
+  ],
+  "extractedEntities": {
+    "productNames": [
+      "Ethylene Glycol 50/50"
+    ],
+    "companyNames": [
+      "ELM Fieldsight",
+      "Alliance-Chemical-Store"
+    ],
+    "locations": [
+      "TX",
+      "75056"
+    ],
+    "monetaryAmounts": [],
+    "dates": [
+      "2025-05-12"
+    ],
+    "personNames": [
+      "Reese Cory"
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "moderate",
+  "automationPotential": "medium",
+  "suggestedNextActions": [
+    "Review pricing and subscription options for Ethylene Glycol.",
+    "Contact Reese Cory to discuss flexible restocking options and production schedule."
+  ],
+  "rawSummary": "Reese Cory from ELM Fieldsight in TX requested a quote for 275 gallons of Ethylene Glycol 50/50 and inquired about a subscription service with variable restocking periods to align with their BESS cabinet manufacturing schedule.  They need this coolant for their manufacturing process, but usage isn't consistent."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-8" class="tab-content ">
+                    <h3>Topic: Order Discrepancy: Missing Gallons in Purchase Order #208904</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: RE: Purchasing - Purchased Order# 208904</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DOAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Sean Latterell reported receiving only 1 gallon instead of 4 gallons as per Purchase Order #208904. Adnan Heikal from Alliance Chemical responded that the remaining 3 gallons have been shipped and provided UPS tracking numbers.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Order Discrepancy: Missing Gallons in Purchase Order #208904",
+  "subTopicsOrCategories": [
+    "Order Fulfillment Issue",
+    "Shipping Discrepancy",
+    "Customer Service Request"
+  ],
+  "customKeywords": [
+    "Purchased Order# 208904",
+    "3 remaining gallons",
+    "system error",
+    "UPS tracking numbers",
+    "1 gallon",
+    "4 gallon case"
+  ],
+  "extractedEntities": {
+    "orderNumber": "208904",
+    "trackingNumber": [
+      "1Z620Y1V0395575271",
+      "1Z620Y1V0393185044"
+    ],
+    "productNames": [
+      "gallon"
+    ],
+    "companyNames": [
+      "Alliance Chemical",
+      "UPS"
+    ],
+    "locations": [
+      "Urbana, IL",
+      "Taylor, Texas"
+    ],
+    "monetaryAmounts": [],
+    "dates": [
+      "2025-05-12",
+      "2025-05-09",
+      "2025-05-09"
+    ],
+    "personNames": [
+      "Sean latterell",
+      "Adnan Heikal",
+      "Samee Ullah"
+    ]
+  },
+  "sentiment": "negative",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "simple",
+  "automationPotential": "medium",
+  "suggestedNextActions": [
+    "Verify the received quantity against the Purchase Order.",
+    "Investigate the discrepancy and consider reshipping the missing gallons."
+  ],
+  "rawSummary": "Sean Latterell reported receiving only 1 gallon instead of 4 gallons as per Purchase Order #208904. Adnan Heikal from Alliance Chemical responded that the remaining 3 gallons have been shipped and provided UPS tracking numbers."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-9" class="tab-content ">
+                    <h3>Topic: Refund Notification for Order 114-1158581-3977823</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: Refund Initiated for Order 114-1158581-3977823</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DvAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Amazon sent a notification to AllianceChemical confirming a refund of USD 82.69 to CARL GOLDEN for order 114-1158581-3977823, which included Sodium Hydroxide. The refund reason is listed as a 'General adjustment'. AllianceChemical should verify the refund in their Seller Central account.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Refund Notification for Order 114-1158581-3977823",
+  "subTopicsOrCategories": [
+    "Order Refund",
+    "Seller Fulfilled Order",
+    "Sodium Hydroxide Refund"
+  ],
+  "customKeywords": [
+    "Refund Initiated",
+    "USD 82.69",
+    "CARL GOLDEN",
+    "Order ID",
+    "Sodium Hydroxide",
+    "Seller Fulfilled",
+    "General adjustment",
+    "Seller Central"
+  ],
+  "extractedEntities": {
+    "orderNumber": "114-1158581-3977823",
+    "productNames": [
+      "Sodium Hydroxide 50% (Caustic Soda, Lye) - 55 Gallon Drum"
+    ],
+    "companyNames": [
+      "Amazon",
+      "AllianceChemical"
+    ],
+    "monetaryAmounts": [
+      "82.69"
+    ],
+    "personNames": [
+      "CARL GOLDEN"
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "low",
+  "estimatedComplexity": "simple",
+  "automationPotential": "high",
+  "suggestedNextActions": [
+    "Verify the refund in Seller Central",
+    "Review the order details for any discrepancies"
+  ],
+  "rawSummary": "Amazon sent a notification to AllianceChemical confirming a refund of USD 82.69 to CARL GOLDEN for order 114-1158581-3977823, which included Sodium Hydroxide.  The refund reason is listed as a 'General adjustment'.  AllianceChemical should verify the refund in their Seller Central account."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-10" class="tab-content ">
+                    <h3>Topic: Customer Inquiry: Identifying and Sourcing Retro Aluminum Cleaner</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: New customer message on May 13, 2025 at 12:10 am</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4D1AAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Tim Koehler is inquiring about an old aluminum cleaning gel used for cookware and mag wheels, seeking its chemical composition and potential commercial viability. The product was used 60 years ago and was a simple, non-Teflon based aluminum compound.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Customer Inquiry: Identifying and Sourcing Retro Aluminum Cleaner",
+  "subTopicsOrCategories": [
+    "Product Inquiry",
+    "Historical Product",
+    "Chemical Composition"
+  ],
+  "customKeywords": [
+    "aluminum fry pans",
+    "gel cleaner",
+    "aluminum compound",
+    "burnt-on food",
+    "mag wheels",
+    "60 years ago",
+    "money-spinner"
+  ],
+  "extractedEntities": {
+    "productNames": [],
+    "companyNames": [],
+    "locations": [
+      "US"
+    ],
+    "monetaryAmounts": [],
+    "dates": [
+      "2025-05-13"
+    ],
+    "personNames": [
+      "Tim Koehler"
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "low",
+  "estimatedComplexity": "moderate",
+  "automationPotential": "low",
+  "suggestedNextActions": [
+    "Research historical aluminum cleaning products.",
+    "Consult with a chemist specializing in cleaning agents."
+  ],
+  "rawSummary": "Tim Koehler is inquiring about an old aluminum cleaning gel used for cookware and mag wheels, seeking its chemical composition and potential commercial viability.  The product was used 60 years ago and was a simple, non-Teflon based aluminum compound."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-11" class="tab-content ">
+                    <h3>Topic: Quote Request for Bulk Sodium Hydroxide</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: New customer message on May 13, 2025 at 11:11 am</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4ELAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Chris Connell from GDBinternational.com requested a quote for an IBC tote of 50% NaOH technical grade for wastewater treatment, to be shipped to Elizabethton, TN. The email was received on May 13, 2025.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Quote Request for Bulk Sodium Hydroxide",
+  "subTopicsOrCategories": [
+    "Product Inquiry: Sodium Hydroxide",
+    "Quantity: IBC tote",
+    "Shipping Address"
+  ],
+  "customKeywords": [
+    "quote",
+    "IBC tote",
+    "50% NaOH",
+    "technical grade",
+    "wastewater treatment",
+    "200 Smoky Mountain PL",
+    "Elizabethton TN"
+  ],
+  "extractedEntities": {
+    "productNames": [
+      "Sodium Hydroxide 50% Membrane Grade",
+      "50% NaOH technical grade"
+    ],
+    "companyNames": [
+      "GDBinternational.com"
+    ],
+    "locations": [
+      "200 Smoky Mountain PL. Elizabethton TN, 37643"
+    ],
+    "monetaryAmounts": [],
+    "dates": [
+      "2025-05-13"
+    ],
+    "personNames": [
+      "Chris Connell"
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "simple",
+  "automationPotential": "high",
+  "suggestedNextActions": [
+    "Generate a quote for the requested product and quantity.",
+    "Send the quote to Chris Connell at Chris.c@GDBinternational.com"
+  ],
+  "rawSummary": "Chris Connell from GDBinternational.com requested a quote for an IBC tote of 50% NaOH technical grade for wastewater treatment, to be shipped to Elizabethton, TN.  The email was received on May 13, 2025."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-12" class="tab-content ">
+                    <h3>Topic: Order #4412: Certificate of Analysis Request</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: RE: [Alliance Chemical] Payment for #4412 has been received</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DDAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Chris Nocera from Alta Biomed requests a Certificate of Analysis (CoA) for Alliance Chemical order #4412, for which payment has been received. The order includes Isopropyl Acetate and the relevant lot number is 70820793549220525AL.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Order #4412: Certificate of Analysis Request",
+  "subTopicsOrCategories": [
+    "Order Confirmation",
+    "Payment Confirmation",
+    "CoA Request"
+  ],
+  "customKeywords": [
+    "Payment for #4412 has been received",
+    "CofA",
+    "Lot 70820793549220525AL",
+    "Isopropyl Acetate",
+    "Order #4412",
+    "Alta Biomed",
+    "Alliance Chemical"
+  ],
+  "extractedEntities": {
+    "orderNumber": "4412",
+    "lotNumber": "70820793549220525AL",
+    "productNames": [
+      "Isopropyl Acetate 99.98% ACS Grade"
+    ],
+    "companyNames": [
+      "Alta Biomed",
+      "Alliance Chemical"
+    ],
+    "locations": [
+      "Taylor, Texas 76574",
+      "Carlsbad, CA 92011",
+      "Irvine CA 92614",
+      "United States"
+    ],
+    "monetaryAmounts": [
+      "$92.21",
+      "$17.51",
+      "$0.00",
+      "$109.72"
+    ],
+    "dates": [
+      "2025-05-12",
+      "2025-05-06"
+    ],
+    "personNames": [
+      "Adnan H. Heikal",
+      "Chris Nocera"
+    ]
+  },
+  "sentiment": "positive",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "simple",
+  "automationPotential": "high",
+  "suggestedNextActions": [
+    "Send the requested CoA to Chris Nocera",
+    "Update order status in system"
+  ],
+  "rawSummary": "Chris Nocera from Alta Biomed requests a Certificate of Analysis (CoA) for Alliance Chemical order #4412, for which payment has been received.  The order includes Isopropyl Acetate and the relevant lot number is 70820793549220525AL."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-13" class="tab-content ">
+                    <h3>Topic: Request for PEG 200 sample and potential order</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: RE: PEG 200</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DSAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> Joan Nagel from Bezwada Biomedical requests a 250 gm sample of PEG 200 due to higher-than-expected pH. Adnan Heikal from Alliance Chemical can ship a smaller sample (a pint) and discusses shipping options with FedEx. A potential order for PEG 200 is also being considered.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Request for PEG 200 sample and potential order",
+  "subTopicsOrCategories": [
+    "Sample Request",
+    "Order Inquiry",
+    "Shipping Logistics"
+  ],
+  "customKeywords": [
+    "PEG 200",
+    "sample",
+    "CoA's",
+    "pH",
+    "FedEx",
+    "shipping",
+    "lot",
+    "250 gm",
+    "pint"
+  ],
+  "extractedEntities": {
+    "lotNumber": null,
+    "productNames": [
+      "PEG 200"
+    ],
+    "companyNames": [
+      "Alliance Chemical",
+      "Bezwada Biomedical"
+    ],
+    "locations": [
+      "Taylor, Texas 76574"
+    ],
+    "monetaryAmounts": [],
+    "dates": [
+      "2025-05-12",
+      "2025-05-12",
+      "2025-05-12",
+      "2025-05-09"
+    ],
+    "personNames": [
+      "Adnan Heikal",
+      "Joan Nagel",
+      "Andre Taki"
+    ]
+  },
+  "sentiment": "neutral",
+  "perceivedUrgency": "medium",
+  "estimatedComplexity": "moderate",
+  "automationPotential": "medium",
+  "suggestedNextActions": [
+    "Send the requested PEG 200 sample to Joan Nagel.",
+    "Follow up with Joan Nagel regarding the potential order and shipping details."
+  ],
+  "rawSummary": "Joan Nagel from Bezwada Biomedical requests a 250 gm sample of PEG 200 due to higher-than-expected pH.  Adnan Heikal from Alliance Chemical can ship a smaller sample (a pint) and discusses shipping options with FedEx.  A potential order for PEG 200 is also being considered."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+                <div id="topic-14" class="tab-content ">
+                    <h3>Topic: Quotation for Propylene Glycol Products</h3>
+                    
+                        <div class="card">
+                            <p class="example-subject">Subject: Propylene Glycol</p>
+                            <p class="example-details">Email ID: AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4GLAAA=</p>
+                            <details>
+                                <summary>View AI Insights & Summary</summary>
+                                <div class="example-insights"><strong>AI Summary:</strong> This email provides a quotation for two types of Propylene Glycol (Technical Grade and USP Grade) to R. Bailey, each priced at $9,457.23 and $10,957.23 respectively, including shipping. The products are supplied in 275-gallon IBC totes. Contact information for Alliance Chemical is provided for further inquiries.</div>
+                                <div class="example-insights"><strong>Full AI Insights:</strong><pre>{
+  "primaryTopic": "Quotation for Propylene Glycol Products",
+  "subTopicsOrCategories": [
+    "Product Inquiry",
+    "Pricing Details",
+    "Bulk Purchase"
+  ],
+  "customKeywords": [
+    "Propylene Glycol",
+    "Technical Grade",
+    "USP Grade",
+    "275-Gallon IBC totes",
+    "Hazard Warning Label",
+    "Kosher Certified",
+    "Safety data sheets"
+  ],
+  "extractedEntities": {
+    "productNames": [
+      "Propylene Glycol"
+    ],
+    "companyNames": [
+      "Alliance Chemical"
+    ],
+    "monetaryAmounts": [
+      "$3,950.00",
+      "$7,900.00",
+      "$1,557.23",
+      "$9,457.23",
+      "$4,700.00",
+      "$9,400.00",
+      "$10,957.23"
+    ],
+    "personNames": [
+      "R. Bailey",
+      "Andre Taki"
+    ],
+    "contactInformation": {
+      "email": "Andre@alliancechemical.com",
+      "phone": "512-365-6838"
+    }
+  },
+  "sentiment": "positive",
+  "perceivedUrgency": "low",
+  "estimatedComplexity": "simple",
+  "automationPotential": "medium",
+  "suggestedNextActions": [
+    "Review the quotation details.",
+    "Contact Andre Taki if any questions or customization is needed."
+  ],
+  "rawSummary": "This email provides a quotation for two types of Propylene Glycol (Technical Grade and USP Grade) to R. Bailey, each priced at $9,457.23 and $10,957.23 respectively, including shipping.  The products are supplied in 275-gallon IBC totes.  Contact information for Alliance Chemical is provided for further inquiries."
+}</pre></div>
+                            </details>
+                        </div>
+                    
+                </div>
+            
+        </section>
+
+        <section class="section">
+            <h2>Email Volume Analysis (All Fetched Emails)</h2>
+            <div class="grid-container">
+                <div class="chart-container"><h4>Emails per Day</h4><canvas id="dailyVolumeChart"></canvas></div>
+                <div class="chart-container"><h4>Emails by Weekday</h4><canvas id="weekdayChart"></canvas></div>
+            </div>
+            <div class="chart-container" style="margin-top:20px;"><h4>Emails by Hour (UTC)</h4><canvas id="hourlyChart"></canvas></div>
+        </section>
+    </div>
+<script>
+    function openTab(evt, tabName) {
+        let i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tab-content");
+        for (i = 0; i < tabcontent.length; i++) {
+            tabcontent[i].style.display = "none";
+            tabcontent[i].classList.remove("active");
+        }
+        tablinks = document.getElementsByClassName("tab");
+        for (i = 0; i < tablinks.length; i++) {
+            tablinks[i].classList.remove("active");
+        }
+        const targetElement = document.getElementById(tabName);
+        if (targetElement) {
+            targetElement.style.display = "block";
+            targetElement.classList.add("active");
+        }
+        if (evt && evt.currentTarget) {
+            evt.currentTarget.classList.add("active");
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const chartConfig = (type, data, label, labelsOrUseDataKeys = true, dataObject = null) => {
+            const chartData = dataObject ? Object.values(dataObject) : data;
+            const chartLabels = labelsOrUseDataKeys === true && dataObject ? Object.keys(dataObject) : (Array.isArray(labelsOrUseDataKeys) ? labelsOrUseDataKeys : []);
+            const bgColors = ['#4a90e2', '#50e3c2', '#f5a623', '#bd10e0', '#9013fe', '#7ed321', '#e24a4a', '#f8e71c', '#d0021b', '#00bcd4', '#ff5722', '#8bc34a'];
+            return {
+                type: type,
+                data: {
+                    labels: chartLabels,
+                    datasets: [{ label: label, data: chartData, borderWidth: 1, backgroundColor: (type === 'pie' || type === 'doughnut') ? bgColors : '#4a90e2' }]
+                },
+                options: { responsive: true, maintainAspectRatio: true, scales: (type !== 'pie' && type !== 'doughnut') ? { y: { beginAtZero: true } } : {} }
+            };
+        };
+        
+        const dailyVolumeData = {"2025-05-13":57,"2025-05-12":43};
+        if (document.getElementById('dailyVolumeChart') && Object.keys(dailyVolumeData).length > 0) {
+            new Chart(document.getElementById('dailyVolumeChart'), chartConfig('bar', null, 'Emails per Day', true, dailyVolumeData));
+        }
+        
+        const weekdayData = {"Sunday":0,"Monday":43,"Tuesday":57,"Wednesday":0,"Thursday":0,"Friday":0,"Saturday":0};
+        if (document.getElementById('weekdayChart') && Object.values(weekdayData).some(v => v > 0)) {
+            const weekdayOrder = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            const sortedWeekdayDataObject = {};
+            weekdayOrder.forEach(day => { if (weekdayData[day] !== undefined) sortedWeekdayDataObject[day] = weekdayData[day]; });
+            new Chart(document.getElementById('weekdayChart'), chartConfig('pie', null, 'Emails by Weekday', true, sortedWeekdayDataObject));
+        }
+
+        const hourlyData = {"0":1,"1":2,"2":0,"3":0,"4":2,"5":1,"6":2,"7":0,"8":1,"9":1,"10":1,"11":1,"12":0,"13":2,"14":8,"15":12,"16":6,"17":6,"18":9,"19":22,"20":20,"21":1,"22":1,"23":1};
+        if (document.getElementById('hourlyChart') && Object.values(hourlyData).some(v => v > 0)) {
+            const hourlyLabels = Object.keys(hourlyData).map(h => `${String(h).padStart(2, '0')}:00 UTC`);
+            new Chart(document.getElementById('hourlyChart'), chartConfig('line', Object.values(hourlyData), 'Emails by Hour (UTC)', hourlyLabels));
+        }
+        
+        const firstTab = document.querySelector('.tab');
+        if (firstTab) firstTab.click(); else {
+            const firstTabContent = document.querySelector('.tab-content');
+            if (firstTabContent) firstTabContent.classList.add('active'); // Show first content if no tabs
+        }
+    });
+</script>
+</body>
+</html>

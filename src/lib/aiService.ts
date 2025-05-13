@@ -45,7 +45,7 @@ interface EmailTriageResult {
 }
 
 // --- Define the Structure for AI Output ---
-interface EmailAnalysisResult {
+export interface EmailAnalysisResult {
     ticketType: typeof validTicketTypes[number] | 'Other'; // Allow 'Other' as fallback
     orderNumber: string | null;
     trackingNumber: string | null;

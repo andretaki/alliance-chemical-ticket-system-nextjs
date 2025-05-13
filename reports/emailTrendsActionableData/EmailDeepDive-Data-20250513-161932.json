@@ -1,0 +1,4578 @@
+{
+  "scriptVersion": "1.3.2_FlashActionableData",
+  "analysisPeriod": {
+    "startDate": "2025-04-13T16:19:32-05:00",
+    "endDate": "2025-05-13T16:19:32-05:00"
+  },
+  "totalEmailsFetched": 1493,
+  "internalEmailsCount": 515,
+  "externalEmailsCount": 978,
+  "deepDiscoverySampleAnalyzedCount": 100,
+  "aiErrorsDuringDiscovery": 3,
+  "averageBodyLengthForDiscoverySample": 1783.52,
+  "emailVolumeStats": {
+    "byDay": {
+      "2025-05-13": 44,
+      "2025-05-12": 72,
+      "2025-05-11": 20,
+      "2025-05-10": 14,
+      "2025-05-09": 60,
+      "2025-05-08": 45,
+      "2025-05-07": 48,
+      "2025-05-06": 36,
+      "2025-05-05": 41,
+      "2025-05-04": 9,
+      "2025-05-03": 7,
+      "2025-05-02": 28,
+      "2025-05-01": 30,
+      "2025-04-30": 45,
+      "2025-04-29": 33,
+      "2025-04-28": 52,
+      "2025-04-26": 8,
+      "2025-04-25": 29,
+      "2025-04-24": 45,
+      "2025-04-23": 45,
+      "2025-04-22": 34,
+      "2025-04-21": 38,
+      "2025-04-20": 1,
+      "2025-04-19": 12,
+      "2025-04-18": 27,
+      "2025-04-17": 42,
+      "2025-04-16": 53,
+      "2025-04-15": 37,
+      "2025-04-14": 22,
+      "2025-04-13": 1
+    },
+    "byWeekday": {
+      "Sunday": 31,
+      "Monday": 225,
+      "Tuesday": 184,
+      "Wednesday": 191,
+      "Thursday": 162,
+      "Friday": 144,
+      "Saturday": 41
+    },
+    "byHourUTC": {
+      "0": 13,
+      "1": 13,
+      "2": 20,
+      "3": 7,
+      "4": 19,
+      "5": 15,
+      "6": 18,
+      "7": 8,
+      "8": 14,
+      "9": 7,
+      "10": 14,
+      "11": 20,
+      "12": 44,
+      "13": 55,
+      "14": 106,
+      "15": 107,
+      "16": 87,
+      "17": 90,
+      "18": 85,
+      "19": 78,
+      "20": 84,
+      "21": 33,
+      "22": 24,
+      "23": 17
+    }
+  },
+  "primaryTopics": {
+    "Shipping & Delivery Issue": 7,
+    "Order Inquiry": 10,
+    "Product Inquiry": 13,
+    "Billing & Invoice Issue": 6,
+    "Automated System Notification: Payment Received": 5,
+    "Automated System Notification: Abandoned Cart": 15,
+    "Quotation Request": 15,
+    "Automated System Notification": 11,
+    "Error: AI_Enhanced_API_Failure": 3,
+    "Sales/Service Solicitation (Outbound to Us)": 9,
+    "Other Customer Request (Specify)": 2,
+    "Account Management": 3,
+    "Technical Support / Product Defect": 1
+  },
+  "secondaryTopics": {
+    "Order Not Received": 1,
+    "Request for COA and Letter of Guarantee": 1,
+    "Request for COA and ISO certificate": 1,
+    "Overdue Payment": 1,
+    "Request for SDS": 1,
+    "Payment Confirmation": 5,
+    "High-Value Cart Abandonment": 11,
+    "Bulk Purchase Inquiry": 1,
+    "Unpaid Invoice Report": 1,
+    "Request for Ammonium Chloride Pricing": 1,
+    "Product Availability and Purchase Inquiry": 1,
+    "Damaged Goods": 1,
+    "Request for Quotation for MEK": 1,
+    "Request for Delivery Information": 1,
+    "Product Specification Inquiry": 1,
+    "High-Value Cart Recovery": 4,
+    "Invoice Request": 1,
+    "Lead Time and Product Availability": 1,
+    "Invoice Payment Confirmation": 1,
+    "Freight Transportation Services": 2,
+    "Request for part numbers": 1,
+    "Out of Office Auto Reply": 2,
+    "Usage Alert": 1,
+    "Freight Transportation Quote Request": 1,
+    "Request for price and dimensions": 1,
+    "Quote Acceptance and Shipping Details": 1,
+    "Request for price quote including freight": 1,
+    "Freight Services Offer": 1,
+    "New Quote Notification": 3,
+    "Pricing and Availability": 1,
+    "Request for product specifications and bid participation": 1,
+    "Payment Reminder": 1,
+    "Request for multiple chemicals": 1,
+    "High-Purity Minerals and Salts Product Promotion": 1,
+    "Quote Acceptance and Formalization": 1,
+    "Shipping and PO processing": 1,
+    "Ingredient Inquiry": 1,
+    "Purchase Order": 1,
+    "Supplier Information Request": 1,
+    "Package Missing/Not Received": 1,
+    "Price and Quantity Discount Inquiry": 1,
+    "Unpaid Invoices Preventing Order Processing": 1,
+    "Credit Application and Pricing Negotiation": 2,
+    "Order Placement and Invoice": 1,
+    "Order Placement and Pickup": 1,
+    "Price and Availability of Caustic Soda Pearls": 1,
+    "PFAS Regulatory Compliance Data Request": 1,
+    "Request for Isopropyl Acetate Quote": 1,
+    "Product Availability and Pricing": 1,
+    "Pricing and Lead Time Request": 1,
+    "Security Alert: Login Verification": 1,
+    "Request COA and SDS for Magnesium Hydroxide": 1,
+    "Request for Technical Data Sheet": 1,
+    "Damaged Product Return Request": 1,
+    "Inquiry about castor oil": 1,
+    "Return Authorization": 1,
+    "Introducing industrial chemical supply services": 1,
+    "Request for Deionized Water Quote": 1,
+    "Revised Quotation and Order Confirmation": 1,
+    "Request for perchloroethylene": 2,
+    "Seeking shipping opportunities": 1,
+    "Order Placement": 1,
+    "Supplier Onboarding": 1,
+    "Return Policy Inquiry": 1,
+    "Request for additional information and clarification": 1,
+    "Order Status Inquiry": 1,
+    "Export Declaration Requirement": 1,
+    "Invoice Discrepancy": 1,
+    "Freight Transportation Services Offer": 2,
+    "Shipping Rate Inquiry and Tracking Request": 1,
+    "Price Quote Request": 1,
+    "Order Tracking Request": 1,
+    "Product Inquiry for Delivery": 1
+  },
+  "tertiaryTopics": {
+    "Order #113-7281134-3049000": 2,
+    "Order # 4032, LOT # 70820797481380425AL": 1,
+    "PO 3221 - Ethyl Acetate": 1,
+    "$980.00 Cart Abandonment": 1,
+    "Over-pressurized Sodium Hypochlorite Tote": 1,
+    "$3115.78 Cart Abandonment": 1,
+    "$3888.00 Abandoned Cart": 1,
+    "$6010.51 Cart Abandonment": 1,
+    "PO 3004700, order# 3925": 1,
+    "Invoice 35759": 1,
+    "$1971.08 Cart Abandonment": 1,
+    "$1200 order": 1,
+    "$1834.19 Cart Abandonment": 1,
+    "Invoice Due in 5 Days": 1,
+    "PO 1012701": 1,
+    "Purchase Order #1012870": 1,
+    "Order #113-5566249-9784213 - Damaged Alliance Chemical Vinegar": 1,
+    "$3800.00 Cart Abandonment": 1,
+    "Order 111-7829989-8402641": 2,
+    "$3566.51 Cart Abandonment": 1,
+    "Supply of Hexane (GS-04949)": 1,
+    "$974.59 Cart Abandonment": 1,
+    "$1899.3 Cart Abandonment": 1,
+    "Order #4423": 1,
+    "Invoice 35866": 1,
+    "Order OPS10001199": 1,
+    "Order #3783": 1
+  },
+  "customerGoals": {
+    "To determine the status of their order and/or receive their order": 1,
+    "Obtain COA and Letter of Guarantee for order #4032": 1,
+    "Obtain the Certificate of Analysis (COA) and ISO certificate for a product shipment": 1,
+    "Resolve overdue payment issue to proceed with the order": 1,
+    "Obtain the safety data sheet (SDS) for the Sodium Hypochlorite they purchased": 1,
+    "Confirmation of payment for invoice #35980": 1,
+    "Recover abandoned shopping cart with a total value of $3910.37": 1,
+    "Obtain a price quote for filling a 275-gallon tote with vinegar": 1,
+    "Receive a weekly report of unpaid invoices.": 1,
+    "Obtain price quotes for ammonium chloride from Wisdom Corporation": 1,
+    "To determine if ammonium bifluoride is sold, and if so, purchase it for granite cleaning by Friday.": 1,
+    "Recover abandoned shopping cart": 11,
+    "Resolution for damaged sodium hypochlorite shipment": 1,
+    "Obtain a quotation for 100 units of MEK": 1,
+    "Purchase and receive 2 IBC totes of deionized water as soon as possible": 1,
+    "Determine if the urea product is water soluble for sprayer application": 1,
+    "Obtain the invoice for PO 3004700, order# 3925": 1,
+    "Determine the availability and lead time for specific Hydrogen Peroxide products.": 1,
+    "Confirm payment of invoice 35759 and ensure it's processed": 1,
+    "To offer freight transportation services and obtain potential business from the recipient.": 1,
+    "Obtain part numbers for isopropyl alcohol in different bottle sizes": 1,
+    "To inform the sender that the recipient is out of office and will respond later": 1,
+    "Understand and manage their Helpdesk ticket usage to avoid exceeding their plan limits.": 1,
+    "Obtain quotes for LTL and FTL freight transportation services": 1,
+    "Obtain a quote and dimensions for 5-gallon pails of Sodium Hydroxide": 1,
+    "Obtain a final quote including shipping and hazmat fees for 72 pails of Perchloroethylene": 1,
+    "Obtain a price quote for Isobutyl Alcohol 99% including freight charges to Medley, Florida": 1,
+    "To secure the recipient as a logistics partner for freight services.": 1,
+    "Receive a quote for Full Synthetic SAE 85W-140 Heavy Duty Gear Lubricant": 1,
+    "Receive a new quote for Isopropyl Alcohol": 1,
+    "Obtain pricing and availability for 70% Phosphoric acid in 270-gallon totes and delivery to White City, Oregon": 1,
+    "Obtain detailed product specifications, confirm suitability for their needs, and participate in the upcoming bid for high-purity fluorosilicic acid": 1,
+    "Pay outstanding invoices": 1,
+    "Obtain quotes for glycerine and other specified chemicals in various quantities": 1,
+    "To promote their high-purity minerals and salts products and attract potential customers.": 1,
+    "Obtain a formal quote for 72 units of Perchloroethylene and clarify shipping costs": 1,
+    "To get an ETA for PO 1012701 and clarify shipping account details": 1,
+    "Confirm the absence of animal-derived ingredients in food grade magnesium chloride": 1,
+    "To send a purchase order to Alro Steel Corporation": 1,
+    "Obtain completed supplier survey and AS/ISO certifications from Alliance Chemical": 1,
+    "Determine the whereabouts of the delivered package": 1,
+    "Obtain pricing and quantity discount information for tech grade 37% HCl": 1,
+    "To have purchase order #1012870 processed after paying outstanding invoices": 1,
+    "Establish a credit account with Alliance Chemical and negotiate pricing and payment terms for regular chemical orders.": 1,
+    "To place an order for Trichloroethylene and receive the invoice": 1,
+    "Confirmation of payment for invoice #36000": 1,
+    "Place an order for oxalic acid and pick it up the same day": 1,
+    "Obtain a price quotation for caustic soda pearls and necessary documentation for purchase": 1,
+    "Recover abandoned shopping cart with a value of $5601.79": 1,
+    "Provide Alliance Chemical's PFAS attestation data to WAP Sustainability for regulatory compliance": 1,
+    "Obtain a price quote for 2-5 gallons of Isopropyl Acetate (Technical Grade)": 1,
+    "Obtain price and lead time for isopropyl alcohol": 1,
+    "Obtain pricing and lead time for propylene glycol coolant": 1,
+    "Verify account access and prevent unauthorized logins": 1,
+    "Obtain COA and SDS to confirm suitability of Magnesium Hydroxide for cosmetic use": 1,
+    "Obtain the technical data sheet for 30% vinegar": 1,
+    "Establish a business account with Alliance Chemical, secure favorable pricing and payment terms, and obtain volume discounts for recurring chemical orders.": 1,
+    "Return the damaged product": 1,
+    "Obtain information on types, packing, and prices of castor oil and chemical equipment": 1,
+    "Inform sender of emailer's unavailability": 1,
+    "Return an item and receive a refund": 1,
+    "Recover abandoned shopping cart with a value of \\$11217.37": 1,
+    "Receive a quote for Nitric Acid": 1,
+    "To initiate a business relationship and potentially secure the recipient as a customer for their industrial chemical products.": 1,
+    "Obtain a price quote for deionized water": 1,
+    "Secure the supply of hexane at a discounted price": 1,
+    "Obtain a commercial offer for six tons of perchloroethylene (batch 504422002-18/08/44)": 2,
+    "Secure shipping contracts or provide quotations for shipments": 1,
+    "Purchase 4 gallons of Sodium Bisulfite": 1,
+    "Confirmation of payment for invoice #35995": 1,
+    "To onboard Alliance Chemical as a supplier by collecting necessary documentation.": 1,
+    "Inform seller of decision to keep item after reviewing return policy": 1,
+    "Obtain a detailed quotation for hexane supply, including delivery lead time, TDS, MSDS, and product image.": 1,
+    "Determine the location and delivery status of order #4423": 1,
+    "Recover abandoned shopping cart with a value of $2173.36": 1,
+    "To have the attached form completed and returned so that the cargo can be released for loading.": 1,
+    "Receive the correct invoice for PO 1012701 to facilitate payment": 1,
+    "Secure freight transportation services for their cargo between Canada and the USA.": 1,
+    "To solicit our business for freight transportation services.": 1,
+    "Obtain shipping rate quote and tracking number for order OPS10001199": 1,
+    "Receive confirmation of payment for invoice #35870": 1,
+    "Obtain a price quote for 125-150kg of citric acid monohydrate": 1,
+    "Obtain tracking information for order #3783 and confirm receipt by InfoSight": 1,
+    "To solicit our business for freight transportation services": 1,
+    "Confirmation of payment for invoice #35429": 1,
+    "Obtain a couple of totes of 25% sodium hydroxide delivered to Golden, CO": 1
+  },
+  "sentiments": {
+    "negative": 8,
+    "neutral": 68,
+    "positive": 21
+  },
+  "specificTones": {
+    "inquisitive": 47,
+    "urgent": 9,
+    "informative": 1,
+    "appreciative": 15,
+    "frustrated": 2
+  },
+  "complexitiesToResolve": {
+    "low": 64,
+    "very_low": 32,
+    "medium": 1
+  },
+  "rootCauseCategories": {
+    "Shipping/Delivery": 1,
+    "Missing documentation": 1,
+    "Payment Processing": 2,
+    "Order Fulfillment": 1,
+    "Customer abandoned cart": 14,
+    "Customer behavior": 1,
+    "Supplier Quality Issue": 1,
+    "Order Processing": 1,
+    "High ticket volume": 1,
+    "Overdue invoice": 1,
+    "Shipping Policy Clarification": 1,
+    "Supplier Communication": 1,
+    "Delivery Issue": 1,
+    "Regulatory Compliance": 1,
+    "Security": 1,
+    "missing_product_information": 1,
+    "Product Damage during Shipping": 1,
+    "Customer Change of Plans": 1,
+    "Pricing Discrepancy": 1,
+    "Customer Service": 1,
+    "Shipping Delay": 1,
+    "Customs Requirements": 1,
+    "Internal Process Error": 1,
+    "Shipping/Logistics": 1
+  },
+  "customerJourneyStages": {
+    "delivery_coordination": 1,
+    "order_fulfillment_update": 6,
+    "post_delivery_issue": 5,
+    "payment_confirmation": 9,
+    "order_placement": 21,
+    "pre_sales_inquiry": 31,
+    "billing_dispute": 2,
+    "quote_negotiation": 5,
+    "vendor_outreach_to_us": 9,
+    "automated_transactional_notice": 2,
+    "account_update": 4,
+    "return_or_refund_process": 2
+  },
+  "automationPotentialDistribution": {
+    "Score: 0.8": 35,
+    "Score: 0.2": 19,
+    "Score: 1.0": 11,
+    "Score: 0.9": 18,
+    "Score: 0.7": 9,
+    "Score: 0.6": 4,
+    "Score: 0.1": 1
+  },
+  "entityTypeCounts": {
+    "OrderID": 6,
+    "ASIN": 5,
+    "ProductName": 6,
+    "CustomerName": 7,
+    "Order Number": 2,
+    "Lot Number": 1,
+    "Customer Name": 10,
+    "Customer Email": 10,
+    "Customer Phone": 3,
+    "Customer Company": 1,
+    "Document Type": 2,
+    "Supplier Name": 1,
+    "Supplier Contact": 1,
+    "Supplier Email": 1,
+    "email": 5,
+    "phone_number": 5,
+    "lot_number": 1,
+    "company": 9,
+    "date": 5,
+    "PO Number": 3,
+    "Product": 34,
+    "Company": 67,
+    "Person": 37,
+    "Email": 67,
+    "Phone Number": 43,
+    "Address": 21,
+    "Website": 21,
+    "OrderSource": 1,
+    "Packaging": 4,
+    "CustomerEmail": 3,
+    "CustomerPhone": 3,
+    "CompanyName": 2,
+    "SDSLink": 1,
+    "SupplierName": 1,
+    "SupplierEmail": 1,
+    "SupplierPhone": 1,
+    "Invoice Number": 8,
+    "Payment Date": 5,
+    "Payment Amount": 1,
+    "Payment Method": 6,
+    "Authorization ID": 5,
+    "Company Name": 2,
+    "URL": 23,
+    "MonetaryValue": 23,
+    "Customer Phone Number": 1,
+    "Product URL": 1,
+    "Quantity": 32,
+    "Container Type": 1,
+    "Location": 9,
+    "Organization": 7,
+    "Date": 21,
+    "Specification": 4,
+    "Shipment Term": 1,
+    "Payment Term": 1,
+    "Customer": 1,
+    "Contact Person": 19,
+    "ChemicalCompound": 1,
+    "Material": 1,
+    "RFQ Number": 1,
+    "RFQ Date": 1,
+    "Account Number": 2,
+    "Contact Name": 5,
+    "Fax Number": 2,
+    "Email Address": 3,
+    "Vendor Name": 2,
+    "Vendor Address": 1,
+    "Item Number": 1,
+    "Manufacturer Brand Name": 1,
+    "Manufacturer Part Number": 1,
+    "Vendor Part Number": 1,
+    "Item Description": 1,
+    "UOM": 1,
+    "Ship To": 1,
+    "quantity": 10,
+    "product": 6,
+    "product_id": 1,
+    "location": 2,
+    "contact_person": 1,
+    "CountryCode": 1,
+    "FormTitle": 1,
+    "ProductUrl": 1,
+    "Contact Phone": 1,
+    "Product Code": 6,
+    "Amount": 1,
+    "Extension": 1,
+    "Identifier": 3,
+    "Contact Title": 1,
+    "Job Title": 1,
+    "Account Name": 1,
+    "Percentage": 1,
+    "MC Number": 4,
+    "Service Type": 6,
+    "Shipping Address": 5,
+    "Title": 2,
+    "Mailing Address": 1,
+    "SAM UEI": 1,
+    "CAGE Code": 1,
+    "CA Certification ID": 1,
+    "EIN": 1,
+    "Seller's Permit": 1,
+    "Unit": 3,
+    "UnitPrice": 1,
+    "Total Product Cost": 1,
+    "State": 5,
+    "Zip Code": 3,
+    "Phone": 10,
+    "Service": 16,
+    "DateTime": 1,
+    "LastName": 1,
+    "FirstName": 1,
+    "ZipCode": 1,
+    "CustomerAddress": 1,
+    "DeliveryLocation": 1,
+    "VendorName": 1,
+    "VendorEmail": 1,
+    "VendorPhone": 1,
+    "OrderValue": 2,
+    "Chemical Specification": 3,
+    "Standard": 1,
+    "chemical": 4,
+    "address": 2,
+    "website": 3,
+    "Industry": 5,
+    "Unit Price": 2,
+    "Total Amount": 1,
+    "Sales Representative": 1,
+    "Sales Representative Email": 1,
+    "Sales Representative Phone": 1,
+    "Quote System": 1,
+    "Order ID": 4,
+    "Shipping Account": 2,
+    "Handling Fee": 1,
+    "Purchase Order": 2,
+    "Document": 6,
+    "Fax": 1,
+    "Chemical": 14,
+    "Invoice": 3,
+    "Price": 10,
+    "Shipping Cost": 2,
+    "Invoice Amount": 4,
+    "Time": 1,
+    "price": 2,
+    "phone": 1,
+    "payment_term": 1,
+    "Regulation": 1,
+    "Grade": 1,
+    "Delivery Address": 1,
+    "Sender": 1,
+    "Recipient": 5,
+    "contact_name": 2,
+    "Verification Code": 1,
+    "Contact Information": 1,
+    "Country Code": 1,
+    "Product Name": 3,
+    "Document Request": 2,
+    "document": 2,
+    "person": 1,
+    "ReturnRequested": 1,
+    "ProblemDescription": 1,
+    "Contact": 1,
+    "Return Request Date": 1,
+    "SKU": 1,
+    "Return Quantity": 1,
+    "Return Reason": 1,
+    "Customer Comment": 1,
+    "ZIP Code": 1,
+    "Total Price": 1,
+    "Incoterm": 1,
+    "Pickup Address": 1,
+    "Lead Time": 1,
+    "Payment Terms": 1,
+    "Contact Person (Supplier)": 1,
+    "Contact Person (Customer)": 1,
+    "Company (Supplier)": 1,
+    "Company (Customer)": 1,
+    "Batch Number": 2,
+    "DOT Number": 3,
+    "SCAC Code": 1,
+    "Billing Address": 2,
+    "Purity": 1,
+    "Appearance": 1,
+    "Flash Point": 1,
+    "Boiling Point": 1,
+    "Density": 1,
+    "Solubility": 1,
+    "UN Classification": 1,
+    "Shelf Life": 1,
+    "Quotation ID": 1,
+    "order_id": 1,
+    "Order": 1,
+    "ITN Number": 1,
+    "Commodity Value": 1,
+    "Country": 2,
+    "Product Part Number": 1,
+    "Vendor Contact": 1,
+    "Vendor Email": 1,
+    "Vendor Phone": 1,
+    "Subtotal": 1,
+    "Tax": 1,
+    "Total": 1,
+    "Shipping Method": 1,
+    "Sender Email": 1,
+    "Recipient Email": 1,
+    "Software": 1,
+    "JobTitle": 1
+  },
+  "examplesByPrimaryTopic": {
+    "Shipping & Delivery Issue": [
+      {
+        "emailSubject": "Order delivery inquiry from Amazon customer Herman(Order: 113-7281134-3049000)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOiAKzKAAA=",
+        "insights": {
+          "primaryTopic": "Shipping & Delivery Issue",
+          "secondaryTopic": "Order Not Received",
+          "tertiaryTopic": "Order #113-7281134-3049000",
+          "customerGoal": "To determine the status of their order and/or receive their order",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "Customer Herman has not received order 113-7281134-3049000",
+            "associatedProduct": "Specialty Denatured Alcohol 200 Proof 3A - Formulated with Methanol - 4 Gallon Case",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "OrderID",
+              "value": "113-7281134-3049000",
+              "context": "Order ID"
+            },
+            {
+              "type": "ASIN",
+              "value": "B0CTVF7YBD",
+              "context": "Product Identifier"
+            },
+            {
+              "type": "ProductName",
+              "value": "Specialty Denatured Alcohol 200 Proof 3A - Formulated with Methanol - 4 Gallon Case",
+              "context": "Product Description"
+            },
+            {
+              "type": "CustomerName",
+              "value": "Herman",
+              "context": "Customer Name"
+            }
+          ],
+          "overallSentiment": "negative",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Shipping/Delivery",
+          "customerJourneyStageHint": "delivery_coordination",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Order ID: 113-7281134-3049000",
+            "Customer Name: Herman",
+            "Product: Specialty Denatured Alcohol 200 Proof 3A"
+          ],
+          "suggestedNextActions": [
+            "Check the order status and tracking information.",
+            "Contact the shipping carrier for updates.",
+            "Investigate potential delivery issues (e.g., incorrect address, lost package).",
+            "Contact the customer to gather more information and offer resolution."
+          ],
+          "rawSummary": "Customer Herman reports not receiving order 113-7281134-3049000 containing Specialty Denatured Alcohol.  Requires investigation into order status and delivery."
+        }
+      },
+      {
+        "emailSubject": "Quality question 12.5% Hypochlorite ",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaETmeAAA=",
+        "insights": {
+          "primaryTopic": "Shipping & Delivery Issue",
+          "secondaryTopic": "Damaged Goods",
+          "tertiaryTopic": "Over-pressurized Sodium Hypochlorite Tote",
+          "customerGoal": "Resolution for damaged sodium hypochlorite shipment",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "A tote of 12.5% wt sodium hypochlorite arrived over-pressurized, possibly due to decomposition.",
+            "associatedProduct": "12.5% wt sodium hypochlorite",
+            "urgencyToCustomer": "high"
+          },
+          "extractedEntities": [
+            {
+              "type": "Product",
+              "value": "12.5% wt sodium hypochlorite",
+              "context": "The tote of 12.5% wt sodium hypochlorite arrived yesterday."
+            },
+            {
+              "type": "Company",
+              "value": "Coastal Resource Group LLC",
+              "context": "Michael Burkett Inside Sales Coastal Resource Group LLC"
+            },
+            {
+              "type": "Person",
+              "value": "Michael Burkett",
+              "context": "Michael Burkett Inside Sales"
+            },
+            {
+              "type": "Location",
+              "value": "170 Tor Dr Seguin, TX 78155",
+              "context": "170 Tor Dr Seguin, TX 78155"
+            },
+            {
+              "type": "Phone Number",
+              "value": "936-445-8835",
+              "context": "Direct: 936-445-8835"
+            },
+            {
+              "type": "Phone Number",
+              "value": "281-549-4132",
+              "context": "Main: 281-549-4132"
+            },
+            {
+              "type": "Website",
+              "value": "WWW.COASTALRGP.COM",
+              "context": "WWW.COASTALRGP.COM"
+            }
+          ],
+          "overallSentiment": "negative",
+          "specificTones": [
+            "urgent"
+          ],
+          "estimatedComplexityToResolve": "medium",
+          "potentialRootCauseCategory": "Supplier Quality Issue",
+          "customerJourneyStageHint": "post_delivery_issue",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "Over-pressurized 12.5% wt sodium hypochlorite tote",
+            "Possible decomposition of sodium hypochlorite",
+            "Supplier quality complaint needed"
+          ],
+          "suggestedNextActions": [
+            "Contact supplier to file a formal quality complaint",
+            "Investigate the supplier's quality control procedures",
+            "Assess the extent of the damage and potential safety hazards",
+            "Determine appropriate compensation or replacement for the customer"
+          ],
+          "rawSummary": "Customer reports a damaged shipment of sodium hypochlorite, indicating over-pressurization possibly due to decomposition.  They request a formal quality complaint be filed with the supplier."
+        }
+      },
+      {
+        "emailSubject": "Order delivery inquiry from Amazon customer Herman(Order: 113-7281134-3049000)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DlAAA=",
+        "insights": {
+          "primaryTopic": "Shipping & Delivery Issue",
+          "secondaryTopic": "Package Missing/Not Received",
+          "tertiaryTopic": "Order #113-7281134-3049000",
+          "customerGoal": "Determine the whereabouts of the delivered package",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "The customer's package seems to have been delivered, but they did not receive it. Neighbors reported seeing the delivery but not the recipient picking it up.",
+            "associatedProduct": "Specialty Denatured Alcohol 200 Proof 3A - Formulated with Methanol - 4 Gallon Case",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "OrderID",
+              "value": "113-7281134-3049000"
+            },
+            {
+              "type": "ASIN",
+              "value": "B0CTVF7YBD"
+            },
+            {
+              "type": "ProductName",
+              "value": "Specialty Denatured Alcohol 200 Proof 3A - Formulated with Methanol - 4 Gallon Case"
+            },
+            {
+              "type": "CustomerName",
+              "value": "Herman"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Delivery Issue",
+          "customerJourneyStageHint": "post_delivery_issue",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.7,
+          "keyInformationForResolution": [
+            "Order ID: 113-7281134-3049000",
+            "Product Name: Specialty Denatured Alcohol 200 Proof 3A",
+            "Customer reported neighbors saw delivery but not the recipient picking it up."
+          ],
+          "suggestedNextActions": [
+            "Investigate delivery status with the shipping carrier.",
+            "Contact the customer to gather more information (e.g., exact delivery location, time of delivery reported by neighbors).",
+            "If necessary, initiate a lost/stolen package claim with the shipping carrier."
+          ],
+          "rawSummary": "Customer Herman (Order #113-7281134-3049000) inquires about a missing package containing \"Specialty Denatured Alcohol 200 Proof 3A\". Neighbors reported seeing the delivery but not the customer receiving it."
+        }
+      },
+      {
+        "emailSubject": "WHERES my order?",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfLsAAA=",
+        "insights": {
+          "primaryTopic": "Shipping & Delivery Issue",
+          "secondaryTopic": "Order Status Inquiry",
+          "tertiaryTopic": "Order #4423",
+          "customerGoal": "Determine the location and delivery status of order #4423",
+          "specificQuestionsAsked": [
+            "WHERE IS IT?"
+          ],
+          "problemReported": {
+            "description": "Order 4423 has not been received.",
+            "urgencyToCustomer": "high"
+          },
+          "extractedEntities": [
+            {
+              "type": "order_id",
+              "value": "4423",
+              "context": "Order number mentioned by the customer."
+            }
+          ],
+          "overallSentiment": "negative",
+          "specificTones": [
+            "frustrated",
+            "urgent"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Shipping Delay",
+          "customerJourneyStageHint": "order_fulfillment_update",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Order number: 4423"
+          ],
+          "suggestedNextActions": [
+            "Check order status using order number 4423.",
+            "Provide tracking information to the customer.",
+            "Investigate potential shipping delays."
+          ],
+          "rawSummary": "Customer is inquiring about the whereabouts of their order (4423), expressing frustration over its non-arrival."
+        }
+      },
+      {
+        "emailSubject": "LOA REQUEST",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcKavOAAA=",
+        "insights": {
+          "primaryTopic": "Shipping & Delivery Issue",
+          "secondaryTopic": "Export Declaration Requirement",
+          "customerGoal": "To have the attached form completed and returned so that the cargo can be released for loading.",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "The attached order requires a shipper export declaration to be filed for an ITN number as the commodity exceeds the value of $2500. This is a customs requirement and must be filed before the cargo can be released for loading.",
+            "urgencyToCustomer": "high"
+          },
+          "extractedEntities": [
+            {
+              "type": "Document",
+              "value": "shipper export declaration",
+              "context": "The attached order requires a shipper export declaration to be filed for an ITN number as the commodity exceeds the value of $2500."
+            },
+            {
+              "type": "Order",
+              "value": "attached order",
+              "context": "The attached order requires a shipper export declaration to be filed for an ITN number as the commodity exceeds the value of $2500."
+            },
+            {
+              "type": "ITN Number",
+              "value": "ITN number",
+              "context": "The attached order requires a shipper export declaration to be filed for an ITN number as the commodity exceeds the value of $2500."
+            },
+            {
+              "type": "Commodity Value",
+              "value": "$2500",
+              "context": "The attached order requires a shipper export declaration to be filed for an ITN number as the commodity exceeds the value of $2500."
+            },
+            {
+              "type": "Company",
+              "value": "Tropical Shipping",
+              "context": "This form authorizes Tropical Shipping to proceed with the filing required using the shippers tax ID number."
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "This bares no charge on Alliance Chemical, only the consignee paying for shipping charges."
+            },
+            {
+              "type": "Person",
+              "value": "Christine Cartagena",
+              "context": "Regards, Christine Cartagena Accounts Coordinator"
+            },
+            {
+              "type": "Phone Number",
+              "value": "(561)881-3900 EXT 26643",
+              "context": "Regards, Christine Cartagena Accounts Coordinator (561)881-3900 EXT 26643"
+            },
+            {
+              "type": "Address",
+              "value": "9505 NW 108th Avenue Medley, FL 33178",
+              "context": "Regards, Christine Cartagena Accounts Coordinator (561)881-3900 EXT 26643 9505 NW 108th Avenue Medley, FL 33178"
+            },
+            {
+              "type": "Website",
+              "value": "www.Tropical.com",
+              "context": "Regards, Christine Cartagena Accounts Coordinator (561)881-3900 EXT 26643 9505 NW 108th Avenue Medley, FL 33178 www.Tropical.com"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "urgent"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Customs Requirements",
+          "customerJourneyStageHint": "order_fulfillment_update",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "Complete and return the attached form.",
+            "Shipper export declaration required for ITN number.",
+            "Commodity value exceeds $2500."
+          ],
+          "suggestedNextActions": [
+            "Complete the attached form and return it to Christine Cartagena.",
+            "Follow up with Christine Cartagena if there are any questions or issues."
+          ],
+          "rawSummary": "Tropical Shipping requires Alliance Chemical to complete and return an attached form for a shipper export declaration due to the commodity value exceeding $2500.  This is a customs requirement before cargo can be released for loading.  There is no charge to Alliance Chemical; only the consignee pays shipping charges."
+        }
+      }
+    ],
+    "Order Inquiry": [
+      {
+        "emailSubject": "Re: Order# 4032",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOPyp9qAAA=",
+        "insights": {
+          "primaryTopic": "Order Inquiry",
+          "secondaryTopic": "Request for COA and Letter of Guarantee",
+          "tertiaryTopic": "Order # 4032, LOT # 70820797481380425AL",
+          "customerGoal": "Obtain COA and Letter of Guarantee for order #4032",
+          "specificQuestionsAsked": [
+            "Can I get a COA & Letter of Guarantee?"
+          ],
+          "problemReported": {
+            "description": "Customer needs COA and Letter of Guarantee for received order.",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "Order Number",
+              "value": "4032"
+            },
+            {
+              "type": "Lot Number",
+              "value": "70820797481380425AL"
+            },
+            {
+              "type": "Customer Name",
+              "value": "Scott Scripture"
+            },
+            {
+              "type": "Customer Email",
+              "value": "scott@Midwestcopacking.com"
+            },
+            {
+              "type": "Customer Phone",
+              "value": "262-933-1453"
+            },
+            {
+              "type": "Customer Company",
+              "value": "Midwest Co-Packing"
+            },
+            {
+              "type": "Document Type",
+              "value": "COA"
+            },
+            {
+              "type": "Document Type",
+              "value": "Letter of Guarantee"
+            },
+            {
+              "type": "Supplier Name",
+              "value": "Alliance Chemical"
+            },
+            {
+              "type": "Supplier Contact",
+              "value": "Adnan Heikal"
+            },
+            {
+              "type": "Supplier Email",
+              "value": "adnan.heikal@alliancechemical.com"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "order_fulfillment_update",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Order # 4032",
+            "LOT # 70820797481380425AL",
+            "COA",
+            "Letter of Guarantee"
+          ],
+          "suggestedNextActions": [
+            "Send COA and Letter of Guarantee to Scott Scripture"
+          ],
+          "rawSummary": "Midwest Co-Packing's Scott Scripture requests a COA and Letter of Guarantee for order # 4032, LOT # 70820797481380425AL.  Alliance Chemical's Adnan Heikal confirms he will send the COA."
+        }
+      },
+      {
+        "emailSubject": "Re: Sodium Hypochlorite 12.5 % SDS",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4CuAAA=",
+        "insights": {
+          "primaryTopic": "Order Inquiry",
+          "secondaryTopic": "Request for SDS",
+          "customerGoal": "Obtain the safety data sheet (SDS) for the Sodium Hypochlorite they purchased",
+          "specificQuestionsAsked": [
+            "Could you please send me the sds sheet for the Sodium Hypochlorite 12.5 % -4X5 gallon pails that I purchased from Amazon?"
+          ],
+          "problemReported": {
+            "description": "Customer needs the SDS for their Sodium Hypochlorite order.",
+            "associatedProduct": "Sodium Hypochlorite 12.5 % - 4X5 gallon pails",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "ProductName",
+              "value": "Sodium Hypochlorite 12.5 %",
+              "context": "Product purchased from Amazon"
+            },
+            {
+              "type": "OrderSource",
+              "value": "Amazon",
+              "context": "Where the product was purchased"
+            },
+            {
+              "type": "Packaging",
+              "value": "4X5 gallon pails",
+              "context": "Packaging of the product"
+            },
+            {
+              "type": "CustomerName",
+              "value": "Khider Abdmeziem",
+              "context": "Sender of the email"
+            },
+            {
+              "type": "CustomerEmail",
+              "value": "khider.abdmeziem@veolia.com",
+              "context": "Sender's email address"
+            },
+            {
+              "type": "CustomerPhone",
+              "value": "+1 780 714 4708",
+              "context": "Sender's phone number"
+            },
+            {
+              "type": "CompanyName",
+              "value": "WATER TECHNOLOGIES & SOLUTIONS",
+              "context": "Sender's company"
+            },
+            {
+              "type": "SDSLink",
+              "value": "https://alliancechemical.com/cdn/shop/files/sodium-hypochlorite-12.5_-nsf.pdf?v=5253656168948604144",
+              "context": "Link to SDS provided by Adnan Heikal"
+            },
+            {
+              "type": "SupplierName",
+              "value": "Alliance Chemical",
+              "context": "Supplier of the product"
+            },
+            {
+              "type": "SupplierEmail",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "Supplier's contact email"
+            },
+            {
+              "type": "SupplierPhone",
+              "value": "512.365.6838",
+              "context": "Supplier's phone number"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Order Fulfillment",
+          "customerJourneyStageHint": "post_delivery_issue",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Sodium Hypochlorite 12.5 % SDS",
+            "Amazon order",
+            "4X5 gallon pails"
+          ],
+          "suggestedNextActions": [
+            "Send the SDS to Khider Abdmeziem via email.",
+            "Confirm receipt of SDS by Khider."
+          ],
+          "rawSummary": "Khider Abdmeziem from Water Technologies & Solutions requests the SDS for Sodium Hypochlorite 12.5% (4X5 gallon pails) purchased via Amazon.  Adnan Heikal from Alliance Chemical has already provided a link to the SDS."
+        }
+      },
+      {
+        "emailSubject": "2 IBC TOTES - deonized water ",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOXooFFAAA=",
+        "insights": {
+          "primaryTopic": "Order Inquiry",
+          "secondaryTopic": "Request for Delivery Information",
+          "customerGoal": "Purchase and receive 2 IBC totes of deionized water as soon as possible",
+          "specificQuestionsAsked": [
+            "Can you please confirm how to proceed to get this shipped asap?"
+          ],
+          "extractedEntities": [
+            {
+              "type": "quantity",
+              "value": "2",
+              "context": "2 IBC totes"
+            },
+            {
+              "type": "product",
+              "value": "deionized water",
+              "context": "2 IBC totes of deionized water"
+            },
+            {
+              "type": "product_id",
+              "value": "22-QLTY-ZL1O",
+              "context": "item 22-QLTY-ZL1O"
+            },
+            {
+              "type": "location",
+              "value": "Winter Garden, Florida",
+              "context": "delivery ASAP in Winter Garden, Florida"
+            },
+            {
+              "type": "contact_person",
+              "value": "Lona Ruiz",
+              "context": "Best regards, Lona Ruiz"
+            },
+            {
+              "type": "company",
+              "value": "prodalim",
+              "context": "www.prodalim.com"
+            },
+            {
+              "type": "phone_number",
+              "value": "+33 7 81 16 40 24",
+              "context": "+33 7 81 16 40 24"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "order_placement",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Product ID: 22-QLTY-ZL1O",
+            "Quantity: 2 IBC totes",
+            "Delivery Location: Winter Garden, Florida",
+            "Customer Contact: Lona Ruiz, +33 7 81 16 40 24"
+          ],
+          "suggestedNextActions": [
+            "Check product availability",
+            "Confirm shipping options and costs",
+            "Provide shipping quote and confirmation to Lona Ruiz",
+            "Arrange for delivery"
+          ],
+          "rawSummary": "Lona Ruiz from prodalim requests to purchase 2 IBC totes of deionized water (item 22-QLTY-ZL1O) for ASAP delivery to Winter Garden, Florida.  She asks for confirmation on how to proceed with the order."
+        }
+      },
+      {
+        "emailSubject": "RE: Lead time on Hydrogen Peroxide",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfNeAAA=",
+        "insights": {
+          "primaryTopic": "Order Inquiry",
+          "secondaryTopic": "Lead Time and Product Availability",
+          "customerGoal": "Determine the availability and lead time for specific Hydrogen Peroxide products.",
+          "specificQuestionsAsked": [
+            "Can you tell me if you have any of these in stock or how long the lead time would be?",
+            "if either versions of these are stabilized with an acid?"
+          ],
+          "extractedEntities": [
+            {
+              "type": "Product",
+              "value": "Hydrogen Peroxide 30% Technical Grade",
+              "context": "Inquiry about product availability and lead time"
+            },
+            {
+              "type": "Product",
+              "value": "Hydrogen Peroxide 30% ACS Grade",
+              "context": "Inquiry about product availability and lead time"
+            },
+            {
+              "type": "Quantity",
+              "value": "1 Gallon",
+              "context": "Product quantity"
+            },
+            {
+              "type": "Quantity",
+              "value": "5 Gallon",
+              "context": "Product quantity"
+            },
+            {
+              "type": "Product Code",
+              "value": "L4F-FLU-YFQ",
+              "context": "Product identification code"
+            },
+            {
+              "type": "Product Code",
+              "value": "5R6-HJR-751",
+              "context": "Product identification code"
+            },
+            {
+              "type": "Product Code",
+              "value": "6PD-07C-TVQ",
+              "context": "Product identification code"
+            },
+            {
+              "type": "Product Code",
+              "value": "E4X-Z8F-VG8",
+              "context": "Product identification code"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Supplier of Hydrogen Peroxide"
+            },
+            {
+              "type": "Person",
+              "value": "Amber Kelly",
+              "context": "Buyer at Frencken America Inc."
+            },
+            {
+              "type": "Person",
+              "value": "Andre Taki",
+              "context": "Sales representative at Alliance Chemical"
+            },
+            {
+              "type": "Date",
+              "value": "May 08, 2025",
+              "context": "Date of email exchange"
+            },
+            {
+              "type": "Email",
+              "value": "amber.kelly@frenckengroup.com",
+              "context": "Email address of the buyer"
+            },
+            {
+              "type": "Email",
+              "value": "andre@alliancechemical.com",
+              "context": "Email address of the sales representative"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512-365-6838",
+              "context": "Phone number of Andre Taki"
+            },
+            {
+              "type": "Company",
+              "value": "Frencken America Inc.",
+              "context": "Buyer's company"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Hydrogen Peroxide product codes",
+            "Product quantities",
+            "Lead time requirements"
+          ],
+          "suggestedNextActions": [
+            "Check stock availability for requested products",
+            "Provide a formal quote if requested",
+            "Answer the question about acid stabilization"
+          ],
+          "rawSummary": "Amber Kelly from Frencken America Inc. inquires about the availability and lead time of specific Hydrogen Peroxide products (30% Technical and ACS grades, in 1 and 5-gallon containers). She also asks if the products are stabilized with an acid. Andre Taki from Alliance Chemical responds with stock information and lead times."
+        }
+      },
+      {
+        "emailSubject": "Re: [EXTERNAL]RE: Quote request for 5 gallons of Glycerin USP Grade ",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOPyp8aAAA=",
+        "insights": {
+          "primaryTopic": "Order Inquiry",
+          "secondaryTopic": "Shipping and PO processing",
+          "tertiaryTopic": "PO 1012701",
+          "customerGoal": "To get an ETA for PO 1012701 and clarify shipping account details",
+          "specificQuestionsAsked": [
+            "Can I have ETA for PO 1012701?",
+            "Did you have a question about our FedEx account?"
+          ],
+          "problemReported": {
+            "description": "Uncertainty about PO processing and shipping account acceptance",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "Order ID",
+              "value": "1012701",
+              "context": "ETA for PO 1012701"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Sender's company"
+            },
+            {
+              "type": "Company",
+              "value": "MPBio",
+              "context": "Receiver's company"
+            },
+            {
+              "type": "Person",
+              "value": "Amber Short",
+              "context": "Chemical Buyer at MPBio"
+            },
+            {
+              "type": "Person",
+              "value": "Adnan Heikal",
+              "context": "From Alliance Chemical"
+            },
+            {
+              "type": "Shipping Account",
+              "value": "FedEx",
+              "context": "Shipping account used by MPBio"
+            },
+            {
+              "type": "Shipping Account",
+              "value": "479-559",
+              "context": "UPS account number provided by MPBio"
+            },
+            {
+              "type": "Address",
+              "value": "29525 Fountain Parkway Solon, OH 44139",
+              "context": "MPBio's address"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512.365.6838",
+              "context": "Alliance Chemical's office number"
+            },
+            {
+              "type": "Email",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "Sender's email"
+            },
+            {
+              "type": "Email",
+              "value": "Amber.Short@mpbio.com",
+              "context": "Receiver's email"
+            },
+            {
+              "type": "Website",
+              "value": "www.mpbio.com",
+              "context": "MPBio's website"
+            },
+            {
+              "type": "Website",
+              "value": "www.alliancechemical.com",
+              "context": "Alliance Chemical's website"
+            },
+            {
+              "type": "Handling Fee",
+              "value": "$50",
+              "context": "Handling fee for using customer shipping account"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Shipping Policy Clarification",
+          "customerJourneyStageHint": "order_fulfillment_update",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "PO 1012701",
+            "FedEx account details",
+            "UPS account 479-559",
+            "$50 handling fee for customer shipping accounts"
+          ],
+          "suggestedNextActions": [
+            "Verify FedEx account details and shipping policy",
+            "Provide ETA for PO 1012701",
+            "Confirm if UPS account is acceptable",
+            "Process PO 1012701"
+          ],
+          "rawSummary": "This email chain is about an order inquiry for 5 gallons of Glycerin USP Grade (PO 1012701).  MPBio (Amber Short) is requesting an ETA and clarifying whether their FedEx account is acceptable for shipping. Alliance Chemical (Adnan Heikal) responds, stating a $50 handling fee for customer shipping accounts and that FedEx ground accounts are not accepted.  MPBio then provides their UPS account number."
+        }
+      }
+    ],
+    "Product Inquiry": [
+      {
+        "emailSubject": "Re: COA & ISO cert request",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcch32AAA=",
+        "insights": {
+          "primaryTopic": "Product Inquiry",
+          "secondaryTopic": "Request for COA and ISO certificate",
+          "customerGoal": "Obtain the Certificate of Analysis (COA) and ISO certificate for a product shipment",
+          "specificQuestionsAsked": [
+            "Are you a distributor of other?",
+            "Please provide order number and lot number so I can get the COA sent over"
+          ],
+          "problemReported": {
+            "description": "The customer needs a COA and ISO certificate for a product shipment, but the supplier is not ISO certified.",
+            "associatedProduct": null,
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "email",
+              "value": "adnan.heikal@alliancechemical.com"
+            },
+            {
+              "type": "email",
+              "value": "jtran@rdmedicalproducts.com"
+            },
+            {
+              "type": "phone_number",
+              "value": "512.365.6838"
+            },
+            {
+              "type": "lot_number",
+              "value": "70820825661860325AL"
+            },
+            {
+              "type": "company",
+              "value": "Alliance Chemical"
+            },
+            {
+              "type": "company",
+              "value": "RD Medical Products"
+            },
+            {
+              "type": "date",
+              "value": "May 5, 2025"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Missing documentation",
+          "customerJourneyStageHint": "post_delivery_issue",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "COA",
+            "ISO certificate",
+            "Lot number: 70820825661860325AL",
+            "Order number"
+          ],
+          "suggestedNextActions": [
+            "Check if manufacturer's ISO certificate can be provided instead.",
+            "Request order number and lot number from James Tran.",
+            "Provide COA once order and lot numbers are received."
+          ],
+          "rawSummary": "James Tran requested a COA and ISO certificate from Adnan Heikal at Alliance Chemical.  Adnan initially stated that no certificate was available because Alliance Chemical is not ISO certified.  After further communication, Adnan requested the order and lot number from James to locate the COA.  The lot number provided was 70820825661860325AL.  Alliance Chemical may be able to provide the manufacturer's ISO certificate if they are a distributor."
+        }
+      },
+      {
+        "emailSubject": "Ammonium no fluoride",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOWhwjUAAA=",
+        "insights": {
+          "primaryTopic": "Product Inquiry",
+          "secondaryTopic": "Product Availability and Purchase Inquiry",
+          "customerGoal": "To determine if ammonium bifluoride is sold, and if so, purchase it for granite cleaning by Friday.",
+          "specificQuestionsAsked": [
+            "Do you sell Ammonium bifluoride?",
+            "I need it for Friday. Please let us know"
+          ],
+          "extractedEntities": [
+            {
+              "type": "ChemicalCompound",
+              "value": "Ammonium bifluoride",
+              "context": "Do you sell Ammonium bifluoride."
+            },
+            {
+              "type": "Material",
+              "value": "granite",
+              "context": "we need it to clean granite"
+            },
+            {
+              "type": "Date",
+              "value": "Friday",
+              "context": "I need it for Friday"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive",
+            "urgent"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Ammonium bifluoride availability",
+            "Friday deadline"
+          ],
+          "suggestedNextActions": [
+            "Check inventory for Ammonium bifluoride",
+            "Respond to customer regarding availability and order process"
+          ],
+          "rawSummary": "Customer inquiry about the availability of Ammonium bifluoride for granite cleaning, needed by Friday."
+        }
+      },
+      {
+        "emailSubject": "New customer message on April 23, 2025 at 10:46 pm",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOWhwlTAAA=",
+        "insights": {
+          "primaryTopic": "Product Inquiry",
+          "secondaryTopic": "Product Specification Inquiry",
+          "customerGoal": "Determine if the urea product is water soluble for sprayer application",
+          "specificQuestionsAsked": [
+            "Is your urea water soluble so it can be used in a sprayer?"
+          ],
+          "extractedEntities": [
+            {
+              "type": "CountryCode",
+              "value": "US"
+            },
+            {
+              "type": "FormTitle",
+              "value": "Ask a question"
+            },
+            {
+              "type": "ProductName",
+              "value": "Urea - Organic Nitrogen"
+            },
+            {
+              "type": "ProductUrl",
+              "value": "https://alliancechemical.com/products/urea-organic-nitrogen"
+            },
+            {
+              "type": "CustomerName",
+              "value": "Tony Jovenitti"
+            },
+            {
+              "type": "CustomerEmail",
+              "value": "tonyjove99@aol.com"
+            },
+            {
+              "type": "CustomerPhone",
+              "value": "5857343428"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Urea product water solubility",
+            "Sprayer application"
+          ],
+          "suggestedNextActions": [
+            "Check product specifications for water solubility information",
+            "Respond to customer with the relevant information"
+          ],
+          "rawSummary": "Customer Tony Jovenitti inquired about the water solubility of the Urea - Organic Nitrogen product to determine its suitability for sprayer application."
+        }
+      },
+      {
+        "emailSubject": "Isopropyl Alcohol 70% - USP Medical Grade - 1 Quart Spray Bottle - 32 FL Oz - Part numbers",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcch4QAAA=",
+        "insights": {
+          "primaryTopic": "Product Inquiry",
+          "secondaryTopic": "Request for part numbers",
+          "customerGoal": "Obtain part numbers for isopropyl alcohol in different bottle sizes",
+          "specificQuestionsAsked": [
+            "If the 2, 4 & 8 Quart spray have different part numbers please let me know."
+          ],
+          "extractedEntities": [
+            {
+              "type": "Product",
+              "value": "Isopropyl Alcohol 70% - USP Medical Grade",
+              "context": "Inquiry about part numbers"
+            },
+            {
+              "type": "Quantity",
+              "value": "1 Quart",
+              "context": "Bottle size"
+            },
+            {
+              "type": "Quantity",
+              "value": "32 FL Oz",
+              "context": "Bottle size"
+            },
+            {
+              "type": "Quantity",
+              "value": "2 Quart",
+              "context": "Bottle size"
+            },
+            {
+              "type": "Quantity",
+              "value": "4 Quart",
+              "context": "Bottle size"
+            },
+            {
+              "type": "Quantity",
+              "value": "8 Quart",
+              "context": "Bottle size"
+            },
+            {
+              "type": "Contact Name",
+              "value": "Amir Gluckman",
+              "context": "Sender"
+            },
+            {
+              "type": "Contact Title",
+              "value": "Director of Operations",
+              "context": "Sender's title"
+            },
+            {
+              "type": "Email",
+              "value": "amir.glukman@nuvocares.com",
+              "context": "Sender's email"
+            },
+            {
+              "type": "Phone Number",
+              "value": "+972-54-3386901",
+              "context": "Sender's phone number"
+            },
+            {
+              "type": "Website",
+              "value": "www.nuvocares.com",
+              "context": "Sender's website"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Isopropyl Alcohol 70% - USP Medical Grade",
+            "1 Quart Spray Bottle",
+            "32 FL Oz",
+            "2, 4 & 8 Quart spray bottle part numbers"
+          ],
+          "suggestedNextActions": [
+            "Check internal database for part numbers",
+            "Respond to Amir Gluckman with requested information"
+          ],
+          "rawSummary": "Amir Gluckman, Director of Operations at Nuvocares, requests part numbers for Isopropyl Alcohol 70% - USP Medical Grade in 1 Quart (32 FL Oz), 2 Quart, 4 Quart, and 8 Quart spray bottles."
+        }
+      },
+      {
+        "emailSubject": "Re: New customer message on April 29, 2025 at 3:33 pm",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaETpuAAA=",
+        "insights": {
+          "primaryTopic": "Product Inquiry",
+          "secondaryTopic": "Pricing and Availability",
+          "customerGoal": "Obtain pricing and availability for 70% Phosphoric acid in 270-gallon totes and delivery to White City, Oregon",
+          "specificQuestionsAsked": [
+            "Do you sell 70% Phosphoric acid in 270 gal totes?",
+            "what is your pricing and availability?"
+          ],
+          "extractedEntities": [
+            {
+              "type": "CustomerName",
+              "value": "Reyna Vallejo",
+              "context": "New customer message"
+            },
+            {
+              "type": "CustomerEmail",
+              "value": "reyna@cuttingedgesolutions.com",
+              "context": "New customer message"
+            },
+            {
+              "type": "CustomerPhone",
+              "value": "7078063399",
+              "context": "New customer message"
+            },
+            {
+              "type": "CompanyName",
+              "value": "Cutting Edge Solutions",
+              "context": "New customer message"
+            },
+            {
+              "type": "CustomerAddress",
+              "value": "7930 Agate Rd. White City OR, 97503",
+              "context": "New customer message"
+            },
+            {
+              "type": "Product",
+              "value": "70% Phosphoric acid",
+              "context": "Product Inquiry"
+            },
+            {
+              "type": "Quantity",
+              "value": "270 gal totes",
+              "context": "Product Inquiry"
+            },
+            {
+              "type": "DeliveryLocation",
+              "value": "White City Oregon",
+              "context": "Delivery request"
+            },
+            {
+              "type": "VendorName",
+              "value": "Alliance Chemical",
+              "context": "Email Sender"
+            },
+            {
+              "type": "VendorEmail",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "Email Sender"
+            },
+            {
+              "type": "VendorPhone",
+              "value": "512.365.6838",
+              "context": "Email Sender"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "70% Phosphoric acid",
+            "270 gal totes",
+            "pricing",
+            "availability",
+            "White City, Oregon"
+          ],
+          "suggestedNextActions": [
+            "Check inventory for 70% Phosphoric acid in 270-gallon totes.",
+            "Determine pricing.",
+            "Calculate shipping costs to White City, Oregon.",
+            "Respond to Reyna Vallejo with pricing and availability information."
+          ],
+          "rawSummary": "A customer, Reyna Vallejo from Cutting Edge Solutions, inquired about the pricing and availability of 70% Phosphoric acid in 270-gallon totes for delivery to White City, Oregon."
+        }
+      }
+    ],
+    "Billing & Invoice Issue": [
+      {
+        "emailSubject": "Re: New PO 3221 - Ethyl Acetate",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaETq4AAA=",
+        "insights": {
+          "primaryTopic": "Billing & Invoice Issue",
+          "secondaryTopic": "Overdue Payment",
+          "tertiaryTopic": "PO 3221 - Ethyl Acetate",
+          "customerGoal": "Resolve overdue payment issue to proceed with the order",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "Pro-Motion Industries' account is past due on a previous order, preventing processing of PO 3221 for Ethyl Acetate.",
+            "associatedProduct": "Ethyl Acetate",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "PO Number",
+              "value": "3221",
+              "context": "New PO for Ethyl Acetate"
+            },
+            {
+              "type": "Product",
+              "value": "Ethyl Acetate",
+              "context": "Gallons of Ethyl Acetate"
+            },
+            {
+              "type": "Company",
+              "value": "Pro-Motion Industries",
+              "context": "Sender of the email"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Recipient of the email"
+            },
+            {
+              "type": "Person",
+              "value": "Kristen Ciotto",
+              "context": "Administrative Assistant at Pro-Motion Industries"
+            },
+            {
+              "type": "Person",
+              "value": "Adnan Heikal",
+              "context": "From Alliance Chemical"
+            },
+            {
+              "type": "Email",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "Adnan Heikal's email address"
+            },
+            {
+              "type": "Phone Number",
+              "value": "856-809-0040 ext. 107",
+              "context": "Kristen Ciotto's phone number"
+            },
+            {
+              "type": "Address",
+              "value": "102 Allied Parkway Sicklerville, NJ 08081",
+              "context": "Pro-Motion Industries' address"
+            },
+            {
+              "type": "Website",
+              "value": "www.pro-motion.ws",
+              "context": "Pro-Motion Industries' website"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512.365.6838 XT 516",
+              "context": "Alliance Chemical's phone number"
+            },
+            {
+              "type": "Address",
+              "value": "204 South Edmond Street Taylor, Texas 76574",
+              "context": "Alliance Chemical's address"
+            },
+            {
+              "type": "Website",
+              "value": "www.alliancechemical.com",
+              "context": "Alliance Chemical's website"
+            }
+          ],
+          "overallSentiment": "negative",
+          "specificTones": [
+            "urgent"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Payment Processing",
+          "customerJourneyStageHint": "payment_confirmation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "PO 3221",
+            "Overdue payment on previous order",
+            "Ethyl Acetate"
+          ],
+          "suggestedNextActions": [
+            "Contact Pro-Motion Industries to discuss overdue payment",
+            "Resolve payment issue",
+            "Process PO 3221 once payment is received"
+          ],
+          "rawSummary": "Pro-Motion Industries placed a new order (PO 3221) for Ethyl Acetate. However, Alliance Chemical noticed their account is past due on a previous order.  They've resent the invoice and are awaiting payment confirmation before processing the new order."
+        }
+      },
+      {
+        "emailSubject": "FW: Gelpak/Touchmark invoice request",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaETpzAAA=",
+        "insights": {
+          "primaryTopic": "Billing & Invoice Issue",
+          "secondaryTopic": "Invoice Request",
+          "tertiaryTopic": "PO 3004700, order# 3925",
+          "customerGoal": "Obtain the invoice for PO 3004700, order# 3925",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "Missing invoice for order PO 3004700, order# 3925",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "PO Number",
+              "value": "3004700"
+            },
+            {
+              "type": "Order Number",
+              "value": "3925"
+            },
+            {
+              "type": "Company",
+              "value": "Delphon Industries, LLC"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Leona Martinez"
+            },
+            {
+              "type": "Contact Phone",
+              "value": "(510)576-2230 Ext 230"
+            },
+            {
+              "type": "Email",
+              "value": "mack.normal@alliancechemical.com"
+            },
+            {
+              "type": "Date",
+              "value": "April 30, 2025"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Order Processing",
+          "customerJourneyStageHint": "payment_confirmation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "PO 3004700",
+            "order# 3925",
+            "Packing slip attached"
+          ],
+          "suggestedNextActions": [
+            "Locate invoice for PO 3004700, order# 3925",
+            "Send invoice to Leona Martinez at (510)576-2230 Ext 230 or mack.normal@alliancechemical.com"
+          ],
+          "rawSummary": "Delphon Industries requests invoice for order #3925 (PO 3004700). A packing slip is attached."
+        }
+      },
+      {
+        "emailSubject": "Re: Invoice 35759 from Alliance Chemical",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcKavGAAA=",
+        "insights": {
+          "primaryTopic": "Billing & Invoice Issue",
+          "secondaryTopic": "Invoice Payment Confirmation",
+          "tertiaryTopic": "Invoice 35759",
+          "customerGoal": "Confirm payment of invoice 35759 and ensure it's processed",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "Invoice 35759 was overdue.",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "Invoice Number",
+              "value": "35759",
+              "context": "Invoice 35759 from Alliance Chemical"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Invoice 35759 from Alliance Chemical"
+            },
+            {
+              "type": "Amount",
+              "value": "412.19",
+              "context": "Amount: $412.19"
+            },
+            {
+              "type": "Date",
+              "value": "April 26, 2025",
+              "context": "due date: April 26, 2025"
+            },
+            {
+              "type": "Company",
+              "value": "Pro-Motion Industries",
+              "context": "Pro-Motion Industries"
+            },
+            {
+              "type": "Person",
+              "value": "Kelly Cone",
+              "context": "From: Kelly Cone"
+            },
+            {
+              "type": "Email",
+              "value": "Kelly@pro-motion.ws",
+              "context": "From: Kelly Cone <Kelly@pro-motion.ws>"
+            },
+            {
+              "type": "Phone Number",
+              "value": "609-226-1785",
+              "context": "C:609-226-1785"
+            },
+            {
+              "type": "Person",
+              "value": "Adnan Heikal",
+              "context": "From: Adnan Heikal"
+            },
+            {
+              "type": "Email",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "From: Adnan Heikal <adnan.heikal@alliancechemical.com>"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512.365.6838",
+              "context": "Office: 512.365.6838"
+            },
+            {
+              "type": "Extension",
+              "value": "516",
+              "context": "XT 516"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "payment_confirmation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Invoice 35759",
+            "Payment confirmed",
+            "$412.19"
+          ],
+          "suggestedNextActions": [
+            "Verify payment receipt",
+            "Update invoice status"
+          ],
+          "rawSummary": "This email thread shows Pro-Motion Industries confirming payment of invoice 35759 from Alliance Chemical for $412.19.  The invoice was originally due on April 26th, 2025.  Alliance Chemical confirms receipt of the payment and updates the purchase order."
+        }
+      },
+      {
+        "emailSubject": "ALLIANCE CHEMICAL INC- ALOGWCTS900 : Upcoming Payment Reminder from XPO",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOiAKzFAAA=",
+        "insights": {
+          "primaryTopic": "Billing & Invoice Issue",
+          "secondaryTopic": "Payment Reminder",
+          "tertiaryTopic": "Invoice Due in 5 Days",
+          "customerGoal": "Pay outstanding invoices",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "Invoices are due in 5 days",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "ALLIANCE CHEMICAL INC"
+            },
+            {
+              "type": "Account Number",
+              "value": "ALOGWCTS900"
+            },
+            {
+              "type": "Company",
+              "value": "XPO"
+            },
+            {
+              "type": "Email Address",
+              "value": "LTLReceivables@xpo.com"
+            },
+            {
+              "type": "Phone Number",
+              "value": "800-455-0827"
+            },
+            {
+              "type": "Email Address",
+              "value": "DunningWest@xpo.com"
+            },
+            {
+              "type": "URL",
+              "value": "ltl.xpo.com/billing"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Overdue invoice",
+          "customerJourneyStageHint": "billing_dispute",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Outstanding invoices for ALLIANCE CHEMICAL INC (ALOGWCTS900)",
+            "Invoices due in 5 days",
+            "Contact details for Accounts Payable"
+          ],
+          "suggestedNextActions": [
+            "Review attached invoices",
+            "Update Accounts Payable contact details if necessary",
+            "Make payment via online portal or contact XPO"
+          ],
+          "rawSummary": "XPO sends a payment reminder to ALLIANCE CHEMICAL INC for invoices due in 5 days.  The email provides contact information and a link to view and pay invoices online."
+        }
+      },
+      {
+        "emailSubject": "RE: NEW Purchase Order 1012870 from National Sealants & Lubricants, Inc.",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfL5AAA=",
+        "insights": {
+          "primaryTopic": "Billing & Invoice Issue",
+          "secondaryTopic": "Unpaid Invoices Preventing Order Processing",
+          "tertiaryTopic": "Purchase Order #1012870",
+          "customerGoal": "To have purchase order #1012870 processed after paying outstanding invoices",
+          "specificQuestionsAsked": [
+            "Will ship?"
+          ],
+          "problemReported": {
+            "description": "National Sealants & Lubricants, Inc. has unpaid invoices that are preventing the processing of purchase order #1012870.",
+            "urgencyToCustomer": "high"
+          },
+          "extractedEntities": [
+            {
+              "type": "Purchase Order",
+              "value": "1012870",
+              "context": "Purchase Order number in question"
+            },
+            {
+              "type": "Company",
+              "value": "National Sealants & Lubricants, Inc.",
+              "context": "Customer company name"
+            },
+            {
+              "type": "Invoice",
+              "value": "35633",
+              "context": "Unpaid invoice number"
+            },
+            {
+              "type": "Invoice",
+              "value": "35824",
+              "context": "Unpaid invoice number"
+            },
+            {
+              "type": "Invoice",
+              "value": "35748",
+              "context": "Unpaid invoice number"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Adnan Heikal",
+              "context": "Alliance Chemical contact person"
+            },
+            {
+              "type": "Email",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "Alliance Chemical contact email"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512.365.6838",
+              "context": "Alliance Chemical phone number"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Vendor company name"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Hannah Bartholomew",
+              "context": "NSL Aerospace contact person"
+            },
+            {
+              "type": "Email",
+              "value": "hbartholomew@nslaerospace.com",
+              "context": "NSL Aerospace contact email"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Edward Chiao",
+              "context": "NSL Aerospace contact person"
+            },
+            {
+              "type": "Email",
+              "value": "echiao@nslaerospace.com",
+              "context": "NSL Aerospace contact email"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Nancy Yee",
+              "context": "NSL Aerospace contact person"
+            },
+            {
+              "type": "Email",
+              "value": "nyee@nslaerospace.com",
+              "context": "NSL Aerospace contact email"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Rita Carter",
+              "context": "NSL Aerospace contact person"
+            },
+            {
+              "type": "Email",
+              "value": "rcarter@nslaerospace.com",
+              "context": "NSL Aerospace contact email"
+            }
+          ],
+          "overallSentiment": "negative",
+          "specificTones": [
+            "urgent"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Payment Processing",
+          "customerJourneyStageHint": "order_placement",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "Purchase Order #1012870",
+            "Unpaid invoices 35633, 35824, 35748"
+          ],
+          "suggestedNextActions": [
+            "Follow up with National Sealants & Lubricants, Inc. regarding payment of outstanding invoices",
+            "Confirm payment and process purchase order #1012870 once payment is received"
+          ],
+          "rawSummary": "This email chain concerns purchase order #1012870 from National Sealants & Lubricants, Inc.  The vendor, Alliance Chemical, is delaying processing due to three outstanding unpaid invoices (35633, 35824, and 35748).  The customer is inquiring about the shipment status of the order."
+        }
+      }
+    ],
+    "Automated System Notification: Payment Received": [
+      {
+        "emailSubject": "Payment received: Invoice #35980-(TNT Manufacturing, LLC)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfO5AAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Payment Received",
+          "secondaryTopic": "Payment Confirmation",
+          "customerGoal": "Confirmation of payment for invoice #35980",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Invoice Number",
+              "value": "35980",
+              "context": "Invoice no."
+            },
+            {
+              "type": "Customer Name",
+              "value": "TNT Manufacturing, LLC",
+              "context": "Customer name"
+            },
+            {
+              "type": "Customer Email",
+              "value": "accounting@mitwellness.com",
+              "context": "Customer email"
+            },
+            {
+              "type": "Payment Date",
+              "value": "05/09/2025",
+              "context": "Paid date"
+            },
+            {
+              "type": "Payment Amount",
+              "value": "144899.00",
+              "context": "Invoice amount"
+            },
+            {
+              "type": "Payment Method",
+              "value": "Business checking",
+              "context": "Payment method"
+            },
+            {
+              "type": "Authorization ID",
+              "value": "aaqcj2pf",
+              "context": "Authorization ID"
+            },
+            {
+              "type": "Company Name",
+              "value": "Alliance Chemical",
+              "context": "Paid to"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "informative"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "payment_confirmation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [
+            "Invoice #35980",
+            "Payment received",
+            "$144899.00",
+            "TNT Manufacturing, LLC",
+            "05/09/2025",
+            "aaqcj2pf"
+          ],
+          "suggestedNextActions": [
+            "Record payment in accounting system",
+            "Send confirmation to customer (optional)"
+          ],
+          "rawSummary": "Automated notification confirming payment of $144899.00 received for invoice #35980 from TNT Manufacturing, LLC on 05/09/2025. Payment method was business checking ending in ***9963. Authorization ID is aaqcj2pf."
+        }
+      },
+      {
+        "emailSubject": "Payment received: Invoice #36000-(BARRY Pelphrey)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4GSAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Payment Received",
+          "secondaryTopic": "Payment Confirmation",
+          "customerGoal": "Confirmation of payment for invoice #36000",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Invoice Number",
+              "value": "36000",
+              "context": "Invoice no."
+            },
+            {
+              "type": "Customer Name",
+              "value": "BARRY Pelphrey",
+              "context": "Customer name"
+            },
+            {
+              "type": "Customer Email",
+              "value": "bpelphrey@pinnaclesupplysolution.com",
+              "context": "Customer email"
+            },
+            {
+              "type": "Payment Date",
+              "value": "05/13/2025",
+              "context": "Paid date"
+            },
+            {
+              "type": "Payment Method",
+              "value": "MASTERCARD****0777",
+              "context": "Payment method"
+            },
+            {
+              "type": "Invoice Amount",
+              "value": "$511.73",
+              "context": "Invoice amount"
+            },
+            {
+              "type": "Authorization ID",
+              "value": "MS0273128475",
+              "context": "Authorization ID"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "payment_confirmation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [
+            "Invoice #36000",
+            "$511.73",
+            "BARRY Pelphrey",
+            "05/13/2025",
+            "MS0273128475"
+          ],
+          "suggestedNextActions": [],
+          "rawSummary": "This automated notification confirms the receipt of payment for invoice #36000 from BARRY Pelphrey.  The payment of $511.73 was made on 05/13/2025 via Mastercard, with authorization ID MS0273128475."
+        }
+      },
+      {
+        "emailSubject": "Payment received: Invoice #35995-(Amanda Higdon)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4EHAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Payment Received",
+          "secondaryTopic": "Payment Confirmation",
+          "customerGoal": "Confirmation of payment for invoice #35995",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Invoice Number",
+              "value": "35995",
+              "context": "Invoice no."
+            },
+            {
+              "type": "Customer Name",
+              "value": "Amanda Higdon",
+              "context": "Customer name"
+            },
+            {
+              "type": "Customer Email",
+              "value": "amanda.higdon@arnoldfab.com",
+              "context": "Customer email"
+            },
+            {
+              "type": "Payment Date",
+              "value": "05/13/2025",
+              "context": "Paid date"
+            },
+            {
+              "type": "Payment Method",
+              "value": "VISA****5816",
+              "context": "Payment method"
+            },
+            {
+              "type": "Invoice Amount",
+              "value": "493.14",
+              "context": "Invoice amount"
+            },
+            {
+              "type": "Authorization ID",
+              "value": "MS0273088374",
+              "context": "Authorization ID"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Paid to"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "payment_confirmation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [
+            "Invoice #35995",
+            "Amanda Higdon",
+            "$493.14",
+            "05/13/2025",
+            "VISA****5816",
+            "MS0273088374"
+          ],
+          "suggestedNextActions": [],
+          "rawSummary": "Automated notification confirming payment of $493.14 received for invoice #35995 from Amanda Higdon via VISA****5816 on 05/13/2025.  Authorization ID: MS0273088374."
+        }
+      },
+      {
+        "emailSubject": "Payment received: Invoice #35870-(Kevin Joseph)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOPyp9_AAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Payment Received",
+          "secondaryTopic": "Payment Confirmation",
+          "customerGoal": "Receive confirmation of payment for invoice #35870",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Invoice Number",
+              "value": "35870",
+              "context": "Invoice no."
+            },
+            {
+              "type": "Customer Name",
+              "value": "Kevin Joseph",
+              "context": "Customer name"
+            },
+            {
+              "type": "Customer Email",
+              "value": "kevinjoseph774@gmail.com",
+              "context": "Customer email"
+            },
+            {
+              "type": "Payment Date",
+              "value": "04/16/2025",
+              "context": "Paid date"
+            },
+            {
+              "type": "Payment Method",
+              "value": "VISA****3026",
+              "context": "Payment method"
+            },
+            {
+              "type": "Invoice Amount",
+              "value": "141.36",
+              "context": "Invoice amount"
+            },
+            {
+              "type": "Authorization ID",
+              "value": "MU0245340946",
+              "context": "Authorization ID"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Paid to"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "payment_confirmation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [
+            "Invoice #35870",
+            "Payment received",
+            "$141.36",
+            "Kevin Joseph",
+            "04/16/2025",
+            "VISA****3026",
+            "MU0245340946"
+          ],
+          "suggestedNextActions": [
+            "Record payment in accounting system",
+            "Send confirmation email to Kevin Joseph (optional)"
+          ],
+          "rawSummary": "Automated notification confirming payment of $141.36 for invoice #35870 from Kevin Joseph via VISA on 04/16/2025.  Authorization ID: MU0245340946."
+        }
+      },
+      {
+        "emailSubject": "Payment received: Invoice #35429-(Northrop Grumman Corporation)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOWhwlPAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Payment Received",
+          "secondaryTopic": "Payment Confirmation",
+          "customerGoal": "Confirmation of payment for invoice #35429",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Invoice Number",
+              "value": "35429",
+              "context": "Invoice no."
+            },
+            {
+              "type": "Customer Name",
+              "value": "Northrop Grumman Corporation",
+              "context": "Customer name"
+            },
+            {
+              "type": "Customer Email",
+              "value": "invoices@ngc.com",
+              "context": "Customer email"
+            },
+            {
+              "type": "Payment Date",
+              "value": "04/23/2025",
+              "context": "Paid date"
+            },
+            {
+              "type": "Payment Method",
+              "value": "MASTERCARD****5815",
+              "context": "Payment method"
+            },
+            {
+              "type": "Invoice Amount",
+              "value": "429.13",
+              "context": "Invoice amount"
+            },
+            {
+              "type": "Authorization ID",
+              "value": "MQ0269303452",
+              "context": "Authorization ID"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Paid to"
+            },
+            {
+              "type": "Software",
+              "value": "Intuit",
+              "context": "as an Intuit customer"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "payment_confirmation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [
+            "Invoice #35429",
+            "Payment received",
+            "$429.13",
+            "Northrop Grumman Corporation",
+            "04/23/2025",
+            "MASTERCARD****5815",
+            "MQ0269303452"
+          ],
+          "suggestedNextActions": [],
+          "rawSummary": "This automated notification confirms that Alliance Chemical received a payment of $429.13 from Northrop Grumman Corporation for invoice #35429 on 04/23/2025 via Mastercard ending in 5815.  The authorization ID is MQ0269303452."
+        }
+      }
+    ],
+    "Automated System Notification: Abandoned Cart": [
+      {
+        "emailSubject": "High-Value Cart Abandoned: $3910.37",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfPBAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Abandoned Cart",
+          "secondaryTopic": "High-Value Cart Abandonment",
+          "customerGoal": "Recover abandoned shopping cart with a total value of $3910.37",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "High-value shopping cart was abandoned.  The customer did not complete the purchase process.",
+            "associatedProduct": null,
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "URL",
+              "value": "https://alliancechemical.com/58827341866/checkouts/ac/Z2NwLXVzLXdlc3QxOjAxSlRWSFpGODU1M0FDQ1BSQTVGNlZTR0FS/recover?key=f6b7ee10bbc88f984d1fd84886f7b421&locale=en-US",
+              "context": "Link to recover the abandoned cart"
+            },
+            {
+              "type": "MonetaryValue",
+              "value": "3910.37",
+              "context": "Total value of the abandoned cart"
+            },
+            {
+              "type": "MonetaryValue",
+              "value": "800",
+              "context": "Approximate value of the abandoned cart mentioned in the email body"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Customer abandoned cart",
+          "customerJourneyStageHint": "order_placement",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.9,
+          "keyInformationForResolution": [
+            "Abandoned cart URL",
+            "Cart value: $3910.37"
+          ],
+          "suggestedNextActions": [
+            "Send a follow-up email with a discount or incentive to complete the purchase.",
+            "Analyze the cart contents to identify potential issues (e.g., high shipping costs, complex checkout process).",
+            "Review customer's browsing history to understand reasons for abandonment."
+          ],
+          "rawSummary": "Automated notification of a high-value ($3910.37) abandoned shopping cart.  A link is provided to recover the cart."
+        }
+      },
+      {
+        "emailSubject": "High-Value Cart Abandoned: $980.0",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOiAKy7AAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Abandoned Cart",
+          "secondaryTopic": "High-Value Cart Abandonment",
+          "tertiaryTopic": "$980.00 Cart Abandonment",
+          "customerGoal": "Recover abandoned shopping cart",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "Customer abandoned a high-value shopping cart totaling $980.00.",
+            "urgencyToCustomer": "low"
+          },
+          "extractedEntities": [
+            {
+              "type": "URL",
+              "value": "https://alliancechemical.com/58827341866/checkouts/ac/Z2NwLXVzLWVhc3QxOjAxSlRXUkhKQkFTMVozSFFUWjFKSEZHQ0Q5/recover?key=c31c5659cfff8ec35f092994b54c7a93&locale=en-US",
+              "context": "Link to recover abandoned cart"
+            },
+            {
+              "type": "MonetaryValue",
+              "value": "980.00",
+              "context": "Value of abandoned cart"
+            },
+            {
+              "type": "Website",
+              "value": "alliancechemical.com",
+              "context": "Website where cart was abandoned"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "very_low",
+          "potentialRootCauseCategory": "Customer behavior",
+          "customerJourneyStageHint": "order_placement",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.9,
+          "keyInformationForResolution": [
+            "Abandoned cart URL",
+            "Cart value: $980.00"
+          ],
+          "suggestedNextActions": [
+            "Send a reminder email with a discount or incentive",
+            "Send a personalized email highlighting the abandoned items",
+            "Analyze the cart abandonment data to identify potential issues in the checkout process"
+          ],
+          "rawSummary": "Automated notification of a $980.00 abandoned shopping cart on alliancechemical.com.  A link is provided to recover the cart."
+        }
+      },
+      {
+        "emailSubject": "High-Value Cart Abandoned: $3115.78",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOURkSqAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Abandoned Cart",
+          "secondaryTopic": "High-Value Cart Abandonment",
+          "tertiaryTopic": "$3115.78 Cart Abandonment",
+          "customerGoal": "Recover abandoned shopping cart",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "High-value shopping cart abandoned",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "URL",
+              "value": "https://alliancechemical.com/58827341866/checkouts/ac/Z2NwLXVzLWVhc3QxOjAxSlNDRVFGQ0ZZMTU3OEFKMDYyVzZTUlZK/recover?key=a3243ea84170cb90b9e2666c4020836e&locale=en-US",
+              "context": "Link to recover abandoned cart"
+            },
+            {
+              "type": "MonetaryValue",
+              "value": "3115.78",
+              "context": "Value of abandoned cart"
+            },
+            {
+              "type": "MonetaryValue",
+              "value": "800",
+              "context": "Approximate value of abandoned cart"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Customer abandoned cart",
+          "customerJourneyStageHint": "order_placement",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.9,
+          "keyInformationForResolution": [
+            "Abandoned cart URL",
+            "Cart value: $3115.78"
+          ],
+          "suggestedNextActions": [
+            "Send a reminder email with a discount code",
+            "Send a personalized email highlighting the abandoned items"
+          ],
+          "rawSummary": "Automated notification of a high-value ($3115.78) abandoned shopping cart.  The email includes a link to recover the cart."
+        }
+      },
+      {
+        "emailSubject": "High-Value Cart Abandoned: $3888.0",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOiAKzBAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Abandoned Cart",
+          "secondaryTopic": "High-Value Cart Recovery",
+          "tertiaryTopic": "$3888.00 Abandoned Cart",
+          "customerGoal": "Recover abandoned shopping cart",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "Customer abandoned a high-value shopping cart.",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "URL",
+              "value": "https://alliancechemical.com/58827341866/checkouts/ac/Z2NwLXVzLWVhc3QxOjAxSlRYSjczNTQyMVhZNDIwMk5FU1FUNk03/recover?key=6f000607ed9ef95062fbf79356e2acc8&locale=en-US",
+              "context": "Link to recover abandoned cart"
+            },
+            {
+              "type": "MonetaryValue",
+              "value": "3888.00",
+              "context": "Value of abandoned cart"
+            },
+            {
+              "type": "OrderID",
+              "value": "58827341866",
+              "context": "Potentially an order ID or reference number"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "very_low",
+          "potentialRootCauseCategory": "Customer abandoned cart",
+          "customerJourneyStageHint": "order_placement",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.9,
+          "keyInformationForResolution": [
+            "Abandoned cart URL",
+            "Cart value: $3888.00",
+            "Potential order ID: 58827341866"
+          ],
+          "suggestedNextActions": [
+            "Send a follow-up email with a discount or incentive to complete the purchase.",
+            "Analyze cart contents to understand reasons for abandonment.",
+            "Consider implementing cart abandonment prevention strategies."
+          ],
+          "rawSummary": "Automated notification of a high-value ($3888.00) abandoned shopping cart.  A link to recover the cart is provided."
+        }
+      },
+      {
+        "emailSubject": "High-Value Cart Abandoned: $6010.51",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOWhwlQAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification: Abandoned Cart",
+          "secondaryTopic": "High-Value Cart Abandonment",
+          "tertiaryTopic": "$6010.51 Cart Abandonment",
+          "customerGoal": "Recover abandoned shopping cart",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "High-value shopping cart abandoned",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "URL",
+              "value": "https://alliancechemical.com/58827341866/checkouts/ac/Z2NwLXVzLXdlc3QxOjAxSlNKQlRIVEU4U0JETjFXMjc4OUhHNVYw/recover?key=7618e3a9dfde30438ab9e2e755311de6&locale=en-US",
+              "context": "Abandoned cart recovery link"
+            },
+            {
+              "type": "MonetaryValue",
+              "value": "6010.51",
+              "context": "Value of abandoned cart"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Customer abandoned cart",
+          "customerJourneyStageHint": "order_placement",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Abandoned cart URL",
+            "Cart value: $6010.51"
+          ],
+          "suggestedNextActions": [
+            "Send a reminder email with a discount or incentive",
+            "Analyze cart contents to understand reasons for abandonment",
+            "Review customer's past purchase history"
+          ],
+          "rawSummary": "Automated notification of a high-value ($6010.51) abandoned shopping cart.  A recovery link is provided."
+        }
+      }
+    ],
+    "Quotation Request": [
+      {
+        "emailSubject": "New customer message on May 8, 2025 at 7:14 pm",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfNgAAA=",
+        "insights": {
+          "primaryTopic": "Quotation Request",
+          "secondaryTopic": "Bulk Purchase Inquiry",
+          "customerGoal": "Obtain a price quote for filling a 275-gallon tote with vinegar",
+          "specificQuestionsAsked": [
+            "How much would this cost me if I bring my tote to your shop?"
+          ],
+          "extractedEntities": [
+            {
+              "type": "Customer Name",
+              "value": "Charles Harris",
+              "context": "Name field of contact form"
+            },
+            {
+              "type": "Customer Email",
+              "value": "Chaz1x@yahoo.com",
+              "context": "Email field of contact form"
+            },
+            {
+              "type": "Customer Phone Number",
+              "value": "2055633772",
+              "context": "Number field of contact form"
+            },
+            {
+              "type": "Product",
+              "value": "5% Diluted Acetic Acid Food Grade",
+              "context": "Product mentioned in the message"
+            },
+            {
+              "type": "Product URL",
+              "value": "https://alliancechemical.com/products/5-acetic-acid-food-grade",
+              "context": "Product URL from contact form"
+            },
+            {
+              "type": "Quantity",
+              "value": "275 Gallon",
+              "context": "Customer's tote size"
+            },
+            {
+              "type": "Container Type",
+              "value": "tote",
+              "context": "Customer's container type"
+            },
+            {
+              "type": "Location",
+              "value": "your shop",
+              "context": "Customer intends to bring tote to the shop"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "275-gallon tote",
+            "5% Diluted Acetic Acid Food Grade",
+            "Customer will bring tote to shop"
+          ],
+          "suggestedNextActions": [
+            "Check pricing for bulk vinegar orders",
+            "Calculate cost based on 275 gallons",
+            "Contact Charles Harris with quote"
+          ],
+          "rawSummary": "Charles Harris inquired about the cost of filling his 275-gallon tote with 5% Diluted Acetic Acid Food Grade vinegar if he brings the tote to the shop."
+        }
+      },
+      {
+        "emailSubject": "AMMONIUM CHLORIDE  - 50 KG TO 100 KG - CIBEX (PRIVATE) LTD",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOX0shRAAA=",
+        "insights": {
+          "primaryTopic": "Quotation Request",
+          "secondaryTopic": "Request for Ammonium Chloride Pricing",
+          "customerGoal": "Obtain price quotes for ammonium chloride from Wisdom Corporation",
+          "specificQuestionsAsked": [
+            "What are your lowest prices for ammonium chloride?",
+            "Can you attach a COA with your quotation?"
+          ],
+          "extractedEntities": [
+            {
+              "type": "Product",
+              "value": "Ammonium Chloride",
+              "context": "PRODUCT AMMONIUM CHLORIDE"
+            },
+            {
+              "type": "Specification",
+              "value": "BP",
+              "context": "SPECIFICATION BP"
+            },
+            {
+              "type": "Quantity",
+              "value": "50 KG TO 100 KG",
+              "context": "QUANTITY 50 KG TO 100 KG"
+            },
+            {
+              "type": "Packaging",
+              "value": "Standard Packing",
+              "context": "PACKING STANDARD PACKING"
+            },
+            {
+              "type": "Shipment Term",
+              "value": "FOB BY SEA",
+              "context": "SHIPMENT TERM FOB BY SEA"
+            },
+            {
+              "type": "Payment Term",
+              "value": "DP AT SIGHT",
+              "context": "PAYMENT TERM DP AT SIGHT"
+            },
+            {
+              "type": "Customer",
+              "value": "CIBEX (PRIVATE) LTD",
+              "context": "CUSTOMER / BUYER CIBEX (PRIVATE) LTD"
+            },
+            {
+              "type": "Company",
+              "value": "Wisdom Corporation",
+              "context": "WISDOM CORPORATION"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Muskan Iftikhar",
+              "context": "Muskan Iftikhar Commercial Executive"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Ammonium Chloride",
+            "BP Specification",
+            "50 KG TO 100 KG",
+            "FOB BY SEA",
+            "DP AT SIGHT",
+            "COA"
+          ],
+          "suggestedNextActions": [
+            "Check inventory of Ammonium Chloride",
+            "Prepare price quote including COA",
+            "Send quote to Muskan Iftikhar"
+          ],
+          "rawSummary": "This is a quotation request from CIBEX (PRIVATE) LTD for 50-100 KG of BP specification Ammonium Chloride.  The request specifies FOB by sea shipment and DP at sight payment terms.  A Certificate of Analysis (COA) is requested with the quote."
+        }
+      },
+      {
+        "emailSubject": "2061003120 - 00100 Grainger Sourcing RFQ",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcch33AAA=",
+        "insights": {
+          "primaryTopic": "Quotation Request",
+          "secondaryTopic": "Request for Quotation for MEK",
+          "customerGoal": "Obtain a quotation for 100 units of MEK",
+          "specificQuestionsAsked": [
+            "Minimum order quantity",
+            "Multiple order qty",
+            "Net Cost Per Unit",
+            "Cost Expiration Date",
+            "Lead Time",
+            "Weight per each",
+            "Ship from Zip Code",
+            "Ship parcel or LTL?",
+            "HAZMAT?",
+            "Returnable?",
+            "Is this a telecommunications product or service"
+          ],
+          "extractedEntities": [
+            {
+              "type": "RFQ Number",
+              "value": "2061003120-00100"
+            },
+            {
+              "type": "RFQ Date",
+              "value": "20250505"
+            },
+            {
+              "type": "Account Number",
+              "value": "0055000001"
+            },
+            {
+              "type": "Contact Name",
+              "value": "Ashraf Hasan"
+            },
+            {
+              "type": "Phone Number",
+              "value": "224-601-3809"
+            },
+            {
+              "type": "Fax Number",
+              "value": "847-972-4195"
+            },
+            {
+              "type": "Email Address",
+              "value": "ASHRAF.HASAN@GRAINGER.COM"
+            },
+            {
+              "type": "Vendor Name",
+              "value": "Alliance Chemical"
+            },
+            {
+              "type": "Vendor Address",
+              "value": "204 South Edmond Street taylor TX 76574"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Andre Taki"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512-365-6838"
+            },
+            {
+              "type": "Item Number",
+              "value": "1"
+            },
+            {
+              "type": "Manufacturer Brand Name",
+              "value": "ALLIANCE CHEMICAL"
+            },
+            {
+              "type": "Manufacturer Part Number",
+              "value": "GPW-QKY-8HL"
+            },
+            {
+              "type": "Vendor Part Number",
+              "value": null
+            },
+            {
+              "type": "Item Description",
+              "value": "MEK"
+            },
+            {
+              "type": "Quantity",
+              "value": "100"
+            },
+            {
+              "type": "UOM",
+              "value": "EA"
+            },
+            {
+              "type": "Ship To",
+              "value": "COOPER CITY FL 33330-3301"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "quote_negotiation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.7,
+          "keyInformationForResolution": [
+            "RFQ Number: 2061003120-00100",
+            "Item: MEK",
+            "Quantity: 100 EA",
+            "Ship to: COOPER CITY FL 33330-3301"
+          ],
+          "suggestedNextActions": [
+            "Review the RFQ and provide a quotation",
+            "Ensure all required fields are completed",
+            "Respond within 4 hours"
+          ],
+          "rawSummary": "Grainger sends an RFQ to Alliance Chemical for 100 units of MEK.  The RFQ includes detailed specifications and requires a response within 4 hours."
+        }
+      },
+      {
+        "emailSubject": "Quote Request SODUIM HYDROXE (CAUSTIC SODA)5 GALLON PAIL",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOWhwlEAAA=",
+        "insights": {
+          "primaryTopic": "Quotation Request",
+          "secondaryTopic": "Request for price and dimensions",
+          "customerGoal": "Obtain a quote and dimensions for 5-gallon pails of Sodium Hydroxide",
+          "specificQuestionsAsked": [
+            "Please provide us a quote for the following item.",
+            "Please also provide the dimension of the item."
+          ],
+          "extractedEntities": [
+            {
+              "type": "Product",
+              "value": "SODUIM HYDROXE (CAUSTIC SODA)",
+              "context": "Quote Request"
+            },
+            {
+              "type": "Quantity",
+              "value": "5 GALLON PAIL",
+              "context": "Quote Request"
+            },
+            {
+              "type": "Shipping Address",
+              "value": "Carson, CA 90746",
+              "context": "Shipping details"
+            },
+            {
+              "type": "Company",
+              "value": "Bi-Rite Global LLC",
+              "context": "Sender's company"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Alex White",
+              "context": "Sender's name and title"
+            },
+            {
+              "type": "Title",
+              "value": "Account Manager",
+              "context": "Sender's title"
+            },
+            {
+              "type": "Mailing Address",
+              "value": "440 N. Barranca Ave., #2728 Covina, CA 91723",
+              "context": "Sender's mailing address"
+            },
+            {
+              "type": "SAM UEI",
+              "value": "S8TSRUHNFLQ7",
+              "context": "Sender's SAM UEI number"
+            },
+            {
+              "type": "CAGE Code",
+              "value": "9MZM3",
+              "context": "Sender's CAGE code"
+            },
+            {
+              "type": "CA Certification ID",
+              "value": "2034421",
+              "context": "Sender's CA Certification ID"
+            },
+            {
+              "type": "EIN",
+              "value": "93-2385610",
+              "context": "Sender's EIN"
+            },
+            {
+              "type": "Seller's Permit",
+              "value": "263873824 - 00001",
+              "context": "Sender's Seller's Permit"
+            },
+            {
+              "type": "Email",
+              "value": "alex@biriteglobal.com",
+              "context": "Sender's email address"
+            },
+            {
+              "type": "Phone Number",
+              "value": "213-838-1610",
+              "context": "Sender's phone number"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Product: SODUIM HYDROXE (CAUSTIC SODA) 5 GALLON PAIL",
+            "Quantity: 5 GALLON PAIL",
+            "Shipping Address: Carson, CA 90746",
+            "Contact: Alex White, alex@biriteglobal.com, 213-838-1610"
+          ],
+          "suggestedNextActions": [
+            "Check product availability.",
+            "Generate quote including dimensions.",
+            "Send quote to Alex White at alex@biriteglobal.com."
+          ],
+          "rawSummary": "Alex White from Bi-Rite Global LLC requests a quote and dimensions for 5-gallon pails of Sodium Hydroxide, to be shipped to Carson, CA 90746."
+        }
+      },
+      {
+        "emailSubject": "RE: Merchant New Quote Notification",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DAAAA=",
+        "insights": {
+          "primaryTopic": "Quotation Request",
+          "secondaryTopic": "Quote Acceptance and Shipping Details",
+          "customerGoal": "Obtain a final quote including shipping and hazmat fees for 72 pails of Perchloroethylene",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "RICHCLEAN",
+              "context": "Sender's Company"
+            },
+            {
+              "type": "Address",
+              "value": "2810 Ackley Ave Henrico, VA 23228",
+              "context": "Customer's Address"
+            },
+            {
+              "type": "Contact Person",
+              "value": "John Bucco",
+              "context": "Customer Contact"
+            },
+            {
+              "type": "Email",
+              "value": "john@richclean.com",
+              "context": "Customer Email"
+            },
+            {
+              "type": "Product",
+              "value": "Perchloroethylene (PCE, PERC)",
+              "context": "Product being quoted"
+            },
+            {
+              "type": "Quantity",
+              "value": "72",
+              "context": "Quantity of product"
+            },
+            {
+              "type": "Unit",
+              "value": "5 Gallon Pail",
+              "context": "Unit of product"
+            },
+            {
+              "type": "UnitPrice",
+              "value": "$140.00",
+              "context": "Unit price of product"
+            },
+            {
+              "type": "Total Product Cost",
+              "value": "$10,080.00",
+              "context": "Total cost of product"
+            },
+            {
+              "type": "State",
+              "value": "VA",
+              "context": "Shipping State"
+            },
+            {
+              "type": "Zip Code",
+              "value": "23228",
+              "context": "Shipping Zip Code"
+            },
+            {
+              "type": "Contact Person",
+              "value": "Andre Taki",
+              "context": "Supplier Contact"
+            },
+            {
+              "type": "Email",
+              "value": "andre@alliancechemical.com",
+              "context": "Supplier Email"
+            },
+            {
+              "type": "Phone",
+              "value": "512-365-6838",
+              "context": "Supplier Phone"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "quote_negotiation",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Full shipping address for delivery",
+            "Finalization of freight cost"
+          ],
+          "suggestedNextActions": [
+            "Request full shipping address from John Bucco",
+            "Calculate and send final quote including shipping and hazmat fees"
+          ],
+          "rawSummary": "This email thread shows a customer, John Bucco from RICHCLEAN, accepting a quote for 72 pails of Perchloroethylene.  The supplier, Andre Taki from Alliance Chemical, needs the full shipping address to calculate shipping and hazmat fees before providing the final quote."
+        }
+      }
+    ],
+    "Automated System Notification": [
+      {
+        "emailSubject": "SEFL-Weekly Unpaid Invc Request 04/22/2025",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOWPlkCAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification",
+          "secondaryTopic": "Unpaid Invoice Report",
+          "customerGoal": "Receive a weekly report of unpaid invoices.",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "URL",
+              "value": "https://www.sefl.com/CustomerReports/servlet/DISCONTINUE_REPORT?Login=ALLIANCECHEM&Group=01&ReportType=U&ReportOption=W&Email=MACK.NORMAL@ALLIANCECHEMICAL.COM&Date=20240805&Time=10171041",
+              "context": "link to discontinue report"
+            },
+            {
+              "type": "Email",
+              "value": "invoice.support@sefl.com",
+              "context": "contact for assistance"
+            },
+            {
+              "type": "Organization",
+              "value": "SEFL",
+              "context": "sender of the email"
+            },
+            {
+              "type": "Date",
+              "value": "04/22/2025",
+              "context": "report date"
+            },
+            {
+              "type": "Organization",
+              "value": "ALLIANCECHEM",
+              "context": "customer account"
+            },
+            {
+              "type": "Email",
+              "value": "MACK.NORMAL@ALLIANCECHEMICAL.COM",
+              "context": "customer email"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "billing_dispute",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [
+            "Weekly Unpaid Invoice Report",
+            "Discontinue Report Link",
+            "Customer Account: ALLIANCECHEM",
+            "Customer Email: MACK.NORMAL@ALLIANCECHEMICAL.COM"
+          ],
+          "suggestedNextActions": [
+            "Monitor for customer interaction with the discontinue link.",
+            "Ensure the report generation process is functioning correctly."
+          ],
+          "rawSummary": "This is an automated weekly report of unpaid invoices sent to AllianceChem.  The email provides a link to discontinue the report and contact information for support."
+        }
+      },
+      {
+        "emailSubject": "Automatic reply: Trichloroethylene (TCE) Supply & Safety Information | Alliance Chemical",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaETntAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification",
+          "secondaryTopic": "Out of Office Auto Reply",
+          "customerGoal": "To inform the sender that the recipient is out of office and will respond later",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Person",
+              "value": "Jeff De Vries",
+              "context": "Sender of the auto-reply"
+            },
+            {
+              "type": "Job Title",
+              "value": "Material Testing Engineer",
+              "context": "Sender's job title"
+            },
+            {
+              "type": "Organization",
+              "value": "Iowa Department of Transportation",
+              "context": "Sender's organization"
+            },
+            {
+              "type": "Phone Number",
+              "value": "(515) 239-1237",
+              "context": "Sender's office phone number"
+            },
+            {
+              "type": "Email",
+              "value": "jeff.devries@iowadot.us",
+              "context": "Sender's email address"
+            },
+            {
+              "type": "Product",
+              "value": "Trichloroethylene (TCE)",
+              "context": "Subject of the original email"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "automated_transactional_notice",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [],
+          "suggestedNextActions": [
+            "Wait for the recipient to return to the office"
+          ],
+          "rawSummary": "This is an automated out-of-office reply from Jeff De Vries, a Material Testing Engineer at the Iowa Department of Transportation.  He indicates limited email access and will respond upon his return."
+        }
+      },
+      {
+        "emailSubject": "You've used 80% of your Helpdesk billable tickets on alliance-chemical",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcch0iAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification",
+          "secondaryTopic": "Usage Alert",
+          "customerGoal": "Understand and manage their Helpdesk ticket usage to avoid exceeding their plan limits.",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "80% of allocated Helpdesk tickets used.",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "Alliance"
+            },
+            {
+              "type": "Account Name",
+              "value": "alliance-chemical"
+            },
+            {
+              "type": "Percentage",
+              "value": "80%"
+            },
+            {
+              "type": "URL",
+              "value": "Billing & Usage page"
+            },
+            {
+              "type": "Product",
+              "value": "Helpdesk"
+            },
+            {
+              "type": "Company",
+              "value": "Gorgias"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "very_low",
+          "potentialRootCauseCategory": "High ticket volume",
+          "customerJourneyStageHint": "account_update",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.9,
+          "keyInformationForResolution": [
+            "Current ticket volume",
+            "Helpdesk plan details",
+            "Billing & Usage page URL"
+          ],
+          "suggestedNextActions": [
+            "Review current ticket usage",
+            "Adjust plan if necessary",
+            "Contact Gorgias support if needed"
+          ],
+          "rawSummary": "Alliance's alliance-chemical account has used 80% of its Helpdesk tickets.  This notification alerts them to potential cost increases if usage continues at the current rate and provides a link to their billing information."
+        }
+      },
+      {
+        "emailSubject": "Merchant New Quote Notification",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4CFAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification",
+          "secondaryTopic": "New Quote Notification",
+          "customerGoal": "Receive a quote for Full Synthetic SAE 85W-140 Heavy Duty Gear Lubricant",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "DateTime",
+              "value": "Mon, May 12, 2025 1:25 PM",
+              "context": "Quote Request Date and Time"
+            },
+            {
+              "type": "Product",
+              "value": "Full Synthetic SAE 85W-140 Heavy Duty Gear Lubricant - 55 Gallon / 55 Gallon Drum (Q8U-82Y-5E3)",
+              "context": "Requested Product"
+            },
+            {
+              "type": "Quantity",
+              "value": "1",
+              "context": "Quantity of Product"
+            },
+            {
+              "type": "LastName",
+              "value": "richardson",
+              "context": "Customer Last Name"
+            },
+            {
+              "type": "FirstName",
+              "value": "adam",
+              "context": "Customer First Name"
+            },
+            {
+              "type": "Email",
+              "value": "A_richardson@midwestdrillservice.com",
+              "context": "Customer Email"
+            },
+            {
+              "type": "Company",
+              "value": "Midwest drill service",
+              "context": "Customer Company"
+            },
+            {
+              "type": "State",
+              "value": "IN",
+              "context": "Customer State"
+            },
+            {
+              "type": "ZipCode",
+              "value": "46322-2689",
+              "context": "Customer Zip Code"
+            },
+            {
+              "type": "Phone",
+              "value": "+12198085373",
+              "context": "Customer Phone Number"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [
+            "Quote Request for Full Synthetic SAE 85W-140 Heavy Duty Gear Lubricant",
+            "Customer Contact Information"
+          ],
+          "suggestedNextActions": [
+            "Review the quote request",
+            "Prepare and send a formal quote to the customer"
+          ],
+          "rawSummary": "This email is an automated notification of a new quote request from Adam Richardson at Midwest drill service for one 55-gallon drum of Full Synthetic SAE 85W-140 Heavy Duty Gear Lubricant."
+        }
+      },
+      {
+        "emailSubject": "Merchant New Quote Notification",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcch0kAAA=",
+        "insights": {
+          "primaryTopic": "Automated System Notification",
+          "secondaryTopic": "New Quote Notification",
+          "customerGoal": "Receive a new quote for Isopropyl Alcohol",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "Alliance-Chemical-Store"
+            },
+            {
+              "type": "Date",
+              "value": "May 2, 2025"
+            },
+            {
+              "type": "Product",
+              "value": "Isopropyl Alcohol 99.9% ACS Reagent Grade"
+            },
+            {
+              "type": "Quantity",
+              "value": "1 Gallon / 4 Gallon Case"
+            },
+            {
+              "type": "Product Code",
+              "value": "IG-LIB7-RGSW"
+            },
+            {
+              "type": "Contact Name",
+              "value": "Adam Noveck"
+            },
+            {
+              "type": "Email",
+              "value": "adam.noveck@transcat.com"
+            },
+            {
+              "type": "Company",
+              "value": "Transcat"
+            },
+            {
+              "type": "State",
+              "value": "NJ"
+            },
+            {
+              "type": "Zip Code",
+              "value": "08034"
+            },
+            {
+              "type": "Phone Number",
+              "value": "+16098886159"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 1,
+          "keyInformationForResolution": [
+            "Quote for Isopropyl Alcohol",
+            "Contact Information: Adam Noveck, adam.noveck@transcat.com",
+            "Quantity: 1 Gallon / 4 Gallon Case",
+            "Product Code: IG-LIB7-RGSW"
+          ],
+          "suggestedNextActions": [
+            "Review the quote details.",
+            "Contact Adam Noveck if necessary."
+          ],
+          "rawSummary": "This is an automated notification from Alliance-Chemical-Store providing a new quote to Adam Noveck from Transcat for Isopropyl Alcohol (IG-LIB7-RGSW)."
+        }
+      }
+    ],
+    "Error: AI_Enhanced_API_Failure": [
+      {
+        "emailSubject": "New customer message on April 29, 2025 at 8:12 am",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaETobAAA=",
+        "insights": {
+          "primaryTopic": "Error: AI_Enhanced_API_Failure",
+          "customerGoal": "N/A",
+          "extractedEntities": [],
+          "overallSentiment": null,
+          "estimatedComplexityToResolve": "medium",
+          "automationPotentialScore": 0,
+          "keyInformationForResolution": [],
+          "suggestedNextActions": [
+            "Investigate API error for AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaETobAAA="
+          ],
+          "rawSummary": "Gemini API call failed. Error: Expected ',' or ']' after array element in JSON at position 1289",
+          "error": "Gemini API/Parse Error: Expected ',' or ']' after array element in JSON at position 1289"
+        }
+      },
+      {
+        "emailSubject": "Payment received: Invoice #35966-(Secure Components LLC)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfMnAAA=",
+        "insights": {
+          "primaryTopic": "Error: AI_Enhanced_API_Failure",
+          "customerGoal": "N/A",
+          "extractedEntities": [],
+          "overallSentiment": null,
+          "estimatedComplexityToResolve": "medium",
+          "automationPotentialScore": 0,
+          "keyInformationForResolution": [],
+          "suggestedNextActions": [
+            "Investigate API error for AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfMnAAA="
+          ],
+          "rawSummary": "Gemini API call failed. Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [503 Service Unavailable] The service is currently unavailable.",
+          "error": "Gemini API/Parse Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [503 Service Unavailable] The service is currently unavailable."
+        }
+      },
+      {
+        "emailSubject": "Your Shipping Partner – Ready When You Are",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcch1nAAA=",
+        "insights": {
+          "primaryTopic": "Error: AI_Enhanced_API_Failure",
+          "customerGoal": "N/A",
+          "extractedEntities": [],
+          "overallSentiment": null,
+          "estimatedComplexityToResolve": "medium",
+          "automationPotentialScore": 0,
+          "keyInformationForResolution": [],
+          "suggestedNextActions": [
+            "Investigate API error for AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcch1nAAA="
+          ],
+          "rawSummary": "Gemini API call failed. Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [503 Service Unavailable] The service is currently unavailable.",
+          "error": "Gemini API/Parse Error: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [503 Service Unavailable] The service is currently unavailable."
+        }
+      }
+    ],
+    "Sales/Service Solicitation (Outbound to Us)": [
+      {
+        "emailSubject": "Green Freight Logistics (GFL)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaETofAAA=",
+        "insights": {
+          "primaryTopic": "Sales/Service Solicitation (Outbound to Us)",
+          "secondaryTopic": "Freight Transportation Services",
+          "customerGoal": "To offer freight transportation services and obtain potential business from the recipient.",
+          "specificQuestionsAsked": [
+            "Do you require any trucks to move out your freight today or tomorrow?"
+          ],
+          "extractedEntities": [
+            {
+              "type": "Person",
+              "value": "Alex Parker",
+              "context": "Customer Support Representative"
+            },
+            {
+              "type": "Organization",
+              "value": "Green Freight Logistics (GFL)",
+              "context": "Email Subject"
+            },
+            {
+              "type": "Phone Number",
+              "value": "(512) 354-2647",
+              "context": "Office"
+            },
+            {
+              "type": "Phone Number",
+              "value": "(512) 201-6441",
+              "context": "Mobile"
+            },
+            {
+              "type": "URL",
+              "value": "www.greenfreightlog.com",
+              "context": "Web"
+            },
+            {
+              "type": "Identifier",
+              "value": "1452366",
+              "context": "MC"
+            },
+            {
+              "type": "Identifier",
+              "value": "3924045",
+              "context": "DOT"
+            },
+            {
+              "type": "Identifier",
+              "value": "GFNW",
+              "context": "SCAC"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "vendor_outreach_to_us",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "Freight transportation services offered",
+            "Contact information provided"
+          ],
+          "suggestedNextActions": [
+            "Assess the recipient's freight needs",
+            "Provide a quotation if requested"
+          ],
+          "rawSummary": "Alex Parker from Green Freight Logistics is offering freight transportation services.  They inquire about the recipient's need for trucks today or tomorrow and offer to provide quotations for future needs."
+        }
+      },
+      {
+        "emailSubject": "Freight Request || LTL & FTL ASSISTANCE - DRY VAN - FLATBED - REEFER -STEPDECK ",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOPyp-4AAA=",
+        "insights": {
+          "primaryTopic": "Sales/Service Solicitation (Outbound to Us)",
+          "secondaryTopic": "Freight Transportation Quote Request",
+          "customerGoal": "Obtain quotes for LTL and FTL freight transportation services",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "GLT Logistics",
+              "context": "We're a friendly trucking company"
+            },
+            {
+              "type": "Contact Person",
+              "value": "David Willey",
+              "context": "This is David Willey from GLT Logistics"
+            },
+            {
+              "type": "Phone Number",
+              "value": "+1 864 874 6686",
+              "context": "P: (+1) 864 874 6686"
+            },
+            {
+              "type": "Email",
+              "value": "dwilley@goglt.com",
+              "context": "E: dwilley@goglt.com"
+            },
+            {
+              "type": "Website",
+              "value": "goglt.com",
+              "context": "W: goglt.com"
+            },
+            {
+              "type": "Address",
+              "value": "10 SW Canal Street #318 Miami Springs, FL 33166",
+              "context": "A: 10 SW Canal Street #318 Miami Springs, FL 33166"
+            },
+            {
+              "type": "MC Number",
+              "value": "444952",
+              "context": "MC# 444952"
+            },
+            {
+              "type": "Service Type",
+              "value": "LTL",
+              "context": "LTL - FTL - DRY - REFRIGERATED - BORDER CROSSING - DRAYAGE"
+            },
+            {
+              "type": "Service Type",
+              "value": "FTL",
+              "context": "LTL - FTL - DRY - REFRIGERATED - BORDER CROSSING - DRAYAGE"
+            },
+            {
+              "type": "Service Type",
+              "value": "Dry Van",
+              "context": "LTL - FTL - DRY - REFRIGERATED - BORDER CROSSING - DRAYAGE"
+            },
+            {
+              "type": "Service Type",
+              "value": "Refrigerated",
+              "context": "LTL - FTL - DRY - REFRIGERATED - BORDER CROSSING - DRAYAGE"
+            },
+            {
+              "type": "Service Type",
+              "value": "Border Crossing",
+              "context": "LTL - FTL - DRY - REFRIGERATED - BORDER CROSSING - DRAYAGE"
+            },
+            {
+              "type": "Service Type",
+              "value": "Drayage",
+              "context": "LTL - FTL - DRY - REFRIGERATED - BORDER CROSSING - DRAYAGE"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "LTL and FTL transportation needs",
+            "Contact information for David Willey"
+          ],
+          "suggestedNextActions": [
+            "Respond to David Willey, requesting load details",
+            "Provide load details to David Willey to receive quotes"
+          ],
+          "rawSummary": "David Willey from GLT Logistics is soliciting freight transportation business.  He offers LTL and FTL services (dry van, flatbed, reefer, stepdeck) and requests load details to provide quotes."
+        }
+      },
+      {
+        "emailSubject": "\"Freight Coverage Support – Competitive Rates, Fast Turnaround\"",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOPyp6UAAA=",
+        "insights": {
+          "primaryTopic": "Sales/Service Solicitation (Outbound to Us)",
+          "secondaryTopic": "Freight Services Offer",
+          "customerGoal": "To secure the recipient as a logistics partner for freight services.",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "cargo solution express",
+              "context": "I'm Jennifer from cargo solution express."
+            },
+            {
+              "type": "Service",
+              "value": "Trucking services",
+              "context": "We provide trucking services all over the USA and Canada"
+            },
+            {
+              "type": "Service",
+              "value": "Warehousing",
+              "context": "Warehousing and trucking"
+            },
+            {
+              "type": "Service",
+              "value": "FCL and LCL Drayage",
+              "context": "FCL and LCL Drayage"
+            },
+            {
+              "type": "Service",
+              "value": "OTR (Over-the-Road) Shipments",
+              "context": "OTR (Over-the-Road) Shipments"
+            },
+            {
+              "type": "Service",
+              "value": "Airport Picks and LTL moves",
+              "context": "Airport Picks and LTL moves"
+            },
+            {
+              "type": "Service",
+              "value": "OOG / RORO / Hazmat / Project Cargo / Break Bulk",
+              "context": "OOG / RORO / Hazmat / Project Cargo / Break Bulk"
+            },
+            {
+              "type": "Location",
+              "value": "USA",
+              "context": "We provide trucking services all over the USA and Canada"
+            },
+            {
+              "type": "Location",
+              "value": "Canada",
+              "context": "We provide trucking services all over the USA and Canada"
+            },
+            {
+              "type": "Person",
+              "value": "Jennifer Miller",
+              "context": "Jennifer Miller ( OTR and Drayage Specialist)"
+            },
+            {
+              "type": "Phone Number",
+              "value": "209-498-4232 Ext - 1085",
+              "context": "Operations Phone :- 209-498-4232 Ext - 1085"
+            },
+            {
+              "type": "Phone Number",
+              "value": "209-498-4232",
+              "context": "Mobile :- 209-498-4232"
+            },
+            {
+              "type": "Website",
+              "value": "www.cargosolutionexpress.com",
+              "context": "Website :- www.cargosolutionexpress.com"
+            },
+            {
+              "type": "Email",
+              "value": "jennifer@cargosolution.net",
+              "context": "E-mail :- jennifer@cargosolution.net"
+            },
+            {
+              "type": "Address",
+              "value": "14587 VALLEY BLVD",
+              "context": "Address :- 14587 VALLEY BLVD"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "vendor_outreach_to_us",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "Freight services offered by Cargo Solution Express",
+            "Services include warehousing, trucking, drayage, OTR shipments, airport picks, LTL moves, and specialized cargo handling",
+            "Contact information for Jennifer Miller"
+          ],
+          "suggestedNextActions": [
+            "Review the services offered by Cargo Solution Express",
+            "Assess if their services meet your needs",
+            "Contact Jennifer Miller if interested in learning more"
+          ],
+          "rawSummary": "Jennifer Miller from Cargo Solution Express is soliciting business, offering various freight services (warehousing, trucking, drayage, OTR, airport picks, LTL, specialized cargo) across the USA and Canada.  She highlights competitive pricing and reliable service but notes potential delays due to chassis shortages and other logistical challenges."
+        }
+      },
+      {
+        "emailSubject": "High-Purity Minerals & Salts – Trusted by Industry Leaders",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfMEAAA=",
+        "insights": {
+          "primaryTopic": "Sales/Service Solicitation (Outbound to Us)",
+          "secondaryTopic": "High-Purity Minerals and Salts Product Promotion",
+          "customerGoal": "To promote their high-purity minerals and salts products and attract potential customers.",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Product",
+              "value": "High-purity salts and inorganics"
+            },
+            {
+              "type": "Industry",
+              "value": "pharmaceutical"
+            },
+            {
+              "type": "Industry",
+              "value": "food"
+            },
+            {
+              "type": "Industry",
+              "value": "animal feed"
+            },
+            {
+              "type": "Industry",
+              "value": "industrial sectors"
+            },
+            {
+              "type": "Company",
+              "value": "Klar Chem"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "High-purity minerals and salts are offered.",
+            "Products meet stringent requirements of various sectors.",
+            "Company is Klar Chem."
+          ],
+          "suggestedNextActions": [
+            "Analyze the target audience and potential market.",
+            "Assess the value proposition and competitive advantage.",
+            "Develop a targeted marketing strategy."
+          ],
+          "rawSummary": "Klar Chem is advertising its selection of high-purity minerals and inorganic salts, emphasizing their quality and suitability for pharmaceutical, food, animal feed, and industrial applications."
+        }
+      },
+      {
+        "emailSubject": "Industrial Chemicals Supply Solutions | Novichem Co.",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOcch4PAAA=",
+        "insights": {
+          "primaryTopic": "Sales/Service Solicitation (Outbound to Us)",
+          "secondaryTopic": "Introducing industrial chemical supply services",
+          "customerGoal": "To initiate a business relationship and potentially secure the recipient as a customer for their industrial chemical products.",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "Novichem Co."
+            },
+            {
+              "type": "Industry",
+              "value": "Industrial Chemicals"
+            },
+            {
+              "type": "Service",
+              "value": "Supply and Distribution"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "very_low",
+          "customerJourneyStageHint": "vendor_outreach_to_us",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.1,
+          "keyInformationForResolution": [
+            "Novichem Co. is a global supplier and distributor of industrial chemicals."
+          ],
+          "suggestedNextActions": [
+            "Review Novichem Co.'s website and offerings.",
+            "Determine if their products or services align with business needs.",
+            "Contact Novichem Co. if interested in learning more."
+          ],
+          "rawSummary": "Novichem Co. introduces itself as a global supplier and distributor of premium industrial chemicals."
+        }
+      }
+    ],
+    "Other Customer Request (Specify)": [
+      {
+        "emailSubject": "RE: ALLIANCE CHEMICAL",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOPyp-mAAA=",
+        "insights": {
+          "primaryTopic": "Other Customer Request (Specify)",
+          "secondaryTopic": "Supplier Information Request",
+          "customerGoal": "Obtain completed supplier survey and AS/ISO certifications from Alliance Chemical",
+          "specificQuestionsAsked": [
+            "Does your company have a written safety program?",
+            "If your company has any AS/ISO certifications could you send those as well?"
+          ],
+          "problemReported": {
+            "description": "Supplier survey incomplete and inconsistent responses.",
+            "associatedProduct": null,
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "Northrop Grumman Corporation",
+              "context": "Requester"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Supplier"
+            },
+            {
+              "type": "Person",
+              "value": "Heather Weaver",
+              "context": "Requester, Procurement Assistant"
+            },
+            {
+              "type": "Person",
+              "value": "Adnan Heikal",
+              "context": "Supplier Contact"
+            },
+            {
+              "type": "Email",
+              "value": "heather.weaver@ngc.com",
+              "context": "Requester"
+            },
+            {
+              "type": "Email",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "Supplier Contact"
+            },
+            {
+              "type": "Phone",
+              "value": "858-621-6910",
+              "context": "Requester Office"
+            },
+            {
+              "type": "Phone",
+              "value": "619-214-4143",
+              "context": "Requester Cell"
+            },
+            {
+              "type": "Date",
+              "value": "March 10, 2025",
+              "context": "Email Sent Date"
+            },
+            {
+              "type": "Date",
+              "value": "March 7, 2025",
+              "context": "Email Sent Date"
+            },
+            {
+              "type": "Document",
+              "value": "Supplier survey",
+              "context": "Requested document"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Supplier Communication",
+          "customerJourneyStageHint": "vendor_outreach_to_us",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.6,
+          "keyInformationForResolution": [
+            "Completed supplier survey",
+            "AS/ISO certifications"
+          ],
+          "suggestedNextActions": [
+            "Follow up with Adnan Heikal for missing information",
+            "Review completed survey for completeness and accuracy"
+          ],
+          "rawSummary": "Northrop Grumman's Heather Weaver requests Alliance Chemical to complete and return a supplier survey, including AS/ISO certifications, addressing inconsistencies in the initial response."
+        }
+      },
+      {
+        "emailSubject": "Re: [OBE & CRL] PFAS Regulations - Action Needed",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOgHfPKAAA=",
+        "insights": {
+          "primaryTopic": "Other Customer Request (Specify)",
+          "secondaryTopic": "PFAS Regulatory Compliance Data Request",
+          "customerGoal": "Provide Alliance Chemical's PFAS attestation data to WAP Sustainability for regulatory compliance",
+          "specificQuestionsAsked": [
+            "Does “no added PFAS” apply to products supplied to all your customers or only those supplied to OBE/CRL?"
+          ],
+          "problemReported": {
+            "description": "Request for PFAS attestation data from Alliance Chemical to meet regulatory requirements",
+            "urgencyToCustomer": "high"
+          },
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "Supplier of chemicals"
+            },
+            {
+              "type": "Person",
+              "value": "Adnan Heikal",
+              "context": "Contact at Alliance Chemical"
+            },
+            {
+              "type": "Person",
+              "value": "Ruth Maust",
+              "context": "Contact at WAP Sustainability"
+            },
+            {
+              "type": "Company",
+              "value": "WAP Sustainability",
+              "context": "Requester of data"
+            },
+            {
+              "type": "Document",
+              "value": "PFAS attestation document",
+              "context": "Document containing PFAS related information"
+            },
+            {
+              "type": "Regulation",
+              "value": "PFAS Regulations",
+              "context": "Environmental regulations related to PFAS"
+            },
+            {
+              "type": "Email",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "Adnan Heikal's email address"
+            },
+            {
+              "type": "Email",
+              "value": "ruth@wapsustainability.com",
+              "context": "Ruth Maust's email address"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512.365.6838",
+              "context": "Alliance Chemical office phone number"
+            },
+            {
+              "type": "Address",
+              "value": "204 South Edmond Street Taylor, Texas 76574",
+              "context": "Alliance Chemical office address"
+            },
+            {
+              "type": "Website",
+              "value": "www.alliancechemical.com",
+              "context": "Alliance Chemical website"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Regulatory Compliance",
+          "customerJourneyStageHint": "vendor_outreach_to_us",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.2,
+          "keyInformationForResolution": [
+            "PFAS attestation document",
+            "Alliance Chemical's response to PFAS questions"
+          ],
+          "suggestedNextActions": [
+            "Review Alliance Chemical's updated document",
+            "Verify the accuracy and completeness of the data"
+          ],
+          "rawSummary": "This email exchange concerns a request from WAP Sustainability to Alliance Chemical for updated PFAS attestation data.  Alliance Chemical initially provided a document, which was then revised to clarify whether \"no added PFAS\" applies to all customers or only those supplied to OBE/CRL.  The final response from Alliance Chemical indicates they have provided all necessary information."
+        }
+      }
+    ],
+    "Account Management": [
+      {
+        "emailSubject": "Re: Chemical quote for 4Earth",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaEToxAAA=",
+        "insights": {
+          "primaryTopic": "Account Management",
+          "secondaryTopic": "Credit Application and Pricing Negotiation",
+          "customerGoal": "Establish a credit account with Alliance Chemical and negotiate pricing and payment terms for regular chemical orders.",
+          "specificQuestionsAsked": [
+            "Could you please send us a credit application?",
+            "Given our expectation for regular and increasing orders due to our expanding operations, we would appreciate further information regarding the special pricing and payment terms discussed, along with the volume discount structure for recurring orders."
+          ],
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "4Earth",
+              "context": "Chemical quote for 4Earth"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "credit application and don’t hesitate to reach out if you need further assistance."
+            },
+            {
+              "type": "Email",
+              "value": "adnan.heikal@alliancechemical.com",
+              "context": "Adnan Heikal"
+            },
+            {
+              "type": "Email",
+              "value": "abdullah@4earth.tech",
+              "context": "From: Abdullah Alchalabi"
+            },
+            {
+              "type": "Email",
+              "value": "andre@alliancechemical.com",
+              "context": "To: Andre Taki"
+            },
+            {
+              "type": "Email",
+              "value": "Sales@alliancechemical.com",
+              "context": "Cc: Sales"
+            },
+            {
+              "type": "Email",
+              "value": "jkhan@4earth.tech",
+              "context": "Cc: Jahanzeb Khan"
+            },
+            {
+              "type": "Email",
+              "value": "sreerag.suresh@4earth.tech",
+              "context": "Cc: Sreerag Suresh"
+            },
+            {
+              "type": "Chemical",
+              "value": "Ferric Chloride",
+              "context": "Chemical Concentration Price (Per 55 GAL Drum) Ferric Chloride 40% $806.97"
+            },
+            {
+              "type": "Chemical",
+              "value": "Sodium Hydroxide",
+              "context": "Sodium Hydroxide 25% $745.22"
+            },
+            {
+              "type": "Chemical",
+              "value": "Hydrogen Peroxide",
+              "context": "Hydrogen Peroxide 30% $504.33"
+            },
+            {
+              "type": "Chemical",
+              "value": "Citric Acid",
+              "context": "Citric Acid 25% $1,169.72"
+            },
+            {
+              "type": "Chemical",
+              "value": "Sodium Bisulfite",
+              "context": "Sodium Bisulfite 40% $628.24"
+            },
+            {
+              "type": "Chemical",
+              "value": "Sodium Hypochlorite",
+              "context": "Sodium Hypochlorite 12.5% $435.00"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512.365.6838",
+              "context": "Alliance Chemical Office: 512.365.6838 XT 516"
+            },
+            {
+              "type": "Address",
+              "value": "204 South Edmond Street Taylor, Texas 76574",
+              "context": "Alliance Chemical Office: 512.365.6838 XT 516 204 South Edmond Street Taylor, Texas 76574"
+            },
+            {
+              "type": "Website",
+              "value": "www.alliancechemical.com",
+              "context": "Visit our website at www.alliancechemical.com"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "inquisitive",
+            "appreciative"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "pre_sales_inquiry",
+          "multiIntentDetected": true,
+          "automationPotentialScore": 0.6,
+          "keyInformationForResolution": [
+            "Credit application",
+            "Pricing details",
+            "Payment terms",
+            "Volume discount structure"
+          ],
+          "suggestedNextActions": [
+            "Send credit application to 4Earth",
+            "Provide detailed pricing and payment terms information",
+            "Discuss volume discount structure with 4Earth"
+          ],
+          "rawSummary": "4Earth is requesting a credit application from Alliance Chemical to establish an account.  They also want details on special pricing, payment terms, and volume discounts for their expected recurring chemical orders.  The initial chemical order pricing has already been provided."
+        }
+      },
+      {
+        "emailSubject": "Re: Chemical quote for 4Earth",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOaEToTAAA=",
+        "insights": {
+          "primaryTopic": "Account Management",
+          "secondaryTopic": "Credit Application and Pricing Negotiation",
+          "customerGoal": "Establish a business account with Alliance Chemical, secure favorable pricing and payment terms, and obtain volume discounts for recurring chemical orders.",
+          "specificQuestionsAsked": [
+            "Could you please send us a credit application?",
+            "Given our expectation for regular and increasing orders due to our expanding operations, we would appreciate further information regarding the special pricing and payment terms discussed, along with the volume discount structure for recurring orders."
+          ],
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "4Earth",
+              "context": "Chemical quote for 4Earth"
+            },
+            {
+              "type": "Company",
+              "value": "Alliance Chemical",
+              "context": "set up an account with Alliance Chemical"
+            },
+            {
+              "type": "Person",
+              "value": "Abdullah",
+              "context": "Best regards, Abdullah"
+            },
+            {
+              "type": "Person",
+              "value": "Andre Taki",
+              "context": "Andre Taki <andre@alliancechemical.com>"
+            },
+            {
+              "type": "Email",
+              "value": "andre@alliancechemical.com",
+              "context": "Andre Taki <andre@alliancechemical.com>"
+            },
+            {
+              "type": "Chemical",
+              "value": "Ferric Chloride",
+              "context": "Ferric Chloride 40% $806.97"
+            },
+            {
+              "type": "Chemical",
+              "value": "Sodium Hydroxide",
+              "context": "Sodium Hydroxide 25% $745.22"
+            },
+            {
+              "type": "Chemical",
+              "value": "Hydrogen Peroxide",
+              "context": "Hydrogen Peroxide 30% $504.33"
+            },
+            {
+              "type": "Chemical",
+              "value": "Citric Acid",
+              "context": "Citric Acid 25% $1,169.72"
+            },
+            {
+              "type": "Chemical",
+              "value": "Sodium Bisulfite",
+              "context": "Sodium Bisulfite 40% $628.24"
+            },
+            {
+              "type": "Chemical",
+              "value": "Sodium Hypochlorite",
+              "context": "Sodium Hypochlorite 12.5% $435.00"
+            },
+            {
+              "type": "Quantity",
+              "value": "55-gallon drums",
+              "context": "the initial 55-gallon drums"
+            },
+            {
+              "type": "Price",
+              "value": "$806.97",
+              "context": "Ferric Chloride 40% $806.97"
+            },
+            {
+              "type": "Price",
+              "value": "$745.22",
+              "context": "Sodium Hydroxide 25% $745.22"
+            },
+            {
+              "type": "Price",
+              "value": "$504.33",
+              "context": "Hydrogen Peroxide 30% $504.33"
+            },
+            {
+              "type": "Price",
+              "value": "$1,169.72",
+              "context": "Citric Acid 25% $1,169.72"
+            },
+            {
+              "type": "Price",
+              "value": "$628.24",
+              "context": "Sodium Bisulfite 40% $628.24"
+            },
+            {
+              "type": "Price",
+              "value": "$435.00",
+              "context": "Sodium Hypochlorite 12.5% $435.00"
+            },
+            {
+              "type": "Date",
+              "value": "Apr 28, 2025",
+              "context": "Mon, Apr 28, 2025 at 4:54 PM"
+            },
+            {
+              "type": "Email",
+              "value": "abdullah@4earth.tech",
+              "context": "From: Abdullah Alchalabi <abdullah@4earth.tech>"
+            },
+            {
+              "type": "Email",
+              "value": "Sales@alliancechemical.com",
+              "context": "To: Sales <Sales@alliancechemical.com>"
+            },
+            {
+              "type": "Email",
+              "value": "jkhan@4earth.tech",
+              "context": "Cc: Jahanzeb Khan <jkhan@4earth.tech>"
+            },
+            {
+              "type": "Email",
+              "value": "sreerag.suresh@4earth.tech",
+              "context": "Cc: Sreerag Suresh <sreerag.suresh@4earth.tech>"
+            },
+            {
+              "type": "Phone Number",
+              "value": "512-365-6838",
+              "context": "Andre@alliancechemical.com 512-365-6838"
+            }
+          ],
+          "overallSentiment": "positive",
+          "specificTones": [
+            "appreciative",
+            "inquisitive"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "account_update",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.7,
+          "keyInformationForResolution": [
+            "Credit application request",
+            "Need for pricing and payment term details",
+            "Volume discount structure inquiry"
+          ],
+          "suggestedNextActions": [
+            "Send credit application to 4Earth",
+            "Provide detailed pricing and payment terms information",
+            "Outline volume discount structure for recurring orders"
+          ],
+          "rawSummary": "4Earth requests a credit application from Alliance Chemical to establish an account.  They also seek details on special pricing, payment terms, and volume discounts for their anticipated recurring chemical orders."
+        }
+      },
+      {
+        "emailSubject": "Supplier Set-Up Information Request With Alliance Chemical For Kodak Alaris LLC's System ",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOPyp51AAA=",
+        "insights": {
+          "primaryTopic": "Account Management",
+          "secondaryTopic": "Supplier Onboarding",
+          "customerGoal": "To onboard Alliance Chemical as a supplier by collecting necessary documentation.",
+          "specificQuestionsAsked": [],
+          "extractedEntities": [
+            {
+              "type": "Company",
+              "value": "Alliance Chemical"
+            },
+            {
+              "type": "Document",
+              "value": "USC Trade Vendor Master Request"
+            },
+            {
+              "type": "Document",
+              "value": "Banking Information"
+            },
+            {
+              "type": "Document",
+              "value": "W9 (Rev. March 2024)"
+            },
+            {
+              "type": "Person",
+              "value": "Heidi Erbes"
+            },
+            {
+              "type": "Company",
+              "value": "Kodak Alaris LLC"
+            },
+            {
+              "type": "Location",
+              "value": "Windsor, CO 80551"
+            },
+            {
+              "type": "Email",
+              "value": "heidi.erbes@kodakalaris.com"
+            },
+            {
+              "type": "Phone",
+              "value": "970.686.4456"
+            }
+          ],
+          "overallSentiment": "neutral",
+          "specificTones": [],
+          "estimatedComplexityToResolve": "low",
+          "customerJourneyStageHint": "account_update",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "USC Trade Vendor Master Request",
+            "Banking information on company letterhead",
+            "Completed and signed W9 (Rev. March 2024)"
+          ],
+          "suggestedNextActions": [
+            "Send the requested documents to Heidi Erbes"
+          ],
+          "rawSummary": "Kodak Alaris LLC is requesting Alliance Chemical to submit the USC Trade Vendor Master Request form, banking information, and a completed W9 for supplier setup."
+        }
+      }
+    ],
+    "Technical Support / Product Defect": [
+      {
+        "emailSubject": "Inquiry from Amazon customer DEE_ESS: Received damaged or defective item",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4GaAAA=",
+        "insights": {
+          "primaryTopic": "Technical Support / Product Defect",
+          "secondaryTopic": "Damaged Product Return Request",
+          "tertiaryTopic": "Order #113-5566249-9784213 - Damaged Alliance Chemical Vinegar",
+          "customerGoal": "Return the damaged product",
+          "specificQuestionsAsked": [],
+          "problemReported": {
+            "description": "The customer received a damaged item with broken parts.",
+            "associatedProduct": "B0CXG8QKRS Alliance Chemical 30% Vinegar",
+            "urgencyToCustomer": "medium"
+          },
+          "extractedEntities": [
+            {
+              "type": "OrderID",
+              "value": "113-5566249-9784213"
+            },
+            {
+              "type": "ASIN",
+              "value": "B0CXG8QKRS"
+            },
+            {
+              "type": "ProductName",
+              "value": "Alliance Chemical 30% Vinegar - Concentrated Industrial Strength - 4 Quarts w/Spray - Extreme Cleaning"
+            },
+            {
+              "type": "CustomerName",
+              "value": "DEE_ESS"
+            },
+            {
+              "type": "ReturnRequested",
+              "value": "Yes"
+            },
+            {
+              "type": "ProblemDescription",
+              "value": "The item has broken parts."
+            }
+          ],
+          "overallSentiment": "negative",
+          "specificTones": [
+            "urgent"
+          ],
+          "estimatedComplexityToResolve": "low",
+          "potentialRootCauseCategory": "Product Damage during Shipping",
+          "customerJourneyStageHint": "post_delivery_issue",
+          "multiIntentDetected": false,
+          "automationPotentialScore": 0.8,
+          "keyInformationForResolution": [
+            "Order ID: 113-5566249-9784213",
+            "ASIN: B0CXG8QKRS",
+            "Product Name: Alliance Chemical 30% Vinegar",
+            "Customer reported broken parts",
+            "Return requested"
+          ],
+          "suggestedNextActions": [
+            "Contact the customer to arrange a return or replacement.",
+            "Initiate a return authorization.",
+            "Investigate potential causes of product damage during shipping."
+          ],
+          "rawSummary": "Amazon customer DEE_ESS received a damaged bottle of Alliance Chemical 30% Vinegar (ASIN B0CXG8QKRS, Order ID 113-5566249-9784213) and has requested a return."
+        }
+      }
+    ]
+  }
+}

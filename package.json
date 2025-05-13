@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "db:introspect": "npx drizzle-kit introspect",
-    "db:migrate": "npx drizzle-kit push"
+    "db:migrate": "npx drizzle-kit push",
+    "setup:webhook": "node scripts/run-webhook-setup.mjs"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.4.0",
@@ -16,6 +17,10 @@
     "@google/generative-ai": "^0.24.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@microsoft/microsoft-graph-types": "^2.40.0",
+    "@tiptap/extension-link": "^2.1.20",
+    "@tiptap/extension-placeholder": "^2.1.20",
+    "@tiptap/react": "^2.1.20",
+    "@tiptap/starter-kit": "^2.1.20",
     "@types/react-bootstrap": "^0.32.37",
     "@vercel/kv": "^3.0.0",
     "axios": "^1.9.0",
@@ -34,12 +39,12 @@
     "react-bootstrap": "^2.10.10",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.0.0",
-    "react-quill": "^2.0.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@tsconfig/node20": "^20.1.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/dompurify": "^3.0.5",
     "@types/node": "^20",
@@ -51,6 +56,8 @@
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.4",
     "typescript": "^5"
   },
   "type": "module"

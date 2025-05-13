@@ -408,20 +408,49 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
         if (!triageResult) {
             console.warn(`EmailProcessor (Phase 6): AI Triage failed for ${messageId}. Sending to quarantine.`);
             // Send to Quarantine as fallback
-            await db.insert(quarantinedEmails).values({
-                 originalGraphMessageId: messageId, 
-                 internetMessageId: internetMessageId || `missing-${messageId}`, 
-                 senderEmail: lowerSender, 
-                 senderName: senderName, 
-                 subject: subject, 
-                 bodyPreview: bodyPreview, 
-                 receivedAt: receivedAt,
-                 aiClassification: false, 
-                 aiReason: "AI Triage API call failed.", 
-                 status: 'pending_review'
-             });
-            try { await graphService.markEmailAsRead(messageId); } catch(e){}
-            return { success: false, message: "AI Triage failed, sent to quarantine", quarantined: true };
+            try {
+                await db.insert(quarantinedEmails).values({
+                    originalGraphMessageId: messageId, 
+                    internetMessageId: internetMessageId || `missing-${messageId}`, 
+                    senderEmail: lowerSender, 
+                    senderName: senderName, 
+                    subject: subject, 
+                    bodyPreview: bodyPreview, 
+                    receivedAt: receivedAt,
+                    aiClassification: false, 
+                    aiReason: "AI Triage API call failed.", 
+                    status: 'pending_review'
+                });
+                try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                return { success: false, message: "AI Triage failed, sent to quarantine", quarantined: true };
+            } catch (quarantineError: any) {
+                // Handle duplicate key constraint violation
+                if (quarantineError.code === '23505' || 
+                    (quarantineError.message && quarantineError.message.includes('duplicate key value violates unique constraint'))) {
+                    console.log(`EmailProcessor-QuarantineFail: Email ${messageId} already in quarantine. Skipping duplicate quarantine.`);
+                    if (messageId) {
+                        try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                    }
+                    
+                    // Send specific alert about the quarantine fail situation
+                    await alertService.trackErrorAndAlert(
+                        'EmailProcessor-QuarantineFail',
+                        `Failed to quarantine critically errored email ${messageId}`,
+                        {
+                            mainError: quarantineError.message || 'Unknown error',
+                            quarantineError: quarantineError
+                        }
+                    );
+                    
+                    return { 
+                        success: false, 
+                        message: "Error processing email, already in quarantine", 
+                        quarantined: true 
+                    };
+                }
+                // Rethrow other errors
+                throw quarantineError;
+            }
         }
 
         // === Phase 7: Decision Gate ===
@@ -431,20 +460,47 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
             case 'CUSTOMER_REPLY': // Treat unexpected customer replies as new tickets if threading failed
                 if (triageResult.confidence === 'low') {
                     console.log(`EmailProcessor: Low confidence customer request (${messageId}). Sending to quarantine.`);
-                    await db.insert(quarantinedEmails).values({
-                        originalGraphMessageId: messageId,
-                        internetMessageId: internetMessageId || `missing-${messageId}`,
-                        senderEmail: lowerSender,
-                        senderName: senderName,
-                        subject: subject,
-                        bodyPreview: bodyPreview,
-                        receivedAt: receivedAt,
-                        aiClassification: true,
-                        aiReason: triageResult.reasoning,
-                        status: 'pending_review'
-                    });
-                    try { await graphService.markEmailAsRead(messageId); } catch(e){}
-                    return { success: true, message: "Sent to quarantine due to low AI confidence", quarantined: true, aiTriageClassification: triageResult.classification };
+                    try {
+                        await db.insert(quarantinedEmails).values({
+                            originalGraphMessageId: messageId,
+                            internetMessageId: internetMessageId || `missing-${messageId}`,
+                            senderEmail: lowerSender,
+                            senderName: senderName,
+                            subject: subject,
+                            bodyPreview: bodyPreview,
+                            receivedAt: receivedAt,
+                            aiClassification: true,
+                            aiReason: triageResult.reasoning,
+                            status: 'pending_review'
+                        });
+                        try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                        return { success: true, message: "Sent to quarantine due to low AI confidence", quarantined: true, aiTriageClassification: triageResult.classification };
+                    } catch (quarantineError: any) {
+                        // Handle duplicate key constraint violation
+                        if (quarantineError.code === '23505' || 
+                            (quarantineError.message && quarantineError.message.includes('duplicate key value violates unique constraint'))) {
+                            console.log(`EmailProcessor-QuarantineFail: Email ${messageId} already in quarantine. Skipping duplicate quarantine.`);
+                            if (messageId) {
+                                try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                            }
+                            // Send specific alert about the quarantine fail situation
+                            await alertService.trackErrorAndAlert(
+                                'EmailProcessor-QuarantineFail',
+                                `Failed to quarantine critically errored email ${messageId}`,
+                                {
+                                    mainError: quarantineError.message || 'Unknown error',
+                                    quarantineError: quarantineError
+                                }
+                            );
+                            return { 
+                                success: false, 
+                                message: "Error processing email, already in quarantine", 
+                                quarantined: true 
+                            };
+                        }
+                        // Rethrow other errors
+                        throw quarantineError;
+                    }
                 }
                 // --- Proceed to Phase 8: Data Extraction & Ticket Creation ---
                 console.log(`EmailProcessor: Confirmed customer request (${messageId}). Proceeding to data extraction.`);
@@ -690,29 +746,90 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
             automation_info: automationInfo
         };
 
-    } catch (error: any) {
-        console.error(`EmailProcessor: CRITICAL Error processing email ${messageId || 'unknown'}:`, error);
-         try { await graphService.markEmailAsRead(messageId || ''); } catch (readError) { /* Ignore */ }
-         // Send critical errors to quarantine for manual inspection
-         try {
-            await db.insert(quarantinedEmails).values({
-                originalGraphMessageId: messageId || 'unknown-id',
-                internetMessageId: internetMessageId || `error-${messageId || Date.now()}`,
-                senderEmail: senderEmail || 'unknown',
-                senderName: senderName,
-                subject: subject,
-                bodyPreview: bodyPreview,
-                receivedAt: receivedAt,
-                aiClassification: false, // Assume false on error
-                aiReason: `Critical processing error: ${error.message}`,
-                status: 'pending_review'
-            });
-             console.log(`EmailProcessor: Sent critically failed email ${messageId} to quarantine.`);
-         } catch (qError) {
-             console.error(`EmailProcessor: FAILED to send critically failed email ${messageId} to quarantine:`, qError);
-             await alertService.trackErrorAndAlert('EmailProcessor-QuarantineFail', `Failed to quarantine critically errored email ${messageId}`, { mainError: error.message, quarantineError: qError });
-         }
-        return { success: false, message: error.message || 'Unknown critical processing error', quarantined: true };
+    } catch (processingError: any) {
+        console.error(`EmailProcessor: Error processing email ${messageId}:`, processingError);
+        
+        // Try to quarantine the problematic email
+        try {
+            // Alert the error before trying to quarantine
+            await alertService.trackErrorAndAlert(
+                'EmailProcessor-Error',
+                `Failed to process email ${messageId}`,
+                processingError
+            );
+            
+            // Try to quarantine the email that caused the error
+            try {
+                if (!messageId) {
+                    throw new Error('Message ID is undefined');
+                }
+                
+                const quarantineData = {
+                    originalGraphMessageId: messageId,
+                    internetMessageId: internetMessageId || `error-${messageId}-${Date.now()}`,
+                    senderEmail: senderEmail || 'unknown@example.com',
+                    senderName: senderName || 'Unknown Sender',
+                    subject: subject || '[No Subject]',
+                    bodyPreview: bodyPreview || 'Error occurred while processing this email',
+                    receivedAt: receivedAt,
+                    aiClassification: false,
+                    aiReason: `Error: ${processingError.message || 'Unknown error'}`,
+                    status: 'pending_review' as const
+                };
+                
+                await db.insert(quarantinedEmails).values(quarantineData);
+                
+                console.log(`EmailProcessor: Quarantined errored email ${messageId}`);
+                await graphService.markEmailAsRead(messageId);
+                
+                return { 
+                    success: false, 
+                    message: `Error processing email, quarantined for review: ${processingError.message || 'Unknown error'}`,
+                    quarantined: true
+                };
+            } catch (quarantineError: any) {
+                // If quarantine fails due to duplicate key, log and move on
+                if (quarantineError.code === '23505' || 
+                    (quarantineError.message && quarantineError.message.includes('duplicate key value violates unique constraint'))) {
+                    console.log(`EmailProcessor-QuarantineFail: Email ${messageId} already in quarantine. Skipping duplicate quarantine.`);
+                    if (messageId) {
+                        await graphService.markEmailAsRead(messageId);
+                    }
+                    
+                    // Send specific alert about the quarantine fail situation
+                    await alertService.trackErrorAndAlert(
+                        'EmailProcessor-QuarantineFail',
+                        `Failed to quarantine critically errored email ${messageId}`,
+                        {
+                            mainError: quarantineError.message || 'Unknown error',
+                            quarantineError: quarantineError
+                        }
+                    );
+                    
+                    return { 
+                        success: false, 
+                        message: "Error processing email, already in quarantine", 
+                        quarantined: true 
+                    };
+                }
+                
+                // For other quarantine errors, log this additional failure
+                console.error(`EmailProcessor: Failed to quarantine errored email ${messageId}:`, quarantineError);
+                await alertService.trackErrorAndAlert(
+                    'EmailProcessor-CriticalFail',
+                    `Failed to quarantine errored email ${messageId}`,
+                    {
+                        mainError: processingError.message || 'Unknown error',
+                        quarantineError: quarantineError
+                    }
+                );
+            }
+        } catch (alertError) {
+            console.error(`EmailProcessor: Critical failure in error handling for ${messageId}:`, alertError);
+        }
+        
+        // Return failure, but don't throw
+        return { success: false, message: `Error processing email: ${processingError.message || 'Unknown error'}` };
     }
 }
 

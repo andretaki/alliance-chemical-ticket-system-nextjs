@@ -1,0 +1,1192 @@
+{
+  "scriptVersion": "1.2.1_PureDiscovery",
+  "analysisPeriod": {
+    "startDate": "2025-05-10T15:08:27-05:00",
+    "endDate": "2025-05-13T15:08:27-05:00"
+  },
+  "totalEmailsFetched": 100,
+  "internalEmailsCount": 0,
+  "externalEmailsCount": 100,
+  "deepDiscoverySampleAnalyzedCount": 15,
+  "aiErrorsDuringDiscovery": 0,
+  "averageBodyLengthForDiscoverySample": 1881.6,
+  "emailVolumeStats": {
+    "byDay": {
+      "2025-05-13": 57,
+      "2025-05-12": 43
+    },
+    "byWeekday": {
+      "Sunday": 0,
+      "Monday": 43,
+      "Tuesday": 57,
+      "Wednesday": 0,
+      "Thursday": 0,
+      "Friday": 0,
+      "Saturday": 0
+    },
+    "byHourUTC": {
+      "0": 1,
+      "1": 2,
+      "2": 0,
+      "3": 0,
+      "4": 2,
+      "5": 1,
+      "6": 2,
+      "7": 0,
+      "8": 1,
+      "9": 1,
+      "10": 1,
+      "11": 1,
+      "12": 0,
+      "13": 2,
+      "14": 8,
+      "15": 12,
+      "16": 6,
+      "17": 6,
+      "18": 9,
+      "19": 22,
+      "20": 20,
+      "21": 1,
+      "22": 1,
+      "23": 1
+    }
+  },
+  "discoveredPrimaryTopics": {
+    "Customer request for Safety Data Sheet (SDS)": 1,
+    "Customer Inquiry Regarding Order Delivery": 1,
+    "Order Confirmation and Shipping Details for Perchloroethylene": 1,
+    "Order Fulfillment and Inquiry for Larger Quantity": 1,
+    "Purchase Order Confirmation and Pricing Details for Acetic Acid": 1,
+    "Quotation Request for Chemical Products": 1,
+    "Order processing and delivery confirmation": 1,
+    "Quote Request and Inquiry about Subscription Service for Ethylene Glycol": 1,
+    "Order Discrepancy: Missing Gallons in Purchase Order #208904": 1,
+    "Refund Notification for Order 114-1158581-3977823": 1,
+    "Customer Inquiry: Identifying and Sourcing Retro Aluminum Cleaner": 1,
+    "Quote Request for Bulk Sodium Hydroxide": 1,
+    "Order #4412: Certificate of Analysis Request": 1,
+    "Request for PEG 200 sample and potential order": 1,
+    "Quotation for Propylene Glycol Products": 1
+  },
+  "discoveredSubTopicsAggregated": {
+    "SDS request": 1,
+    "Product: TCE (Trichloroethylene)": 1,
+    "Website issue": 1,
+    "Order Status": 1,
+    "Product: Specialty Denatured Alcohol": 1,
+    "Amazon Order Inquiry": 1,
+    "Product Inquiry": 3,
+    "Shipping and Hazmat Fees": 1,
+    "Payment Terms": 1,
+    "Order Status Update": 1,
+    "Product Availability": 1,
+    "Packaging Options": 1,
+    "Order Confirmation": 2,
+    "Pricing Details": 2,
+    "Shipping Information": 1,
+    "Chemicals: various industrial chemicals": 1,
+    "Quantity: large quantities in KG": 1,
+    "Location: Addis Ababa, Ethiopia": 1,
+    "Payment method": 1,
+    "Delivery ETA": 1,
+    "DOT Blitz Week impact": 1,
+    "Product Inquiry: Ethylene Glycol": 1,
+    "Subscription Service Inquiry": 1,
+    "Variable Restock Periods": 1,
+    "Order Fulfillment Issue": 1,
+    "Shipping Discrepancy": 1,
+    "Customer Service Request": 1,
+    "Order Refund": 1,
+    "Seller Fulfilled Order": 1,
+    "Sodium Hydroxide Refund": 1,
+    "Historical Product": 1,
+    "Chemical Composition": 1,
+    "Product Inquiry: Sodium Hydroxide": 1,
+    "Quantity: IBC tote": 1,
+    "Shipping Address": 1,
+    "Payment Confirmation": 1,
+    "CoA Request": 1,
+    "Sample Request": 1,
+    "Order Inquiry": 1,
+    "Shipping Logistics": 1,
+    "Bulk Purchase": 1
+  },
+  "discoveredKeywordsAggregated": {
+    "SDS": 2,
+    "TCE": 1,
+    "Trichloroethylene": 1,
+    "Safety Data Sheet": 1,
+    "website": 1,
+    "contact form": 1,
+    "Order ID": 2,
+    "ASIN": 1,
+    "B0CTVF7YBD": 1,
+    "Specialty Denatured Alcohol": 1,
+    "4 Gallon Case": 1,
+    "Amazon": 1,
+    "Report questionable activity": 1,
+    "Perchloroethylene": 1,
+    "PCE": 1,
+    "PERC": 1,
+    "5 Gallon Pail": 1,
+    "72 units": 1,
+    "hazmat fee": 1,
+    "shipping address": 1,
+    "terms": 1,
+    "ACH options": 1,
+    "instock": 1,
+    "lot number": 1,
+    "55 gallon container": 1,
+    "CofA": 2,
+    "CofC": 1,
+    "Acetic Acid Glacial Technical": 1,
+    "4 Gallon case": 1,
+    "Purchase order 45109": 1,
+    "Alliance Chemical": 2,
+    "Aero Metals, Inc.": 1,
+    "$93.10": 1,
+    "Shipping; $75.00": 1,
+    "quotation": 1,
+    "Chrosion inhibitor LAN-82G": 1,
+    "Ammonia 20%": 1,
+    "Sodium nitrite": 1,
+    "Sodium hydroxide 96%": 1,
+    "Hydrochloric Acid 31%": 1,
+    "Citric Acide 99%": 1,
+    "Sulfamate 98%": 1,
+    "KG": 1,
+    "ACH": 1,
+    "WIRE": 1,
+    "bank information": 1,
+    "DOT Blitz Week": 1,
+    "delivery": 1,
+    "ETA": 1,
+    "Texas": 1,
+    "invoice": 1,
+    "Ethylene Glycol": 1,
+    "50/50": 1,
+    "275 Gallon IBC Tote": 1,
+    "subscription service": 1,
+    "variable restocking periods": 1,
+    "BESS cabinets": 1,
+    "Purchased Order# 208904": 1,
+    "3 remaining gallons": 1,
+    "system error": 1,
+    "UPS tracking numbers": 1,
+    "1 gallon": 1,
+    "4 gallon case": 1,
+    "Refund Initiated": 1,
+    "USD 82.69": 1,
+    "CARL GOLDEN": 1,
+    "Sodium Hydroxide": 1,
+    "Seller Fulfilled": 1,
+    "General adjustment": 1,
+    "Seller Central": 1,
+    "aluminum fry pans": 1,
+    "gel cleaner": 1,
+    "aluminum compound": 1,
+    "burnt-on food": 1,
+    "mag wheels": 1,
+    "60 years ago": 1,
+    "money-spinner": 1,
+    "quote": 1,
+    "IBC tote": 1,
+    "50% NaOH": 1,
+    "technical grade": 1,
+    "wastewater treatment": 1,
+    "200 Smoky Mountain PL": 1,
+    "Elizabethton TN": 1,
+    "Payment for #4412 has been received": 1,
+    "Lot 70820793549220525AL": 1,
+    "Isopropyl Acetate": 1,
+    "Order #4412": 1,
+    "Alta Biomed": 1,
+    "PEG 200": 1,
+    "sample": 1,
+    "CoA's": 1,
+    "pH": 1,
+    "FedEx": 1,
+    "shipping": 1,
+    "lot": 1,
+    "250 gm": 1,
+    "pint": 1,
+    "Propylene Glycol": 1,
+    "Technical Grade": 1,
+    "USP Grade": 1,
+    "275-Gallon IBC totes": 1,
+    "Hazard Warning Label": 1,
+    "Kosher Certified": 1,
+    "Safety data sheets": 1
+  },
+  "discoveredSentiments": {
+    "neutral": 9,
+    "positive": 5,
+    "negative": 1
+  },
+  "discoveredUrgencies": {
+    "medium": 10,
+    "low": 5
+  },
+  "discoveredComplexities": {
+    "simple": 11,
+    "moderate": 4
+  },
+  "discoveredAutomationPotentials": {
+    "high": 6,
+    "medium": 7,
+    "low": 2
+  },
+  "discoveredSuggestedNextActionsAggregated": {
+    "Send the requested SDS to Jana Gosselin": 1,
+    "Review website to ensure SDS is easily accessible": 1,
+    "Check order status using the provided order ID.": 1,
+    "Respond to the customer with the order's current status and estimated delivery date.": 1,
+    "Request full shipping address from John Bucco": 1,
+    "Calculate and communicate final shipping and hazmat costs to John Bucco": 1,
+    "Send invoice to Brian Roy": 1,
+    "Confirm availability of product in 55-gallon container from the same lot": 1,
+    "Send order acknowledgment to Aero Metals, Inc.": 1,
+    "Confirm shipment details with Aero Metals, Inc.": 1,
+    "Generate a quotation for the requested chemicals.": 1,
+    "Send the quotation to Solomon A. at sales@pernoengineering.com": 1,
+    "Confirm payment method with John Bucco": 1,
+    "Provide John Bucco with updated delivery ETA considering DOT Blitz Week": 1,
+    "Review pricing and subscription options for Ethylene Glycol.": 1,
+    "Contact Reese Cory to discuss flexible restocking options and production schedule.": 1,
+    "Verify the received quantity against the Purchase Order.": 1,
+    "Investigate the discrepancy and consider reshipping the missing gallons.": 1,
+    "Verify the refund in Seller Central": 1,
+    "Review the order details for any discrepancies": 1,
+    "Research historical aluminum cleaning products.": 1,
+    "Consult with a chemist specializing in cleaning agents.": 1,
+    "Generate a quote for the requested product and quantity.": 1,
+    "Send the quote to Chris Connell at Chris.c@GDBinternational.com": 1,
+    "Send the requested CoA to Chris Nocera": 1,
+    "Update order status in system": 1,
+    "Send the requested PEG 200 sample to Joan Nagel.": 1,
+    "Follow up with Joan Nagel regarding the potential order and shipping details.": 1,
+    "Review the quotation details.": 1,
+    "Contact Andre Taki if any questions or customization is needed.": 1
+  },
+  "discoveredEntityMentions": {
+    "productNames": {
+      "count": 20,
+      "examples": [
+        "TCE",
+        "Trichloroethylene",
+        "Specialty Denatured Alcohol 200 Proof 3A",
+        "Perchloroethylene (PCE, PERC)",
+        "Acetic Acid Glacial Technical",
+        "Chrosion inhibitor LAN-82G",
+        "Ammonia 20%",
+        "Ethylene Glycol 50/50",
+        "gallon",
+        "Sodium Hydroxide 50% (Caustic Soda, Lye) - 55 Gallon Drum"
+      ]
+    },
+    "companyNames": {
+      "count": 24,
+      "examples": [
+        "Alliance Chemical",
+        "CA State University Chico",
+        "Amazon",
+        "RichClean",
+        "Fastenal Company",
+        "Aero Metals, Inc.",
+        "PERNO Engineering",
+        "ELM Fieldsight",
+        "Alliance-Chemical-Store",
+        "UPS"
+      ]
+    },
+    "locations": {
+      "count": 18,
+      "examples": [
+        "US",
+        "VA 23228",
+        "Taylor, Texas 76574",
+        "1201 E. Lincolnway La Porte, IN 46350",
+        "204 South Edmond Street Taylor, Texas 76574",
+        "Kirkos Subcity; Werada 07 | Legehar, Ras Mekonen St. | Mezid Plaza Bldg. 6th Floor Addis Ababa, Ethiopia",
+        "Texas",
+        "TX",
+        "75056",
+        "Urbana, IL"
+      ]
+    },
+    "dates": {
+      "count": 19,
+      "examples": [
+        "2025-05-12",
+        "2025-05-13",
+        "2025-05-05",
+        "2025-05-09",
+        "2025-05-06"
+      ]
+    },
+    "personNames": {
+      "count": 26,
+      "examples": [
+        "Jana Gosselin",
+        "Andre Taki",
+        "Herman",
+        "John Bucco",
+        "Brian Roy",
+        "Adnan Heikal",
+        "Adnan H.",
+        "Shannon Barrett",
+        "Solomon A.",
+        "Reese Cory"
+      ]
+    },
+    "orderNumber": {
+      "count": 5,
+      "examples": [
+        "113-7281134-3049000",
+        "45109",
+        "208904",
+        "114-1158581-3977823",
+        "4412"
+      ]
+    },
+    "monetaryAmounts": {
+      "count": 23,
+      "examples": [
+        "140.00",
+        "10,080.00",
+        "93.10",
+        "75.00",
+        "1,000.00",
+        "2,000.00",
+        "82.69",
+        "$92.21",
+        "$17.51",
+        "$3,950.00"
+      ]
+    },
+    "trackingNumber": {
+      "count": 2,
+      "examples": [
+        "1Z620Y1V0395575271",
+        "1Z620Y1V0393185044"
+      ]
+    },
+    "lotNumber": {
+      "count": 1,
+      "examples": [
+        "70820793549220525AL"
+      ]
+    }
+  },
+  "examplesByDiscoveredTopic": {
+    "Customer request for Safety Data Sheet (SDS)": [
+      {
+        "emailSubject": "RE: New customer message on May 12, 2025 at 3:22 pm",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DJAAA=",
+        "insights": {
+          "primaryTopic": "Customer request for Safety Data Sheet (SDS)",
+          "subTopicsOrCategories": [
+            "SDS request",
+            "Product: TCE (Trichloroethylene)",
+            "Website issue"
+          ],
+          "customKeywords": [
+            "SDS",
+            "TCE",
+            "Trichloroethylene",
+            "Safety Data Sheet",
+            "website",
+            "contact form"
+          ],
+          "extractedEntities": {
+            "productNames": [
+              "TCE",
+              "Trichloroethylene"
+            ],
+            "companyNames": [
+              "Alliance Chemical",
+              "CA State University Chico"
+            ],
+            "locations": [
+              "US"
+            ],
+            "dates": [
+              "2025-05-12"
+            ],
+            "personNames": [
+              "Jana Gosselin",
+              "Andre Taki"
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "simple",
+          "automationPotential": "high",
+          "suggestedNextActions": [
+            "Send the requested SDS to Jana Gosselin",
+            "Review website to ensure SDS is easily accessible"
+          ],
+          "rawSummary": "Jana Gosselin requested the Safety Data Sheet (SDS) for Trichloroethylene (TCE) via the Alliance Chemical online store contact form.  She reported being unable to find it on the website. The email includes contact information for follow-up."
+        }
+      }
+    ],
+    "Customer Inquiry Regarding Order Delivery": [
+      {
+        "emailSubject": "Order delivery inquiry from Amazon customer Herman(Order: 113-7281134-3049000)",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4GXAAA=",
+        "insights": {
+          "primaryTopic": "Customer Inquiry Regarding Order Delivery",
+          "subTopicsOrCategories": [
+            "Order Status",
+            "Product: Specialty Denatured Alcohol",
+            "Amazon Order Inquiry"
+          ],
+          "customKeywords": [
+            "Order ID",
+            "ASIN",
+            "B0CTVF7YBD",
+            "Specialty Denatured Alcohol",
+            "4 Gallon Case",
+            "Amazon",
+            "Report questionable activity"
+          ],
+          "extractedEntities": {
+            "orderNumber": "113-7281134-3049000",
+            "productNames": [
+              "Specialty Denatured Alcohol 200 Proof 3A"
+            ],
+            "companyNames": [
+              "Amazon"
+            ],
+            "personNames": [
+              "Herman"
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "low",
+          "estimatedComplexity": "simple",
+          "automationPotential": "high",
+          "suggestedNextActions": [
+            "Check order status using the provided order ID.",
+            "Respond to the customer with the order's current status and estimated delivery date."
+          ],
+          "rawSummary": "The email is a customer inquiry from Herman regarding order 113-7281134-3049000, which contains Specialty Denatured Alcohol.  The customer's message is simply \"Thank you God bless.\" The email is an automated message from Amazon relaying the customer's inquiry."
+        }
+      }
+    ],
+    "Order Confirmation and Shipping Details for Perchloroethylene": [
+      {
+        "emailSubject": "RE: Merchant New Quote Notification",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DFAAA=",
+        "insights": {
+          "primaryTopic": "Order Confirmation and Shipping Details for Perchloroethylene",
+          "subTopicsOrCategories": [
+            "Product Inquiry",
+            "Shipping and Hazmat Fees",
+            "Payment Terms"
+          ],
+          "customKeywords": [
+            "Perchloroethylene",
+            "PCE",
+            "PERC",
+            "5 Gallon Pail",
+            "72 units",
+            "hazmat fee",
+            "shipping address",
+            "terms",
+            "ACH options"
+          ],
+          "extractedEntities": {
+            "productNames": [
+              "Perchloroethylene (PCE, PERC)"
+            ],
+            "companyNames": [
+              "Alliance Chemical",
+              "RichClean"
+            ],
+            "locations": [
+              "VA 23228"
+            ],
+            "monetaryAmounts": [
+              "140.00",
+              "10,080.00"
+            ],
+            "dates": [
+              "2025-05-12"
+            ],
+            "personNames": [
+              "Andre Taki",
+              "John Bucco"
+            ]
+          },
+          "sentiment": "positive",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "moderate",
+          "automationPotential": "medium",
+          "suggestedNextActions": [
+            "Request full shipping address from John Bucco",
+            "Calculate and communicate final shipping and hazmat costs to John Bucco"
+          ],
+          "rawSummary": "John Bucco confirmed an order of 72 units of Perchloroethylene from Alliance Chemical.  Andre Taki needs the full shipping address to calculate shipping and hazmat fees.  The total product cost is \\$10,080.00."
+        }
+      }
+    ],
+    "Order Fulfillment and Inquiry for Larger Quantity": [
+      {
+        "emailSubject": "RE: Order Update",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4GfAAA=",
+        "insights": {
+          "primaryTopic": "Order Fulfillment and Inquiry for Larger Quantity",
+          "subTopicsOrCategories": [
+            "Order Status Update",
+            "Product Availability",
+            "Packaging Options"
+          ],
+          "customKeywords": [
+            "instock",
+            "lot number",
+            "55 gallon container",
+            "CofA",
+            "CofC",
+            "SDS"
+          ],
+          "extractedEntities": {
+            "lotNumber": null,
+            "productNames": [],
+            "companyNames": [
+              "Alliance Chemical",
+              "Fastenal Company"
+            ],
+            "locations": [
+              "Taylor, Texas 76574"
+            ],
+            "monetaryAmounts": [],
+            "dates": [
+              "2025-05-13",
+              "2025-05-05",
+              "2025-05-05"
+            ],
+            "personNames": [
+              "Brian Roy",
+              "Adnan Heikal"
+            ]
+          },
+          "sentiment": "positive",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "simple",
+          "automationPotential": "medium",
+          "suggestedNextActions": [
+            "Send invoice to Brian Roy",
+            "Confirm availability of product in 55-gallon container from the same lot"
+          ],
+          "rawSummary": "Brian Roy from Fastenal is inquiring about the availability of a product in a larger 55-gallon container, matching the same lot number as a previous 5-gallon order.  Adnan Heikal from Alliance Chemical confirms availability and offers to send an invoice.  Outstanding documents (CofA, CofC, SDS) are also mentioned."
+        }
+      }
+    ],
+    "Purchase Order Confirmation and Pricing Details for Acetic Acid": [
+      {
+        "emailSubject": "RE: New Purchase Order 45109 - Alliance Chemical",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DKAAA=",
+        "insights": {
+          "primaryTopic": "Purchase Order Confirmation and Pricing Details for Acetic Acid",
+          "subTopicsOrCategories": [
+            "Order Confirmation",
+            "Pricing Details",
+            "Shipping Information"
+          ],
+          "customKeywords": [
+            "Acetic Acid Glacial Technical",
+            "4 Gallon case",
+            "Purchase order 45109",
+            "Alliance Chemical",
+            "Aero Metals, Inc.",
+            "$93.10",
+            "Shipping; $75.00"
+          ],
+          "extractedEntities": {
+            "orderNumber": "45109",
+            "productNames": [
+              "Acetic Acid Glacial Technical"
+            ],
+            "companyNames": [
+              "Aero Metals, Inc.",
+              "Alliance Chemical"
+            ],
+            "locations": [
+              "1201 E. Lincolnway La Porte, IN 46350",
+              "204 South Edmond Street Taylor, Texas 76574"
+            ],
+            "monetaryAmounts": [
+              "93.10",
+              "75.00"
+            ],
+            "dates": [
+              "2025-05-12"
+            ],
+            "personNames": [
+              "Adnan H.",
+              "Shannon Barrett"
+            ]
+          },
+          "sentiment": "positive",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "simple",
+          "automationPotential": "high",
+          "suggestedNextActions": [
+            "Send order acknowledgment to Aero Metals, Inc.",
+            "Confirm shipment details with Aero Metals, Inc."
+          ],
+          "rawSummary": "This email concerns purchase order 45109 from Aero Metals, Inc. to Alliance Chemical for 4 gallons of Acetic Acid Glacial Technical.  Alliance Chemical confirms pricing at $93.10 plus $75.00 shipping, with a 1-2 business day lead time.  The order acknowledgment should be sent to the appropriate contact at Aero Metals, Inc."
+        }
+      }
+    ],
+    "Quotation Request for Chemical Products": [
+      {
+        "emailSubject": "QUOTATION",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4D7AAA=",
+        "insights": {
+          "primaryTopic": "Quotation Request for Chemical Products",
+          "subTopicsOrCategories": [
+            "Chemicals: various industrial chemicals",
+            "Quantity: large quantities in KG",
+            "Location: Addis Ababa, Ethiopia"
+          ],
+          "customKeywords": [
+            "quotation",
+            "Chrosion inhibitor LAN-82G",
+            "Ammonia 20%",
+            "Sodium nitrite",
+            "Sodium hydroxide 96%",
+            "Hydrochloric Acid 31%",
+            "Citric Acide 99%",
+            "Sulfamate 98%",
+            "KG"
+          ],
+          "extractedEntities": {
+            "productNames": [
+              "Chrosion inhibitor LAN-82G",
+              "Ammonia 20%",
+              "Sodium nitrite",
+              "Sodium hydroxide 96%",
+              "Hydrochloric Acid 31%",
+              "Citric Acide 99%",
+              "Sulfamate 98%"
+            ],
+            "companyNames": [
+              "PERNO Engineering"
+            ],
+            "locations": [
+              "Kirkos Subcity; Werada 07 | Legehar, Ras Mekonen St. | Mezid Plaza Bldg. 6th Floor Addis Ababa, Ethiopia"
+            ],
+            "monetaryAmounts": [
+              "1,000.00",
+              "2,000.00",
+              "1,500.00",
+              "8,000.00",
+              "28,000.00",
+              "400.00",
+              "8,500.00"
+            ],
+            "personNames": [
+              "Solomon A."
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "low",
+          "estimatedComplexity": "simple",
+          "automationPotential": "medium",
+          "suggestedNextActions": [
+            "Generate a quotation for the requested chemicals.",
+            "Send the quotation to Solomon A. at sales@pernoengineering.com"
+          ],
+          "rawSummary": "Solomon A. from PERNO Engineering in Addis Ababa, Ethiopia requests a quotation for various chemical products in large quantities (KG).  The email lists seven chemicals and their required amounts."
+        }
+      }
+    ],
+    "Order processing and delivery confirmation": [
+      {
+        "emailSubject": "RE: Merchant New Quote Notification",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DsAAA=",
+        "insights": {
+          "primaryTopic": "Order processing and delivery confirmation",
+          "subTopicsOrCategories": [
+            "Payment method",
+            "Delivery ETA",
+            "DOT Blitz Week impact"
+          ],
+          "customKeywords": [
+            "ACH",
+            "WIRE",
+            "bank information",
+            "DOT Blitz Week",
+            "delivery",
+            "ETA",
+            "Texas",
+            "invoice"
+          ],
+          "extractedEntities": {
+            "companyNames": [
+              "Alliance Chemical",
+              "RichClean"
+            ],
+            "locations": [
+              "Texas"
+            ],
+            "dates": [
+              "2025-05-12"
+            ],
+            "personNames": [
+              "Andre Taki",
+              "John Bucco"
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "simple",
+          "automationPotential": "low",
+          "suggestedNextActions": [
+            "Confirm payment method with John Bucco",
+            "Provide John Bucco with updated delivery ETA considering DOT Blitz Week"
+          ],
+          "rawSummary": "John Bucco and Andre Taki are coordinating the payment and delivery of an order.  The delivery may be delayed due to DOT Blitz Week.  They are discussing payment via ACH or wire transfer and confirming the delivery time estimate."
+        }
+      }
+    ],
+    "Quote Request and Inquiry about Subscription Service for Ethylene Glycol": [
+      {
+        "emailSubject": "Merchant New Quote Notification",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DgAAA=",
+        "insights": {
+          "primaryTopic": "Quote Request and Inquiry about Subscription Service for Ethylene Glycol",
+          "subTopicsOrCategories": [
+            "Product Inquiry: Ethylene Glycol",
+            "Subscription Service Inquiry",
+            "Variable Restock Periods"
+          ],
+          "customKeywords": [
+            "Ethylene Glycol",
+            "50/50",
+            "275 Gallon IBC Tote",
+            "subscription service",
+            "variable restocking periods",
+            "BESS cabinets"
+          ],
+          "extractedEntities": {
+            "productNames": [
+              "Ethylene Glycol 50/50"
+            ],
+            "companyNames": [
+              "ELM Fieldsight",
+              "Alliance-Chemical-Store"
+            ],
+            "locations": [
+              "TX",
+              "75056"
+            ],
+            "monetaryAmounts": [],
+            "dates": [
+              "2025-05-12"
+            ],
+            "personNames": [
+              "Reese Cory"
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "moderate",
+          "automationPotential": "medium",
+          "suggestedNextActions": [
+            "Review pricing and subscription options for Ethylene Glycol.",
+            "Contact Reese Cory to discuss flexible restocking options and production schedule."
+          ],
+          "rawSummary": "Reese Cory from ELM Fieldsight in TX requested a quote for 275 gallons of Ethylene Glycol 50/50 and inquired about a subscription service with variable restocking periods to align with their BESS cabinet manufacturing schedule.  They need this coolant for their manufacturing process, but usage isn't consistent."
+        }
+      }
+    ],
+    "Order Discrepancy: Missing Gallons in Purchase Order #208904": [
+      {
+        "emailSubject": "RE: Purchasing - Purchased Order# 208904",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DOAAA=",
+        "insights": {
+          "primaryTopic": "Order Discrepancy: Missing Gallons in Purchase Order #208904",
+          "subTopicsOrCategories": [
+            "Order Fulfillment Issue",
+            "Shipping Discrepancy",
+            "Customer Service Request"
+          ],
+          "customKeywords": [
+            "Purchased Order# 208904",
+            "3 remaining gallons",
+            "system error",
+            "UPS tracking numbers",
+            "1 gallon",
+            "4 gallon case"
+          ],
+          "extractedEntities": {
+            "orderNumber": "208904",
+            "trackingNumber": [
+              "1Z620Y1V0395575271",
+              "1Z620Y1V0393185044"
+            ],
+            "productNames": [
+              "gallon"
+            ],
+            "companyNames": [
+              "Alliance Chemical",
+              "UPS"
+            ],
+            "locations": [
+              "Urbana, IL",
+              "Taylor, Texas"
+            ],
+            "monetaryAmounts": [],
+            "dates": [
+              "2025-05-12",
+              "2025-05-09",
+              "2025-05-09"
+            ],
+            "personNames": [
+              "Sean latterell",
+              "Adnan Heikal",
+              "Samee Ullah"
+            ]
+          },
+          "sentiment": "negative",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "simple",
+          "automationPotential": "medium",
+          "suggestedNextActions": [
+            "Verify the received quantity against the Purchase Order.",
+            "Investigate the discrepancy and consider reshipping the missing gallons."
+          ],
+          "rawSummary": "Sean Latterell reported receiving only 1 gallon instead of 4 gallons as per Purchase Order #208904. Adnan Heikal from Alliance Chemical responded that the remaining 3 gallons have been shipped and provided UPS tracking numbers."
+        }
+      }
+    ],
+    "Refund Notification for Order 114-1158581-3977823": [
+      {
+        "emailSubject": "Refund Initiated for Order 114-1158581-3977823",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DvAAA=",
+        "insights": {
+          "primaryTopic": "Refund Notification for Order 114-1158581-3977823",
+          "subTopicsOrCategories": [
+            "Order Refund",
+            "Seller Fulfilled Order",
+            "Sodium Hydroxide Refund"
+          ],
+          "customKeywords": [
+            "Refund Initiated",
+            "USD 82.69",
+            "CARL GOLDEN",
+            "Order ID",
+            "Sodium Hydroxide",
+            "Seller Fulfilled",
+            "General adjustment",
+            "Seller Central"
+          ],
+          "extractedEntities": {
+            "orderNumber": "114-1158581-3977823",
+            "productNames": [
+              "Sodium Hydroxide 50% (Caustic Soda, Lye) - 55 Gallon Drum"
+            ],
+            "companyNames": [
+              "Amazon",
+              "AllianceChemical"
+            ],
+            "monetaryAmounts": [
+              "82.69"
+            ],
+            "personNames": [
+              "CARL GOLDEN"
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "low",
+          "estimatedComplexity": "simple",
+          "automationPotential": "high",
+          "suggestedNextActions": [
+            "Verify the refund in Seller Central",
+            "Review the order details for any discrepancies"
+          ],
+          "rawSummary": "Amazon sent a notification to AllianceChemical confirming a refund of USD 82.69 to CARL GOLDEN for order 114-1158581-3977823, which included Sodium Hydroxide.  The refund reason is listed as a 'General adjustment'.  AllianceChemical should verify the refund in their Seller Central account."
+        }
+      }
+    ],
+    "Customer Inquiry: Identifying and Sourcing Retro Aluminum Cleaner": [
+      {
+        "emailSubject": "New customer message on May 13, 2025 at 12:10 am",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4D1AAA=",
+        "insights": {
+          "primaryTopic": "Customer Inquiry: Identifying and Sourcing Retro Aluminum Cleaner",
+          "subTopicsOrCategories": [
+            "Product Inquiry",
+            "Historical Product",
+            "Chemical Composition"
+          ],
+          "customKeywords": [
+            "aluminum fry pans",
+            "gel cleaner",
+            "aluminum compound",
+            "burnt-on food",
+            "mag wheels",
+            "60 years ago",
+            "money-spinner"
+          ],
+          "extractedEntities": {
+            "productNames": [],
+            "companyNames": [],
+            "locations": [
+              "US"
+            ],
+            "monetaryAmounts": [],
+            "dates": [
+              "2025-05-13"
+            ],
+            "personNames": [
+              "Tim Koehler"
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "low",
+          "estimatedComplexity": "moderate",
+          "automationPotential": "low",
+          "suggestedNextActions": [
+            "Research historical aluminum cleaning products.",
+            "Consult with a chemist specializing in cleaning agents."
+          ],
+          "rawSummary": "Tim Koehler is inquiring about an old aluminum cleaning gel used for cookware and mag wheels, seeking its chemical composition and potential commercial viability.  The product was used 60 years ago and was a simple, non-Teflon based aluminum compound."
+        }
+      }
+    ],
+    "Quote Request for Bulk Sodium Hydroxide": [
+      {
+        "emailSubject": "New customer message on May 13, 2025 at 11:11 am",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4ELAAA=",
+        "insights": {
+          "primaryTopic": "Quote Request for Bulk Sodium Hydroxide",
+          "subTopicsOrCategories": [
+            "Product Inquiry: Sodium Hydroxide",
+            "Quantity: IBC tote",
+            "Shipping Address"
+          ],
+          "customKeywords": [
+            "quote",
+            "IBC tote",
+            "50% NaOH",
+            "technical grade",
+            "wastewater treatment",
+            "200 Smoky Mountain PL",
+            "Elizabethton TN"
+          ],
+          "extractedEntities": {
+            "productNames": [
+              "Sodium Hydroxide 50% Membrane Grade",
+              "50% NaOH technical grade"
+            ],
+            "companyNames": [
+              "GDBinternational.com"
+            ],
+            "locations": [
+              "200 Smoky Mountain PL. Elizabethton TN, 37643"
+            ],
+            "monetaryAmounts": [],
+            "dates": [
+              "2025-05-13"
+            ],
+            "personNames": [
+              "Chris Connell"
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "simple",
+          "automationPotential": "high",
+          "suggestedNextActions": [
+            "Generate a quote for the requested product and quantity.",
+            "Send the quote to Chris Connell at Chris.c@GDBinternational.com"
+          ],
+          "rawSummary": "Chris Connell from GDBinternational.com requested a quote for an IBC tote of 50% NaOH technical grade for wastewater treatment, to be shipped to Elizabethton, TN.  The email was received on May 13, 2025."
+        }
+      }
+    ],
+    "Order #4412: Certificate of Analysis Request": [
+      {
+        "emailSubject": "RE: [Alliance Chemical] Payment for #4412 has been received",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DDAAA=",
+        "insights": {
+          "primaryTopic": "Order #4412: Certificate of Analysis Request",
+          "subTopicsOrCategories": [
+            "Order Confirmation",
+            "Payment Confirmation",
+            "CoA Request"
+          ],
+          "customKeywords": [
+            "Payment for #4412 has been received",
+            "CofA",
+            "Lot 70820793549220525AL",
+            "Isopropyl Acetate",
+            "Order #4412",
+            "Alta Biomed",
+            "Alliance Chemical"
+          ],
+          "extractedEntities": {
+            "orderNumber": "4412",
+            "lotNumber": "70820793549220525AL",
+            "productNames": [
+              "Isopropyl Acetate 99.98% ACS Grade"
+            ],
+            "companyNames": [
+              "Alta Biomed",
+              "Alliance Chemical"
+            ],
+            "locations": [
+              "Taylor, Texas 76574",
+              "Carlsbad, CA 92011",
+              "Irvine CA 92614",
+              "United States"
+            ],
+            "monetaryAmounts": [
+              "$92.21",
+              "$17.51",
+              "$0.00",
+              "$109.72"
+            ],
+            "dates": [
+              "2025-05-12",
+              "2025-05-06"
+            ],
+            "personNames": [
+              "Adnan H. Heikal",
+              "Chris Nocera"
+            ]
+          },
+          "sentiment": "positive",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "simple",
+          "automationPotential": "high",
+          "suggestedNextActions": [
+            "Send the requested CoA to Chris Nocera",
+            "Update order status in system"
+          ],
+          "rawSummary": "Chris Nocera from Alta Biomed requests a Certificate of Analysis (CoA) for Alliance Chemical order #4412, for which payment has been received.  The order includes Isopropyl Acetate and the relevant lot number is 70820793549220525AL."
+        }
+      }
+    ],
+    "Request for PEG 200 sample and potential order": [
+      {
+        "emailSubject": "RE: PEG 200",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4DSAAA=",
+        "insights": {
+          "primaryTopic": "Request for PEG 200 sample and potential order",
+          "subTopicsOrCategories": [
+            "Sample Request",
+            "Order Inquiry",
+            "Shipping Logistics"
+          ],
+          "customKeywords": [
+            "PEG 200",
+            "sample",
+            "CoA's",
+            "pH",
+            "FedEx",
+            "shipping",
+            "lot",
+            "250 gm",
+            "pint"
+          ],
+          "extractedEntities": {
+            "lotNumber": null,
+            "productNames": [
+              "PEG 200"
+            ],
+            "companyNames": [
+              "Alliance Chemical",
+              "Bezwada Biomedical"
+            ],
+            "locations": [
+              "Taylor, Texas 76574"
+            ],
+            "monetaryAmounts": [],
+            "dates": [
+              "2025-05-12",
+              "2025-05-12",
+              "2025-05-12",
+              "2025-05-09"
+            ],
+            "personNames": [
+              "Adnan Heikal",
+              "Joan Nagel",
+              "Andre Taki"
+            ]
+          },
+          "sentiment": "neutral",
+          "perceivedUrgency": "medium",
+          "estimatedComplexity": "moderate",
+          "automationPotential": "medium",
+          "suggestedNextActions": [
+            "Send the requested PEG 200 sample to Joan Nagel.",
+            "Follow up with Joan Nagel regarding the potential order and shipping details."
+          ],
+          "rawSummary": "Joan Nagel from Bezwada Biomedical requests a 250 gm sample of PEG 200 due to higher-than-expected pH.  Adnan Heikal from Alliance Chemical can ship a smaller sample (a pint) and discusses shipping options with FedEx.  A potential order for PEG 200 is also being considered."
+        }
+      }
+    ],
+    "Quotation for Propylene Glycol Products": [
+      {
+        "emailSubject": "Propylene Glycol ",
+        "emailId": "AAMkAGY0ZTljOWE1LTA4MjktNGFmOS05NjIyLWRjMjU5ZWFmYmQ5NABGAAAAAAAEs3pq3dzQR7cv5SAyoTZcBwACab700EzBSrAuRFuT_AgTAAAAAAEMAAACab700EzBSrAuRFuT_AgTAAOja4GLAAA=",
+        "insights": {
+          "primaryTopic": "Quotation for Propylene Glycol Products",
+          "subTopicsOrCategories": [
+            "Product Inquiry",
+            "Pricing Details",
+            "Bulk Purchase"
+          ],
+          "customKeywords": [
+            "Propylene Glycol",
+            "Technical Grade",
+            "USP Grade",
+            "275-Gallon IBC totes",
+            "Hazard Warning Label",
+            "Kosher Certified",
+            "Safety data sheets"
+          ],
+          "extractedEntities": {
+            "productNames": [
+              "Propylene Glycol"
+            ],
+            "companyNames": [
+              "Alliance Chemical"
+            ],
+            "monetaryAmounts": [
+              "$3,950.00",
+              "$7,900.00",
+              "$1,557.23",
+              "$9,457.23",
+              "$4,700.00",
+              "$9,400.00",
+              "$10,957.23"
+            ],
+            "personNames": [
+              "R. Bailey",
+              "Andre Taki"
+            ],
+            "contactInformation": {
+              "email": "Andre@alliancechemical.com",
+              "phone": "512-365-6838"
+            }
+          },
+          "sentiment": "positive",
+          "perceivedUrgency": "low",
+          "estimatedComplexity": "simple",
+          "automationPotential": "medium",
+          "suggestedNextActions": [
+            "Review the quotation details.",
+            "Contact Andre Taki if any questions or customization is needed."
+          ],
+          "rawSummary": "This email provides a quotation for two types of Propylene Glycol (Technical Grade and USP Grade) to R. Bailey, each priced at $9,457.23 and $10,957.23 respectively, including shipping.  The products are supplied in 275-gallon IBC totes.  Contact information for Alliance Chemical is provided for further inquiries."
+        }
+      }
+    ]
+  }
+}

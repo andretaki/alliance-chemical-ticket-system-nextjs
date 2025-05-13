@@ -27,7 +27,7 @@ Alliance Chemical Ticket System is a helpdesk ticketing platform built for the c
 ### Frontend
 - **React & Next.js** - For building the UI and server-side rendering
 - **TypeScript** - For type-safe code
-- **React Quill** - Rich text editor for tickets and comments
+- **TipTap** - Rich text editor for tickets and comments
 - **Chart.js** - For dashboard visualizations
 - **Bootstrap** - For responsive styling
 

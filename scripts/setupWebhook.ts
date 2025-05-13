@@ -1,8 +1,9 @@
+// @ts-nocheck
 // scripts/setupWebhook.ts
 import 'dotenv/config';
-import * as graphService from '../src/lib/graphService';
-import { db } from '../src/db';
-import { subscriptions } from '../src/db/schema';
+import * as graphService from '../src/lib/graphService.js';
+import { db } from '../src/db/index.js';
+import { subscriptions } from '../src/db/schema.js';
 
 // Validate required environment variables
 if (!process.env.NEXT_PUBLIC_APP_URL) {
