@@ -3,13 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "db:introspect": "npx drizzle-kit introspect",
     "db:migrate": "npx drizzle-kit push",
-    "setup:webhook": "node scripts/run-webhook-setup.mjs"
+    "setup:webhook": "node scripts/run-webhook-setup.mjs",
+    "sync-products": "tsx src/scripts/syncProducts.ts",
+    "test:sync": "tsx src/scripts/test-sync.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.4.0",
@@ -17,10 +19,12 @@
     "@google/generative-ai": "^0.24.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@microsoft/microsoft-graph-types": "^2.40.0",
+    "@shopify/shopify-api": "^11.12.0",
     "@tiptap/extension-link": "^2.1.20",
     "@tiptap/extension-placeholder": "^2.1.20",
     "@tiptap/react": "^2.1.20",
     "@tiptap/starter-kit": "^2.1.20",
+    "@types/node-cron": "^3.0.11",
     "@types/react-bootstrap": "^0.32.37",
     "@vercel/kv": "^3.0.0",
     "axios": "^1.9.0",

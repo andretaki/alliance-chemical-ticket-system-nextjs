@@ -2,6 +2,7 @@
 import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import crypto from 'crypto'; // For UUID generation
+import { pgTable, bigint, jsonb, decimal } from 'drizzle-orm/pg-core';
 
 // Define your PostgreSQL schema object
 export const ticketingProdSchema = pgSchema('ticketing_prod');
@@ -36,12 +37,12 @@ export const users = ticketingProdSchema.table('users', {
   name: varchar('name', { length: 255 }),
   emailVerified: timestamp('email_verified', { mode: 'date' }),
   image: text('image'),
-  createdAt: timestamp('created_at').defaultNow(),
+  createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
   role: userRoleEnum('role').default('user').notNull(),
   resetToken: varchar('reset_token', { length: 255 }),
-  resetTokenExpiry: timestamp('reset_token_expiry'),
+  resetTokenExpiry: timestamp('reset_token_expiry', { mode: 'date' }),
   ticketingRole: ticketingRoleEnum('ticketing_role'),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
   isExternal: boolean('is_external').default(false).notNull(),
 });
 
@@ -268,4 +269,54 @@ export const quarantinedEmailsRelations = relations(quarantinedEmails, ({ one })
     fields: [quarantinedEmails.reviewerId],
     references: [users.id],
   }),
+}));
+
+export const agentProducts = ticketingProdSchema.table('agent_products', {
+  id: serial('id').primaryKey(),
+  product_id_shopify: bigint('product_id_shopify', { mode: 'bigint' }).notNull().unique(),
+  name: varchar('name', { length: 512 }).notNull(),
+  handle_shopify: varchar('handle_shopify', { length: 512 }),
+  description: text('description'),
+  product_type: varchar('product_type', { length: 256 }),
+  vendor: varchar('vendor', { length: 256 }),
+  tags: text('tags'),
+  status: varchar('status', { length: 50 }).default('active'),
+  page_url: text('page_url'),
+  primary_image_url: text('primary_image_url'),
+  is_active: boolean('is_active').default(true).notNull(),
+  metadata: jsonb('metadata').default({}),
+  created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull()
+});
+
+export const agentProductVariants = ticketingProdSchema.table('agent_product_variants', {
+  id: serial('id').primaryKey(),
+  agent_product_id: bigint('agent_product_id', { mode: 'bigint' }).notNull().references(() => agentProducts.id, { onDelete: 'cascade' }),
+  variant_id_shopify: bigint('variant_id_shopify', { mode: 'bigint' }).notNull().unique(),
+  sku: varchar('sku', { length: 100 }).notNull().unique(),
+  variant_title: varchar('variant_title', { length: 512 }).notNull(),
+  display_name: varchar('display_name', { length: 512 }),
+  price: decimal('price', { precision: 12, scale: 2 }).notNull(),
+  currency: varchar('currency', { length: 3 }).default('USD').notNull(),
+  inventory_quantity: bigint('inventory_quantity', { mode: 'bigint' }),
+  weight: varchar('weight', { length: 50 }),
+  weight_unit: varchar('weight_unit', { length: 20 }),
+  taxable: boolean('taxable').default(true),
+  requires_shipping: boolean('requires_shipping').default(true),
+  is_active: boolean('is_active').default(true).notNull(),
+  metadata: jsonb('metadata').default({}),
+  created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull()
+});
+
+// --- Relations for agentProducts and agentProductVariants ---
+export const agentProductsRelations = relations(agentProducts, ({ many }) => ({
+  variants: many(agentProductVariants)
+}));
+
+export const agentProductVariantsRelations = relations(agentProductVariants, ({ one }) => ({
+  product: one(agentProducts, {
+    fields: [agentProductVariants.agent_product_id],
+    references: [agentProducts.id]
+  })
 }));

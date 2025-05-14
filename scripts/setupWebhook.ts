@@ -17,6 +17,44 @@ if (!process.env.MICROSOFT_GRAPH_WEBHOOK_SECRET) {
 
 const NOTIFICATION_URL = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/graph-notifications`;
 
+async function saveSubscriptionToDbWithRetry(newSubscription: any, retries = 3, delayMs = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`Attempting to save subscription ${newSubscription.id} to DB (Attempt ${i + 1}/${retries})...`);
+      const [savedSubscription] = await db.insert(subscriptions).values({
+        subscriptionId: newSubscription.id,
+        resource: newSubscription.resource,
+        changeType: newSubscription.changeType,
+        expirationDateTime: new Date(newSubscription.expirationDateTime),
+        clientState: newSubscription.clientState,
+        notificationUrl: newSubscription.notificationUrl,
+        creatorId: newSubscription.creatorId || 'system',
+        isActive: true,
+        renewalCount: 0
+      }).returning();
+      
+      console.log(`Subscription saved to database with ID: ${savedSubscription.id}`);
+      return true;
+    } catch (dbError) {
+      console.error(`Error saving subscription to database (Attempt ${i + 1}/${retries}):`, dbError);
+      if (dbError.code === 'ECONNRESET' || dbError.message.includes('Connection terminated')) {
+        if (i < retries - 1) {
+          console.log(`Retrying in ${delayMs / 1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        } else {
+          console.error('Max retries reached for DB save.');
+          return false;
+        }
+      } else {
+        // Not a connection reset error, probably a data issue or other DB constraint
+        console.error('Database error:', dbError);
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
 async function main() {
   console.log(`Setting up Microsoft Graph subscription for email notifications...`);
   console.log(`Webhook URL: ${NOTIFICATION_URL}`);
@@ -31,6 +69,7 @@ async function main() {
       if (sub.notificationUrl === NOTIFICATION_URL) {
         console.log(`Deleting existing subscription ${sub.id} with matching URL...`);
         await graphService.deleteSubscription(sub.id);
+        console.log(`Subscription ${sub.id} deleted successfully.`);
       }
     }
     
@@ -50,22 +89,10 @@ async function main() {
     console.log(`ID: ${newSubscription.id}`);
     console.log(`Expires: ${new Date(newSubscription.expirationDateTime).toLocaleString()}`);
     
-    // 3. Store the subscription in the database
-    try {
-      const [savedSubscription] = await db.insert(subscriptions).values({
-        subscriptionId: newSubscription.id,
-        resource: newSubscription.resource,
-        changeType: newSubscription.changeType,
-        expirationDateTime: new Date(newSubscription.expirationDateTime),
-        clientState: newSubscription.clientState,
-        notificationUrl: newSubscription.notificationUrl,
-        creatorId: newSubscription.creatorId || 'system',
-        isActive: true,
-      }).returning();
-      
-      console.log(`Subscription saved to database with ID: ${savedSubscription.id}`);
-    } catch (dbError) {
-      console.error('Error saving subscription to database:', dbError);
+    // 3. Store the subscription in the database with retry logic
+    const savedToDb = await saveSubscriptionToDbWithRetry(newSubscription);
+    
+    if (!savedToDb) {
       console.warn('Subscription was created but not saved to database. You may need to manage it manually.');
     }
     

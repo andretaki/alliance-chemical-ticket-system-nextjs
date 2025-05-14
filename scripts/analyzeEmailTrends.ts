@@ -73,6 +73,7 @@ interface AnalysisReportData {
   customerJourneyStages: Record<string, number>; automationPotentialDistribution: Record<string, number>;
   entityTypeCounts: Record<string, number>; // Counts by ExtractedEntityDetail.type
   examplesByPrimaryTopic: Record<string, Array<{ emailSubject: string; emailId?: string; insights: DiscoveredEmailInsights; }>>;
+  newCategoryProposals?: Record<string, number>;
 }
 
 // --- Helper Functions ---
@@ -96,10 +97,11 @@ const geminiModel = initializeGoogleAI();
 async function performEnhancedDiscoveryAnalysis(
   emailSubject: string,
   emailBodyText: string,
-  emailId: string
+  emailId: string,
+  reportData: AnalysisReportData
 ): Promise<DiscoveredEmailInsights> {
   if (!geminiModel) {
-    return { /* ... same error structure ... */
+    return {
       primaryTopic: "AI_Discovery_Disabled_NoModel", customerGoal: "N/A",
       extractedEntities: [], overallSentiment: null, estimatedComplexityToResolve: 'medium',
       automationPotentialScore: 0, keyInformationForResolution: [], suggestedNextActions: [],
@@ -108,15 +110,49 @@ async function performEnhancedDiscoveryAnalysis(
   }
 
   const definedPrimaryTopics = [
-    "Order Inquiry", "Product Inquiry", "Quotation Request", "Billing & Invoice Issue",
-    "Shipping & Delivery Issue", "Account Management", "Technical Support / Product Defect",
-    "Sales/Service Solicitation (Outbound to Us)", "Automated System Notification",
-    "General Feedback/Complaint", "Partnership/Collaboration Inquiry",
-    "Other Customer Request (Specify)", "Uncategorized/Spam" // Simplified "Uncategorized/Internal/Spam"
+    // Sales & Orders (Core Business)
+    "Order Placement",
+    "Order Status Inquiry",
+    "Order Modification/Cancellation",
+    "Quote Request",
+    "Price Inquiry",
+    "Product Availability Check",
+    
+    // Customer Service & Support
+    "Technical Support",
+    "Product Specification Request",
+    "Documentation Request (SDS/COA)",
+    "Shipping/Delivery Issue",
+    "Billing/Invoice Issue",
+    "Return/Refund Request",
+    
+    // Account Management
+    "Account Setup/Modification",
+    "Credit Application",
+    "Payment Processing",
+    "Account Inquiry",
+    
+    // Automated Notifications
+    "Order Confirmation",
+    "Payment Confirmation",
+    "Shipping Update",
+    "Abandoned Cart Alert",
+    "Account Security Alert",
+    
+    // Business Development
+    "Vendor/Supplier Outreach",
+    "Partnership Inquiry",
+    "Service Solicitation",
+    "Product Promotion",
+    
+    // Other
+    "General Inquiry",
+    "Complaint/Feedback",
+    "Regulatory Compliance",
+    "Other: New Category" // Special category for AI to propose new categories
   ];
 
   // The prompt is CRITICAL for getting good primaryTopic values.
-  // This version heavily emphasizes selecting from the defined list.
   const prompt = `
     Analyze the following email with depth and precision. Your main goal is to CLASSIFY it into a predefined BROAD PRIMARY TOPIC, then extract detailed supporting information for further analysis and action.
 
@@ -131,17 +167,25 @@ async function performEnhancedDiscoveryAnalysis(
       primaryTopic: string;
         // **MANDATORY**: Choose the single most fitting primaryTopic from this EXACT list:
         //   ${definedPrimaryTopics.map(t => `"${t}"`).join(', \n//   ')}
-        //   - If "Automated System Notification", YOU MUST append the specific notification type (e.g., "Automated System Notification: Order Confirmation", "Automated System Notification: Abandoned Cart").
-        //   - If "Other Customer Request (Specify)", use 'secondaryTopic' to describe the broad nature of this other request.
-        //   - The 'primaryTopic' MUST be a GENERAL category, not a specific summary of this email.
+        //   - For automated notifications, append the specific type (e.g., "Order Confirmation: #12345")
+        //   - If the email doesn't fit any category well, use "Other: New Category" and:
+        //     a) In secondaryTopic, propose a new category name that would better fit this type of email
+        //     b) In tertiaryTopic, explain why this new category is needed
+        //   - The 'primaryTopic' MUST be a GENERAL category, not a specific summary of this email
 
       secondaryTopic?: string;
-        // Specific sub-theme or action WITHIN the primaryTopic.
-        // E.g., For primaryTopic="Order Inquiry", secondaryTopic could be "Request for Tracking Number" or "Order Cancellation".
-        // E.g., For primaryTopic="Product Inquiry", secondaryTopic could be "Request COA for Product X".
-        // This should be more specific to the email's content than primaryTopic.
+        // Specific sub-theme or action WITHIN the primaryTopic
+        // Examples:
+        // - For "Order Status Inquiry": "Tracking Request", "Delivery Delay", "Missing Package"
+        // - For "Quote Request": "Bulk Order", "Regular Supply", "One-time Purchase"
+        // - For "Documentation Request": "SDS Needed", "COA Required", "ISO Certificate"
+        // - For "Other: New Category": "Proposed Category Name: [Your Suggestion]"
+        // This should be more specific to the email's content than primaryTopic
 
-      tertiaryTopic?: string; // Even more granular details if highly relevant (e.g., "Order #12345 - Damaged item: Widget Blue").
+      tertiaryTopic?: string;
+        // Most specific details (e.g., "Order #12345", "Product: Sodium Hypochlorite", "Amount: $1,234.56")
+        // Include order numbers, specific products, monetary values, etc.
+        // For "Other: New Category", explain why this new category is needed
 
       customerGoal: string; // Concisely, what does the CUSTOMER want to achieve? (e.g., "Get tracking for order 123", "Refund for broken item").
 
@@ -237,6 +281,18 @@ async function performEnhancedDiscoveryAnalysis(
     parsedResult.potentialRootCauseCategory = parsedResult.potentialRootCauseCategory || undefined;
     parsedResult.customerJourneyStageHint = parsedResult.customerJourneyStageHint || undefined;
 
+    // Add this after the AI response parsing but before returning the result
+    if (parsedResult.primaryTopic === "Other: New Category") {
+      console.log(`[DiscoveryAI-${emailId}] New category proposed: ${parsedResult.secondaryTopic}`);
+      console.log(`[DiscoveryAI-${emailId}] Rationale: ${parsedResult.tertiaryTopic}`);
+      
+      // Track new category proposals in the report data
+      if (!reportData.newCategoryProposals) {
+        reportData.newCategoryProposals = {};
+      }
+      const proposedCategory = parsedResult.secondaryTopic?.replace("Proposed Category Name: ", "") || "Unnamed Category";
+      reportData.newCategoryProposals[proposedCategory] = (reportData.newCategoryProposals[proposedCategory] || 0) + 1;
+    }
 
     return parsedResult;
 
@@ -276,6 +332,7 @@ async function analyzeEmailTrends(): Promise<void> {
     sentiments: {}, specificTones: {}, complexitiesToResolve: {}, rootCauseCategories: {},
     customerJourneyStages: {}, automationPotentialDistribution: {}, entityTypeCounts: {},
     examplesByPrimaryTopic: {},
+    newCategoryProposals: {},
   };
   for (let h = 0; h < 24; h++) reportData.emailVolumeStats.byHourUTC[h] = 0;
   const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -373,7 +430,7 @@ async function analyzeEmailTrends(): Promise<void> {
         const bodyText = stripHtml(email.body?.content ?? email.bodyPreview);
         const emailId = email.id || `rand-${Math.random().toString(16).slice(2)}`;
 
-        let insights = await performEnhancedDiscoveryAnalysis(subject, bodyText, emailId);
+        const insights = await performEnhancedDiscoveryAnalysis(subject, bodyText, emailId, reportData);
         reportData.deepDiscoverySampleAnalyzedCount++;
         totalBodyLengthInSample += bodyText.length;
 

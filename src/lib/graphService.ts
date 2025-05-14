@@ -1,32 +1,66 @@
 // src/lib/graphService.ts
 import 'dotenv/config';
 import { ClientSecretCredential } from '@azure/identity';
-import { Client, PageCollection } from '@microsoft/microsoft-graph-client';
-import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
+import { Client } from '@microsoft/microsoft-graph-client';
 import { Message, MailFolder, InternetMessageHeader } from '@microsoft/microsoft-graph-types';
+import { db } from '../db/index.js';
+import { subscriptions } from '../db/schema.js';
 
 // Load environment variables
 const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
 const clientId = process.env.MICROSOFT_GRAPH_CLIENT_ID;
 const clientSecret = process.env.MICROSOFT_GRAPH_CLIENT_SECRET;
-export const userEmail = process.env.MICROSOFT_GRAPH_USER_EMAIL || 'sales@alliancechemical.com';
+const userEmail = process.env.SHARED_MAILBOX_ADDRESS || '';
 
-// Validate required environment variables
-if (!tenantId || !clientId || !clientSecret) {
-  console.error('Missing required Microsoft Graph environment variables.');
+if (!tenantId || !clientId || !clientSecret || !userEmail) {
   throw new Error('Microsoft Graph configuration is incomplete. Check your .env file.');
+}
+
+const RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000;
+const TIMEOUT_MS = 30000; // 30 seconds timeout
+
+async function withRetry<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= RETRY_ATTEMPTS; attempt++) {
+    try {
+      const result = await Promise.race([
+        operation(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`Operation ${operationName} timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS)
+        )
+      ]) as T;
+      
+      return result;
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Attempt ${attempt}/${RETRY_ATTEMPTS} failed for ${operationName}:`, error);
+      
+      if (attempt < RETRY_ATTEMPTS) {
+        const delay = RETRY_DELAY_MS * attempt; // Exponential backoff
+        console.log(`Retrying ${operationName} in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw new Error(`All ${RETRY_ATTEMPTS} attempts failed for ${operationName}. Last error: ${lastError.message}`);
 }
 
 // Create credential and authentication provider
 const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-const authProvider = new TokenCredentialAuthenticationProvider(credential, {
-  scopes: ['https://graph.microsoft.com/.default']
-});
 
-// Initialize Microsoft Graph client
-export const graphClient = Client.initWithMiddleware({
-  authProvider,
-  defaultVersion: 'v1.0'
+// Initialize the Graph client
+const graphClient = Client.init({
+  authProvider: async (done) => {
+    try {
+      const token = await credential.getToken(['https://graph.microsoft.com/.default']);
+      done(null, token.token);
+    } catch (error) {
+      done(error, null);
+    }
+  }
 });
 
 /**
@@ -214,120 +248,32 @@ export async function sendEmailReply(
       internetMessageHeaders: []
     };
     
-    // Process the threading information based on input type
-    if ('internetMessageId' in threadingInfo) {
-      // Handle case where input is a Message object
-      const originalMessage = threadingInfo as Message;
-      
-      if (originalMessage.internetMessageId) {
-        // Add threading headers with X- prefix as required by Graph API
-        messageToSend.internetMessageHeaders.push({
-          name: 'X-MS-Exchange-Organization-In-Reply-To',
-          value: `<${originalMessage.internetMessageId}>`
-        });
-        
-        // Get existing References if available
-        const existingRefs = (originalMessage.internetMessageHeaders as InternetMessageHeader[] | undefined)?.find(
-          h => h.name === 'References' || h.name === 'X-References' || h.name === 'X-MS-Exchange-Organization-References'
-        )?.value || '';
-        
-        // Add references with the Exchange-specific header
-        messageToSend.internetMessageHeaders.push({
-          name: 'X-MS-Exchange-Organization-References',
-          value: `${existingRefs} <${originalMessage.internetMessageId}>`.trim()
-        });
-        
-        console.log(`GraphService: Added threading headers for message ID: ${originalMessage.internetMessageId}`);
-      }
-      
-      // Set the conversation ID if available
-      if (originalMessage.conversationId) {
+    // Add threading information if available
+    if ('conversationId' in threadingInfo && threadingInfo.conversationId) {
+      conversationId = threadingInfo.conversationId;
+    } else if ('id' in threadingInfo && threadingInfo.id) {
+      // If we have a Message object, get its conversation ID
+      const originalMessage = await getMessageById(threadingInfo.id);
+      if (originalMessage?.conversationId) {
         conversationId = originalMessage.conversationId;
-        console.log(`GraphService: Using conversation ID from original message: ${conversationId}`);
-      }
-    } else {
-      // Handle case where input is a ThreadingInfo object
-      const threading = threadingInfo as ThreadingInfo;
-      
-      if (threading.inReplyToId) {
-        // Add In-Reply-To header with X- prefix
-        messageToSend.internetMessageHeaders.push({
-          name: 'X-MS-Exchange-Organization-In-Reply-To',
-          value: `<${threading.inReplyToId}>`
-        });
-        
-        // Build references string
-        let referencesValue: string;
-        if (threading.referencesIds && threading.referencesIds.length > 0) {
-          referencesValue = threading.referencesIds.map(id => `<${id}>`).join(' ');
-        } else {
-          // If no references, use In-Reply-To as the initial reference
-          referencesValue = `<${threading.inReplyToId}>`;
-        }
-        
-        // Add the references header
-        messageToSend.internetMessageHeaders.push({
-          name: 'X-MS-Exchange-Organization-References',
-          value: referencesValue
-        });
-        
-        console.log(`GraphService: Added threading headers using In-Reply-To ID: ${threading.inReplyToId}`);
-      }
-      
-      // Set conversation ID if available
-      if (threading.conversationId) {
-        conversationId = threading.conversationId;
-        console.log(`GraphService: Using conversation ID from threading info: ${conversationId}`);
       }
     }
     
-    // Add thread-index header to help Outlook with threading
-    messageToSend.internetMessageHeaders.push({
-      name: 'X-Thread-Index',
-      value: `Thread-${Date.now()}`
-    });
-    
-    // Add custom header to indicate this is a reply
-    messageToSend.internetMessageHeaders.push({
-      name: 'X-Auto-Response-Suppress',
-      value: 'All'
-    });
-    
-    // Set the conversation ID in the message itself if available
     if (conversationId) {
       messageToSend.conversationId = conversationId;
     }
     
-    // Build the final request
-    const requestBody = {
-      message: messageToSend,
-      saveToSentItems: true
-    };
-
-    // Log the attempt
-    console.log(`GraphService: Attempting to send email reply to ${toEmailAddress} from ${fromEmailAddress}`);
-    console.log(`GraphService: Email subject: "${subject}"`);
-    console.log(`GraphService: CC'ing sales mailbox: ${userEmail}`);
-    
-    if (conversationId) {
-      console.log(`GraphService: Using conversation ID: ${conversationId}`);
-    }
-    
-    console.log(`GraphService: Sending formatted HTML content (${formattedContent.length} chars)`);
-
-    // Make the API call
+    // Send the message
     const response = await graphClient
       .api(`/users/${fromEmailAddress}/sendMail`)
-      .post(requestBody);
-
-    console.log(`GraphService: Email reply sent successfully.`);
-    return { id: 'sent' } as Message;
-
-  } catch (error: any) {
-    console.error('GraphService: Error sending email reply:', JSON.stringify(error, null, 2));
-    if (error.details) console.error('GraphService Error Details:', error.details);
-    if (error.code) console.error(`GraphService Error Code: ${error.code}`);
-    if (error.body) console.error('GraphService Error Body:', error.body);
+      .post({
+        message: messageToSend,
+        saveToSentItems: true
+      });
+      
+    return response;
+  } catch (error) {
+    console.error('Error sending email reply:', error);
     return null;
   }
 }
@@ -339,14 +285,11 @@ export async function sendEmailReply(
  */
 export async function getMessageById(messageId: string): Promise<Message | null> {
   try {
-    const message = await graphClient
+    return await graphClient
       .api(`/users/${userEmail}/messages/${messageId}`)
-      // Select only the fields you need to reduce payload size
-      .select('id,subject,body,bodyPreview,sender,from,toRecipients,ccRecipients,bccRecipients,internetMessageId,conversationId,createdDateTime,receivedDateTime,isRead,importance,parentFolderId,internetMessageHeaders')
       .get();
-    return message as Message;
   } catch (error) {
-    console.error(`Error fetching message by ID ${messageId}:`, error);
+    console.error(`Error getting message ${messageId}:`, error);
     return null;
   }
 }
@@ -431,11 +374,15 @@ export async function renewSubscription(subscriptionId: string): Promise<any | n
  */
 export async function listSubscriptions(): Promise<any[]> {
   try {
-    const response = await graphClient.api('/subscriptions').get();
-    return response.value || [];
+    const response = await withRetry(
+      () => graphClient.api('/subscriptions').get(),
+      'listSubscriptions'
+    );
+    // Extract the 'value' array which contains the subscriptions
+    return response.value || []; // Ensure it returns an empty array if 'value' is missing or response is unexpected
   } catch (error) {
-    console.error('Error listing subscriptions:', error);
-    return [];
+    console.error('Error in listSubscriptions:', error);
+    return []; // Return an empty array on error to prevent iteration issues
   }
 }
 
@@ -445,14 +392,10 @@ export async function listSubscriptions(): Promise<any[]> {
  * @returns True if successful, false otherwise.
  */
 export async function deleteSubscription(subscriptionId: string): Promise<boolean> {
-  try {
-    await graphClient.api(`/subscriptions/${subscriptionId}`).delete();
-    console.log(`Subscription ${subscriptionId} deleted successfully.`);
-    return true;
-  } catch (error) {
-    console.error(`Error deleting subscription ${subscriptionId}:`, error);
-    return false;
-  }
+  return withRetry(
+    () => graphClient.api(`/subscriptions/${subscriptionId}`).delete(),
+    `deleteSubscription(${subscriptionId})`
+  );
 }
 
 /**
@@ -466,12 +409,40 @@ export async function flagEmail(messageId: string, flagColor: string = 'red'): P
       .api(`/users/${userEmail}/messages/${messageId}`)
       .update({
         flag: {
-          flagStatus: 'flagged'
+          flagStatus: 'flagged',
+          flagColor: flagColor
         }
       });
-    console.log(`Email ${messageId} has been flagged as important`);
   } catch (error) {
     console.error(`Error flagging email ${messageId}:`, error);
     throw error;
+  }
+}
+
+export async function getMessage(messageId: string): Promise<Message> {
+  return withRetry(
+    () => graphClient.api(`/users/${userEmail}/messages/${messageId}`).get(),
+    `getMessage(${messageId})`
+  );
+}
+
+export async function checkSubscriptionHealth(subscriptionId: string) {
+  try {
+    const subscription = await withRetry(
+      () => graphClient.api(`/subscriptions/${subscriptionId}`).get(),
+      `checkSubscriptionHealth(${subscriptionId})`
+    );
+    
+    return {
+      isHealthy: true,
+      subscription,
+      expiresAt: new Date(subscription.expirationDateTime)
+    };
+  } catch (error: any) {
+    return {
+      isHealthy: false,
+      error: error.message,
+      subscriptionId
+    };
   }
 } 
