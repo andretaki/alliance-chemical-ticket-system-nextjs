@@ -1,6 +1,7 @@
+// src/components/CreateQuoteClient.tsx
 'use client';
 
-import React, { useState, useEffect, ChangeEvent, FormEvent, useRef } from 'react';
+import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
 import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import type { AppDraftOrderInput, DraftOrderLineItemInput, DraftOrderCustomerInput, DraftOrderAddressInput, ProductVariantData, DraftOrderOutput } from '@/agents/quoteAssistant/quoteInterfaces';
@@ -20,13 +21,22 @@ interface SearchResult {
 }
 
 interface LineItemSearchData {
-  id: string;
+  id: string; // Unique ID for React keys
   searchTerm: string;
   searchResults: SearchResult[];
   isSearching: boolean;
   hasSelection: boolean;
   error?: string | null;
 }
+
+const createNewLineItemSearchData = (): LineItemSearchData => ({
+  id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  searchTerm: '',
+  searchResults: [],
+  isSearching: false,
+  hasSelection: false,
+  error: null,
+});
 
 interface CreateQuoteClientProps {
   ticketId: number;
@@ -54,227 +64,147 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   const [sendShopifyInvoice, setSendShopifyInvoice] = useState<boolean>(true);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null); // Renamed general error
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [createdDraftOrder, setCreatedDraftOrder] = useState<DraftOrderOutput | null>(null);
   
-  // Helper function to create initial search data for a line item
-  const createNewLineItemSearchData = (): LineItemSearchData => ({
-    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    searchTerm: '',
-    searchResults: [],
-    isSearching: false,
-    hasSelection: false,
-    error: null
-  });
-
-  // Consolidated search state
   const [lineItemSearchData, setLineItemSearchData] = useState<LineItemSearchData[]>([createNewLineItemSearchData()]);
   const [activeSearchDropdown, setActiveSearchDropdown] = useState<number | null>(null);
+  const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [searchResults, setSearchResults] = useState<ProductVariantData[]>([]);
-  const [isSearching, setIsSearching] = useState<boolean>(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<ProductVariantData | null>(null);
+  // Use a memoized, stable string representation of search terms for the useEffect dependency
+  const searchTermsForEffect = useMemo(() => 
+    lineItemSearchData.map(item => item.searchTerm).join('||'), // Join with a delimiter
+    [lineItemSearchData] // This recalculates only when lineItemSearchData itself changes structure or a searchTerm changes
+  );
 
-  // Add refs to track search terms
-  const searchTermsRef = useRef<string[]>(['']);
+  // Refs to DOM elements for click-outside detection
+  const searchContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
+   useEffect(() => {
+    searchContainerRefs.current = searchContainerRefs.current.slice(0, lineItems.length);
+  }, [lineItems.length]);
 
-  // Debounced search for each line item
+
+  // Debounced search useEffect
   useEffect(() => {
-    const debounceFns = lineItemSearchData.map((searchData, index) => {
-      const currentSearchTerm = searchData.searchTerm;
-      const previousSearchTerm = searchTermsRef.current[index];
+    const timers: (NodeJS.Timeout | null)[] = lineItemSearchData.map((searchData, index) => {
+      const { id: itemId, searchTerm, hasSelection } = searchData;
 
-      // Only proceed if search term has changed
-      if (currentSearchTerm === previousSearchTerm) {
-        return null;
-      }
-
-      // Update ref with current search term
-      searchTermsRef.current[index] = currentSearchTerm;
-
-      if (!currentSearchTerm.trim() || currentSearchTerm.length < 2) {
-        setLineItemSearchData(prevData => {
-          const newData = [...prevData];
-          newData[index] = { ...newData[index], searchResults: [], isSearching: false, hasSelection: false };
-          return newData;
-        });
-        return null;
-      }
-
-      // Set searching state for this specific line item
-      setLineItemSearchData(prevData => {
-        const newData = [...prevData];
-        newData[index] = { ...newData[index], isSearching: true, error: null };
-        return newData;
-      });
-      
-      const timerId = setTimeout(async () => {
-        try {
-          console.log(`Searching for: ${currentSearchTerm}`); // Debug log
-          const response = await axios.get<{ results: SearchResult[] }>(`/api/products/search-variant?query=${encodeURIComponent(currentSearchTerm.trim())}`);
-          const { results } = response.data;
-          console.log(`Search results:`, results); // Debug log
-          
-          setLineItemSearchData(prevData => {
-            const newData = [...prevData];
-            newData[index] = { 
-              ...newData[index], 
-              searchResults: results || [], 
-              isSearching: false,
-              hasSelection: false
-            };
-            return newData;
-          });
-        } catch (error: any) {
-          console.error(`Search error for line item ${index}:`, error);
-          let errorMessage = 'Failed to search products. Please try again.';
-          
-          if (error.response) {
-            if (error.response.status === 401) {
-              errorMessage = 'Please log in to search products.';
-            } else if (error.response.data?.error) {
-              errorMessage = error.response.data.error;
-            }
-          }
-          
-          setLineItemSearchData(prevData => {
-            const newData = [...prevData];
-            newData[index] = { 
-              ...newData[index], 
-              searchResults: [], 
-              isSearching: false, 
-              hasSelection: false,
-              error: errorMessage
-            };
-            return newData;
-          });
+      if (hasSelection || !searchTerm.trim() || searchTerm.length < 2) {
+        // If term is too short or selection made, ensure searching is false and clear results
+        if (searchData.isSearching || searchData.searchResults.length > 0) {
+           setLineItemSearchData(prev => prev.map(item => 
+            item.id === itemId ? { ...item, isSearching: false, searchResults: [], error: null } : item
+          ));
         }
-      }, 700);
+        if(activeSearchDropdown === index && (!searchTerm.trim() || searchTerm.length < 2)){
+            setActiveSearchDropdown(null); // Close dropdown if term becomes too short
+        }
+        return null;
+      }
 
+      // Set isSearching true for this item, clear previous results/error
+      setLineItemSearchData(prev => prev.map(item => 
+        item.id === itemId ? { ...item, isSearching: true, searchResults: [], error: null } : item
+      ));
+      setActiveSearchDropdown(index); // Show dropdown when search is initiated
+
+      const timerId = setTimeout(async () => {
+        // Re-fetch current state of this item inside timeout to ensure relevancy
+        let currentItemState: LineItemSearchData | undefined;
+        setLineItemSearchData(currentDynamicData => {
+            currentItemState = currentDynamicData.find(item => item.id === itemId);
+            return currentDynamicData; // This is just to read, no actual state change
+        });
+
+        // If the search term for this item has changed while waiting, or a selection was made, abort.
+        if (!currentItemState || currentItemState.searchTerm !== searchTerm || currentItemState.hasSelection) {
+          console.log(`[Search Effect] Aborting stale search for "${searchTerm}" (Item ID: ${itemId})`);
+          // Ensure isSearching is false if this specific timeout is now irrelevant and was the one that set it true
+           setLineItemSearchData(prev => prev.map(item => 
+            (item.id === itemId && item.searchTerm === searchTerm && item.isSearching) ? { ...item, isSearching: false } : item
+          ));
+          return;
+        }
+        
+        console.log(`[Search Effect] Performing API call for "${searchTerm}" (Item ID: ${itemId})`);
+        try {
+          const response = await axios.get<{ results: SearchResult[] }>(
+            `/api/products/search-variant?query=${encodeURIComponent(searchTerm.trim())}`
+          );
+          setLineItemSearchData(prev =>
+            prev.map(item =>
+              item.id === itemId && item.searchTerm === searchTerm // Final check for relevancy
+                ? { ...item, searchResults: response.data.results || [], isSearching: false, error: null }
+                : item
+            )
+          );
+        } catch (e: any) {
+          console.error(`Search API error for item ${itemId} (term "${searchTerm}"):`, e.response?.data?.error || e.message);
+          setLineItemSearchData(prev =>
+            prev.map(item =>
+              item.id === itemId && item.searchTerm === searchTerm
+                ? { ...item, searchResults: [], isSearching: false, error: 'Search failed.' }
+                : item
+            )
+          );
+        }
+      }, 700); // Debounce delay
       return timerId;
     });
 
     return () => {
-      debounceFns.forEach(timeoutId => {
-        if (timeoutId) clearTimeout(timeoutId);
+      timers.forEach(timerId => {
+        if (timerId) clearTimeout(timerId);
       });
     };
-  }, [lineItemSearchData]); // Depend on the entire lineItemSearchData to catch all changes
-
-  // Add keyboard navigation support with visual feedback
-  const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null);
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    const currentSearchData = lineItemSearchData[index];
-    if (!currentSearchData.searchResults.length) return;
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault();
-        setFocusedResultIndex(prev => {
-          if (prev === null || prev >= currentSearchData.searchResults.length - 1) {
-            return 0;
-          }
-          return prev + 1;
-        });
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        setFocusedResultIndex(prev => {
-          if (prev === null || prev <= 0) {
-            return currentSearchData.searchResults.length - 1;
-          }
-          return prev - 1;
-        });
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (focusedResultIndex !== null) {
-          addProductToLineItems(currentSearchData.searchResults[focusedResultIndex].variant, index);
-        } else if (currentSearchData.searchResults.length === 1) {
-          addProductToLineItems(currentSearchData.searchResults[0].variant, index);
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        setActiveSearchDropdown(null);
-        setFocusedResultIndex(null);
-        break;
-    }
-  };
-
-  // Reset focused result when dropdown closes
-  useEffect(() => {
-    if (activeSearchDropdown === null) {
-      setFocusedResultIndex(null);
-    }
-  }, [activeSearchDropdown]);
+  }, [searchTermsForEffect, lineItemSearchData.map(i => i.id).join(',')]); // Depend on search terms and item IDs string
 
   const handleLineItemChange = (index: number, field: keyof DraftOrderLineItemInput, value: string | number) => {
     const updatedLineItems = [...lineItems];
     if (field === 'quantity') {
-      updatedLineItems[index] = { ...updatedLineItems[index], [field]: Math.max(1, Number(value)) };
+        updatedLineItems[index] = { ...updatedLineItems[index], [field]: Math.max(1, Number(value)) };
     } else {
-      updatedLineItems[index] = { ...updatedLineItems[index], [field]: String(value) };
+        updatedLineItems[index] = { ...updatedLineItems[index], [field]: String(value) };
     }
     setLineItems(updatedLineItems);
   };
 
   const handleSearchTermChange = (index: number, value: string) => {
-    console.log(`Search term changed to: ${value}`); // Debug log
+    const currentItem = lineItemSearchData[index];
     setLineItemSearchData(prevData =>
       prevData.map((item, i) =>
-        i === index
+        item.id === currentItem.id
           ? {
               ...item,
               searchTerm: value,
-              searchResults: [], // Clear results on new typing
-              hasSelection: false, // Reset selection status
-              error: null,
+              hasSelection: false, // Reset selection when user types
+              // Don't clear searchResults here, let useEffect handle it to avoid flicker if search is fast
+              // error: null, // Clear error on new input
             }
           : item
       )
     );
 
-    // If user types into an input that previously had a selected product, clear that selection from main lineItems data
     if (lineItems[index].numericVariantIdShopify) {
       const updatedLineItems = [...lineItems];
       updatedLineItems[index] = {
         ...updatedLineItems[index],
         numericVariantIdShopify: '',
         productDisplay: '',
-        title: '', // Also clear title if it was set from product
+        title: '',
       };
       setLineItems(updatedLineItems);
     }
-
-    // Show dropdown if search term is long enough
-    if (value.length >= 2) {
-      setActiveSearchDropdown(index);
-    } else {
-      setActiveSearchDropdown(null);
-    }
+    // Dropdown visibility handled by useEffect based on new term length and lack of selection
   };
 
-  const addLineItem = () => {
-    setLineItems([...lineItems, { numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
-    setLineItemSearchData([...lineItemSearchData, createNewLineItemSearchData()]);
-  };
-
-  const removeLineItem = (index: number) => {
-    if (lineItems.length > 1) {
-      setLineItems(lineItems.filter((_, i) => i !== index));
-      setLineItemSearchData(lineItemSearchData.filter((_, i) => i !== index));
-    }
-  };
-  
   const addProductToLineItems = (variant: ProductVariantData, index: number) => {
+    const currentItemSearchId = lineItemSearchData[index]?.id;
+    if (!currentItemSearchId) return;
+
     if (!variant.numericVariantIdShopify) {
-      alert("Selected variant is missing a numeric Shopify ID. Cannot add to quote.");
-      setError(`Variant ${variant.sku} is missing its numeric Shopify ID.`);
+      setLineItemSearchData(prev => prev.map(item => item.id === currentItemSearchId ? {...item, error: `Variant ${variant.sku} is missing ID.`} : item));
       return;
     }
 
@@ -288,50 +218,108 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
     };
     setLineItems(updatedLineItems);
 
-    // Update search state: show the selected product in the input, clear results, mark as selected
     setLineItemSearchData(prevData =>
-      prevData.map((item, i) =>
-        i === index
+      prevData.map(item =>
+        item.id === currentItemSearchId
           ? {
               ...item,
-              searchTerm: displayValue, // Show what was selected
+              searchTerm: displayValue,
               searchResults: [],
               isSearching: false,
-              hasSelection: true, // Mark that a selection has been made
+              hasSelection: true,
               error: null,
             }
           : item
       )
     );
-
-    // Close the dropdown
     setActiveSearchDropdown(null);
+    setFocusedResultIndex(null);
+  };
+  
+  const addLineItem = () => {
+    setLineItems([...lineItems, { numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
+    setLineItemSearchData([...lineItemSearchData, createNewLineItemSearchData()]);
+    searchContainerRefs.current.push(null); // Add a slot for the new item's ref
   };
 
-  // Add click outside handler
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.product-search-container')) {
+  const removeLineItem = (index: number) => {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter((_, i) => i !== index));
+      setLineItemSearchData(lineItemSearchData.filter((_, i) => i !== index));
+      searchContainerRefs.current.splice(index, 1); // Remove ref
+      if (activeSearchDropdown === index) {
         setActiveSearchDropdown(null);
       }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleCustomerChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setCustomer({ ...customer, [e.target.name]: e.target.value });
+    }
   };
 
-  const handleShippingAddressChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (activeSearchDropdown !== null) {
+        const currentSearchContainerRef = searchContainerRefs.current[activeSearchDropdown];
+        if (currentSearchContainerRef && !currentSearchContainerRef.contains(event.target as Node)) {
+          setActiveSearchDropdown(null);
+          setFocusedResultIndex(null);
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeSearchDropdown]);
+
+  const handleInputFocus = (index: number) => {
+    const currentSearchData = lineItemSearchData[index];
+    if (currentSearchData?.searchTerm.length >= 2 && !currentSearchData?.hasSelection && currentSearchData?.searchResults.length > 0) {
+        setActiveSearchDropdown(index);
+    } else if (currentSearchData?.searchTerm.length >= 2 && !currentSearchData?.hasSelection && currentSearchData?.error){
+        setActiveSearchDropdown(index); // Show error if present
+    } else if (currentSearchData?.searchTerm.length >=2 && !currentSearchData?.hasSelection && currentSearchData?.isSearching) {
+        setActiveSearchDropdown(index); // Show loading if searching
+    }
+  };
+  
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    const currentSearchData = lineItemSearchData[index];
+    if (!currentSearchData || !currentSearchData.searchResults?.length || activeSearchDropdown !== index) {
+      if (e.key === 'Escape') {
+        setActiveSearchDropdown(null);
+        setFocusedResultIndex(null);
+      }
+      return;
+    }
+
+    const resultsCount = currentSearchData.searchResults.length;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedResultIndex(prev => (prev === null || prev >= resultsCount - 1) ? 0 : prev + 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedResultIndex(prev => (prev === null || prev <= 0) ? resultsCount - 1 : prev - 1);
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (focusedResultIndex !== null && currentSearchData.searchResults[focusedResultIndex]) {
+          addProductToLineItems(currentSearchData.searchResults[focusedResultIndex].variant, index);
+        } else if (resultsCount === 1) { // Auto-select if only one result
+          addProductToLineItems(currentSearchData.searchResults[0].variant, index);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setActiveSearchDropdown(null);
+        setFocusedResultIndex(null);
+        break;
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null);
+    setFormError(null); // Use formError for submit errors
     setSuccessMessage(null);
     setCreatedDraftOrder(null);
     setIsLoading(true);
@@ -348,17 +336,17 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
     };
 
     if (draftOrderInput.lineItems.length === 0) {
-      setError("Please add at least one valid line item with a Shopify Variant ID and quantity.");
+      setFormError("Please add at least one valid line item with a Shopify Variant ID and quantity.");
       setIsLoading(false);
       return;
     }
     if (!draftOrderInput.shippingAddress?.address1 || !draftOrderInput.shippingAddress.city || !draftOrderInput.shippingAddress.country || !draftOrderInput.shippingAddress.zip) {
-        setError("A complete shipping address (Address, City, Country, Zip) is required to calculate shipping.");
+        setFormError("A complete shipping address (Address, City, Country, Zip) is required to calculate shipping.");
         setIsLoading(false);
         return;
     }
     if (!draftOrderInput.customer?.email && sendShopifyInvoice) { 
-        setError("Customer email is required if you want to send an invoice.");
+        setFormError("Customer email is required if you want to send an invoice.");
         setIsLoading(false); 
         return; 
     }
@@ -369,39 +357,21 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
       setCreatedDraftOrder(response.data);
     } catch (err) {
       const axiosError = err as AxiosError<{ error?: string }>;
-      setError(axiosError.response?.data?.error || 'Failed to create draft order. Check server logs for details.');
+      setFormError(axiosError.response?.data?.error || 'Failed to create draft order. Check server logs for details.');
       console.error("Draft order creation error:", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSearch = async (query: string) => {
-    if (!query || query.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    setSearchError(null);
-
-    try {
-      const response = await axios.get(`/api/products/search-variant?query=${encodeURIComponent(query)}`);
-      const { results } = response.data;
-      
-      if (results && results.length > 0) {
-        setSearchResults(results);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error('Error searching products:', error);
-      setSearchError('Failed to search products. Please try again.');
-      setSearchResults([]);
-    } finally {
-      setIsSearching(false);
-    }
+  const handleCustomerChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setCustomer({ ...customer, [e.target.name]: e.target.value });
   };
+
+  const handleShippingAddressChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
+  };
+  
 
   return (
     <div className="card shadow-sm">
@@ -409,7 +379,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         <h3 className="mb-0">Create Quote for Ticket #{ticketId}</h3>
       </div>
       <div className="card-body">
-        {error && <div className="alert alert-danger" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(error) }}></div>}
+        {formError && <div className="alert alert-danger" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formError) }}></div>}
         {successMessage && <div className="alert alert-success">{successMessage}</div>}
         {createdDraftOrder && (
           <div className="alert alert-info">
@@ -429,7 +399,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* Customer Section */}
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">Customer Information</legend>
             <div className="row g-3">
@@ -456,117 +425,117 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             </div>
           </fieldset>
 
-          {/* Line Items Section */}
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">Line Items</legend>
-            {lineItems.map((item, index) => (
-              <div key={index} className="row g-3 align-items-start mb-3 p-3 border-bottom position-relative">
-                <div className="col-md-5">
-                  <label htmlFor={`itemSku-${index}`} className="form-label">Product Search *</label>
-                  <div className="position-relative product-search-container">
-                    <input
-                      type="text"
-                      className="form-control"
-                      id={`itemSku-${index}`}
-                      placeholder="Search by SKU, Variant ID, or product name..."
-                      value={lineItemSearchData[index].searchTerm}
-                      onChange={(e) => handleSearchTermChange(index, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(index, e)}
-                      required
-                      readOnly={lineItemSearchData[index].hasSelection}
-                    />
-                    {lineItemSearchData[index].isSearching && (
-                      <div className="position-absolute top-0 end-0 mt-2 me-2">
-                        <div className="spinner-border spinner-border-sm text-primary" role="status">
-                          <span className="visually-hidden">Searching...</span>
-                        </div>
-                      </div>
-                    )}
-                    {lineItemSearchData[index].error && (
-                      <div className="position-absolute w-100 mt-1 p-2 bg-danger-subtle text-danger-emphasis border border-danger rounded small">
-                        {lineItemSearchData[index].error}
-                      </div>
-                    )}
-                    {!lineItemSearchData[index].isSearching &&
-                     !lineItemSearchData[index].hasSelection &&
-                     lineItemSearchData[index].searchTerm.length >= 2 &&
-                     lineItemSearchData[index].searchResults.length === 0 &&
-                     !lineItemSearchData[index].error && (
-                      <div className="position-absolute w-100 mt-1 p-2 bg-white border rounded text-muted small">
-                        No products found.
-                      </div>
-                    )}
-                    {activeSearchDropdown === index &&
-                     lineItemSearchData[index].searchResults.length > 0 && (
-                      <div className="position-absolute w-100 mt-1 bg-white border rounded shadow-lg" style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}>
-                        {lineItemSearchData[index].searchResults.map((result, resultIndex) => (
-                          <div
-                            key={`${result.variant.id}-${resultIndex}`}
-                            className={`p-2 cursor-pointer border-bottom ${
-                              resultIndex === focusedResultIndex ? 'bg-primary text-white' : 'hover:bg-light'
-                            }`}
-                            onClick={() => addProductToLineItems(result.variant, index)}
-                          >
-                            <div className="fw-medium">{result.parentProduct.name}</div>
-                            <div className={`small ${resultIndex === focusedResultIndex ? 'text-white-50' : 'text-muted'}`}>
-                              SKU: {result.variant.sku} | Variant: {result.variant.variantTitle}
-                            </div>
-                            <div className={`small ${resultIndex === focusedResultIndex ? 'text-white-50' : 'text-muted'}`}>
-                              Price: ${result.variant.price.toFixed(2)} | Stock: {result.variant.inventoryQuantity || 0}
-                            </div>
+            {lineItems.map((itemData, index) => {
+              const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData(); // Fallback
+              return (
+                <div key={currentSearchState.id} className="row g-3 align-items-start mb-3 p-3 border-bottom position-relative">
+                  <div className="col-md-5">
+                    <label htmlFor={`itemSku-${index}-${currentSearchState.id}`} className="form-label">Product Search *</label>
+                    <div 
+                      className="position-relative product-search-container" 
+                      ref={el => { searchContainerRefs.current[index] = el; }}
+                    >
+                      <input
+                        type="text"
+                        className="form-control"
+                        id={`itemSku-${index}-${currentSearchState.id}`}
+                        placeholder="Search by SKU, Variant ID, or product name..."
+                        value={currentSearchState.searchTerm}
+                        onChange={(e) => handleSearchTermChange(index, e.target.value)}
+                        onFocus={() => handleInputFocus(index)}
+                        onKeyDown={(e) => handleKeyDown(index, e)}
+                        required={!currentSearchState.hasSelection} // only required if no selection made
+                        autoComplete="off" // Important for custom dropdowns
+                      />
+                      {currentSearchState.isSearching && (
+                        <div className="position-absolute top-50 end-0 translate-middle-y me-2" style={{ zIndex: 5 }}>
+                          <div className="spinner-border spinner-border-sm text-primary" role="status">
+                            <span className="visually-hidden">Searching...</span>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
+                      {activeSearchDropdown === index && (
+                        <div 
+                          className="position-absolute w-100 mt-1 bg-white border rounded shadow-lg" 
+                          style={{ zIndex: 1000, maxHeight: '300px', overflowY: 'auto' }}
+                        >
+                          {currentSearchState.error && (
+                            <div className="p-2 text-danger small">{currentSearchState.error}</div>
+                          )}
+                          {!currentSearchState.error && currentSearchState.searchResults.length === 0 && currentSearchState.searchTerm.length >= 2 && !currentSearchState.isSearching && (
+                            <div className="p-2 text-muted small">No products found.</div>
+                          )}
+                          {currentSearchState.searchResults.map((result, resultIdx) => (
+                            result.parentProduct ? (
+                                <div
+                                key={`${result.variant.id}-${resultIdx}`}
+                                className={`p-2 cursor-pointer border-bottom ${resultIdx === focusedResultIndex ? 'bg-primary text-white' : 'hover:bg-light'}`}
+                                onClick={() => addProductToLineItems(result.variant, index)}
+                                onMouseEnter={() => setFocusedResultIndex(resultIdx)}
+                                >
+                                <div className="fw-medium">{result.parentProduct.name}</div>
+                                <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-50' : 'text-muted'}`}>
+                                    SKU: {result.variant.sku} | Variant: {result.variant.variantTitle}
+                                </div>
+                                <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-50' : 'text-muted'}`}>
+                                    Price: ${result.variant.price.toFixed(2)} | Stock: {result.variant.inventoryQuantity ?? 0}
+                                </div>
+                                </div>
+                            ) : <div key={`no-parent-${resultIdx}`} className="p-2 text-muted small">Invalid product data received</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="col-md-4">
+                    <label htmlFor={`itemTitle-${index}-${currentSearchState.id}`} className="form-label">Selected Product</label>
+                    <input 
+                      type="text" 
+                      className="form-control bg-light" 
+                      id={`itemTitle-${index}-${currentSearchState.id}`} 
+                      value={itemData.productDisplay || ''} 
+                      readOnly 
+                      placeholder="Select a product"
+                    />
+                  </div>
+                  <div className="col-md-2">
+                    <label htmlFor={`itemQuantity-${index}-${currentSearchState.id}`} className="form-label">Quantity *</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      id={`itemQuantity-${index}-${currentSearchState.id}`}
+                      value={itemData.quantity}
+                      onChange={(e) => handleLineItemChange(index, 'quantity', parseInt(e.target.value, 10))}
+                      min="1"
+                      required
+                    />
+                  </div>
+                  <div className="col-md-1 align-self-center mt-4 pt-2">
+                    {lineItems.length > 1 && (
+                      <button type="button" className="btn btn-danger btn-sm" onClick={() => removeLineItem(index)} title="Remove Item">
+                        <i className="fas fa-trash"></i>
+                      </button>
                     )}
                   </div>
                 </div>
-                <div className="col-md-4">
-                  <label htmlFor={`itemTitle-${index}`} className="form-label">Selected Product</label>
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    id={`itemTitle-${index}`} 
-                    value={item.productDisplay || ''} 
-                    readOnly 
-                    placeholder="Select a product from search results"
-                  />
-                </div>
-                <div className="col-md-2">
-                  <label htmlFor={`itemQuantity-${index}`} className="form-label">Quantity *</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    id={`itemQuantity-${index}`}
-                    value={item.quantity}
-                    onChange={(e) => handleLineItemChange(index, 'quantity', parseInt(e.target.value, 10))}
-                    min="1"
-                    required
-                  />
-                </div>
-                <div className="col-md-1 align-self-center mt-4 pt-2">
-                  {lineItems.length > 1 && (
-                    <button type="button" className="btn btn-danger btn-sm" onClick={() => removeLineItem(index)} title="Remove Item">
-                      <i className="fas fa-trash"></i>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             <button type="button" className="btn btn-outline-secondary btn-sm mt-2" onClick={addLineItem}>
               <i className="fas fa-plus me-1"></i> Add Item
             </button>
           </fieldset>
-
-          {/* Shipping Address Section */}
+          
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">Shipping Address</legend>
             <div className="row g-3">
-              <div className="col-md-6"><label htmlFor="shipFirstName" className="form-label">First Name *</label><input type="text" className="form-control" id="shipFirstName" name="firstName" value={shippingAddress.firstName} onChange={handleShippingAddressChange} required /></div>
-              <div className="col-md-6"><label htmlFor="shipLastName" className="form-label">Last Name *</label><input type="text" className="form-control" id="shipLastName" name="lastName" value={shippingAddress.lastName} onChange={handleShippingAddressChange} required /></div>
+              <div className="col-md-6"><label htmlFor="shipFirstName" className="form-label">First Name *</label><input type="text" className="form-control" id="shipFirstName" name="firstName" value={shippingAddress.firstName || ''} onChange={handleShippingAddressChange} required /></div>
+              <div className="col-md-6"><label htmlFor="shipLastName" className="form-label">Last Name *</label><input type="text" className="form-control" id="shipLastName" name="lastName" value={shippingAddress.lastName || ''} onChange={handleShippingAddressChange} required /></div>
               <div className="col-12"><label htmlFor="shipCompany" className="form-label">Company</label><input type="text" className="form-control" id="shipCompany" name="company" value={shippingAddress.company || ''} onChange={handleShippingAddressChange} /></div>
-              <div className="col-12"><label htmlFor="shipAddress1" className="form-label">Address Line 1 *</label><input type="text" className="form-control" id="shipAddress1" name="address1" value={shippingAddress.address1} onChange={handleShippingAddressChange} required /></div>
+              <div className="col-12"><label htmlFor="shipAddress1" className="form-label">Address Line 1 *</label><input type="text" className="form-control" id="shipAddress1" name="address1" value={shippingAddress.address1 || ''} onChange={handleShippingAddressChange} required /></div>
               <div className="col-12"><label htmlFor="shipAddress2" className="form-label">Address Line 2</label><input type="text" className="form-control" id="shipAddress2" name="address2" value={shippingAddress.address2 || ''} onChange={handleShippingAddressChange} /></div>
-              <div className="col-md-6"><label htmlFor="shipCity" className="form-label">City *</label><input type="text" className="form-control" id="shipCity" name="city" value={shippingAddress.city} onChange={handleShippingAddressChange} required /></div>
+              <div className="col-md-6"><label htmlFor="shipCity" className="form-label">City *</label><input type="text" className="form-control" id="shipCity" name="city" value={shippingAddress.city || ''} onChange={handleShippingAddressChange} required /></div>
               <div className="col-md-4">
                 <label htmlFor="shipCountry" className="form-label">Country *</label>
                 <select id="shipCountry" name="country" className="form-select" value={shippingAddress.country} onChange={handleShippingAddressChange} required>
@@ -580,13 +549,12 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
               </div>
               <div className="col-md-4">
                 <label htmlFor="shipZip" className="form-label">ZIP/Postal Code *</label>
-                <input type="text" className="form-control" id="shipZip" name="zip" value={shippingAddress.zip} onChange={handleShippingAddressChange} required />
+                <input type="text" className="form-control" id="shipZip" name="zip" value={shippingAddress.zip || ''} onChange={handleShippingAddressChange} required />
               </div>
               <div className="col-md-6"><label htmlFor="shipPhone" className="form-label">Phone</label><input type="tel" className="form-control" id="shipPhone" name="phone" value={shippingAddress.phone || ''} onChange={handleShippingAddressChange} /></div>
             </div>
           </fieldset>
 
-          {/* Notes and Options */}
           <div className="mb-3">
             <label htmlFor="quoteNote" className="form-label">Notes (visible to customer)</label>
             <textarea className="form-control" id="quoteNote" value={note} onChange={(e) => setNote(e.target.value)} rows={3}></textarea>
@@ -616,4 +584,4 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   );
 };
 
-export default CreateQuoteClient; 
+export default CreateQuoteClient;
