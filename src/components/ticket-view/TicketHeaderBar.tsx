@@ -158,6 +158,10 @@ export default function TicketHeaderBar({
               </div>
               
               {/* Action Buttons */}
+              <Link href={`/admin/tickets/${ticket.id}/create-quote`} className="btn btn-success btn-sm">
+                <i className="fas fa-file-invoice-dollar me-1"></i>Create Quote
+              </Link>
+
               <button 
                 className="btn btn-outline-secondary btn-sm" 
                 onClick={handleCopyLink}

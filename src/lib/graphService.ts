@@ -409,8 +409,7 @@ export async function flagEmail(messageId: string, flagColor: string = 'red'): P
       .api(`/users/${userEmail}/messages/${messageId}`)
       .update({
         flag: {
-          flagStatus: 'flagged',
-          flagColor: flagColor
+          flagStatus: 'flagged'
         }
       });
   } catch (error) {

@@ -3,6 +3,7 @@
 import React from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ticketPriorityEnum } from '@/db/schema';
+import { RagSearchInterface } from '@/components/RagSearchInterface';
 
 // Type definitions
 type BaseUser = {
@@ -30,23 +31,21 @@ interface TicketDetailsSidebarProps {
   ticket: TicketData;
 }
 
-// Helper functions
-const getPriorityClass = (priority: string | null): string => {
+// Helper function to get priority class
+const getPriorityClass = (priority: string): string => {
   switch (priority?.toLowerCase()) {
-    case 'low': return 'badge bg-success';
-    case 'medium': return 'badge bg-warning text-dark';
     case 'high': return 'badge bg-danger';
-    case 'urgent': return 'badge bg-danger fw-bold text-white';
-    default: return 'badge bg-light text-dark border';
+    case 'medium': return 'badge bg-warning text-dark';
+    case 'low': return 'badge bg-info text-dark';
+    default: return 'badge bg-secondary';
   }
 };
 
-const parseDate = (dateString: string | Date | null | undefined): Date | null => {
+// Helper function to parse dates
+const parseDate = (dateString: string | null): Date | null => {
   if (!dateString) return null;
-  if (dateString instanceof Date) return dateString;
   try {
-    const date = new Date(dateString);
-    return isNaN(date.getTime()) ? null : date;
+    return new Date(dateString);
   } catch {
     return null;
   }
@@ -173,6 +172,23 @@ export default function TicketDetailsSidebar({ ticket }: TicketDetailsSidebarPro
               )}
             </>
           )}
+        </div>
+      </div>
+
+      {/* RAG Search Interface */}
+      <div className="card shadow-sm mb-4">
+        <div className="card-header bg-light">
+          <h3 className="h6 mb-0">Related Information</h3>
+        </div>
+        <div className="card-body p-0">
+          <RagSearchInterface 
+            customerEmail={ticket.senderEmail || ticket.reporter?.email || undefined}
+            orderNumber={ticket.orderNumber}
+            onResultSelect={(result) => {
+              // Handle result selection - you can add this functionality later
+              console.log('Selected RAG result:', result);
+            }}
+          />
         </div>
       </div>
     </div>

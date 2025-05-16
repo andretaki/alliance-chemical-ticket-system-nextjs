@@ -1,86 +1,61 @@
-import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
-import type { userRoleEnum } from '@/db/schema'; // Import your role enum type
 import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 
-export default withAuth(
-  // `withAuth` augments your `Request` with the user's token.
-  function middleware(request: NextRequestWithAuth) {
-    const { pathname } = request.nextUrl;
-    const token = request.nextauth.token;
+// Simpler direct middleware implementation without withAuth wrapper
+export async function middleware(req: NextRequest) {
+  const token = await getToken({ req });
+  const isAuthenticated = !!token;
+  const pathname = req.nextUrl.pathname;
 
-    // Define admin routes
-    const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/manage-users');
+  console.log(`Middleware running for ${pathname}, auth status: ${isAuthenticated}`);
 
-    if (isAdminRoute) {
-      // If trying to access an admin route
-      if (!token) {
-        // Not logged in, redirect to sign-in preserving the intended destination
-        const signInUrl = new URL('/auth/signin', request.url);
-        signInUrl.searchParams.set('callbackUrl', request.url);
-        return NextResponse.redirect(signInUrl);
-      }
-      if (token.role !== ('admin' as typeof userRoleEnum.enumValues[number])) {
-        // Logged in, but not an admin. Redirect to an access denied page or homepage.
-        // For simplicity, redirecting to homepage with an error.
-        // Consider creating a dedicated /access-denied page.
-        const homeUrl = new URL('/', request.url);
-        homeUrl.searchParams.set('error', 'AccessDenied');
-        console.warn(`RBAC: User '${token.email}' (role: '${token.role}') denied access to admin route '${pathname}'.`);
-        return NextResponse.redirect(homeUrl);
-      }
-    }
-    // Allow request to proceed if not an admin route or if user is admin
-    return NextResponse.next();
-  },
-  {
-    callbacks: {
-      // This authorized callback is called before the middleware function itself.
-      // It ensures that for any route matched by the `config.matcher` below,
-      // the user must at least be logged in.
-      // If they are not logged in, they will be redirected to the signIn page.
-      authorized: ({ token }) => !!token,
-    },
-    pages: {
-        // This is the page users will be redirected to if `authorized` returns false.
-        signIn: '/auth/signin',
+  // Define protected routes that require authentication
+  const protectedRoutes = [
+    '/dashboard',
+    '/tickets',
+    '/admin',
+    '/manage-users',
+    '/profile'
+  ];
+
+  // Check if the current path is a protected route
+  const isProtectedRoute = protectedRoutes.some(route => 
+    pathname.startsWith(route)
+  );
+
+  // If it's a protected route and user is not authenticated, redirect to sign in
+  if (isProtectedRoute && !isAuthenticated) {
+    console.log(`Redirecting unauthenticated user from ${pathname} to sign-in`);
+    const signInUrl = new URL('/auth/signin', req.url);
+    signInUrl.searchParams.set('callbackUrl', pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  // Define admin routes
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/manage-users');
+
+  // Check admin access
+  if (isAdminRoute && isAuthenticated) {
+    // @ts-ignore - token.role might not be explicitly typed
+    if (token.role !== 'admin') {
+      console.log(`RBAC: User '${token.email}' (role: '${token.role}') denied access to admin route '${pathname}'.`);
+      const homeUrl = new URL('/', req.url);
+      homeUrl.searchParams.set('error', 'AccessDenied');
+      return NextResponse.redirect(homeUrl);
     }
   }
-);
 
-// Matcher: Apply this middleware to specified admin and manage-users pages
-export const config = {
-  matcher: [
-    '/admin/:path*',
-    '/manage-users/:path*',
-    // Add other paths that require authentication but not necessarily admin role, if any.
-    // For example, if all ticket pages require login: '/tickets/:path*'
-    // If the dashboard requires login: '/dashboard/:path*' (or just '/dashboard')
-    // If the profile page requires login: '/profile'
-  ],
-};
-
-export async function quarantineMiddleware(request: NextRequest) {
-  const token = await getToken({ req: request });
-
-  // Protect admin routes
-  if (request.nextUrl.pathname.startsWith('/admin')) {
-    if (!token) {
-      return NextResponse.redirect(new URL('/auth/signin', request.url));
-    }
-
-    // Check if user has admin role
-    if (token.role !== 'admin') {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
+  // If user is authenticated and tries to access auth pages, redirect to dashboard
+  if (isAuthenticated && pathname.startsWith('/auth')) {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
   return NextResponse.next();
 }
 
-export const quarantineConfig = {
+export const config = {
   matcher: [
-    '/admin/:path*',
+    '/((?!api|_next/static|_next/image|favicon.ico|assets|public).*)',
   ],
 }; 

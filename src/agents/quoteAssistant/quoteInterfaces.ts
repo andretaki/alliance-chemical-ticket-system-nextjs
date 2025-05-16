@@ -8,8 +8,9 @@ export interface CustomerContact {
 }
 
 export interface ProductVariantData {
-  id: string;
-  variantIdShopify?: string;
+  id: string; // Internal DB ID
+  variantIdShopify: string; // Shopify's GID for ProductVariant (e.g., "gid://shopify/ProductVariant/123")
+  numericVariantIdShopify?: string; // Shopify's numeric ID for ProductVariant
   agentProductId: string;
   sku: string;
   variantTitle: string;
@@ -21,7 +22,7 @@ export interface ProductVariantData {
 
 export interface ParentProductData {
   id: string;
-  productIdShopify?: string;
+  productIdShopify?: string; // Shopify's numeric ID for Product
   name: string;
   handleShopify?: string;
   pageUrl?: string;
@@ -45,7 +46,7 @@ export interface SimpleQuoteEmailDataItem {
   productName: string;
   sku: string;
   quantity: number;
-  unitDescription: string;
+  unitDescription: string; // e.g., 'gallon', 'drum', 'item'
   unitPrice: number;
   totalPrice: number;
   pageUrl?: string;
@@ -76,4 +77,154 @@ export interface ComplexQuoteTicketData {
   isBulkOrder?: boolean;
   aiSentiment?: string | null;
   aiEstimatedComplexity?: string;
+}
+
+// --- New Draft Order Interfaces ---
+
+export interface DraftOrderAddressInput {
+  address1: string;
+  address2?: string;
+  city: string;
+  company?: string;
+  country: string; // Full country name
+  province?: string; // Full province/state name
+  zip: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+}
+
+export interface DraftOrderCustomerInput {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  company?: string;
+  // Potentially existingShopifyCustomerId (GID) if known
+}
+
+export interface DraftOrderLineItemInput {
+  numericVariantIdShopify: string; // Shopify's numeric ID for ProductVariant
+  quantity: number;
+  title?: string; // Optional: can be pre-filled for custom items
+  price?: number; // Optional: for custom items or price overrides
+}
+
+export interface AppDraftOrderInput {
+  lineItems: DraftOrderLineItemInput[];
+  customer?: DraftOrderCustomerInput;
+  shippingAddress?: DraftOrderAddressInput;
+  note?: string;
+  email?: string; // Email to send Shopify draft order invoice to
+  tags?: string[];
+}
+
+export interface ShopifyMoney {
+  amount: string;
+  currencyCode: string;
+}
+
+export interface ShopifyShippingLine {
+  title: string;
+  priceSet: { shopMoney: ShopifyMoney };
+}
+
+export interface DraftOrderOutput {
+  id: string; // Shopify GID
+  legacyResourceId: string; // Shopify numeric ID
+  name: string; // Draft order name (e.g., #D123)
+  invoiceUrl?: string;
+  status: string;
+  totalPrice: number;
+  currencyCode: string;
+  subtotalPrice?: number;
+  totalShippingPrice?: number;
+  totalTax?: number;
+  customer?: {
+    id?: string; // Shopify Customer GID
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  lineItems: Array<{
+    id: string; // Line item GID
+    title: string;
+    quantity: number;
+    originalUnitPrice: number;
+    variant?: {
+      id: string; // Variant GID
+      legacyResourceId: string; // Variant Numeric ID
+      sku?: string;
+      title?: string;
+      image?: { url?: string; altText?: string };
+    };
+    product?: {
+      id: string; // Product GID
+      legacyResourceId: string; // Product Numeric ID
+      title?: string;
+    };
+  }>;
+  shippingLine?: {
+    title: string;
+    price: number;
+  } | null;
+  shippingAddress?: {
+    firstName?: string; lastName?: string; address1?: string; address2?: string;
+    city?: string; company?: string; phone?: string; zip?: string;
+    provinceCode?: string; countryCode?: string;
+  };
+  appliedDiscount?: {
+    title?: string;
+    description?: string;
+    value: number; // Assuming this is a numeric value after conversion
+    valueType: string; // e.g., PERCENTAGE, FIXED_AMOUNT
+  };
+  note?: string | null;
+}
+
+// Used for Shopify GraphQL response mapping
+export interface ShopifyDraftOrderGQLResponse {
+  id: string;
+  legacyResourceId: string;
+  name: string;
+  invoiceUrl?: string;
+  status: string; // DRAFT, OPEN, COMPLETED, CANCELLED
+  totalPriceSet: { shopMoney: ShopifyMoney };
+  totalShippingPriceSet?: { shopMoney: ShopifyMoney };
+  subtotalPriceSet?: { shopMoney: ShopifyMoney };
+  totalTaxSet?: { shopMoney: ShopifyMoney };
+  customer?: { id: string; email?: string; firstName?: string; lastName?: string; phone?: string; companyName?: { name?: string }; defaultAddress?: { id?: string } };
+  lineItems: {
+    edges: Array<{
+      node: {
+        id: string;
+        title: string;
+        quantity: number;
+        originalUnitPriceSet: { shopMoney: ShopifyMoney };
+        discountedUnitPriceSet?: { shopMoney: ShopifyMoney };
+        totalDiscountSet?: { shopMoney: ShopifyMoney };
+        taxLines?: Array<{ priceSet: { shopMoney: ShopifyMoney }; ratePercentage?: number; title?: string }>;
+        variant?: { id: string; legacyResourceId: string; sku?: string; title?: string; image?: { url?: string; altText?: string } };
+        product?: { id: string; legacyResourceId: string; title?: string };
+      };
+    }>;
+  };
+  shippingLine?: {
+    title: string;
+    priceSet: { shopMoney: ShopifyMoney };
+    shippingRateHandle?: string;
+  } | null;
+  shippingAddress?: {
+    firstName?: string; lastName?: string; address1?: string; address2?: string;
+    city?: string; company?: string; phone?: string; zip?: string;
+    provinceCode?: string; countryCode?: string;
+  };
+  appliedDiscount?: {
+    title?: string;
+    description?: string;
+    value: number | string; // Can be string for percentage
+    valueType: string;
+    amountSet: { shopMoney: ShopifyMoney };
+  };
+  note?: string | null;
 } 

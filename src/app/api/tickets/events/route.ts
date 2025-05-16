@@ -1,104 +1,180 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { ticketEventEmitter } from '@/lib/eventEmitter';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 export async function GET() {
-  const headersList = headers();
+  try {
+    // Check authentication
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      console.log('SSE: Unauthorized access attempt');
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
 
-  // Set up SSE headers
-  const responseHeaders = new Headers();
-  responseHeaders.set('Content-Type', 'text/event-stream');
-  responseHeaders.set('Cache-Control', 'no-cache');
-  responseHeaders.set('Connection', 'keep-alive');
-  responseHeaders.set('X-Accel-Buffering', 'no'); // Useful for Nginx buffering issues
+    const headersList = headers();
+    const userAgent = headersList.get('user-agent') || 'unknown';
+    const clientIp = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown';
 
-  // Create a new ReadableStream for SSE
-  const stream = new ReadableStream({
-    start(controller) {
-      console.log('SSE stream opened');
-      let isClosed = false; // Flag to track stream state
-      let keepAlive: NodeJS.Timeout | null = null; // Use NodeJS.Timeout type
+    console.log('SSE: New connection request', {
+      user: session.user?.email,
+      userAgent,
+      clientIp,
+      timestamp: new Date().toISOString()
+    });
 
-      // --- Event Handler ---
-      const handleEvent = (data: any) => {
-        if (isClosed) return; // Don't enqueue if stream is marked as closed
-        try {
-          controller.enqueue(`data: ${JSON.stringify(data)}\n\n`);
-        } catch (error: any) {
-          // Log only unexpected errors, ERR_INVALID_STATE might happen if closed concurrently
-          if (error.code !== 'ERR_INVALID_STATE') {
-            console.error('SSE: Error sending data event:', error);
-          }
-          // Mark as closed if an error occurs during enqueue
-          isClosed = true;
-          if (keepAlive) clearInterval(keepAlive);
-          unsubscribe();
-          try { controller.close(); } catch {} // Attempt to close if not already
-        }
-      };
+    // Set up SSE headers
+    const responseHeaders = new Headers();
+    responseHeaders.set('Content-Type', 'text/event-stream');
+    responseHeaders.set('Cache-Control', 'no-cache, no-transform');
+    responseHeaders.set('Connection', 'keep-alive');
+    responseHeaders.set('X-Accel-Buffering', 'no');
+    responseHeaders.set('Access-Control-Allow-Credentials', 'true');
+    responseHeaders.set('Access-Control-Allow-Origin', '*');
 
-      // Subscribe to ticket events
-      const unsubscribe = ticketEventEmitter.subscribe(handleEvent);
+    // Create a new ReadableStream for SSE
+    const stream = new ReadableStream({
+      start(controller) {
+        console.log('SSE: Stream opened', {
+          user: session.user?.email,
+          timestamp: new Date().toISOString()
+        });
 
-      // --- Keep-Alive Ping ---
-      const sendPing = () => {
-        if (isClosed) return; // Don't enqueue if stream is marked as closed
-        try {
-          controller.enqueue('event: ping\ndata: {}\n\n');
-        } catch (error: any) {
-          if (error.code !== 'ERR_INVALID_STATE') { // Log only unexpected errors
-            console.error('SSE: Error sending keep-alive ping:', error);
-          }
-          // Mark as closed if an error occurs during enqueue
-          isClosed = true;
-          if (keepAlive) clearInterval(keepAlive);
-          unsubscribe();
-          try { controller.close(); } catch {} // Attempt to close if not already
-        }
-      };
+        let isClosed = false;
+        let keepAlive: NodeJS.Timeout | null = null;
+        let reconnectAttempt = 0;
+        const maxReconnectAttempts = 3;
 
-      // Start the keep-alive interval
-      keepAlive = setInterval(sendPing, 30000); // 30 seconds
+        // --- Event Handler ---
+        const handleEvent = (data: any) => {
+          if (isClosed) return;
+          try {
+            const eventData = JSON.stringify(data);
+            const eventId = Date.now();
+            controller.enqueue(new TextEncoder().encode(`id: ${eventId}\ndata: ${eventData}\n\n`));
+            console.log('SSE: Event sent', {
+              eventId,
+              type: data.type,
+              user: session.user?.email
+            });
+          } catch (error: any) {
+            console.error('SSE: Error sending data event:', {
+              error: error.message,
+              code: error.code,
+              user: session.user?.email
+            });
 
-      // --- Cleanup Function ---
-      // This is called when the stream is cancelled/closed by the client or server
-      const cleanup = () => {
-        if (isClosed) return; // Avoid running cleanup multiple times
-
-        isClosed = true; // Set the flag
-        console.log('SSE stream closed. Cleaning up...');
-
-        if (keepAlive) {
-          clearInterval(keepAlive); // Clear the interval timer
-          keepAlive = null;
-          console.log('Keep-alive interval cleared.');
-        }
-        unsubscribe(); // Unsubscribe from the event emitter
-        console.log('Unsubscribed from ticket events.');
-        // No need to explicitly call controller.close() here usually,
-        // as the stream cancellation handles it. But doesn't hurt to try.
-        try {
-             if (controller.desiredSize !== null) { // Check if it might still be open
-                controller.close();
-                console.log('Controller explicitly closed in cleanup.');
-             }
-        } catch (e) {
-            // Ignore errors closing an already closed controller
-            if ((e as any).code !== 'ERR_INVALID_STATE') {
-                console.warn('Error during controller close in cleanup:', e);
+            if (error.code !== 'ERR_INVALID_STATE' && reconnectAttempt < maxReconnectAttempts) {
+              reconnectAttempt++;
+              console.log(`SSE: Attempting to reconnect (${reconnectAttempt}/${maxReconnectAttempts})...`);
+              setTimeout(() => {
+                if (!isClosed) handleEvent(data);
+              }, 1000 * reconnectAttempt);
+            } else {
+              cleanup();
             }
+          }
+        };
+
+        // Subscribe to ticket events
+        const unsubscribe = ticketEventEmitter.subscribe(handleEvent);
+
+        // --- Keep-Alive Ping ---
+        const sendPing = () => {
+          if (isClosed) return;
+          try {
+            const pingId = Date.now();
+            controller.enqueue(new TextEncoder().encode(`event: ping\nid: ${pingId}\ndata: {}\n\n`));
+            console.log('SSE: Keep-alive ping sent', {
+              pingId,
+              user: session.user?.email
+            });
+            reconnectAttempt = 0;
+          } catch (error: any) {
+            console.error('SSE: Error sending keep-alive ping:', {
+              error: error.message,
+              code: error.code,
+              user: session.user?.email
+            });
+            if (error.code !== 'ERR_INVALID_STATE') {
+              cleanup();
+            }
+          }
+        };
+
+        // Start the keep-alive interval (15 seconds)
+        keepAlive = setInterval(sendPing, 15000);
+
+        // --- Cleanup Function ---
+        const cleanup = () => {
+          if (isClosed) return;
+
+          isClosed = true;
+          console.log('SSE: Stream closed', {
+            user: session.user?.email,
+            timestamp: new Date().toISOString()
+          });
+
+          if (keepAlive) {
+            clearInterval(keepAlive);
+            keepAlive = null;
+          }
+
+          unsubscribe();
+
+          try {
+            if (controller.desiredSize !== null) {
+              controller.close();
+            }
+          } catch (e) {
+            if ((e as any).code !== 'ERR_INVALID_STATE') {
+              console.warn('SSE: Error during controller close:', {
+                error: (e as Error).message,
+                user: session.user?.email
+              });
+            }
+          }
+        };
+
+        // Send initial connection established event
+        try {
+          const initialEvent = {
+            type: 'connected',
+            timestamp: new Date().toISOString(),
+            userId: session.user?.email
+          };
+          controller.enqueue(new TextEncoder().encode(`event: connected\ndata: ${JSON.stringify(initialEvent)}\n\n`));
+          console.log('SSE: Initial connection event sent', {
+            user: session.user?.email,
+            timestamp: initialEvent.timestamp
+          });
+        } catch (error) {
+          console.error('SSE: Error sending initial connection event:', {
+            error: (error as Error).message,
+            user: session.user?.email
+          });
         }
-      };
 
-      return cleanup; // Return the cleanup function for the stream API
-    },
-    cancel(reason) {
-      console.log(`SSE stream cancelled externally. Reason: ${reason}`);
-      // The cleanup function returned by start() should still be called.
-    },
-  });
+        return cleanup;
+      },
+      cancel(reason) {
+        console.log('SSE: Stream cancelled', {
+          user: session.user?.email,
+          reason,
+          timestamp: new Date().toISOString()
+        });
+      },
+    });
 
-  return new NextResponse(stream, {
-    headers: responseHeaders,
-  });
+    return new NextResponse(stream, {
+      headers: responseHeaders,
+    });
+  } catch (error) {
+    console.error('SSE: Unexpected error in route handler:', {
+      error: (error as Error).message,
+      stack: (error as Error).stack
+    });
+    return new NextResponse('Internal Server Error', { status: 500 });
+  }
 }

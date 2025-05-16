@@ -93,25 +93,91 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   }, [statusFilter, priorityFilter, assigneeFilter, searchTerm, sortBy, sortOrder, limit]);
 
   useEffect(() => {
-    const eventSource = new EventSource('/api/tickets/events');
-    eventSourceRef.current = eventSource;
+    let retryCount = 0;
+    const maxRetries = 3;
+    let retryTimeout: NodeJS.Timeout;
+    let connectionAttempts = 0;
 
-    eventSource.onmessage = (event) => {
-      console.log('SSE Event Received:', event.data);
-      const data = JSON.parse(event.data);
-      if (data.type === 'ticket_created' || data.type === 'ticket_updated' || data.type === 'ticket_deleted') {
-        fetchTickets();
+    const connectEventSource = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+
+      connectionAttempts++;
+      console.log(`Attempting to connect to SSE (Attempt ${connectionAttempts})...`);
+      
+      try {
+        const eventSource = new EventSource('/api/tickets/events', { withCredentials: true });
+        eventSourceRef.current = eventSource;
+
+        eventSource.onmessage = (event) => {
+          console.log('SSE Event Received:', event.data);
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'ticket_created' || data.type === 'ticket_updated' || data.type === 'ticket_deleted') {
+              fetchTickets();
+            }
+          } catch (err) {
+            console.warn('Failed to parse SSE event data:', err);
+          }
+        };
+
+        eventSource.onerror = (error) => {
+          const readyState = eventSource.readyState;
+          const stateMap = {
+            0: 'CONNECTING',
+            1: 'OPEN',
+            2: 'CLOSED'
+          };
+          
+          console.error('EventSource error:', {
+            readyState: stateMap[readyState] || readyState,
+            timestamp: new Date().toISOString(),
+            connectionAttempt: connectionAttempts,
+            retryCount,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+
+          eventSource.close();
+          
+          if (retryCount < maxRetries) {
+            retryCount++;
+            const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff with 10s max
+            console.log(`Retrying connection (${retryCount}/${maxRetries}) in ${delay/1000}s...`);
+            retryTimeout = setTimeout(connectEventSource, delay);
+          } else {
+            console.error('Max retries reached for EventSource connection');
+            setError('Lost connection to real-time updates. Please refresh the page.');
+          }
+        };
+
+        eventSource.onopen = () => {
+          console.log('EventSource connection established', {
+            timestamp: new Date().toISOString(),
+            connectionAttempt: connectionAttempts
+          });
+          retryCount = 0;
+          setError(null);
+        };
+      } catch (error) {
+        console.error('Failed to create EventSource:', error);
+        if (retryCount < maxRetries) {
+          retryCount++;
+          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
+          retryTimeout = setTimeout(connectEventSource, delay);
+        }
       }
     };
 
-    eventSource.onerror = (error) => {
-      console.error('EventSource failed:', error);
-      eventSource.close();
-    };
+    connectEventSource();
 
     return () => {
+      console.log('Cleaning up EventSource connection...');
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
+      }
+      if (retryTimeout) {
+        clearTimeout(retryTimeout);
       }
     };
   }, [fetchTickets, limit]);

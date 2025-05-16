@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from 'next/script';
-import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
 import AuthSessionProvider from '@/components/AuthSessionProvider';
 
@@ -33,18 +32,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <Script src="https://kit.fontawesome.com/17af746abc.js" crossOrigin="anonymous" strategy="lazyOnload" />
+        <Script src="https://kit.fontawesome.com/17af746abc.js" crossOrigin="anonymous" />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthSessionProvider>
-          <Navbar />
-          <div className="wrapper">
+          <div className="d-flex">
             <Sidebar />
-            <div id="content">
+            <main id="content" className="flex-grow-1 p-4">
               {children}
-            </div>
+            </main>
           </div>
         </AuthSessionProvider>
       </body>

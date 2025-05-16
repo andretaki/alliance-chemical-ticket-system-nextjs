@@ -100,7 +100,10 @@ export async function POST(request: NextRequest) {
         console.log('Webhook: Received validation token:', validationToken);
         return new NextResponse(validationToken, {
             status: 200,
-            headers: { 'Content-Type': 'text/plain' },
+            headers: {
+                'Content-Type': 'text/plain',
+                'Content-Length': validationToken.length.toString()
+            },
         });
     }
 

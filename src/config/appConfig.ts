@@ -29,8 +29,8 @@ export interface AppConfig {
 
 export const Config: AppConfig = {
   shopify: {
-    storeUrl: process.env.SHOPIFY_STORE_URL || '',
-    adminAccessToken: process.env.SHOPIFY_ADMIN_API_ACCESS_TOKEN || '',
+    storeUrl: process.env.SHOPIFY_STORE || '',
+    adminAccessToken: process.env.SHOPIFY_ACCESS_TOKEN || '',
     apiVersion: process.env.SHOPIFY_API_VERSION || '2024-04',
   },
   defaultCurrency: 'USD',
