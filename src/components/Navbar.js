@@ -14,10 +14,10 @@ export default function Navbar() {
 
     return (
         <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom fixed-top" style={{ zIndex: 1030 }}>
-            <div className="container-fluid">
-                <Link href="/" className="navbar-brand d-flex align-items-center">
-                    <img src="/assets/logo.png" alt="Logo" width="30" height="30" className="d-inline-block align-text-top me-2" />
-                    <span className="fw-bold">Ticket System</span>
+            <div className="container-fluid px-4">
+                <Link href="/" className="navbar-brand d-flex align-items-center" style={{ maxWidth: '200px' }}>
+                    <img src="/assets/logo.png" alt="Logo" width="24" height="24" className="d-inline-block align-text-top me-2" />
+                    <span className="fw-bold" style={{ fontSize: '0.95rem' }}>Ticket System</span>
                 </Link>
 
                 <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">

@@ -41,7 +41,9 @@ export default function RootLayout({
           <div className="d-flex">
             <Sidebar />
             <main id="content" className="flex-grow-1 p-4">
-              {children}
+              <div className="container-fluid px-4">
+                {children}
+              </div>
             </main>
           </div>
         </AuthSessionProvider>

@@ -455,7 +455,7 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
   const updatedAtDate = parseDate(ticket.updatedAt);
 
   return (
-    <div className="ticket-view-outlook container-fluid vh-100 d-flex flex-column p-0">
+    <div className="ticket-view-outlook container-fluid p-0">
       {/* Error display (centralized, can be moved to header) */}
       {error && (
         <div className="alert alert-danger alert-dismissible fade show m-2" role="alert">

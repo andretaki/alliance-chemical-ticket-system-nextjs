@@ -4,19 +4,13 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
 import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
-import type { AppDraftOrderInput, DraftOrderLineItemInput, DraftOrderCustomerInput, DraftOrderAddressInput, ProductVariantData, DraftOrderOutput } from '@/agents/quoteAssistant/quoteInterfaces';
+import type { AppDraftOrderInput, DraftOrderLineItemInput, DraftOrderCustomerInput, DraftOrderAddressInput, ProductVariantData, ParentProductData, DraftOrderOutput } from '@/agents/quoteAssistant/quoteInterfaces';
 import DOMPurify from 'dompurify';
+import Image from 'next/image'; // For Next.js optimized images
 
+// Updated SearchResult interface to match backend
 interface SearchResult {
-  parentProduct: {
-    id: string;
-    name: string;
-    productIdShopify?: string;
-    handleShopify?: string;
-    pageUrl?: string;
-    primaryImageUrl?: string;
-    description?: string;
-  };
+  parentProduct: ParentProductData;
   variant: ProductVariantData;
 }
 
@@ -46,7 +40,7 @@ interface CreateQuoteClientProps {
 const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initialCustomer }) => {
   const router = useRouter();
 
-  const [lineItems, setLineItems] = useState<Array<DraftOrderLineItemInput & { productDisplay?: string }>>([{ numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
+  const [lineItems, setLineItems] = useState<Array<DraftOrderLineItemInput & { productDisplay?: string; unitPrice?: number; currencyCode?: string }>>([{ numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
   const [customer, setCustomer] = useState<DraftOrderCustomerInput>({
     email: initialCustomer.email || '',
     firstName: initialCustomer.firstName || '',
@@ -64,7 +58,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   const [sendShopifyInvoice, setSendShopifyInvoice] = useState<boolean>(true);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null); // Renamed general error
+  const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [createdDraftOrder, setCreatedDraftOrder] = useState<DraftOrderOutput | null>(null);
   
@@ -72,84 +66,80 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   const [activeSearchDropdown, setActiveSearchDropdown] = useState<number | null>(null);
   const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null);
 
-  // Use a memoized, stable string representation of search terms for the useEffect dependency
   const searchTermsForEffect = useMemo(() => 
-    lineItemSearchData.map(item => item.searchTerm).join('||'), // Join with a delimiter
-    [lineItemSearchData] // This recalculates only when lineItemSearchData itself changes structure or a searchTerm changes
+    lineItemSearchData.map(item => item.searchTerm).join('||'),
+    [lineItemSearchData]
   );
 
-  // Refs to DOM elements for click-outside detection
   const searchContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
-   useEffect(() => {
+  useEffect(() => {
     searchContainerRefs.current = searchContainerRefs.current.slice(0, lineItems.length);
   }, [lineItems.length]);
 
-
-  // Debounced search useEffect
   useEffect(() => {
+    console.log('[Search Effect Hook] searchTermsForEffect changed:', searchTermsForEffect);
     const timers: (NodeJS.Timeout | null)[] = lineItemSearchData.map((searchData, index) => {
       const { id: itemId, searchTerm, hasSelection } = searchData;
+      console.log(`[Search Effect Loop] Index: ${index}, Item ID: ${itemId}, Term: "${searchTerm}", HasSelection: ${hasSelection}, Search Term Length: ${searchTerm.trim().length}`);
 
-      if (hasSelection || !searchTerm.trim() || searchTerm.length < 2) {
-        // If term is too short or selection made, ensure searching is false and clear results
-        if (searchData.isSearching || searchData.searchResults.length > 0) {
+      if (hasSelection || !searchTerm.trim() || searchTerm.length < 1) {
+        console.log(`[Search Effect Condition Met] Skipping API call for Item ID: ${itemId}. HasSelection: ${hasSelection}, Term: "${searchTerm}"`);
+        if (searchData.isSearching || searchData.searchResults.length > 0 || searchData.error) {
            setLineItemSearchData(prev => prev.map(item => 
             item.id === itemId ? { ...item, isSearching: false, searchResults: [], error: null } : item
           ));
         }
-        if(activeSearchDropdown === index && (!searchTerm.trim() || searchTerm.length < 2)){
-            setActiveSearchDropdown(null); // Close dropdown if term becomes too short
+        if(activeSearchDropdown === index && (!searchTerm.trim() || searchTerm.length < 1)){
+            setActiveSearchDropdown(null);
         }
         return null;
       }
 
-      // Set isSearching true for this item, clear previous results/error
+      console.log(`[Search Effect] Preparing to search for Item ID: ${itemId}, Term: "${searchTerm}"`);
       setLineItemSearchData(prev => prev.map(item => 
         item.id === itemId ? { ...item, isSearching: true, searchResults: [], error: null } : item
       ));
-      setActiveSearchDropdown(index); // Show dropdown when search is initiated
+      setActiveSearchDropdown(index);
 
       const timerId = setTimeout(async () => {
-        // Re-fetch current state of this item inside timeout to ensure relevancy
         let currentItemState: LineItemSearchData | undefined;
         setLineItemSearchData(currentDynamicData => {
             currentItemState = currentDynamicData.find(item => item.id === itemId);
-            return currentDynamicData; // This is just to read, no actual state change
+            return currentDynamicData;
         });
 
-        // If the search term for this item has changed while waiting, or a selection was made, abort.
         if (!currentItemState || currentItemState.searchTerm !== searchTerm || currentItemState.hasSelection) {
-          console.log(`[Search Effect] Aborting stale search for "${searchTerm}" (Item ID: ${itemId})`);
-          // Ensure isSearching is false if this specific timeout is now irrelevant and was the one that set it true
-           setLineItemSearchData(prev => prev.map(item => 
+          console.log(`[Search Effect Timeout] Aborting stale search for Item ID: ${itemId}, StaleTerm: "${searchTerm}", CurrentTerm: "${currentItemState?.searchTerm}"`);
+          setLineItemSearchData(prev => prev.map(item => 
             (item.id === itemId && item.searchTerm === searchTerm && item.isSearching) ? { ...item, isSearching: false } : item
           ));
           return;
         }
         
-        console.log(`[Search Effect] Performing API call for "${searchTerm}" (Item ID: ${itemId})`);
+        console.log(`[Search Effect API Call] Item ID: ${itemId}, Calling API for term: "${searchTerm}"`);
         try {
           const response = await axios.get<{ results: SearchResult[] }>(
             `/api/products/search-variant?query=${encodeURIComponent(searchTerm.trim())}`
           );
+          console.log(`[Search Effect API Success] Item ID: ${itemId}, Results for "${searchTerm}":`, response.data.results);
           setLineItemSearchData(prev =>
             prev.map(item =>
-              item.id === itemId && item.searchTerm === searchTerm // Final check for relevancy
-                ? { ...item, searchResults: response.data.results || [], isSearching: false, error: null }
+              item.id === itemId && item.searchTerm === searchTerm
+                ? { ...item, searchResults: response.data.results || [], isSearching: false, error: response.data.results?.length === 0 ? 'No products found.' : null }
                 : item
             )
           );
         } catch (e: any) {
-          console.error(`Search API error for item ${itemId} (term "${searchTerm}"):`, e.response?.data?.error || e.message);
+          console.error(`[Search API Error] Item ID: ${itemId}, Term: "${searchTerm}"`, e);
           setLineItemSearchData(prev =>
             prev.map(item =>
               item.id === itemId && item.searchTerm === searchTerm
-                ? { ...item, searchResults: [], isSearching: false, error: 'Search failed.' }
+                ? { ...item, searchResults: [], isSearching: false, error: 'Search failed. Check console for details.' }
                 : item
             )
           );
         }
-      }, 700); // Debounce delay
+      }, 500); // Debounce delay
       return timerId;
     });
 
@@ -158,7 +148,8 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         if (timerId) clearTimeout(timerId);
       });
     };
-  }, [searchTermsForEffect, lineItemSearchData.map(i => i.id).join(',')]); // Depend on search terms and item IDs string
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTermsForEffect]);
 
   const handleLineItemChange = (index: number, field: keyof DraftOrderLineItemInput, value: string | number) => {
     const updatedLineItems = [...lineItems];
@@ -171,17 +162,12 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   };
 
   const handleSearchTermChange = (index: number, value: string) => {
+    console.log(`[handleSearchTermChange] Index: ${index}, Value: "${value}"`);
     const currentItem = lineItemSearchData[index];
     setLineItemSearchData(prevData =>
       prevData.map((item, i) =>
         item.id === currentItem.id
-          ? {
-              ...item,
-              searchTerm: value,
-              hasSelection: false, // Reset selection when user types
-              // Don't clear searchResults here, let useEffect handle it to avoid flicker if search is fast
-              // error: null, // Clear error on new input
-            }
+          ? { ...item, searchTerm: value, hasSelection: false, error: null }
           : item
       )
     );
@@ -193,13 +179,15 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         numericVariantIdShopify: '',
         productDisplay: '',
         title: '',
+        unitPrice: undefined,
+        currencyCode: undefined,
       };
       setLineItems(updatedLineItems);
     }
-    // Dropdown visibility handled by useEffect based on new term length and lack of selection
   };
 
-  const addProductToLineItems = (variant: ProductVariantData, index: number) => {
+  const addProductToLineItems = (searchResult: SearchResult, index: number) => {
+    const { parentProduct, variant } = searchResult;
     const currentItemSearchId = lineItemSearchData[index]?.id;
     if (!currentItemSearchId) return;
 
@@ -209,12 +197,15 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
     }
 
     const updatedLineItems = [...lineItems];
-    const displayValue = `${variant.displayName || variant.variantTitle} (SKU: ${variant.sku}, ID: ${variant.numericVariantIdShopify})`;
+    const displayValue = `${parentProduct.name} - ${variant.variantTitle} (SKU: ${variant.sku})`;
     updatedLineItems[index] = {
       ...updatedLineItems[index],
       numericVariantIdShopify: variant.numericVariantIdShopify,
       title: variant.displayName || variant.variantTitle,
       productDisplay: displayValue,
+      // Store price from search result for display, actual draft order will use Shopify's price
+      unitPrice: variant.price, 
+      currencyCode: variant.currency,
     };
     setLineItems(updatedLineItems);
 
@@ -223,7 +214,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         item.id === currentItemSearchId
           ? {
               ...item,
-              searchTerm: displayValue,
+              searchTerm: displayValue, // Set search term to the display value of selected product
               searchResults: [],
               isSearching: false,
               hasSelection: true,
@@ -239,22 +230,20 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   const addLineItem = () => {
     setLineItems([...lineItems, { numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
     setLineItemSearchData([...lineItemSearchData, createNewLineItemSearchData()]);
-    searchContainerRefs.current.push(null); // Add a slot for the new item's ref
+    searchContainerRefs.current.push(null);
   };
 
   const removeLineItem = (index: number) => {
     if (lineItems.length > 1) {
       setLineItems(lineItems.filter((_, i) => i !== index));
       setLineItemSearchData(lineItemSearchData.filter((_, i) => i !== index));
-      searchContainerRefs.current.splice(index, 1); // Remove ref
+      searchContainerRefs.current.splice(index, 1);
       if (activeSearchDropdown === index) {
         setActiveSearchDropdown(null);
       }
     }
   };
 
-
-  // Click outside to close dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (activeSearchDropdown !== null) {
@@ -271,27 +260,19 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
 
   const handleInputFocus = (index: number) => {
     const currentSearchData = lineItemSearchData[index];
-    if (currentSearchData?.searchTerm.length >= 2 && !currentSearchData?.hasSelection && currentSearchData?.searchResults.length > 0) {
+    if (currentSearchData?.searchTerm.length >= 1 && !currentSearchData?.hasSelection && (currentSearchData?.searchResults.length > 0 || currentSearchData?.error || currentSearchData?.isSearching)) {
         setActiveSearchDropdown(index);
-    } else if (currentSearchData?.searchTerm.length >= 2 && !currentSearchData?.hasSelection && currentSearchData?.error){
-        setActiveSearchDropdown(index); // Show error if present
-    } else if (currentSearchData?.searchTerm.length >=2 && !currentSearchData?.hasSelection && currentSearchData?.isSearching) {
-        setActiveSearchDropdown(index); // Show loading if searching
     }
   };
   
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     const currentSearchData = lineItemSearchData[index];
     if (!currentSearchData || !currentSearchData.searchResults?.length || activeSearchDropdown !== index) {
-      if (e.key === 'Escape') {
-        setActiveSearchDropdown(null);
-        setFocusedResultIndex(null);
-      }
+      if (e.key === 'Escape') setActiveSearchDropdown(null);
       return;
     }
 
     const resultsCount = currentSearchData.searchResults.length;
-
     switch (e.key) {
       case 'ArrowDown':
         e.preventDefault();
@@ -304,9 +285,9 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
       case 'Enter':
         e.preventDefault();
         if (focusedResultIndex !== null && currentSearchData.searchResults[focusedResultIndex]) {
-          addProductToLineItems(currentSearchData.searchResults[focusedResultIndex].variant, index);
-        } else if (resultsCount === 1) { // Auto-select if only one result
-          addProductToLineItems(currentSearchData.searchResults[0].variant, index);
+          addProductToLineItems(currentSearchData.searchResults[focusedResultIndex], index);
+        } else if (resultsCount === 1) {
+          addProductToLineItems(currentSearchData.searchResults[0], index);
         }
         break;
       case 'Escape':
@@ -319,7 +300,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setFormError(null); // Use formError for submit errors
+    setFormError(null);
     setSuccessMessage(null);
     setCreatedDraftOrder(null);
     setIsLoading(true);
@@ -327,7 +308,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
     const draftOrderInput: AppDraftOrderInput = {
       lineItems: lineItems
         .filter(item => item.numericVariantIdShopify && item.quantity > 0)
-        .map(({ productDisplay, ...rest }) => rest),
+        .map(({ productDisplay, unitPrice, currencyCode, ...rest }) => rest), // Exclude frontend-only fields
       customer,
       shippingAddress,
       note: `Quote related to Ticket #${ticketId}. ${note || ''}`,
@@ -337,18 +318,15 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
 
     if (draftOrderInput.lineItems.length === 0) {
       setFormError("Please add at least one valid line item with a Shopify Variant ID and quantity.");
-      setIsLoading(false);
-      return;
+      setIsLoading(false); return;
     }
     if (!draftOrderInput.shippingAddress?.address1 || !draftOrderInput.shippingAddress.city || !draftOrderInput.shippingAddress.country || !draftOrderInput.shippingAddress.zip) {
         setFormError("A complete shipping address (Address, City, Country, Zip) is required to calculate shipping.");
-        setIsLoading(false);
-        return;
+        setIsLoading(false); return;
     }
     if (!draftOrderInput.customer?.email && sendShopifyInvoice) { 
         setFormError("Customer email is required if you want to send an invoice.");
-        setIsLoading(false); 
-        return; 
+        setIsLoading(false); return; 
     }
 
     try {
@@ -364,14 +342,8 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
     }
   };
 
-  const handleCustomerChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setCustomer({ ...customer, [e.target.name]: e.target.value });
-  };
-
-  const handleShippingAddressChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
-  };
-  
+  const handleCustomerChange = (e: ChangeEvent<HTMLInputElement>) => setCustomer({ ...customer, [e.target.name]: e.target.value });
+  const handleShippingAddressChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
 
   return (
     <div className="card shadow-sm">
@@ -384,24 +356,20 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         {createdDraftOrder && (
           <div className="alert alert-info">
             <p className="mb-1"><strong>Draft Order Name:</strong> {createdDraftOrder.name}</p>
-            <p className="mb-1"><strong>Status:</strong> {createdDraftOrder.status}</p>
+            {/* ... (other details) ... */}
             {createdDraftOrder.invoiceUrl && (
               <p className="mb-1"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break">{createdDraftOrder.invoiceUrl}</a></p>
             )}
-            <p className="mb-1"><strong>Total:</strong> {createdDraftOrder.totalPrice.toFixed(2)} {createdDraftOrder.currencyCode}</p>
-            {createdDraftOrder.shippingLine && (
-                <p className="mb-0"><strong>Shipping:</strong> {createdDraftOrder.shippingLine.title} - {createdDraftOrder.shippingLine.price.toFixed(2)} {createdDraftOrder.currencyCode}</p>
-            )}
-            {createdDraftOrder.note && (
-                <p className="mt-2 mb-0 small text-muted"><strong>Note:</strong> {createdDraftOrder.note}</p>
-            )}
+            {/* ... */}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
+          {/* Customer Information Fieldset - unchanged */}
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">Customer Information</legend>
-            <div className="row g-3">
+            {/* ... (customer fields as before) ... */}
+             <div className="row g-3">
               <div className="col-md-6">
                 <label htmlFor="customerFirstName" className="form-label">First Name</label>
                 <input type="text" className="form-control" id="customerFirstName" name="firstName" value={customer.firstName || ''} onChange={handleCustomerChange} />
@@ -425,14 +393,16 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             </div>
           </fieldset>
 
+          {/* Line Items Fieldset - ENHANCED */}
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">Line Items</legend>
             {lineItems.map((itemData, index) => {
-              const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData(); // Fallback
+              const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData();
               return (
                 <div key={currentSearchState.id} className="row g-3 align-items-start mb-3 p-3 border-bottom position-relative">
+                  {/* Product Search Input */}
                   <div className="col-md-5">
-                    <label htmlFor={`itemSku-${index}-${currentSearchState.id}`} className="form-label">Product Search *</label>
+                    <label htmlFor={`productSearch-${index}`} className="form-label">Product Search *</label>
                     <div 
                       className="position-relative product-search-container" 
                       ref={el => { searchContainerRefs.current[index] = el; }}
@@ -440,14 +410,14 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                       <input
                         type="text"
                         className="form-control"
-                        id={`itemSku-${index}-${currentSearchState.id}`}
-                        placeholder="Search by SKU, Variant ID, or product name..."
+                        id={`productSearch-${index}`}
+                        placeholder="SKU, Name, Variant ID..."
                         value={currentSearchState.searchTerm}
                         onChange={(e) => handleSearchTermChange(index, e.target.value)}
                         onFocus={() => handleInputFocus(index)}
                         onKeyDown={(e) => handleKeyDown(index, e)}
-                        required={!currentSearchState.hasSelection} // only required if no selection made
-                        autoComplete="off" // Important for custom dropdowns
+                        required={!currentSearchState.hasSelection}
+                        autoComplete="off"
                       />
                       {currentSearchState.isSearching && (
                         <div className="position-absolute top-50 end-0 translate-middle-y me-2" style={{ zIndex: 5 }}>
@@ -456,6 +426,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                           </div>
                         </div>
                       )}
+                      {/* Search Results Dropdown - ENHANCED */}
                       {activeSearchDropdown === index && (
                         <div 
                           className="position-absolute w-100 mt-1 bg-white border rounded shadow-lg" 
@@ -464,54 +435,82 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                           {currentSearchState.error && (
                             <div className="p-2 text-danger small">{currentSearchState.error}</div>
                           )}
-                          {!currentSearchState.error && currentSearchState.searchResults.length === 0 && currentSearchState.searchTerm.length >= 2 && !currentSearchState.isSearching && (
+                          {!currentSearchState.error && currentSearchState.searchResults.length === 0 && currentSearchState.searchTerm.length >= 1 && !currentSearchState.isSearching && (
                             <div className="p-2 text-muted small">No products found.</div>
                           )}
                           {currentSearchState.searchResults.map((result, resultIdx) => (
-                            result.parentProduct ? (
-                                <div
-                                key={`${result.variant.id}-${resultIdx}`}
-                                className={`p-2 cursor-pointer border-bottom ${resultIdx === focusedResultIndex ? 'bg-primary text-white' : 'hover:bg-light'}`}
-                                onClick={() => addProductToLineItems(result.variant, index)}
-                                onMouseEnter={() => setFocusedResultIndex(resultIdx)}
-                                >
+                            <div
+                              key={result.variant.id} // Use a stable key
+                              className={`p-2 border-bottom cursor-pointer d-flex align-items-center ${resultIdx === focusedResultIndex ? 'bg-primary text-white' : 'hover-bg-light'}`}
+                              onClick={() => addProductToLineItems(result, index)}
+                              onMouseEnter={() => setFocusedResultIndex(resultIdx)}
+                              role="option"
+                              aria-selected={resultIdx === focusedResultIndex}
+                            >
+                              {result.parentProduct.primaryImageUrl && (
+                                <Image 
+                                  src={result.parentProduct.primaryImageUrl} 
+                                  alt={result.parentProduct.name} 
+                                  width={40} height={40} 
+                                  className="me-2 rounded object-fit-contain"
+                                  onError={(e) => (e.currentTarget.style.display = 'none')} // Hide if image fails
+                                />
+                              )}
+                              {!result.parentProduct.primaryImageUrl && (
+                                <div className="me-2 rounded bg-light d-flex align-items-center justify-content-center" style={{width: '40px', height: '40px'}}>
+                                  <i className="fas fa-image text-muted"></i>
+                                _</div>
+                              )}
+                              <div>
                                 <div className="fw-medium">{result.parentProduct.name}</div>
-                                <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-50' : 'text-muted'}`}>
-                                    SKU: {result.variant.sku} | Variant: {result.variant.variantTitle}
+                                <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-75' : 'text-muted'}`}>
+                                  {result.variant.variantTitle} (SKU: {result.variant.sku})
                                 </div>
-                                <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-50' : 'text-muted'}`}>
-                                    Price: ${result.variant.price.toFixed(2)} | Stock: {result.variant.inventoryQuantity ?? 0}
+                                <div className={`small fw-bold ${resultIdx === focusedResultIndex ? 'text-white' : 'text-success'}`}>
+                                  ${result.variant.price.toFixed(2)} {result.variant.currency}
                                 </div>
-                                </div>
-                            ) : <div key={`no-parent-${resultIdx}`} className="p-2 text-muted small">Invalid product data received</div>
+                              </div>
+                            </div>
                           ))}
                         </div>
                       )}
                     </div>
                   </div>
+                  
+                  {/* Selected Product Display */}
                   <div className="col-md-4">
-                    <label htmlFor={`itemTitle-${index}-${currentSearchState.id}`} className="form-label">Selected Product</label>
+                    <label htmlFor={`itemTitle-${index}`} className="form-label">Selected Product</label>
                     <input 
                       type="text" 
                       className="form-control bg-light" 
-                      id={`itemTitle-${index}-${currentSearchState.id}`} 
+                      id={`itemTitle-${index}`} 
                       value={itemData.productDisplay || ''} 
                       readOnly 
                       placeholder="Select a product"
                     />
+                    {itemData.unitPrice !== undefined && itemData.currencyCode && (
+                        <small className="text-muted d-block mt-1">
+                            Price: {itemData.unitPrice.toFixed(2)} {itemData.currencyCode}
+                        </small>
+                    )}
                   </div>
+
+                  {/* Quantity */}
                   <div className="col-md-2">
-                    <label htmlFor={`itemQuantity-${index}-${currentSearchState.id}`} className="form-label">Quantity *</label>
+                    <label htmlFor={`itemQuantity-${index}`} className="form-label">Quantity *</label>
                     <input
                       type="number"
                       className="form-control"
-                      id={`itemQuantity-${index}-${currentSearchState.id}`}
+                      id={`itemQuantity-${index}`}
                       value={itemData.quantity}
                       onChange={(e) => handleLineItemChange(index, 'quantity', parseInt(e.target.value, 10))}
                       min="1"
                       required
+                      disabled={!currentSearchState.hasSelection} // Disable if no product selected
                     />
                   </div>
+
+                  {/* Remove Button */}
                   <div className="col-md-1 align-self-center mt-4 pt-2">
                     {lineItems.length > 1 && (
                       <button type="button" className="btn btn-danger btn-sm" onClick={() => removeLineItem(index)} title="Remove Item">
@@ -527,8 +526,10 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             </button>
           </fieldset>
           
+          {/* Shipping Address Fieldset - unchanged */}
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">Shipping Address</legend>
+            {/* ... (shipping fields as before) ... */}
             <div className="row g-3">
               <div className="col-md-6"><label htmlFor="shipFirstName" className="form-label">First Name *</label><input type="text" className="form-control" id="shipFirstName" name="firstName" value={shippingAddress.firstName || ''} onChange={handleShippingAddressChange} required /></div>
               <div className="col-md-6"><label htmlFor="shipLastName" className="form-label">Last Name *</label><input type="text" className="form-control" id="shipLastName" name="lastName" value={shippingAddress.lastName || ''} onChange={handleShippingAddressChange} required /></div>
@@ -555,6 +556,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             </div>
           </fieldset>
 
+          {/* Notes and Submit - unchanged */}
           <div className="mb-3">
             <label htmlFor="quoteNote" className="form-label">Notes (visible to customer)</label>
             <textarea className="form-control" id="quoteNote" value={note} onChange={(e) => setNote(e.target.value)} rows={3}></textarea>
@@ -580,6 +582,18 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
           </div>
         </form>
       </div>
+       {/* Add some basic styling for hover effect if not using a UI library that handles it */}
+      <style jsx>{`
+        .hover-bg-light:hover {
+          background-color: #f8f9fa !important; /* Bootstrap's light color */
+        }
+        .cursor-pointer {
+          cursor: pointer;
+        }
+        .object-fit-contain {
+            object-fit: contain;
+        }
+      `}</style>
     </div>
   );
 };

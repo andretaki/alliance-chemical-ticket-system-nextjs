@@ -1,8 +1,14 @@
 import { db } from '@/lib/db';
 import { agentProducts, agentProductVariants } from '@/db/schema';
-import { eq, or, ilike, sql } from 'drizzle-orm';
+import { eq, or, ilike, sql, asc, desc, and } from 'drizzle-orm';
 import type { ParentProductData, ProductVariantData } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
+
+// Helper interface for search results
+interface ProductVariantSearchResult {
+  parentProduct: ParentProductData;
+  variant: ProductVariantData;
+}
 
 export class ProductService {
   constructor() {
@@ -21,119 +27,97 @@ export class ProductService {
     };
   }
 
-  private mapDbVariant(dbVar: typeof agentProductVariants.$inferSelect, agentProductId: string): ProductVariantData {
-    // Ensure variantIdShopify is always a string in GID format
-    const variantIdShopify = dbVar.variant_id_shopify 
+  private mapDbVariant(dbVar: typeof agentProductVariants.$inferSelect, parentProductName: string): ProductVariantData {
+    const variantIdShopifyGID = dbVar.variant_id_shopify
       ? `gid://shopify/ProductVariant/${dbVar.variant_id_shopify}`
-      : ''; // Provide empty string as fallback to satisfy type requirement
+      : '';
 
     return {
       id: String(dbVar.id),
-      variantIdShopify,
+      variantIdShopify: variantIdShopifyGID,
       numericVariantIdShopify: dbVar.variant_id_shopify ? String(dbVar.variant_id_shopify) : undefined,
-      agentProductId: agentProductId,
+      agentProductId: String(dbVar.agent_product_id),
       sku: dbVar.sku,
       variantTitle: dbVar.variant_title,
-      displayName: dbVar.display_name || `${dbVar.variant_title}`,
+      displayName: dbVar.display_name || `${parentProductName} - ${dbVar.variant_title}`,
       price: parseFloat(String(dbVar.price)),
       currency: dbVar.currency || Config.defaultCurrency,
-      inventoryQuantity: dbVar.inventory_quantity === null ? undefined : Number(dbVar.inventory_quantity),
+      inventoryQuantity: dbVar.inventory_quantity === null || dbVar.inventory_quantity === undefined ? undefined : Number(dbVar.inventory_quantity),
     };
   }
 
-  public async findVariantBySku(skuOrNumericId: string): Promise<{ parentProduct: ParentProductData, variant: ProductVariantData } | null> {
-    console.log(`[ProductService] Finding variant by SKU or Numeric ID: ${skuOrNumericId}`);
+  // Enhanced search method
+  public async searchProductsAndVariants(query: string, limit: number = 10): Promise<ProductVariantSearchResult[]> {
+    console.log(`[ProductService searchProductsAndVariants] Querying DB with term:`, query);
     try {
-      // Check if the input is a numeric ID
-      const isNumericId = /^\d+$/.test(skuOrNumericId);
-      
-      // Build the where clause based on whether it's a numeric ID
-      const whereClause = isNumericId 
-        ? or(
-            eq(agentProductVariants.sku, skuOrNumericId),
-            eq(agentProductVariants.variant_id_shopify, BigInt(skuOrNumericId))
+      const searchTerm = `%${query}%`;
+      const exactSkuTerm = query; // For exact SKU matching priority
+
+      const results = await db
+        .select({
+          product: agentProducts,
+          variant: agentProductVariants,
+        })
+        .from(agentProductVariants)
+        .innerJoin(agentProducts, eq(agentProductVariants.agentProductId, agentProducts.id))
+        .where(
+          and(
+            eq(agentProducts.isActive, true),
+            eq(agentProductVariants.isActive, true),
+            or(
+              ilike(agentProducts.name, searchTerm),
+              ilike(agentProductVariants.variantTitle, searchTerm),
+              ilike(agentProductVariants.sku, searchTerm),
+              sql`${/^[0-9]{3,}$/.test(query) ? eq(agentProductVariants.variant_id_shopify, BigInt(query)) : sql`FALSE`}`
+            )
           )
-        : eq(agentProductVariants.sku, skuOrNumericId);
+        )
+        .orderBy(
+          desc(sql`CASE WHEN ${agentProductVariants.sku} = ${exactSkuTerm} THEN 1 ELSE 0 END`),
+          asc(agentProducts.name),
+          asc(agentProductVariants.variantTitle)
+        )
+        .limit(limit);
 
-      let dbVariant = await db.query.agentProductVariants.findFirst({
-        where: whereClause,
-      });
+      console.log('[ProductService searchProductsAndVariants] DB Results:', results);
 
-      if (!dbVariant) {
-        console.log(`[ProductService] Variant with SKU or Numeric ID ${skuOrNumericId} not found.`);
-        return null;
-      }
-
-      const parentDbProduct = await db.query.agentProducts.findFirst({
-        where: eq(agentProducts.id, Number(dbVariant.agent_product_id))
-      });
-
-      if (!parentDbProduct) {
-        console.error(`[ProductService] Found variant ${skuOrNumericId} but its parent product ID ${dbVariant.agent_product_id} not found.`);
-        return null;
-      }
-
-      const parentProduct = this.mapDbParentProduct(parentDbProduct);
-      const variant = this.mapDbVariant(dbVariant, parentProduct.id);
-
-      if (!variant.numericVariantIdShopify) {
-        console.warn(`[ProductService] Variant ${variant.sku} found, but it's missing 'numericVariantIdShopify'. This is required for draft orders.`);
-      }
-
-      console.log(`[ProductService] Found variant ${variant.sku} (Numeric ID: ${variant.numericVariantIdShopify}) for product ${parentProduct.name}`);
-      return { parentProduct, variant };
-
-    } catch (error) {
-      console.error(`[ProductService] Error finding variant by SKU/Numeric ID "${skuOrNumericId}":`, error);
-      return null;
-    }
-  }
-
-  public async findVariantByName(name: string): Promise<{ parentProduct: ParentProductData, variant: ProductVariantData }[]> {
-    console.log(`[ProductService] Finding variants by name: ${name}`);
-    try {
-      // Find all products matching the name
-      const parentDbProducts = await db.query.agentProducts.findMany({
-        where: ilike(agentProducts.name, `%${name}%`),
-      });
-
-      if (parentDbProducts.length === 0) {
-        console.log(`[ProductService] No products found with name containing "${name}"`);
+      if (results.length === 0) {
+        console.log(`[ProductService] No active products or variants found matching "${query}"`);
         return [];
       }
 
-      // Get all variants for these products
-      const results: { parentProduct: ParentProductData, variant: ProductVariantData }[] = [];
-      
-      for (const parentDbProduct of parentDbProducts) {
-        const dbVariants = await db.query.agentProductVariants.findMany({
-          where: eq(agentProductVariants.agent_product_id, BigInt(parentDbProduct.id))
-        });
+      const mappedAndFilteredResults = results
+        .map(result => {
+          const parentProduct = this.mapDbParentProduct(result.product);
+          const variant = this.mapDbVariant(result.variant, parentProduct.name);
 
-        if (dbVariants.length > 0) {
-          const parentProduct = this.mapDbParentProduct(parentDbProduct);
-          
-          // Add each variant to results
-          for (const dbVariant of dbVariants) {
-            const variant = this.mapDbVariant(dbVariant, parentProduct.id);
-            
-            if (!variant.numericVariantIdShopify) {
-              console.warn(`[ProductService] Variant ${variant.sku} found, but it's missing 'numericVariantIdShopify'. This is required for draft orders.`);
-              continue; // Skip variants without numeric ID
-            }
-            
-            results.push({ parentProduct, variant });
+          if (!variant.numericVariantIdShopify) {
+            console.warn(`[ProductService] Variant ${variant.sku} for product ${parentProduct.name} is missing 'numericVariantIdShopify'. Filtering out.`);
+            return null;
           }
-        }
-      }
+          return { parentProduct, variant };
+        })
+        .filter(Boolean) as ProductVariantSearchResult[];
 
-      console.log(`[ProductService] Found ${results.length} variants across ${parentDbProducts.length} products matching "${name}"`);
-      return results;
+      console.log('[ProductService searchProductsAndVariants] Mapped Results:', mappedAndFilteredResults);
+      return mappedAndFilteredResults;
 
     } catch (error) {
-      console.error(`[ProductService] Error finding variants by name "${name}":`, error);
+      console.error(`[ProductService] Error in comprehensive search for "${query}":`, error);
       return [];
     }
+  }
+
+  public async findVariantBySku(skuOrNumericId: string): Promise<ProductVariantSearchResult | null> {
+    const searchResults = await this.searchProductsAndVariants(skuOrNumericId, 1);
+    if (searchResults.length > 0 && (searchResults[0].variant.sku === skuOrNumericId || searchResults[0].variant.numericVariantIdShopify === skuOrNumericId) ) {
+        return searchResults[0];
+    }
+    return null;
+  }
+
+  public async findVariantByName(name: string): Promise<ProductVariantSearchResult[]> {
+    return this.searchProductsAndVariants(name);
   }
 
   public async findProductWithItsVariants(
@@ -176,7 +160,7 @@ export class ProductService {
         where: eq(agentProductVariants.agent_product_id, BigInt(parentDbProduct.id))
       });
 
-      const variants = dbVariants.map(v => this.mapDbVariant(v, parentProductData.id))
+      const variants = dbVariants.map(v => this.mapDbVariant(v, parentProductData.name))
         .filter(v => v.numericVariantIdShopify); // Only return variants with numeric ID for quoting
 
       if (variants.length === 0 && dbVariants.length > 0) {

@@ -36,7 +36,7 @@ export default function Sidebar() {
 
     if (status === 'loading') {
         return (
-            <nav className="col-md-2 d-none d-md-block bg-light sidebar pt-3">
+            <nav className="col-md-1 d-none d-md-block bg-light sidebar pt-3">
                 <div className="text-center p-2">Loading...</div>
             </nav>
         );
@@ -45,11 +45,11 @@ export default function Sidebar() {
     // If not authenticated, only show the logo and sign in link
     if (!isAuthenticated) {
         return (
-            <nav className="col-md-2 d-none d-md-block bg-light sidebar d-flex flex-column" style={{ minHeight: '100vh' }}>
+            <nav className="col-md-1 d-none d-md-block bg-light sidebar d-flex flex-column" style={{ minHeight: '100vh' }}>
                 <div className="text-center py-3">
                     <Link href="/" className="navbar-brand mx-auto">
-                        <Image src="/assets/logo.png" alt="Logo" width={40} height={40} className="d-inline-block align-text-top me-2" />
-                        <span className="fw-bold">Ticket System</span>
+                        <Image src="/assets/logo.png" alt="Logo" width={32} height={32} className="d-inline-block align-text-top me-1" />
+                        <span className="fw-bold small">Ticket System</span>
                     </Link>
                 </div>
                 <ul className="nav flex-column flex-grow-1">
@@ -65,11 +65,11 @@ export default function Sidebar() {
     }
 
     return (
-        <nav className="col-md-2 d-none d-md-block bg-light sidebar d-flex flex-column" style={{ minHeight: '100vh' }}>
+        <nav className="col-md-1 d-none d-md-block bg-light sidebar d-flex flex-column" style={{ minHeight: '100vh' }}>
             <div className="text-center py-3">
                 <Link href="/" className="navbar-brand mx-auto">
-                    <Image src="/assets/logo.png" alt="Logo" width={40} height={40} className="d-inline-block align-text-top me-2" />
-                    <span className="fw-bold">Ticket System</span>
+                    <Image src="/assets/logo.png" alt="Logo" width={32} height={32} className="d-inline-block align-text-top me-1" />
+                    <span className="fw-bold small">Ticket System</span>
                 </Link>
             </div>
             <ul className="nav flex-column flex-grow-1">

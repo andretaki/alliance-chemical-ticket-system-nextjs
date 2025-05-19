@@ -28,8 +28,20 @@ export default async function CreateQuotePage({ params }: CreateQuotePageProps) 
   // Fetch ticket data
   const ticket = await db.query.tickets.findFirst({
     where: eq(ticketsSchema.id, ticketId),
+    columns: {
+      id: true,
+      senderEmail: true,
+      senderName: true,
+      senderPhone: true,
+      sendercompany: true,
+    },
     with: {
-      reporter: true,
+      reporter: {
+        columns: {
+          email: true,
+          name: true,
+        }
+      },
     },
   });
   
@@ -43,7 +55,7 @@ export default async function CreateQuotePage({ params }: CreateQuotePageProps) 
     firstName: ticket.senderName?.split(' ')[0] || ticket.reporter?.name?.split(' ')[0] || '',
     lastName: ticket.senderName?.split(' ').slice(1).join(' ') || ticket.reporter?.name?.split(' ').slice(1).join(' ') || '',
     phone: ticket.senderPhone || '',
-    company: ticket.senderCompany || '',
+    company: ticket.sendercompany || '',
   };
 
   return (

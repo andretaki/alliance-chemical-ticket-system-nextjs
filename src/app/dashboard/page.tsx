@@ -25,12 +25,8 @@ export default async function DashboardPage() {
   }
   
   return (
-    <div className="container-fluid">
-      <div className="row">
-        <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-          <DashboardClient />
-        </main>
-      </div>
-    </div>
+    <main className="flex-grow-1" style={{ minHeight: '100vh' }}>
+      <DashboardClient />
+    </main>
   );
 }
