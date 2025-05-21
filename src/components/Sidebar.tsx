@@ -91,6 +91,12 @@ export default function Sidebar() {
                         Create Ticket
                     </Link>
                 </li>
+                <li className="nav-item">
+                    <Link href="/admin/quotes/create" className={`nav-link ${isActive('/admin/quotes/create') ? 'active fw-bold' : ''}`}>
+                        <i className="fas fa-file-invoice-dollar"></i>
+                        Create Quote
+                    </Link>
+                </li>
                 
                 {/* Email Processing Button for all authenticated users */}
                 <li className="nav-item px-3 mt-2 mb-2">

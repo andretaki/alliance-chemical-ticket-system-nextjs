@@ -5,6 +5,7 @@ import "./globals.css";
 import Script from 'next/script';
 import Sidebar from '@/components/Sidebar';
 import AuthSessionProvider from '@/components/AuthSessionProvider';
+import { Toaster } from 'react-hot-toast';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthSessionProvider>
+          <Toaster position="bottom-right" toastOptions={{ duration: 3000 }} />
           <div className="d-flex">
             <Sidebar />
             <main id="content" className="flex-grow-1 p-4">

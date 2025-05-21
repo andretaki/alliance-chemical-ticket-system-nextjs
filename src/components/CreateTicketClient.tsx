@@ -4,7 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
-import { ticketPriorityEnum, ticketStatusEnum } from '@/db/schema';
+import { ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum } from '@/db/schema';
+import Link from 'next/link';
 
 interface User {
   // Assuming User ID is text (UUID) based on schema changes
@@ -21,14 +22,17 @@ const CreateTicketClient: React.FC = () => {
   const [assigneeEmail, setAssigneeEmail] = useState<string | null>(null);
   const [priority, setPriority] = useState<string>(ticketPriorityEnum.enumValues[1]); // Default 'medium'
   const [status, setStatus] = useState<string>(ticketStatusEnum.enumValues[0]); // Default 'new'
+  const [type, setType] = useState<string | null>(null); // Default type is null (unspecified)
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerCompany, setCustomerCompany] = useState('');
   const [orderNumber, setOrderNumber] = useState('');
 
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true); // More specific loading state
+  const [createdTicketId, setCreatedTicketId] = useState<number | null>(null);
 
   const [users, setUsers] = useState<User[]>([]);
 
@@ -66,13 +70,16 @@ const CreateTicketClient: React.FC = () => {
         assigneeEmail, // Send null if unassigned
         priority,
         status,
+        type, // Add ticket type to the request
         senderEmail: customerEmail,
         senderPhone: customerPhone,
+        sendercompany: customerCompany,
         orderNumber
       });
 
       console.log('Ticket created:', response.data);
       // Optionally show a success toast/message here
+      setCreatedTicketId(response.data.ticket.id);
       router.push('/tickets'); // Redirect to the list page
       router.refresh(); // Trigger data refresh on the target page
     } catch (err: unknown) {
@@ -124,6 +131,21 @@ const CreateTicketClient: React.FC = () => {
           </div>
         )}
 
+        {createdTicketId && (
+          <div className="alert alert-success alert-dismissible fade show" role="alert">
+            <i className="fas fa-check-circle me-2"></i>Ticket created successfully!
+            <div className="mt-2">
+              <Link 
+                href={`/admin/tickets/${createdTicketId}/create-quote`} 
+                className="btn btn-sm btn-success"
+              >
+                <i className="fas fa-file-invoice-dollar me-1"></i> Create Quote from this Ticket
+              </Link>
+            </div>
+            <button type="button" className="btn-close" onClick={() => setCreatedTicketId(null)} aria-label="Close"></button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
 
           {/* Title - Floating Label */}
@@ -148,7 +170,7 @@ const CreateTicketClient: React.FC = () => {
             </div>
             <div className="card-body">
               <div className="row g-3">
-                <div className="col-md-4">
+                <div className="col-md-6">
                   <div className="form-floating">
                     <input
                       type="email"
@@ -162,7 +184,7 @@ const CreateTicketClient: React.FC = () => {
                     {fieldErrors.senderEmail && <div className="invalid-feedback">{fieldErrors.senderEmail}</div>}
                   </div>
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-6">
                   <div className="form-floating">
                     <input
                       type="tel"
@@ -176,7 +198,21 @@ const CreateTicketClient: React.FC = () => {
                     {fieldErrors.senderPhone && <div className="invalid-feedback">{fieldErrors.senderPhone}</div>}
                   </div>
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-6">
+                  <div className="form-floating">
+                    <input
+                      type="text"
+                      className={`form-control ${fieldErrors.sendercompany ? 'is-invalid' : ''}`}
+                      id="customerCompany"
+                      placeholder="Customer Company"
+                      value={customerCompany}
+                      onChange={(e) => setCustomerCompany(e.target.value)}
+                    />
+                    <label htmlFor="customerCompany">Company</label>
+                    {fieldErrors.sendercompany && <div className="invalid-feedback">{fieldErrors.sendercompany}</div>}
+                  </div>
+                </div>
+                <div className="col-md-6">
                   <div className="form-floating">
                     <input
                       type="text"
@@ -209,9 +245,25 @@ const CreateTicketClient: React.FC = () => {
             {fieldErrors.description && <div className="invalid-feedback">{fieldErrors.description}</div>}
           </div>
 
-          {/* Grouped Fields: Priority, Status, Assignee */}
+          {/* Grouped Fields: Ticket Type, Priority, Status, Assignee */}
           <div className="row g-3 mb-4"> {/* Use g-3 for gutters */}
-            <div className="col-md-4">
+            <div className="col-md-3">
+              <label htmlFor="type" className="form-label fw-medium small mb-1">Ticket Type</label>
+              <select
+                className={`form-select ${fieldErrors.type ? 'is-invalid' : ''}`}
+                id="type"
+                value={type || ''}
+                onChange={(e) => setType(e.target.value || null)}
+              >
+                <option value="">-- Select Type --</option>
+                {ticketTypeEcommerceEnum.enumValues.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              {fieldErrors.type && <div className="invalid-feedback">{fieldErrors.type}</div>}
+            </div>
+            
+            <div className="col-md-3">
               <label htmlFor="priority" className="form-label fw-medium small mb-1">Priority</label> {/* Smaller label */}
               <select
                 className="form-select"
@@ -225,7 +277,7 @@ const CreateTicketClient: React.FC = () => {
               </select>
             </div>
 
-            <div className="col-md-4">
+            <div className="col-md-3">
               <label htmlFor="status" className="form-label fw-medium small mb-1">Status</label>
               <select
                 className="form-select"
@@ -241,7 +293,7 @@ const CreateTicketClient: React.FC = () => {
               </select>
             </div>
 
-            <div className="col-md-4">
+            <div className="col-md-3">
               <label htmlFor="assignee" className="form-label fw-medium small mb-1">Assignee</label>
               <select
                 className={`form-select ${fieldErrors.assigneeEmail ? 'is-invalid' : ''}`}

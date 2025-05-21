@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/db';
-import { tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum } from '@/db/schema';
+import { tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum, ticketTypeEcommerceEnum } from '@/db/schema';
 import { eq, desc, asc, and, or, ilike, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { getServerSession } from "next-auth/next";
@@ -12,9 +12,11 @@ const createTicketSchema = z.object({
   assigneeEmail: z.string().email().nullable().optional(), // Optional assignee
   priority: z.enum(ticketPriorityEnum.enumValues).optional().default(ticketPriorityEnum.enumValues[1]), // Default medium
   status: z.enum(ticketStatusEnum.enumValues).optional().default(ticketStatusEnum.enumValues[0]), // Default open
+  type: z.enum(ticketTypeEcommerceEnum.enumValues).nullable().optional(), // Optional ticket type
   // Customer information fields
   senderEmail: z.string().email().optional(),
   senderPhone: z.string().optional(),
+  sendercompany: z.string().optional(), // Add sendercompany field
   orderNumber: z.string().optional(),
   // Email-related fields for tickets created from emails
   senderName: z.string().optional(),
@@ -193,7 +195,10 @@ export async function POST(request: Request) {
       assigneeEmail,
       priority,
       status,
+      type,
       senderEmail,
+      senderPhone,
+      sendercompany,
       senderName,
       externalMessageId,
       // New AI fields
@@ -227,7 +232,10 @@ export async function POST(request: Request) {
       reporterId,
       priority, // Uses validated default if not provided
       status, // Uses validated default if not provided
+      type,
       senderEmail: senderEmail || null,
+      senderPhone: senderPhone || null,
+      sendercompany: sendercompany || null,
       senderName: senderName || null,
       externalMessageId: externalMessageId || null,
       // Include new AI fields

@@ -108,6 +108,9 @@ export interface DraftOrderLineItemInput {
   quantity: number;
   title?: string; // Optional: can be pre-filled for custom items
   price?: number; // Optional: for custom items or price overrides
+  attributes?: Array<{ key: string; value: string }>; // Optional: for line item attributes
+  customAttributes?: Array<{ key: string; value: string }>; // Optional: for custom attributes
+  sellingPlanId?: string; // Optional: for subscription or special pricing plans
 }
 
 export interface AppDraftOrderInput {

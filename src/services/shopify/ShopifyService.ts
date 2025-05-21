@@ -1,7 +1,7 @@
 import { Shopify, ApiVersion, LATEST_API_VERSION, shopifyApi, LogSeverity } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import { Config } from '@/config/appConfig';
-import type { AppDraftOrderInput, ShopifyDraftOrderGQLResponse, ShopifyMoney } from '@/agents/quoteAssistant/quoteInterfaces';
+import type { AppDraftOrderInput, ShopifyDraftOrderGQLResponse, ShopifyMoney, DraftOrderLineItemInput, DraftOrderAddressInput } from '@/agents/quoteAssistant/quoteInterfaces';
 import { mapCountryToCode, mapProvinceToCode } from '@/utils/addressUtils';
 
 // Define types for Shopify Product and Variant Nodes
@@ -33,6 +33,9 @@ interface ShopifyVariantNode {
   taxable?: boolean;
   requiresShipping?: boolean;
 }
+
+// Define the GraphQL response type to match the Shopify client's actual return type
+type ResponseErrors = any;
 
 interface GraphQLResponse {
   data?: {
@@ -71,8 +74,16 @@ interface GraphQLResponse {
         };
         userErrors: Array<{ field: string[]; message: string; code?: string }>;
     };
+    calculateShippingRates?: {
+      calculatedShippingRates: Array<{
+        title: string;
+        handle: string;
+        price: ShopifyMoney;
+      }>;
+      userErrors: Array<{ field: string[]; message: string; code?: string }>;
+    };
   };
-  errors?: any[];
+  errors?: ResponseErrors | any[];
 }
 
 // Shopify GraphQL input types
@@ -134,6 +145,11 @@ export class ShopifyService {
       console.error(`[ShopifyService] ${errMsg}`);
       throw new Error(errMsg);
     }
+    
+    console.log(`[ShopifyService] Initializing with store: ${Config.shopify.storeUrl}`);
+    console.log(`[ShopifyService] Admin token exists: ${!!Config.shopify.adminAccessToken}`);
+    console.log(`[ShopifyService] API version: ${Config.shopify.apiVersion}`);
+    
     this.shopifyStoreDomain = Config.shopify.storeUrl.replace(/^https?:\/\//, '');
     this.adminAccessToken = Config.shopify.adminAccessToken;
 
@@ -141,8 +157,13 @@ export class ShopifyService {
     const session = shopify.session.customAppSession(this.shopifyStoreDomain);
     session.accessToken = this.adminAccessToken;
     
-    this.graphqlClient = new shopify.clients.Graphql({ session });
-    console.log("[ShopifyService] Initialized with GraphQL client.");
+    try {
+      this.graphqlClient = new shopify.clients.Graphql({ session });
+      console.log("[ShopifyService] Successfully initialized GraphQL client.");
+    } catch (error) {
+      console.error("[ShopifyService] Failed to initialize GraphQL client:", error);
+      throw error;
+    }
   }
 
   private getNumericId(gid: string): bigint {
@@ -218,7 +239,7 @@ export class ShopifyService {
     while (hasNextPage) {
       try {
         console.log(`[ShopifyService] Fetching products page. Cursor: ${cursor || 'start'}`);
-        const response: GraphQLResponse = await this.graphqlClient.request(
+        const response: any = await this.graphqlClient.request(
           this.productsQuery(cursor),
           {
             variables: { first: 25, cursor: cursor },
@@ -238,9 +259,9 @@ export class ShopifyService {
           break;
         }
 
-        products.push(...productEdges.map((edge) => edge.node));
+        products.push(...productEdges.map((edge: any) => edge.node));
 
-        const pageInfo = response.data?.products?.pageInfo;
+        const pageInfo: any = response.data?.products?.pageInfo;
         hasNextPage = pageInfo?.hasNextPage || false;
         cursor = pageInfo?.endCursor;
 
@@ -254,6 +275,78 @@ export class ShopifyService {
     }
 
     return products;
+  }
+
+  // New method to directly search Shopify products
+  public async searchProducts(query: string): Promise<ShopifyProductNode[]> {
+    const searchQuery = `
+      query SearchProducts($query: String!, $first: Int!) {
+        products(first: $first, query: $query) {
+          edges {
+            node {
+              id
+              legacyResourceId
+              title
+              descriptionHtml
+              productType
+              vendor
+              handle
+              status
+              tags
+              onlineStoreUrl
+              featuredImage {
+                url
+              }
+              variants(first: 50) {
+                edges {
+                  node {
+                    id
+                    legacyResourceId
+                    sku
+                    title
+                    displayName
+                    price
+                    inventoryQuantity
+                    weight
+                    weightUnit
+                    taxable
+                    requiresShipping
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    
+    try {
+      console.log(`[ShopifyService] Directly searching products with query: "${query}"`);
+      const response: any = await this.graphqlClient.request(
+        searchQuery,
+        {
+          variables: { 
+            query: query,
+            first: 25 
+          },
+          retries: 1
+        }
+      );
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors during product search:', JSON.stringify(response.errors, null, 2));
+        throw new Error('GraphQL search query failed');
+      }
+
+      const productEdges = response.data?.products?.edges || [];
+      const products = productEdges.map((edge: any) => edge.node);
+      
+      console.log(`[ShopifyService] Found ${products.length} products matching query: "${query}"`);
+      return products;
+    } catch (error: any) {
+      console.error('[ShopifyService] Error during product search:', error.message);
+      throw error;
+    }
   }
 
   // --- New Draft Order Methods ---
@@ -360,19 +453,24 @@ export class ShopifyService {
         ...(note && { note }),
         ...(email && { email }), // Email to send Shopify invoice to if draft order is completed
         ...(tags && tags.length > 0 && { tags }),
-        // useCustomerDefaultAddress: true, // If customer exists and you want to use their default
-        // Setting `reserveInventoryUntil` to a future date can be useful
-        // reserveInventoryUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Reserve for 7 days
       },
     };
 
     try {
       console.log('[ShopifyService] Creating draft order with variables:', JSON.stringify(variables, null, 2));
-      const response: GraphQLResponse = await this.graphqlClient.request(mutation, { variables, retries: 2 });
+      const response = await this.graphqlClient.request(mutation, { variables, retries: 2 });
 
-      if (response.data?.draftOrderCreate?.userErrors?.length > 0) {
-        console.error('[ShopifyService] UserErrors creating draft order:', response.data.draftOrderCreate.userErrors);
-        throw new Error(response.data.draftOrderCreate.userErrors.map((e: any) => `${e.field?.join(', ') || 'General'}: ${e.message} (Code: ${e.code || 'N/A'})`).join('; '));
+      // Check for GraphQL errors
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
+        throw new Error('GraphQL query failed');
+      }
+
+      // Check for userErrors in the response
+      const userErrors = response.data?.draftOrderCreate?.userErrors;
+      if (userErrors && userErrors.length > 0) {
+        console.error('[ShopifyService] UserErrors creating draft order:', userErrors);
+        throw new Error(userErrors.map((e: any) => `${e.field?.join(', ') || 'General'}: ${e.message} (Code: ${e.code || 'N/A'})`).join('; '));
       }
 
       if (!response.data?.draftOrderCreate?.draftOrder) {
@@ -413,13 +511,21 @@ export class ShopifyService {
       `;
       try {
           console.log(`[ShopifyService] Sending invoice for draft order: ${draftOrderId}`);
-          const response: GraphQLResponse = await this.graphqlClient.request(mutation, {
+          const response: any = await this.graphqlClient.request(mutation, {
               variables: { id: draftOrderId }, // draftOrderId should be the GID
               retries: 1
           });
 
-          if (response.data?.draftOrderInvoiceSend?.userErrors?.length > 0) {
-              const errorMessages = response.data.draftOrderInvoiceSend.userErrors.map(e => e.message).join(', ');
+          // Check for GraphQL errors
+          if (response.errors) {
+            console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
+            return { success: false, error: 'GraphQL query failed' };
+          }
+
+          // Check for userErrors
+          const userErrors = response.data?.draftOrderInvoiceSend?.userErrors;
+          if (userErrors && userErrors.length > 0) {
+              const errorMessages = userErrors.map((e: any) => e.message).join(', ');
               console.error(`[ShopifyService] UserErrors sending draft order invoice: ${errorMessages}`);
               return { success: false, error: errorMessages };
           }
@@ -485,12 +591,21 @@ export class ShopifyService {
 
     try {
       console.log(`[ShopifyService] Calculating shipping for draft order ${draftOrderId} with address:`, JSON.stringify(variables.input.shippingAddress));
-      const response: GraphQLResponse = await this.graphqlClient.request(mutation, { variables, retries: 1 });
+      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
 
-      if (response.data?.draftOrderCalculate?.userErrors?.length) {
-        console.error('[ShopifyService] UserErrors calculating draft order shipping:', response.data.draftOrderCalculate.userErrors);
-        throw new Error(response.data.draftOrderCalculate.userErrors.map((e: any) => e.message).join('; '));
+      // Check for GraphQL errors
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
+        throw new Error('GraphQL query failed');
       }
+
+      // Check for userErrors
+      const userErrors = response.data?.draftOrderCalculate?.userErrors;
+      if (userErrors && userErrors.length) {
+        console.error('[ShopifyService] UserErrors calculating draft order shipping:', userErrors);
+        throw new Error(userErrors.map((e: any) => e.message).join('; '));
+      }
+
       if (!response.data?.draftOrderCalculate?.calculatedDraftOrder) {
         throw new Error('No calculated draft order data returned.');
       }
@@ -500,6 +615,137 @@ export class ShopifyService {
 
     } catch (error: any) {
       console.error('[ShopifyService] Error calculating draft order shipping:', error);
+      if (error.response && error.response.errors) {
+        const messages = error.response.errors.map((e: any) => e.message).join(', ');
+        throw new Error(`Shopify API Error (Shipping Calc): ${messages}`);
+      }
+      throw error;
+    }
+  }
+
+  // Add new method for calculating shipping rates
+  public async calculateShippingRates(
+    lineItems: DraftOrderLineItemInput[],
+    shippingAddress: DraftOrderAddressInput,
+    note?: string
+  ) {
+    try {
+      console.log('[ShopifyService] Calculating shipping rates for address:', JSON.stringify(shippingAddress, null, 2));
+      
+      // Convert line items to Shopify format
+      const shopifyLineItems = lineItems.map(item => ({
+        variantId: `gid://shopify/ProductVariant/${item.numericVariantIdShopify}`,
+        quantity: item.quantity,
+        ...(item.title && { title: item.title }),
+        ...(item.price && { originalUnitPrice: item.price.toFixed(2) })
+      }));
+
+      // Get country and province codes
+      const countryCode = mapCountryToCode(shippingAddress.country);
+      if (!countryCode) {
+        throw new Error(`Invalid country provided: ${shippingAddress.country}. Could not map to a valid code.`);
+      }
+      
+      const provinceCode = mapProvinceToCode(shippingAddress.province, shippingAddress.country);
+
+      const mutation = `
+        mutation draftOrderCalculate($input: DraftOrderInput!) {
+          draftOrderCalculate(input: $input) {
+            calculatedDraftOrder {
+              availableShippingRates {
+                handle
+                title
+                price {
+                  amount
+                  currencyCode
+                }
+              }
+              subtotalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              totalShippingPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              totalTaxSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+      `;
+
+      const variables = {
+        input: {
+          lineItems: shopifyLineItems,
+          shippingAddress: {
+            address1: shippingAddress.address1,
+            address2: shippingAddress.address2 || "",
+            city: shippingAddress.city,
+            company: shippingAddress.company || "",
+            countryCode: countryCode,
+            firstName: shippingAddress.firstName || "Temporary",
+            lastName: shippingAddress.lastName || "Order",
+            phone: shippingAddress.phone || "",
+            provinceCode: provinceCode,
+            zip: shippingAddress.zip
+          },
+          note: note || "Temporary calculation for shipping rates"
+        }
+      };
+
+      // Calculate shipping rates using draftOrderCalculate
+      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
+
+      // Check for GraphQL errors
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
+        throw new Error('GraphQL query failed');
+      }
+
+      // Check for userErrors
+      const userErrors = response.data?.draftOrderCalculate?.userErrors;
+      if (userErrors && userErrors.length > 0) {
+        console.error('[ShopifyService] User errors calculating shipping rates:', userErrors);
+        throw new Error(userErrors.map((e: any) => e.message).join('; '));
+      }
+
+      const calculatedDraftOrder = response.data?.draftOrderCalculate?.calculatedDraftOrder;
+      if (!calculatedDraftOrder) {
+        throw new Error('No calculated draft order data returned');
+      }
+
+      console.log('[ShopifyService] Successfully calculated shipping rates');
+      
+      // Return the shipping rates and pricing info
+      return {
+        availableShippingRates: calculatedDraftOrder.availableShippingRates || [],
+        subtotalPriceSet: calculatedDraftOrder.subtotalPriceSet,
+        totalPriceSet: calculatedDraftOrder.totalPriceSet,
+        totalShippingPriceSet: calculatedDraftOrder.totalShippingPriceSet,
+        totalTaxSet: calculatedDraftOrder.totalTaxSet
+      };
+
+    } catch (error: any) {
+      console.error('[ShopifyService] Error calculating shipping rates:', error);
       if (error.response && error.response.errors) {
         const messages = error.response.errors.map((e: any) => e.message).join(', ');
         throw new Error(`Shopify API Error (Shipping Calc): ${messages}`);

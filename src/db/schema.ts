@@ -106,6 +106,7 @@ export const tickets = ticketingProdSchema.table('tickets', {
   senderEmail: varchar('sender_email', { length: 255 }),
   senderName: varchar('sender_name', { length: 255 }),
   senderPhone: varchar('sender_phone', { length: 20 }), // Added phone field
+  sendercompany: varchar('sender_company', { length: 255 }), // Added company field
   externalMessageId: varchar('external_message_id', { length: 255 }).unique(),
   conversationId: text('conversation_id'), // <-- Added conversationId column (nullable)
   sentiment: ticketSentimentEnum('sentiment'), // Nullable sentiment

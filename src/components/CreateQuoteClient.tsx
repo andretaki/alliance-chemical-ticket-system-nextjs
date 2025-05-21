@@ -125,7 +125,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
           setLineItemSearchData(prev =>
             prev.map(item =>
               item.id === itemId && item.searchTerm === searchTerm
-                ? { ...item, searchResults: response.data.results || [], isSearching: false, error: response.data.results?.length === 0 ? 'No products found.' : null }
+                ? { ...item, searchResults: response.data.results || [], isSearching: false, error: response.data.results?.length === 0 ? 'No products found in Shopify.' : null }
                 : item
             )
           );
@@ -134,7 +134,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
           setLineItemSearchData(prev =>
             prev.map(item =>
               item.id === itemId && item.searchTerm === searchTerm
-                ? { ...item, searchResults: [], isSearching: false, error: 'Search failed. Check console for details.' }
+                ? { ...item, searchResults: [], isSearching: false, error: 'Shopify search failed. Check console for details.' }
                 : item
             )
           );
@@ -407,18 +407,23 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                       className="position-relative product-search-container" 
                       ref={el => { searchContainerRefs.current[index] = el; }}
                     >
-                      <input
-                        type="text"
-                        className="form-control"
-                        id={`productSearch-${index}`}
-                        placeholder="SKU, Name, Variant ID..."
-                        value={currentSearchState.searchTerm}
-                        onChange={(e) => handleSearchTermChange(index, e.target.value)}
-                        onFocus={() => handleInputFocus(index)}
-                        onKeyDown={(e) => handleKeyDown(index, e)}
-                        required={!currentSearchState.hasSelection}
-                        autoComplete="off"
-                      />
+                      <div className="input-group">
+                        <input
+                          type="text"
+                          className="form-control"
+                          id={`productSearch-${index}`}
+                          placeholder="SKU, Name, Variant ID..."
+                          value={currentSearchState.searchTerm}
+                          onChange={(e) => handleSearchTermChange(index, e.target.value)}
+                          onFocus={() => handleInputFocus(index)}
+                          onKeyDown={(e) => handleKeyDown(index, e)}
+                          required={!currentSearchState.hasSelection}
+                          autoComplete="off"
+                        />
+                        <span className="input-group-text bg-primary text-white" title="Searching directly in Shopify">
+                          <small>Shopify Direct</small>
+                        </span>
+                      </div>
                       {currentSearchState.isSearching && (
                         <div className="position-absolute top-50 end-0 translate-middle-y me-2" style={{ zIndex: 5 }}>
                           <div className="spinner-border spinner-border-sm text-primary" role="status">
