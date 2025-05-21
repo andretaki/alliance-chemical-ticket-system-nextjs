@@ -753,4 +753,141 @@ export class ShopifyService {
       throw error;
     }
   }
+
+  /**
+   * Fetches a draft order by ID
+   */
+  public async getDraftOrderById(id: string): Promise<ShopifyDraftOrderGQLResponse | null> {
+    const query = `
+      query getDraftOrder($id: ID!) {
+        draftOrder(id: $id) {
+          id
+          legacyResourceId
+          name
+          invoiceUrl
+          status
+          totalPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          subtotalPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          totalShippingPriceSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          totalTaxSet {
+            shopMoney {
+              amount
+              currencyCode
+            }
+          }
+          customer {
+            id
+            email
+            firstName
+            lastName
+            phone
+          }
+          lineItems(first: 50) {
+            edges {
+              node {
+                id
+                title
+                quantity
+                originalUnitPriceSet {
+                  shopMoney {
+                    amount
+                    currencyCode
+                  }
+                }
+                variant {
+                  id
+                  legacyResourceId
+                  sku
+                  title
+                  image {
+                    url
+                    altText
+                  }
+                }
+                product {
+                  id
+                  legacyResourceId
+                  title
+                }
+              }
+            }
+          }
+          shippingLine {
+            title
+            priceSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+            }
+          }
+          shippingAddress {
+            firstName
+            lastName
+            address1
+            address2
+            city
+            company
+            phone
+            zip
+            provinceCode
+            countryCode
+          }
+          appliedDiscount {
+            title
+            description
+            value
+            valueType
+            amountSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
+            }
+          }
+          note
+        }
+      }
+    `;
+
+    const variables = {
+      id: id.includes('/') ? id : `gid://shopify/DraftOrder/${id}`, // Convert numeric ID to GID if needed
+    };
+
+    try {
+      console.log('[ShopifyService] Fetching draft order with ID:', id);
+      const response = await this.graphqlClient.request(query, { variables, retries: 2 });
+
+      // Check for GraphQL errors
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
+        throw new Error('GraphQL query failed');
+      }
+
+      if (!response.data?.draftOrder) {
+        console.log('[ShopifyService] No draft order found with ID:', id);
+        return null;
+      }
+
+      return response.data.draftOrder;
+    } catch (error) {
+      console.error(`[ShopifyService] Error fetching draft order with ID ${id}:`, error);
+      throw error;
+    }
+  }
 } 

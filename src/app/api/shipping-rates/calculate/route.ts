@@ -13,6 +13,7 @@ interface ShippingRateResponse {
   }>;
   subtotalPriceSet: { shopMoney: ShopifyMoney } | null;
   totalPriceSet: { shopMoney: ShopifyMoney } | null;
+  totalTaxSet?: { shopMoney: ShopifyMoney } | null;
 }
 
 // Define the shipping rate type
@@ -76,12 +77,16 @@ export async function POST(request: NextRequest) {
         availableRates: calculationResult.availableShippingRates?.map((rate: ShippingRate) => ({
           handle: rate.handle,
           title: rate.title,
-          price: parseFloat(rate.price.amount)
+          price: parseFloat(rate.price.amount),
+          currencyCode: rate.price.currencyCode
         })) || [],
         subtotal: calculationResult.subtotalPriceSet ? 
           parseFloat(calculationResult.subtotalPriceSet.shopMoney.amount) : null,
         total: calculationResult.totalPriceSet ?
-          parseFloat(calculationResult.totalPriceSet.shopMoney.amount) : null
+          parseFloat(calculationResult.totalPriceSet.shopMoney.amount) : null,
+        tax: calculationResult.totalTaxSet ? 
+          parseFloat(calculationResult.totalTaxSet.shopMoney.amount) : null,
+        currencyCode: calculationResult.subtotalPriceSet?.shopMoney?.currencyCode || 'USD'
       });
     } catch (error: any) {
       console.error('Error calculating shipping rates:', error);

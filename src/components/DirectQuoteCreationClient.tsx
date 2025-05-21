@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
 import axios, { AxiosError } from 'axios';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation'; // Keep if used, though not explicitly in this snippet
 import type { AppDraftOrderInput, DraftOrderLineItemInput, DraftOrderCustomerInput, DraftOrderAddressInput, ProductVariantData, ParentProductData, DraftOrderOutput } from '@/agents/quoteAssistant/quoteInterfaces';
 import DOMPurify from 'dompurify';
-import Image from 'next/image';
+import Image from 'next/image'; // Keep for future use
 import { toast } from 'react-hot-toast';
 
 // Updated SearchResult interface to match backend
@@ -82,11 +82,22 @@ export const DirectQuoteCreationClient: React.FC = () => {
   const [createdTicketId, setCreatedTicketId] = useState<number | null>(null);
   const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>(provinces['United States']);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   
   // Search functionality states
   const [lineItemSearchData, setLineItemSearchData] = useState<LineItemSearchData[]>([createNewLineItemSearchData()]);
   const [activeSearchDropdown, setActiveSearchDropdown] = useState<number | null>(null);
   const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null);
+
+  // Add shipping rates and modal states
+  const [shippingRates, setShippingRates] = useState<Array<{
+    handle: string;
+    title: string;
+    price: number;
+    currencyCode: string;
+  }>>([]);
+  const [showShippingRatesModal, setShowShippingRatesModal] = useState(false);
+  const [selectedShippingRateIndex, setSelectedShippingRateIndex] = useState<number | null>(null);
 
   const searchTermsForEffect = useMemo(() => 
     lineItemSearchData.map(item => item.searchTerm).join('||'),
@@ -99,29 +110,24 @@ export const DirectQuoteCreationClient: React.FC = () => {
     searchContainerRefs.current[index] = el;
   };
 
-  // Fix the province check to safely check includes
   useEffect(() => {
     if (shippingAddress.country in provinces) {
       const countryProvinces = provinces[shippingAddress.country as keyof typeof provinces];
       setSelectedProvinces(countryProvinces);
-      
-      // Clear province if changing countries and the province isn't valid for the new country
       if (shippingAddress.province && !countryProvinces.includes(shippingAddress.province)) {
         setShippingAddress(prev => ({ ...prev, province: '' }));
       }
     }
   }, [shippingAddress.country]);
 
-  // Handle product search with debounce
   useEffect(() => {
-    console.log('🔎 Search terms effect triggered:', searchTermsForEffect);
-    
+    // console.log('🔎 Search terms effect triggered:', searchTermsForEffect);
     const timers: (NodeJS.Timeout | null)[] = lineItemSearchData.map((searchData, index) => {
       const { id: itemId, searchTerm, hasSelection } = searchData;
-      console.log(`🔎 Processing search item ${index}: "${searchTerm}" (hasSelection: ${hasSelection})`);
+      // console.log(`🔎 Processing search item ${index}: "${searchTerm}" (hasSelection: ${hasSelection})`);
 
       if (hasSelection || !searchTerm || searchTerm.trim().length < 1) {
-        console.log(`🔎 Skipping search for item ${index}: hasSelection=${hasSelection}, term=${searchTerm}`);
+        // console.log(`🔎 Skipping search for item ${index}: hasSelection=${hasSelection}, term=${searchTerm}`);
         if (searchData.isSearching || searchData.searchResults.length > 0 || searchData.error) {
            setLineItemSearchData(prev => prev.map(item => 
             item.id === itemId ? { ...item, isSearching: false, searchResults: [], error: null } : item
@@ -133,60 +139,37 @@ export const DirectQuoteCreationClient: React.FC = () => {
         return null;
       }
 
-      console.log(`🔎 Setting up search for item ${index}: "${searchTerm}"`);
+      // console.log(`🔎 Setting up search for item ${index}: "${searchTerm}"`);
       setLineItemSearchData(prev => prev.map(item => 
         item.id === itemId ? { ...item, isSearching: true, searchResults: [], error: null } : item
       ));
-      setActiveSearchDropdown(index);
+      if (activeSearchDropdown !== index) { // Only set if not already active, or to re-trigger if needed
+        setActiveSearchDropdown(index);
+      }
+
 
       const timerId = setTimeout(async () => {
-        console.log(`🔎 Timer fired for item ${index}: "${searchTerm}"`);
-        
-        // SIMPLER APPROACH: Get the latest state first
+        // console.log(`🔎 Timer fired for item ${index}: "${searchTerm}"`);
         try {
-          console.log(`🔎 Making API call for item ${index}: "${searchTerm}"`);
+          // console.log(`🔎 Making API call for item ${index}: "${searchTerm}"`);
           const response = await axios.get<{ results: SearchResult[] }>(
             `/api/products/search-variant?query=${encodeURIComponent(searchTerm.trim())}`
           );
-          console.log(`🔎 Search results for "${searchTerm}":`, response.data.results.length);
+          // console.log(`🔎 Search results for "${searchTerm}":`, response.data.results.length);
           
-          // Debug first 3 results if any
-          if (response.data.results.length > 0) {
-            console.log(`🔎 First result:`, {
-              name: response.data.results[0].parentProduct.name,
-              variant: response.data.results[0].variant.variantTitle,
-              sku: response.data.results[0].variant.sku
-            });
-          }
-          
-          // Direct state update without checking stale state
           setLineItemSearchData(prev => {
-            // Find current item state in the prev array
             const currentItem = prev.find(item => item.id === itemId);
-            
-            // Skip update if item no longer exists or has changed
-            if (!currentItem) {
-              console.log(`🔎 Item with ID ${itemId} no longer exists in state`);
+            if (!currentItem || currentItem.searchTerm !== searchTerm || currentItem.hasSelection) {
+              // console.log(`🔎 Stale search or selection made for item ${itemId}, skipping update.`);
               return prev;
             }
             
-            if (currentItem.searchTerm !== searchTerm) {
-              console.log(`🔎 Search term changed: "${currentItem.searchTerm}" vs "${searchTerm}"`);
-              return prev;
+            if (response.data.results.length > 0 && activeSearchDropdown !== index) {
+              // This might be a redundant setActiveSearchDropdown, but ensures visibility if conditions change rapidly.
+              // setActiveSearchDropdown(index);
             }
             
-            if (currentItem.hasSelection) {
-              console.log(`🔎 Item now has a selection, ignoring results`);
-              return prev;
-            }
-            
-            // Make sure the dropdown is visible if there are results
-            if (response.data.results.length > 0) {
-              setActiveSearchDropdown(index);
-            }
-            
-            // Update with results
-            const updated = prev.map(item =>
+            return prev.map(item =>
               item.id === itemId
                 ? { 
                     ...item, 
@@ -196,20 +179,9 @@ export const DirectQuoteCreationClient: React.FC = () => {
                   }
                 : item
             );
-            
-            console.log(`🔎 Updated line item search data:`, 
-              updated.map(item => ({
-                id: item.id,
-                searchTerm: item.searchTerm,
-                resultsCount: item.searchResults.length,
-                hasSelection: item.hasSelection
-              }))
-            );
-            
-            return updated;
           });
         } catch (e: any) {
-          console.error(`🔎 Search API Error for "${searchTerm}":`, e);
+          // console.error(`🔎 Search API Error for "${searchTerm}":`, e);
           setLineItemSearchData(prev =>
             prev.map(item =>
               item.id === itemId && item.searchTerm === searchTerm
@@ -218,23 +190,24 @@ export const DirectQuoteCreationClient: React.FC = () => {
             )
           );
         }
-      }, 300); // Reduced debounce delay for faster response
+      }, 300);
       return timerId;
     });
 
     return () => {
-      console.log('🔎 Cleanup: Clearing timers');
+      // console.log('🔎 Cleanup: Clearing timers');
       timers.forEach(timerId => {
         if (timerId) clearTimeout(timerId);
       });
     };
-  }, [searchTermsForEffect, activeSearchDropdown]);
+  }, [searchTermsForEffect]); // Removed activeSearchDropdown from dependencies to avoid re-triggering on dropdown visibility change
 
-  // Handle line item changes
   const handleLineItemChange = (index: number, field: keyof DraftOrderLineItemInput, value: string | number) => {
     const updatedLineItems = [...lineItems];
     if (field === 'quantity') {
-        updatedLineItems[index] = { ...updatedLineItems[index], [field]: Math.max(1, Number(value)) };
+        const newQuantity = Math.max(1, Number(value));
+        updatedLineItems[index] = { ...updatedLineItems[index], [field]: newQuantity };
+        console.log(`Updated quantity for item ${index} to ${newQuantity}, price: ${updatedLineItems[index].unitPrice}`);
     } else {
         updatedLineItems[index] = { ...updatedLineItems[index], [field]: String(value) };
     }
@@ -242,11 +215,11 @@ export const DirectQuoteCreationClient: React.FC = () => {
   };
 
   const handleSearchTermChange = (index: number, value: string) => {
-    console.log(`⭐ Search term change triggered - Index: ${index}, Value: "${value}"`);
-    const currentItem = lineItemSearchData[index];
+    // console.log(`⭐ Search term change triggered - Index: ${index}, Value: "${value}"`);
+    const currentItemSearchId = lineItemSearchData[index]?.id;
     setLineItemSearchData(prevData =>
-      prevData.map((item, i) =>
-        item.id === currentItem.id
+      prevData.map((item) =>
+        item.id === currentItemSearchId
           ? { ...item, searchTerm: value, hasSelection: false, error: null }
           : item
       )
@@ -264,6 +237,12 @@ export const DirectQuoteCreationClient: React.FC = () => {
       };
       setLineItems(updatedLineItems);
     }
+    // Ensure dropdown opens on typing if it was closed
+    if (value.trim().length > 0) {
+       setActiveSearchDropdown(index);
+    } else {
+       setActiveSearchDropdown(null);
+    }
   };
 
   const addProductToLineItems = (searchResult: SearchResult, index: number) => {
@@ -275,6 +254,10 @@ export const DirectQuoteCreationClient: React.FC = () => {
       setLineItemSearchData(prev => prev.map(item => item.id === currentItemSearchId ? {...item, error: `Variant ${variant.sku} is missing ID.`} : item));
       return;
     }
+
+    console.log('Adding product to line items:', variant);
+    console.log('Product price:', variant.price);
+    console.log('Product currency:', variant.currency);
 
     const updatedLineItems = [...lineItems];
     const displayValue = `${parentProduct.name} - ${variant.variantTitle} (SKU: ${variant.sku})`;
@@ -288,12 +271,24 @@ export const DirectQuoteCreationClient: React.FC = () => {
     };
     setLineItems(updatedLineItems);
 
+    // Log the updated line items to verify changes
+    console.log('Updated line items:', updatedLineItems);
+    
+    // Calculate and log the new subtotal
+    const newSubtotal = updatedLineItems.reduce((total, item) => {
+      if (item.numericVariantIdShopify && item.unitPrice && item.quantity) {
+        return total + (item.unitPrice * item.quantity);
+      }
+      return total;
+    }, 0);
+    console.log('New calculated subtotal:', newSubtotal);
+
     setLineItemSearchData(prevData =>
       prevData.map(item =>
         item.id === currentItemSearchId
           ? {
               ...item,
-              searchTerm: displayValue,
+              searchTerm: displayValue, // Keep selected item name in search bar
               searchResults: [],
               isSearching: false,
               hasSelection: true,
@@ -304,19 +299,17 @@ export const DirectQuoteCreationClient: React.FC = () => {
     );
     setActiveSearchDropdown(null);
     setFocusedResultIndex(null);
-    
-    // Show toast notification
     toast.success(`Added "${variant.variantTitle}" to quote`);
   };
   
   const addLineItem = () => {
     setLineItems([...lineItems, { numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
     setLineItemSearchData([...lineItemSearchData, createNewLineItemSearchData()]);
-    searchContainerRefs.current.push(null);
+    searchContainerRefs.current.push(null); // Accommodate new ref
   };
 
   const removeLineItem = (index: number) => {
-    if (lineItems.length <= 1) return; // Always keep at least one line item
+    if (lineItems.length <= 1) return; 
 
     const updatedLineItems = [...lineItems];
     updatedLineItems.splice(index, 1);
@@ -326,13 +319,14 @@ export const DirectQuoteCreationClient: React.FC = () => {
     updatedSearchData.splice(index, 1);
     setLineItemSearchData(updatedSearchData);
     
+    searchContainerRefs.current.splice(index, 1); // Remove ref
+
     toast.success("Line item removed");
   };
 
-  // Handle click outside for search dropdown
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      const isOutside = searchContainerRefs.current.every((ref, index) => {
+      const isOutside = searchContainerRefs.current.every((ref) => {
         return !ref || !ref.contains(event.target as Node);
       });
       
@@ -347,38 +341,31 @@ export const DirectQuoteCreationClient: React.FC = () => {
   }, [activeSearchDropdown]);
 
   const handleInputFocus = (index: number) => {
-    console.log(`🎯 Focus on search input ${index}`, {
-      searchTerm: lineItemSearchData[index]?.searchTerm,
-      hasResults: lineItemSearchData[index]?.searchResults.length > 0,
-      hasSelection: lineItemSearchData[index]?.hasSelection
-    });
-    
     const currentSearchData = lineItemSearchData[index];
     if (currentSearchData?.searchTerm && 
         !currentSearchData.hasSelection &&
-        (currentSearchData.searchResults.length > 0 || currentSearchData.isSearching)) {
-      console.log(`🎯 Setting activeSearchDropdown to ${index}`);
+        (currentSearchData.searchResults.length > 0 || currentSearchData.isSearching || currentSearchData.error)) {
       setActiveSearchDropdown(index);
-    }
-    
-    // Always show dropdown on focus if there's a search term
-    if (currentSearchData?.searchTerm && !currentSearchData.hasSelection) {
+    } else if (currentSearchData?.searchTerm && !currentSearchData.hasSelection) {
+      // If there's a term but no results yet (e.g. typing first char), still show (empty/loading) dropdown
       setActiveSearchDropdown(index);
     }
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
     const currentData = lineItemSearchData[index];
-    if (!currentData.searchResults.length) return;
+    if (!currentData || !currentData.searchResults) return;
+
 
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      setActiveSearchDropdown(index);
+      if (!currentData.searchResults.length && !currentData.isSearching) return;
+
+      setActiveSearchDropdown(index); // Ensure dropdown is active
       
       const resultsLength = currentData.searchResults.length;
       if (resultsLength > 0) {
         let newIndex: number;
-        
         if (focusedResultIndex === null) {
           newIndex = e.key === 'ArrowDown' ? 0 : resultsLength - 1;
         } else {
@@ -386,14 +373,12 @@ export const DirectQuoteCreationClient: React.FC = () => {
             ? Math.min(focusedResultIndex + 1, resultsLength - 1)
             : Math.max(focusedResultIndex - 1, 0);
         }
-        
         setFocusedResultIndex(newIndex);
       }
     } else if (e.key === 'Enter' && focusedResultIndex !== null && activeSearchDropdown === index) {
       e.preventDefault();
-      const selectedResult = currentData.searchResults[focusedResultIndex];
-      if (selectedResult) {
-        addProductToLineItems(selectedResult, index);
+      if (currentData.searchResults[focusedResultIndex]) {
+        addProductToLineItems(currentData.searchResults[focusedResultIndex], index);
       }
     } else if (e.key === 'Escape') {
       setActiveSearchDropdown(null);
@@ -401,14 +386,20 @@ export const DirectQuoteCreationClient: React.FC = () => {
     }
   };
 
-  // Pre-calculate shipping based on address
   const calculateShipping = async () => {
-    if (!shippingAddress.address1 || !shippingAddress.city || !shippingAddress.zip || !shippingAddress.province) {
-      toast.error("Complete shipping address required for calculation");
+    // Validation for shipping calculation
+    const requiredAddressFields: (keyof DraftOrderAddressInput)[] = ['address1', 'city', 'zip', 'province', 'country'];
+    const missingFields = requiredAddressFields.filter(field => !shippingAddress[field]);
+
+    if (missingFields.length > 0) {
+      toast.error(`Complete shipping address required: ${missingFields.join(', ')}`);
+      // Optionally, focus the first missing field
+      const firstMissingFieldElement = document.getElementsByName(missingFields[0])[0];
+      if (firstMissingFieldElement) (firstMissingFieldElement as HTMLElement).focus();
       return;
     }
     
-    if (!lineItems.some(item => item.numericVariantIdShopify)) {
+    if (!lineItems.some(item => item.numericVariantIdShopify && item.quantity > 0)) {
       toast.error("Add at least one product to calculate shipping");
       return;
     }
@@ -416,33 +407,89 @@ export const DirectQuoteCreationClient: React.FC = () => {
     setIsCalculatingShipping(true);
     try {
       const response = await axios.post('/api/shipping-rates/calculate', {
-        lineItems: lineItems.filter(item => item.numericVariantIdShopify),
+        lineItems: lineItems.filter(item => item.numericVariantIdShopify && item.quantity > 0)
+                            .map(({ numericVariantIdShopify, quantity }) => ({ numericVariantIdShopify, quantity })),
         shippingAddress
       });
       
+      console.log('Shipping rates response:', response.data);
+      
       if (response.data?.availableRates?.length > 0) {
+        // Store all available shipping rates
         setShippingRates(response.data.availableRates);
-        setShowShippingRatesModal(true);
-        // Update price summary
+        
+        // If there are multiple rates, show the selection modal
+        if (response.data.availableRates.length > 1) {
+          setSelectedShippingRateIndex(0); // Default to first option
+          setShowShippingRatesModal(true);
+          toast.success(`${response.data.availableRates.length} shipping options available`);
+        } else {
+          // If only one rate, select it automatically
+          setSelectedShippingRateIndex(0);
+          toast.success(`Shipping calculated: ${response.data.availableRates[0].title}`);
+        }
+        
+        // Get current subtotal from line items
+        const currentSubtotal = lineItems.reduce((total, item) => {
+          if (item.numericVariantIdShopify && item.unitPrice && item.quantity) {
+            return total + (item.unitPrice * item.quantity);
+          }
+          return total;
+        }, 0);
+
+        console.log('Current subtotal for shipping calc:', currentSubtotal);
+        console.log('API subtotal response:', response.data.subtotal);
+        console.log('First shipping rate:', response.data.availableRates[0]);
+        
+        // Update price summary with the first rate initially
         setPriceSummary({
-          subtotal: response.data.subtotal || null,
-          total: response.data.total || null,
+          subtotal: currentSubtotal,
           shipping: response.data.availableRates[0].price || null,
+          tax: response.data.tax || null,
+          total: currentSubtotal + (response.data.availableRates[0].price || 0) + (response.data.tax || 0),
           currencyCode: response.data.availableRates[0].currencyCode || 'USD'
         });
-        toast.success("Shipping rates calculated successfully");
       } else {
-        toast.error("No shipping rates available for this address");
+        setPriceSummary(prev => ({ ...prev, shipping: 0 })); // No rates, shipping is 0
+        toast.error(response.data?.error || "No shipping rates available for this address.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Shipping calculation error:", error);
-      toast.error("Could not calculate shipping at this time");
+      const errorMsg = error.response?.data?.error || "Could not calculate shipping at this time.";
+      toast.error(errorMsg);
+      setPriceSummary(prev => ({ ...prev, shipping: null, total: prev.subtotal })); // Reset shipping
     } finally {
       setIsCalculatingShipping(false);
     }
   };
 
-  // Create a ticket and then create a quote
+  // Handle shipping rate selection
+  const selectShippingRate = (index: number) => {
+    if (index >= 0 && index < shippingRates.length) {
+      setSelectedShippingRateIndex(index);
+      const selectedRate = shippingRates[index];
+      
+      console.log('Selected shipping rate:', selectedRate);
+      
+      // Update price summary with the selected shipping rate
+      setPriceSummary(prev => {
+        const subtotal = prev.subtotal || 0;
+        const tax = prev.tax || 0;
+        const shipping = selectedRate.price;
+        
+        return {
+          ...prev,
+          shipping,
+          total: subtotal + shipping + tax,
+          currencyCode: selectedRate.currencyCode || prev.currencyCode
+        };
+      });
+      
+      toast.success(`Selected shipping: ${selectedRate.title}`);
+      setShowShippingRatesModal(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -452,58 +499,110 @@ export const DirectQuoteCreationClient: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Validate inputs first
       if (!customer.email && sendShopifyInvoice) {
-        throw new Error("Customer email is required if you want to send an invoice");
+        setFormError("Customer email is required if you want to send an invoice via Shopify.");
+        toast.error("Customer email is required for sending Shopify invoice.");
+        setIsLoading(false);
+        document.getElementById('email')?.focus();
+        return;
       }
       
       const filteredLineItems = lineItems.filter(item => item.numericVariantIdShopify && item.quantity > 0);
       if (filteredLineItems.length === 0) {
-        throw new Error("Please add at least one valid product to the quote");
+        setFormError("Please add at least one valid product to the quote.");
+        toast.error("Add at least one product to the quote.");
+        setIsLoading(false);
+        return;
       }
       
-      if (!shippingAddress.address1 || !shippingAddress.city || !shippingAddress.country || !shippingAddress.zip || !shippingAddress.province) {
-        throw new Error("Complete shipping address is required");
+      const requiredAddressFields: (keyof DraftOrderAddressInput)[] = ['address1', 'city', 'country', 'zip', 'province', 'firstName', 'lastName'];
+      const missingAddressFields = requiredAddressFields.filter(field => !shippingAddress[field]);
+      if (missingAddressFields.length > 0) {
+          setFormError(`Complete shipping address is required. Missing: ${missingAddressFields.join(', ')}.`);
+          toast.error(`Complete shipping address is required. Missing: ${missingAddressFields.join(', ')}.`);
+          setIsLoading(false);
+          document.getElementsByName(`ship${missingAddressFields[0].charAt(0).toUpperCase() + missingAddressFields[0].slice(1)}`)[0]?.focus();
+          return;
       }
 
-      // 1. Create a ticket first
-      const ticketResponse = await axios.post('/api/tickets', {
-        title: `Quote Request - ${customer.company || `${customer.firstName} ${customer.lastName}`.trim() || customer.email}`,
-        description: `Quote request created from the direct quote form.\n\nCustomer: ${customer.firstName} ${customer.lastName}\nEmail: ${customer.email}\nPhone: ${customer.phone}\nCompany: ${customer.company}`,
-        type: 'Quote Request',
-        priority: 'medium',
-        status: 'new',
-        senderEmail: customer.email,
-        senderPhone: customer.phone,
-        senderName: `${customer.firstName} ${customer.lastName}`.trim(),
-        sendercompany: customer.company
-      });
+      // Check if user is authenticated
+      let ticketId = null;
+      try {
+        // Get session info to check authentication
+        const sessionResponse = await axios.get('/api/auth/session');
+        
+        if (sessionResponse.data && sessionResponse.data.user) {
+          // User is authenticated, we can create a ticket
+          const ticketResponse = await axios.post('/api/tickets', {
+            title: `Quote Request - ${customer.company || `${customer.firstName} ${customer.lastName}`.trim() || customer.email}`,
+            description: `Quote request created from the direct quote form.\n\nCustomer: ${customer.firstName} ${customer.lastName}\nEmail: ${customer.email}\nPhone: ${customer.phone}\nCompany: ${customer.company}\n\nNote: ${note}`,
+            type: 'Quote Request',
+            priority: 'medium',
+            status: 'new',
+            senderEmail: customer.email,
+            senderPhone: customer.phone,
+            senderName: `${customer.firstName} ${customer.lastName}`.trim(),
+            sendercompany: customer.company
+          });
 
-      const ticketId = ticketResponse.data.ticket.id;
-      setCreatedTicketId(ticketId);
+          ticketId = ticketResponse.data.ticket.id;
+          setCreatedTicketId(ticketId);
+          console.log(`Successfully created ticket #${ticketId}`);
+        } else {
+          console.log('User not authenticated, skipping ticket creation');
+        }
+      } catch (ticketError) {
+        console.error('Error creating ticket:', ticketError);
+        // Continue with quote creation even if ticket creation fails
+      }
 
-      // 2. Now create the draft order with the ticket ID
+      // Prepare note text
+      let noteText = `Quote created from direct quote form.`;
+      if (ticketId) {
+        noteText += ` Related to Ticket #${ticketId}.`;
+      }
+      if (note) {
+        noteText += ` ${note}`;
+      }
+      
+      // Prepare tags
+      const quoteTags = ['TicketSystemQuote'];
+      if (ticketId) {
+        quoteTags.push(`TicketID-${ticketId}`);
+      }
+      
       const draftOrderInput: AppDraftOrderInput = {
         lineItems: filteredLineItems.map(({ productDisplay, unitPrice, currencyCode, ...rest }) => rest),
         customer,
         shippingAddress,
-        note: `Quote created from direct quote form. Related to Ticket #${ticketId}. ${note || ''}`,
+        note: noteText.trim(),
         email: sendShopifyInvoice ? customer.email : undefined,
-        tags: ['TicketSystemQuote', `TicketID-${ticketId}`],
+        tags: quoteTags,
       };
 
-      // Create the draft order
       const response = await axios.post<DraftOrderOutput>('/api/draft-orders', draftOrderInput);
       setSuccessMessage(`Quote #${response.data.name} created successfully!`);
       setCreatedDraftOrder(response.data);
-      
-      // Show success toast
       toast.success("Quote created successfully!");
+      
+      // Optionally reset form or parts of it
+      // setLineItems([{ numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
+      // setLineItemSearchData([createNewLineItemSearchData()]);
+      // setCustomer({ email: '', firstName: '', lastName: '', phone: '', company: '' });
+      // setShippingAddress({ firstName: '', lastName: '', address1: '', city: '', country: 'United States', zip: '', province: '', company: '', phone: '' });
+      // setNote('');
+      // setPriceSummary({ subtotal: null, total: null, shipping: null, currencyCode: 'USD' });
+
     } catch (err) {
       console.error("Error in quote creation process:", err);
       const axiosError = err as AxiosError<{ error?: string }>;
-      const errorMessage = axiosError.response?.data?.error || 
-                          (err instanceof Error ? err.message : 'Failed to create quote');
+      let errorMessage = axiosError.response?.data?.error || (err instanceof Error ? err.message : 'Failed to create quote');
+      
+      // Check for GraphQL errors if applicable (common in Shopify integrations)
+      if (axiosError.response?.data && (axiosError.response.data as any).errors) {
+        errorMessage = (axiosError.response.data as any).errors.map((e: any) => e.message).join(', ');
+      }
+
       setFormError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -514,103 +613,185 @@ export const DirectQuoteCreationClient: React.FC = () => {
   const handleCustomerChange = (e: ChangeEvent<HTMLInputElement>) => setCustomer({ ...customer, [e.target.name]: e.target.value });
   const handleShippingAddressChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
 
-  // Auto-populate shipping address from customer info
   useEffect(() => {
     setShippingAddress(prev => ({
       ...prev,
       firstName: customer.firstName || prev.firstName || '',
       lastName: customer.lastName || prev.lastName || '',
       company: customer.company || prev.company || '',
-      phone: customer.phone || prev.phone || ''
+      // phone: customer.phone || prev.phone || '' // Decided against auto-populating phone to avoid overwriting specific shipping phone
     }));
-  }, [customer.firstName, customer.lastName, customer.company, customer.phone]);
+  }, [customer.firstName, customer.lastName, customer.company]);
 
-  // Check session status on component mount
   useEffect(() => {
+    // This effect is for debugging session, can be removed if not needed.
     const checkSession = async () => {
       try {
-        console.log('🔐 Checking session status...');
+        // console.log('🔐 Checking session status...');
         const response = await fetch('/api/auth/session');
         const data = await response.json();
-        console.log('🔐 Session check response:', data);
+        // console.log('🔐 Session check response:', data);
       } catch (error) {
-        console.error('🔐 Session check error:', error);
+        // console.error('🔐 Session check error:', error);
       }
     };
-    
     checkSession();
   }, []);
 
-  const [shippingRates, setShippingRates] = useState<Array<{ handle: string; title: string; price: number }>>([]);
-  const [showShippingRatesModal, setShowShippingRatesModal] = useState(false);
-  const [selectedShippingRate, setSelectedShippingRate] = useState<string | null>(null);
+  // Removed shippingRates and showShippingRatesModal as they weren't fully implemented in the original snippet
+  // If needed, they can be re-added along with a modal component.
 
   const [priceSummary, setPriceSummary] = useState<{
     subtotal: number | null;
     total: number | null;
     shipping: number | null;
+    tax: number | null;
     currencyCode: string;
   }>({
     subtotal: null,
     total: null,
     shipping: null,
+    tax: null,
     currencyCode: 'USD'
   });
 
+  // Add new useEffect to calculate subtotal whenever line items change
+  useEffect(() => {
+    // Calculate subtotal based on line items with valid prices
+    const subtotal = lineItems.reduce((total, item) => {
+      if (item.numericVariantIdShopify && item.unitPrice && item.quantity) {
+        return total + (item.unitPrice * item.quantity);
+      }
+      return total;
+    }, 0);
+    
+    // Always update the subtotal, even if it's 0
+    console.log('Calculated subtotal from line items:', subtotal);
+    setPriceSummary(prev => {
+      const shipping = prev.shipping || 0;
+      const tax = prev.tax || 0;
+      return {
+        ...prev,
+        subtotal,
+        // If shipping exists, update total, otherwise just show subtotal as total
+        total: subtotal + shipping + tax
+      };
+    });
+  }, [lineItems]);
+
+  // Send invoice email with PDF attachment
+  const sendInvoiceEmail = async () => {
+    if (!createdDraftOrder || !customer.email) {
+      toast.error("Cannot send email: Missing order data or customer email");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const response = await axios.post('/api/email/send-invoice', {
+        draftOrderId: createdDraftOrder.id,
+        customerEmail: customer.email,
+        ticketId: createdTicketId
+      });
+      
+      toast.success("Invoice email sent successfully!");
+    } catch (error) {
+      console.error("Error sending invoice email:", error);
+      toast.error("Failed to send invoice email. Please try again.");
+    } finally {
+      setIsSendingEmail(false);
+    }
+  };
+
   return (
     <div className="card shadow-sm">
-      <div className="card-header bg-primary text-white">
-        <h3 className="mb-0">Create Quote</h3>
-      </div>
-      <div className="card-body">
-        {/* Test button for debugging */}
+      <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h3 className="mb-0">Create Direct Quote</h3>
+        {/* Test button for debugging - can be removed for production */}
         <button 
           type="button" 
-          className="btn btn-sm btn-warning mb-3" 
+          className="btn btn-sm btn-outline-light" 
           onClick={async () => {
-            console.log('📡 Testing direct API call');
+            console.log('📡 Testing direct API call to /api/products/search-variant?query=test');
             try {
               const response = await axios.get('/api/products/search-variant?query=test');
               console.log('📡 Test API response:', response.data);
+              toast('Test API call successful. Check console.');
             } catch (error) {
               console.error('📡 Test API error:', error);
+              toast.error('Test API call failed. Check console.');
             }
           }}
         >
-          Test API Connection
+          Test API
         </button>
+      </div>
+      <div className="card-body">
         
-        {formError && <div className="alert alert-danger" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formError) }}></div>}
-        {successMessage && <div className="alert alert-success">{successMessage}</div>}
-        {createdTicketId && (
-          <div className="alert alert-info">
-            <p><strong>Ticket #{createdTicketId}</strong> was created automatically for this quote request.</p>
+        {formError && !successMessage && (
+          <div className="alert alert-danger alert-dismissible fade show" role="alert">
+            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formError) }}></div>
+            <button type="button" className="btn-close" onClick={() => setFormError(null)} aria-label="Close"></button>
           </div>
         )}
+        {successMessage && (
+          <div className="alert alert-success">
+            {successMessage}
+            {createdTicketId && (
+              <p className="mb-0 mt-1">
+                <strong>Ticket #{createdTicketId}</strong> created.
+                <a href={`/admin/tickets/${createdTicketId}`} className="alert-link ms-2" target="_blank" rel="noopener noreferrer">
+                  View Ticket <i className="fas fa-external-link-alt fa-xs"></i>
+                </a>
+              </p>
+            )}
+          </div>
+        )}
+        
         {createdDraftOrder && (
-          <div className="alert alert-info">
-            <p className="mb-1"><strong>Quote Name:</strong> {createdDraftOrder.name}</p>
-            <p className="mb-1"><strong>Status:</strong> {createdDraftOrder.status}</p>
-            <p className="mb-1"><strong>Total:</strong> {createdDraftOrder.totalPrice.toFixed(2)} {createdDraftOrder.currencyCode}</p>
+          <div className="alert alert-info mt-3">
+            <p className="fw-bold mb-1">Quote Details:</p>
+            <p className="mb-1"><strong>Name:</strong> {createdDraftOrder.name}</p>
+            <p className="mb-1"><strong>Status:</strong> <span className={`badge bg-${createdDraftOrder.status === 'OPEN' ? 'success' : 'secondary'}`}>{createdDraftOrder.status}</span></p>
+            <p className="mb-1"><strong>Total:</strong> ${createdDraftOrder.totalPrice.toFixed(2)} {createdDraftOrder.currencyCode}</p>
             {createdDraftOrder.invoiceUrl && (
-              <p className="mb-1"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break">{createdDraftOrder.invoiceUrl}</a></p>
+              <p className="mb-1"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break alert-link">{createdDraftOrder.invoiceUrl} <i className="fas fa-external-link-alt fa-xs"></i></a></p>
             )}
             <div className="mt-3">
               <a href={`/admin/tickets/${createdTicketId}`} className="btn btn-sm btn-outline-primary me-2">
                 <i className="fas fa-ticket-alt me-1"></i> View Ticket
               </a>
               {(createdDraftOrder as any).adminUrl && (
-                <a href={(createdDraftOrder as any).adminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary">
-                  <i className="fas fa-external-link-alt me-1"></i> View in Shopify
+                <a href={(createdDraftOrder as any).adminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary me-2">
+                  <i className="fas fa-store me-1"></i> View in Shopify
                 </a>
+              )}
+              {customer.email && (
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-success" 
+                  onClick={sendInvoiceEmail}
+                  disabled={isSendingEmail}
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-envelope me-1"></i> Send Invoice Email
+                    </>
+                  )}
+                </button>
               )}
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <fieldset className="mb-4">
-            <h5 className="mb-3">Customer Information</h5>
+        <form onSubmit={handleSubmit} noValidate>
+          <fieldset className="border p-3 rounded mb-4">
+            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Customer Information</legend>
             <div className="row g-3">
               <div className="col-md-4">
                 <label htmlFor="firstName" className="form-label">First Name</label>
@@ -635,17 +816,15 @@ export const DirectQuoteCreationClient: React.FC = () => {
             </div>
           </fieldset>
 
-          <fieldset className="mb-4">
-            <h5 className="mb-3">Line Items</h5>
+          <fieldset className="border p-3 rounded mb-4">
+            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Line Items</legend>
             {lineItems.map((itemData, index) => {
               const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData();
-              
               return (
-                <div key={index} className="mb-3 p-3 border rounded">
-                  <div className="row g-3 mb-2">
-                    {/* Product Search */}
-                    <div className="col-md-5">
-                      <label htmlFor={`product-${index}`} className="form-label">Search for Product</label>
+                <div key={currentSearchState.id || index} className={`mb-3 p-3 border rounded ${index > 0 ? 'mt-3' : ''}`}>
+                  <div className="row g-3 align-items-start">
+                    <div className="col-lg-5 col-md-12">
+                      <label htmlFor={`product-${index}`} className="form-label">Product Search</label>
                       <div className="position-relative" ref={setRef(index)}>
                         <input
                           type="text"
@@ -657,87 +836,87 @@ export const DirectQuoteCreationClient: React.FC = () => {
                           onFocus={() => handleInputFocus(index)}
                           onKeyDown={(e) => handleKeyDown(index, e)}
                           autoComplete="off"
+                          aria-autocomplete="list"
+                          aria-expanded={activeSearchDropdown === index}
+                          aria-controls={`search-results-${index}`}
                         />
                         {currentSearchState.isSearching && (
-                          <div className="position-absolute top-50 end-0 translate-middle-y me-2">
+                          <div className="position-absolute top-50 end-0 translate-middle-y me-3"> {/* Adjusted me-3 for better spacing with clear button if any */}
                             <div className="spinner-border spinner-border-sm text-secondary" role="status">
                               <span className="visually-hidden">Searching...</span>
                             </div>
                           </div>
                         )}
-                        {currentSearchState.error && !currentSearchState.isSearching && (
-                          <div className="invalid-feedback d-block">{currentSearchState.error}</div>
-                        )}
-                        
-                        {/* Dropdown Results */}
                         {activeSearchDropdown === index && (
-                          <div className="position-absolute start-0 w-100 mt-1 overflow-hidden shadow-sm bg-white border border-light rounded z-index-dropdown">
-                            <div className="px-2 py-1 bg-light text-muted small">
+                          <div id={`search-results-${index}`} className="dropdown-menu d-block position-absolute start-0 w-100 mt-1 shadow-lg" style={{zIndex: 1050}}> {/* Bootstrap's dropdown-menu for styling */}
+                            <div className="px-2 py-1 bg-light text-muted small border-bottom">
                               {currentSearchState.isSearching ? (
-                                <span>Searching...</span>
+                                <span><i className="fas fa-spinner fa-spin me-1"></i>Searching...</span>
                               ) : (
                                 <span>
-                                  Found {currentSearchState.searchResults.length} results for "{currentSearchState.searchTerm}"
+                                  {currentSearchState.searchResults.length} result(s) for "{currentSearchState.searchTerm}"
                                 </span>
                               )}
                             </div>
                             
-                            {currentSearchState.error && (
-                              <div className="p-2 text-danger">{currentSearchState.error}</div>
+                            {currentSearchState.error && !currentSearchState.isSearching && (
+                              <div className="p-2 text-danger small">{currentSearchState.error}</div>
                             )}
                             
-                            {!currentSearchState.error && currentSearchState.searchResults.length === 0 && !currentSearchState.isSearching && (
-                              <div className="p-2 text-muted">No products found matching "{currentSearchState.searchTerm}"</div>
+                            {!currentSearchState.error && currentSearchState.searchResults.length === 0 && !currentSearchState.isSearching && currentSearchState.searchTerm.trim() !== "" && (
+                              <div className="p-2 text-muted small">No products found.</div>
                             )}
                             
-                            <div className="list-group list-group-flush" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                            <div className="list-group list-group-flush" style={{ maxHeight: '250px', overflowY: 'auto' }}>
                               {currentSearchState.searchResults.map((result, resultIdx) => (
-                                <div
-                                  key={`${result.variant.sku}-${resultIdx}`}
-                                  className={`list-group-item list-group-item-action py-2 px-3 ${resultIdx === focusedResultIndex ? 'active bg-primary text-white' : ''} hover-bg-light cursor-pointer`}
+                                <button
+                                  type="button"
+                                  key={result.variant.numericVariantIdShopify || `${result.variant.sku}-${resultIdx}`}
+                                  className={`list-group-item list-group-item-action py-2 px-3 text-start ${resultIdx === focusedResultIndex ? 'active' : ''}`}
                                   onClick={() => addProductToLineItems(result, index)}
+                                  onMouseEnter={() => setFocusedResultIndex(resultIdx)} // Optional: focus on hover
                                 >
                                   <div className="d-flex align-items-center">
-                                    {result.parentProduct.primaryImageUrl && (
-                                      <div className="me-2" style={{ width: '40px', height: '40px' }}>
-                                        {/* Temporary workaround for image domain config */}
-                                        <div 
-                                          className="bg-light d-flex align-items-center justify-content-center rounded" 
-                                          style={{ width: '40px', height: '40px' }}
-                                        >
-                                          <i className="fas fa-box"></i>
-                                        </div>
-                                        {/* Commented until next.config.ts changes take effect
-                                        <Image 
+                                    {result.parentProduct.primaryImageUrl ? (
+                                       <Image 
                                           src={result.parentProduct.primaryImageUrl} 
                                           alt={result.parentProduct.name} 
                                           width={40} 
                                           height={40} 
-                                          className="object-fit-contain" 
+                                          className="object-fit-contain me-2 rounded border"
+                                          // Add unoptimized if domain not in next.config.js, or configure domain
+                                          // unoptimized 
                                         />
-                                        */}
+                                    ) : (
+                                      <div 
+                                        className="bg-light d-flex align-items-center justify-content-center rounded border me-2" 
+                                        style={{ width: '40px', height: '40px', minWidth: '40px' }}
+                                      >
+                                        <i className="fas fa-image text-muted"></i>
                                       </div>
                                     )}
                                     <div>
-                                      <div className="fw-medium">{result.parentProduct.name}</div>
+                                      <div className="fw-medium small">{result.parentProduct.name}</div>
                                       <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-75' : 'text-muted'}`}>
                                         {result.variant.variantTitle} (SKU: {result.variant.sku})
                                       </div>
-                                      <div className={`small fw-bold ${resultIdx === focusedResultIndex ? 'text-white' : 'text-success'}`}>
-                                        ${result.variant.price.toFixed(2)} {result.variant.currency}
+                                      <div className={`small fw-bold ${resultIdx === focusedResultIndex ? '' : 'text-primary'}`}>
+                                        ${result.variant.price?.toFixed(2)} {result.variant.currency}
                                       </div>
                                     </div>
                                   </div>
-                                </div>
+                                </button>
                               ))}
                             </div>
                           </div>
                         )}
                       </div>
+                       {currentSearchState.error && !currentSearchState.isSearching && activeSearchDropdown !== index && (
+                          <div className="text-danger small mt-1">{currentSearchState.error}</div>
+                        )}
                     </div>
                     
-                    {/* Selected Product Display */}
-                    <div className="col-md-4">
+                    <div className="col-lg-4 col-md-6">
                       <label htmlFor={`itemTitle-${index}`} className="form-label">Selected Product</label>
                       <input 
                         type="text" 
@@ -745,17 +924,17 @@ export const DirectQuoteCreationClient: React.FC = () => {
                         id={`itemTitle-${index}`} 
                         value={itemData.productDisplay || ''} 
                         readOnly 
-                        placeholder="Select a product"
+                        placeholder="Product details appear here"
+                        tabIndex={-1}
                       />
                       {itemData.unitPrice !== undefined && itemData.currencyCode && (
                           <small className="text-muted d-block mt-1">
-                              Price: {itemData.unitPrice.toFixed(2)} {itemData.currencyCode}
+                              Unit Price: ${itemData.unitPrice.toFixed(2)} {itemData.currencyCode}
                           </small>
                       )}
                     </div>
 
-                    {/* Quantity */}
-                    <div className="col-md-2">
+                    <div className="col-lg-2 col-md-3 col-8">
                       <label htmlFor={`quantity-${index}`} className="form-label">Quantity</label>
                       <input
                         type="number"
@@ -767,11 +946,10 @@ export const DirectQuoteCreationClient: React.FC = () => {
                       />
                     </div>
 
-                    {/* Remove Button */}
-                    <div className="col-md-1 d-flex align-items-end">
+                    <div className="col-lg-1 col-md-3 col-4 d-flex align-items-end">
                       <button
                         type="button"
-                        className="btn btn-outline-danger"
+                        className="btn btn-outline-danger w-100"
                         onClick={() => removeLineItem(index)}
                         disabled={lineItems.length <= 1}
                         aria-label="Remove item"
@@ -779,35 +957,32 @@ export const DirectQuoteCreationClient: React.FC = () => {
                         <i className="fas fa-trash-alt"></i>
                       </button>
                     </div>
-
-                    {/* Debug button */}
-                    <button 
-                      type="button" 
-                      className="btn btn-sm btn-outline-secondary mt-1" 
-                      onClick={() => {
-                        console.log(`🔍 Current search state for item ${index}:`, currentSearchState);
-                        console.log(`🔍 activeSearchDropdown:`, activeSearchDropdown);
-                        if (currentSearchState.searchResults.length > 0) {
-                          console.log(`🔍 Sample result:`, currentSearchState.searchResults[0]);
-                          setActiveSearchDropdown(index);
-                        }
-                      }}
-                    >
-                      Debug Search ({currentSearchState.searchResults.length} results)
-                    </button>
                   </div>
+                  {/* Debug button - kept for consistency with original */}
+                  {/* <button 
+                    type="button" 
+                    className="btn btn-sm btn-outline-secondary mt-2" 
+                    onClick={() => {
+                      console.log(`🔍 Current search state for item ${index}:`, currentSearchState);
+                      console.log(`🔍 activeSearchDropdown:`, activeSearchDropdown);
+                      if (currentSearchState.searchResults.length > 0) setActiveSearchDropdown(index);
+                    }}
+                  >
+                    Debug Search ({currentSearchState.searchResults.length})
+                  </button> */}
                 </div>
               );
             })}
-
-            {/* Add Line Item Button */}
-            <button type="button" className="btn btn-outline-secondary" onClick={addLineItem}>
-              <i className="fas fa-plus me-2"></i>Add Another Product
+            <button type="button" className="btn btn-outline-primary" onClick={addLineItem}>
+              <i className="fas fa-plus me-2"></i>Add Product
             </button>
           </fieldset>
 
-          <fieldset className="mb-4">
-            <h5 className="mb-3">Shipping Address <small className="text-muted">(Required for shipping calculation)</small></h5>
+          <fieldset className="border p-3 rounded mb-4">
+            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">
+              Shipping Address 
+              <small className="text-muted fw-light"> (Required for quote & shipping calculation)</small>
+            </legend>
             <div className="row g-3">
               <div className="col-md-6">
                 <label htmlFor="shipCompany" className="form-label">Company</label>
@@ -822,7 +997,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                 <input type="text" className="form-control" id="shipLastName" name="lastName" value={shippingAddress.lastName || ''} onChange={handleShippingAddressChange} required />
               </div>
               
-              <div className="col-md-12">
+              <div className="col-12">
                 <label htmlFor="shipAddress1" className="form-label">Address <span className="text-danger">*</span></label>
                 <input type="text" className="form-control" id="shipAddress1" name="address1" value={shippingAddress.address1 || ''} onChange={handleShippingAddressChange} required />
               </div>
@@ -842,9 +1017,9 @@ export const DirectQuoteCreationClient: React.FC = () => {
               <div className="col-md-3">
                 <label htmlFor="shipProvince" className="form-label">State/Province <span className="text-danger">*</span></label>
                 <select className="form-select" id="shipProvince" name="province" value={shippingAddress.province || ''} onChange={handleShippingAddressChange} required>
-                  <option value="">Select {shippingAddress.country === 'Canada' ? 'Province' : 'State'}</option>
-                  {selectedProvinces.map(province => (
-                    <option key={province} value={province}>{province}</option>
+                  <option value="">Select {shippingAddress.country === 'Canada' ? 'Province' : 'State'}...</option>
+                  {selectedProvinces.map(provinceOpt => (
+                    <option key={provinceOpt} value={provinceOpt}>{provinceOpt}</option>
                   ))}
                 </select>
               </div>
@@ -853,25 +1028,33 @@ export const DirectQuoteCreationClient: React.FC = () => {
                 <input type="text" className="form-control" id="shipZip" name="zip" value={shippingAddress.zip || ''} onChange={handleShippingAddressChange} required />
               </div>
               <div className="col-md-4">
-                <label htmlFor="shipPhone" className="form-label">Phone</label>
-                <input type="tel" className="form-control" id="shipPhone" name="phone" value={shippingAddress.phone || ''} onChange={handleShippingAddressChange} />
+                <label htmlFor="shipPhone" className="form-label">Shipping Phone</label>
+                <input type="tel" className="form-control" id="shipPhone" name="phone" value={shippingAddress.phone || ''} onChange={handleShippingAddressChange} placeholder="For delivery purposes"/>
               </div>
               
-              <div className="col-md-8 d-flex align-items-end">
+              <div className="col-12 mt-3">
                 <button 
                   type="button" 
-                  className="btn btn-outline-primary" 
+                  className="btn btn-outline-info" 
                   onClick={calculateShipping}
-                  disabled={isCalculatingShipping}
+                  disabled={
+                    isCalculatingShipping || 
+                    !lineItems.some(item => item.numericVariantIdShopify && item.quantity > 0) ||
+                    !shippingAddress.address1 || 
+                    !shippingAddress.city || 
+                    !shippingAddress.zip || 
+                    !shippingAddress.province || 
+                    !shippingAddress.country
+                  }
                 >
                   {isCalculatingShipping ? (
                     <>
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Calculating...
+                      Calculating Shipping...
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-shipping-fast me-2"></i> Calculate Shipping
+                      <i className="fas fa-shipping-fast me-2"></i> Calculate Shipping Costs
                     </>
                   )}
                 </button>
@@ -879,39 +1062,64 @@ export const DirectQuoteCreationClient: React.FC = () => {
             </div>
           </fieldset>
 
-          {/* Price Summary Section */}
           {(priceSummary.subtotal !== null || priceSummary.shipping !== null || priceSummary.total !== null) && (
-            <div className="card mt-4">
-              <div className="card-header bg-light">
-                <h5 className="mb-0">Price Summary</h5>
-              </div>
-              <div className="card-body">
+            <div className="card my-4 bg-light border">
+              <div className="card-body p-3">
+                <h5 className="card-title h6 text-muted mb-2">Price Estimate</h5>
                 <div className="row">
-                  <div className="col-md-6 offset-md-6">
-                    <table className="table table-sm">
+                  <div className="col-lg-6 offset-lg-6 col-md-8 offset-md-4">
+                    <table className="table table-sm mb-0">
                       <tbody>
                         <tr>
                           <td>Subtotal:</td>
                           <td className="text-end">
-                            {priceSummary.subtotal !== null ? 
-                              `${priceSummary.subtotal.toFixed(2)} ${priceSummary.currencyCode}` : 
-                              'Calculating...'}
+                            {priceSummary.subtotal !== null && priceSummary.subtotal !== undefined ? 
+                              `$${priceSummary.subtotal.toFixed(2)} ${priceSummary.currencyCode}` : 
+                              <span className="text-muted">N/A</span>}
                           </td>
                         </tr>
                         <tr>
-                          <td>Shipping:</td>
+                          <td>
+                            Shipping:
+                            {selectedShippingRateIndex !== null && shippingRates.length > 0 && (
+                              <small className="text-muted d-block">
+                                {shippingRates[selectedShippingRateIndex].title}
+                              </small>
+                            )}
+                          </td>
                           <td className="text-end">
-                            {priceSummary.shipping !== null ? 
-                              `${priceSummary.shipping.toFixed(2)} ${priceSummary.currencyCode}` : 
-                              'Calculating...'}
+                            {priceSummary.shipping !== null ? (
+                              <>
+                                ${typeof priceSummary.shipping === 'number' ? priceSummary.shipping.toFixed(2) : '0.00'} {priceSummary.currencyCode}
+                                {shippingRates.length > 1 && (
+                                  <button
+                                    className="btn btn-sm btn-link p-0 ms-2"
+                                    onClick={() => setShowShippingRatesModal(true)}
+                                    type="button"
+                                  >
+                                    <i className="fas fa-edit"></i>
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              isCalculatingShipping ? 'Calculating...' : <span className="text-muted">Not calculated</span>
+                            )}
                           </td>
                         </tr>
-                        <tr className="fw-bold">
-                          <td>Total:</td>
+                        {priceSummary.tax !== null && (
+                          <tr>
+                            <td>Tax:</td>
+                            <td className="text-end">
+                              ${priceSummary.tax.toFixed(2)} {priceSummary.currencyCode}
+                            </td>
+                          </tr>
+                        )}
+                        <tr className="fw-bold border-top">
+                          <td>Estimated Total:</td>
                           <td className="text-end">
                             {priceSummary.total !== null ? 
-                              `${priceSummary.total.toFixed(2)} ${priceSummary.currencyCode}` : 
-                              'Calculating...'}
+                              `$${priceSummary.total.toFixed(2)} ${priceSummary.currencyCode}` : 
+                              (isCalculatingShipping ? 'Calculating...' : <span className="text-muted">N/A</span>)}
                           </td>
                         </tr>
                       </tbody>
@@ -921,8 +1129,121 @@ export const DirectQuoteCreationClient: React.FC = () => {
               </div>
             </div>
           )}
+          
+          <fieldset className="border p-3 rounded mb-4">
+            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Quote Options</legend>
+            <div className="mb-3">
+              <label htmlFor="note" className="form-label">Notes for Quote</label>
+              <textarea 
+                className="form-control" 
+                id="note" 
+                rows={3} 
+                value={note} 
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Internal notes or details for the customer..."
+              ></textarea>
+            </div>
+            <div className="form-check">
+              <input 
+                className="form-check-input" 
+                type="checkbox" 
+                id="sendShopifyInvoice"
+                checked={sendShopifyInvoice}
+                onChange={(e) => setSendShopifyInvoice(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="sendShopifyInvoice">
+                Send Shopify invoice to customer's email
+              </label>
+            </div>
+          </fieldset>
+
+          <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-4 pt-3 border-top">
+             <button 
+                type="button" 
+                className="btn btn-outline-secondary me-md-2" 
+                onClick={() => router.back()} // Or router.push('/admin/quotes') etc.
+                disabled={isLoading}
+              >
+                Cancel
+              </button>
+            <button 
+              type="submit" 
+              className="btn btn-primary btn-lg" 
+              disabled={isLoading || successMessage !== null}
+            >
+              {isLoading ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  Creating Quote...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-file-invoice-dollar me-2"></i> Create Quote
+                </>
+              )}
+            </button>
+          </div>
         </form>
       </div>
+
+      {/* Shipping Rates Modal */}
+      {showShippingRatesModal && shippingRates.length > 0 && (
+        <div className="modal fade show" 
+             style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} 
+             tabIndex={-1} 
+             role="dialog"
+             onClick={() => setShowShippingRatesModal(false)}>
+          <div className="modal-dialog modal-dialog-centered" 
+               role="document"
+               onClick={e => e.stopPropagation()}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Select Shipping Option</h5>
+                <button type="button" 
+                        className="btn-close" 
+                        onClick={() => setShowShippingRatesModal(false)}
+                        aria-label="Close"></button>
+              </div>
+              <div className="modal-body">
+                <div className="list-group">
+                  {shippingRates.map((rate, index) => (
+                    <button key={rate.handle || index} 
+                            type="button"
+                            className={`list-group-item list-group-item-action ${selectedShippingRateIndex === index ? 'active' : ''}`}
+                            onClick={() => selectShippingRate(index)}>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <div className="fw-bold">{rate.title}</div>
+                          <small className="text-muted">Shipping method</small>
+                        </div>
+                        <span className={`badge ${selectedShippingRateIndex === index ? 'bg-light text-dark' : 'bg-primary'}`}>
+                          ${rate.price ? rate.price.toFixed(2) : '0.00'} {rate.currencyCode || 'USD'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" 
+                        className="btn btn-secondary" 
+                        onClick={() => setShowShippingRatesModal(false)}>
+                  Cancel
+                </button>
+                <button type="button" 
+                        className="btn btn-primary"
+                        onClick={() => {
+                          if (selectedShippingRateIndex !== null) {
+                            selectShippingRate(selectedShippingRateIndex);
+                          }
+                        }}>
+                  Confirm Selection
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
