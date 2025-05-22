@@ -47,7 +47,7 @@ function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): 
     lineItems,
     shippingLine: gqlResponse.shippingLine ? {
       title: gqlResponse.shippingLine.title,
-      price: parseFloat(gqlResponse.shippingLine.priceSet.shopMoney.amount)
+      price: parseFloat(gqlResponse.shippingLine.price)
     } : null,
     shippingAddress: gqlResponse.shippingAddress,
     appliedDiscount: gqlResponse.appliedDiscount ? {

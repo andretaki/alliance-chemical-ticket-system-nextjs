@@ -128,9 +128,16 @@ export interface ShopifyMoney {
   currencyCode: string;
 }
 
+// This interface describes the INPUT to Shopify's DraftOrderInput.shippingLine
+export interface ShopifyShippingLineInput {
+  title: string;
+  price: string; // Price is a Decimal (string) for input
+}
+
 export interface ShopifyShippingLine {
   title: string;
-  priceSet: { shopMoney: ShopifyMoney };
+  price: string; // Scalar Money type from Shopify (e.g., "4.55")
+  shippingRateHandle?: string;
 }
 
 export interface DraftOrderOutput {
@@ -183,7 +190,19 @@ export interface DraftOrderOutput {
     value: number; // Assuming this is a numeric value after conversion
     valueType: string; // e.g., PERCENTAGE, FIXED_AMOUNT
   };
-  note?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  completedAt?: string;
+  invoiceSentAt?: string;
+  tags?: string[];
+  customAttributes?: Array<{ key: string; value: string }>;
+  email?: string;
+  taxExempt?: boolean;
+  billingAddress?: {
+    firstName?: string; lastName?: string; address1?: string; address2?: string;
+    city?: string; company?: string; phone?: string; zip?: string;
+    provinceCode?: string; countryCode?: string;
+  };
 }
 
 // Used for Shopify GraphQL response mapping
@@ -197,7 +216,7 @@ export interface ShopifyDraftOrderGQLResponse {
   totalShippingPriceSet?: { shopMoney: ShopifyMoney };
   subtotalPriceSet?: { shopMoney: ShopifyMoney };
   totalTaxSet?: { shopMoney: ShopifyMoney };
-  customer?: { id: string; email?: string; firstName?: string; lastName?: string; phone?: string; companyName?: { name?: string }; defaultAddress?: { id?: string } };
+  customer?: { id: string; email?: string; firstName?: string; lastName?: string; phone?: string; defaultAddress?: { id?: string } };
   lineItems: {
     edges: Array<{
       node: {
@@ -215,7 +234,7 @@ export interface ShopifyDraftOrderGQLResponse {
   };
   shippingLine?: {
     title: string;
-    priceSet: { shopMoney: ShopifyMoney };
+    price: string; // Scalar Money type
     shippingRateHandle?: string;
   } | null;
   shippingAddress?: {
@@ -230,5 +249,18 @@ export interface ShopifyDraftOrderGQLResponse {
     valueType: string;
     amountSet: { shopMoney: ShopifyMoney };
   };
-  note?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  completedAt?: string;
+  invoiceSentAt?: string;
+  tags?: string[];
+  customAttributes?: Array<{ key: string; value: string }>;
+  email?: string;
+  taxExempt?: boolean;
+  currencyCode?: string;
+  billingAddress?: {
+    firstName?: string; lastName?: string; address1?: string; address2?: string;
+    city?: string; company?: string; phone?: string; zip?: string;
+    provinceCode?: string; countryCode?: string;
+  };
 } 

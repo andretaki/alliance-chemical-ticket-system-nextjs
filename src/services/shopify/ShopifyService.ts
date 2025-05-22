@@ -48,11 +48,11 @@ interface GraphQLResponse {
     };
     draftOrderCreate?: {
         draftOrder: ShopifyDraftOrderGQLResponse;
-        userErrors: Array<{ field: string[]; message: string; code?: string }>;
+        userErrors: Array<{ field: string[]; message: string }>;
     };
     draftOrderInvoiceSend?: {
         draftOrder?: { id: string; invoiceUrl?: string; status: string; };
-        userErrors: Array<{ field: string[]; message: string; code?: string }>;
+        userErrors: Array<{ field: string[]; message: string }>;
     };
     draftOrderCalculate?: { // For shipping rate calculation
         calculatedDraftOrder: {
@@ -60,11 +60,11 @@ interface GraphQLResponse {
             availableShippingRates: Array<{
                 handle: string;
                 title: string;
-                price: ShopifyMoney;
+                price: string; // Scalar Money type
             }>;
             shippingLine?: { // The selected or default shipping line
                 handle?: string;
-                priceSet?: { shopMoney: ShopifyMoney };
+                price: string; // Scalar Money type
                 title?: string;
             };
             subtotalPriceSet?: { shopMoney: ShopifyMoney };
@@ -72,15 +72,15 @@ interface GraphQLResponse {
             totalShippingPriceSet?: { shopMoney: ShopifyMoney };
             totalTaxSet?: { shopMoney: ShopifyMoney };
         };
-        userErrors: Array<{ field: string[]; message: string; code?: string }>;
+        userErrors: Array<{ field: string[]; message: string }>;
     };
     calculateShippingRates?: {
       calculatedShippingRates: Array<{
         title: string;
         handle: string;
-        price: ShopifyMoney;
+        price: string; // Scalar Money type
       }>;
-      userErrors: Array<{ field: string[]; message: string; code?: string }>;
+      userErrors: Array<{ field: string[]; message: string }>;
     };
   };
   errors?: ResponseErrors | any[];
@@ -351,7 +351,7 @@ export class ShopifyService {
 
   // --- New Draft Order Methods ---
   public async createDraftOrder(appInput: AppDraftOrderInput): Promise<ShopifyDraftOrderGQLResponse | null> {
-    const { lineItems, customer, shippingAddress, note, email, tags } = appInput;
+    const { lineItems, customer, shopifyCustomerId, shippingAddress, note, email: emailForInvoice, tags } = appInput;
 
     const shopifyLineItems: ShopifyDraftOrderInput_LineItem[] = lineItems.map(item => ({
       variantId: `gid://shopify/ProductVariant/${item.numericVariantIdShopify}`,
@@ -360,9 +360,9 @@ export class ShopifyService {
       ...(item.price && { originalUnitPrice: item.price.toFixed(2) }), // For custom items or price overrides
     }));
 
-    let shopifyShippingAddress: ShopifyDraftOrderInput_Address | undefined = undefined;
+    let shopifyShippingAddressInput: ShopifyDraftOrderInput_Address | undefined = undefined;
     if (shippingAddress) {
-      shopifyShippingAddress = {
+      shopifyShippingAddressInput = {
         address1: shippingAddress.address1,
         address2: shippingAddress.address2,
         city: shippingAddress.city,
@@ -375,24 +375,16 @@ export class ShopifyService {
         zip: shippingAddress.zip,
       };
        // Validate country and province codes
-       if (shippingAddress.country && !shopifyShippingAddress.countryCode) {
+       if (shippingAddress.country && !shopifyShippingAddressInput.countryCode) {
         throw new Error(`Invalid country provided: ${shippingAddress.country}. Could not map to a valid code.`);
       }
-      if (shippingAddress.province && shippingAddress.country && !shopifyShippingAddress.provinceCode) {
+      if (shippingAddress.province && shippingAddress.country && !shopifyShippingAddressInput.provinceCode) {
         // Only error if province was provided but couldn't be mapped, and country code was valid
-        if (shopifyShippingAddress.countryCode) {
+        if (shopifyShippingAddressInput.countryCode) {
           throw new Error(`Invalid province '${shippingAddress.province}' for country '${shippingAddress.country}'. Could not map to a valid code.`);
         }
       }
     }
-
-
-    const shopifyCustomer: ShopifyDraftOrderInput_Customer | undefined = customer ? {
-      email: customer.email,
-      firstName: customer.firstName,
-      lastName: customer.lastName,
-      phone: customer.phone,
-    } : undefined;
 
     const mutation = `
       mutation draftOrderCreate($input: DraftOrderInput!) {
@@ -407,7 +399,7 @@ export class ShopifyService {
             totalShippingPriceSet { shopMoney { amount currencyCode } }
             subtotalPriceSet { shopMoney { amount currencyCode } }
             totalTaxSet { shopMoney { amount currencyCode } }
-            customer { id email firstName lastName phone companyName { name } defaultAddress { id } }
+            customer { id email firstName lastName phone defaultAddress { id } }
             lineItems(first: 50) {
               edges {
                 node {
@@ -425,7 +417,7 @@ export class ShopifyService {
             }
             shippingLine {
               title
-              priceSet { shopMoney { amount currencyCode } }
+              price
               shippingRateHandle
             }
             shippingAddress {
@@ -438,27 +430,66 @@ export class ShopifyService {
               valueType
               amountSet { shopMoney { amount currencyCode } }
             }
-            note
+            createdAt
+            updatedAt
+            completedAt
+            invoiceSentAt
+            tags
+            customAttributes { key value }
+            email
+            taxExempt
+            currencyCode
+            billingAddress {
+              firstName lastName address1 address2 city company phone zip provinceCode countryCode
+            }
           }
-          userErrors { field message code }
+          userErrors { field message }
         }
       }
     `;
 
+    // Construct the main input object for the mutation
+    const draftOrderMutationInput: any = {
+      lineItems: shopifyLineItems,
+    };
+
+    if (shopifyCustomerId) {
+      draftOrderMutationInput.customerId = `gid://shopify/Customer/${shopifyCustomerId}`;
+    }
+
+    // The 'email' field on DraftOrderInput is for the customer's email and invoice.
+    // It's also used to find an existing customer or create a new one if customerId is not provided.
+    if (emailForInvoice) { // emailForInvoice is appInput.email, which should be customer's email
+      draftOrderMutationInput.email = emailForInvoice;
+    }
+    
+    // If no customerId, and customer object has phone, add it to input.
+    // Shopify might use this to find/create customer.
+    if (!shopifyCustomerId && customer?.phone) {
+        draftOrderMutationInput.phone = customer.phone;
+    }
+
+    if (shopifyShippingAddressInput) {
+      draftOrderMutationInput.shippingAddress = shopifyShippingAddressInput;
+    }
+
+    if (note) {
+      draftOrderMutationInput.note = note;
+    }
+    if (tags && tags.length > 0) {
+      draftOrderMutationInput.tags = tags;
+    }
+
     const variables = {
-      input: {
-        lineItems: shopifyLineItems,
-        ...(shopifyCustomer && { customer: shopifyCustomer }),
-        ...(shopifyShippingAddress && { shippingAddress: shopifyShippingAddress }),
-        ...(note && { note }),
-        ...(email && { email }), // Email to send Shopify invoice to if draft order is completed
-        ...(tags && tags.length > 0 && { tags }),
-      },
+      input: draftOrderMutationInput,
     };
 
     try {
       console.log('[ShopifyService] Creating draft order with variables:', JSON.stringify(variables, null, 2));
+      console.log('[ShopifyService] GraphQL mutation:', mutation);
+      
       const response = await this.graphqlClient.request(mutation, { variables, retries: 2 });
+      console.log('[ShopifyService] Raw GraphQL response:', JSON.stringify(response, null, 2));
 
       // Check for GraphQL errors
       if (response.errors) {
@@ -470,20 +501,25 @@ export class ShopifyService {
       const userErrors = response.data?.draftOrderCreate?.userErrors;
       if (userErrors && userErrors.length > 0) {
         console.error('[ShopifyService] UserErrors creating draft order:', userErrors);
-        throw new Error(userErrors.map((e: any) => `${e.field?.join(', ') || 'General'}: ${e.message} (Code: ${e.code || 'N/A'})`).join('; '));
+        throw new Error(userErrors.map((e: any) => `${e.field?.join(', ') || 'General'}: ${e.message}`).join('; '));
       }
 
       if (!response.data?.draftOrderCreate?.draftOrder) {
-        console.error('[ShopifyService] Draft order not created, response:', response);
+        console.error('[ShopifyService] Draft order not created, full response:', JSON.stringify(response, null, 2));
         throw new Error('Draft order creation failed, no draft order returned.');
       }
 
       const draftOrder = response.data.draftOrderCreate.draftOrder;
-      console.log('[ShopifyService] Draft order created successfully:', draftOrder.id, draftOrder.name);
+      console.log('[ShopifyService] Draft order created successfully:', JSON.stringify(draftOrder, null, 2));
       return draftOrder;
 
     } catch (error: any) {
       console.error('[ShopifyService] Error creating draft order:', error);
+      console.error('[ShopifyService] Error details:', {
+        message: error.message,
+        response: error.response ? JSON.stringify(error.response, null, 2) : 'No response',
+        stack: error.stack
+      });
       if (error.response && error.response.errors) { // Check for GraphQL error structure
         const messages = error.response.errors.map((e: any) => e.message).join(', ');
         console.error('GraphQL Errors:', messages);
@@ -502,10 +538,7 @@ export class ShopifyService {
                       invoiceUrl
                       status
                   }
-                  userErrors {
-                      field
-                      message
-                  }
+                  userErrors { field message }
               }
           }
       `;
@@ -562,19 +595,15 @@ export class ShopifyService {
             }
             shippingLine { # This will be populated if a default or previously selected rate exists
               handle
-              priceSet { shopMoney { amount currencyCode } }
               title
+              price
             }
             subtotalPriceSet { shopMoney { amount currencyCode } }
             totalPriceSet { shopMoney { amount currencyCode } }
             totalShippingPriceSet { shopMoney { amount currencyCode } }
             totalTaxSet { shopMoney { amount currencyCode } }
-
           }
-          userErrors {
-            field
-            message
-          }
+          userErrors { field message }
         }
       }
     `;
@@ -685,10 +714,7 @@ export class ShopifyService {
                 }
               }
             }
-            userErrors {
-              field
-              message
-            }
+            userErrors { field message }
           }
         }
       `;
@@ -766,128 +792,79 @@ export class ShopifyService {
           name
           invoiceUrl
           status
-          totalPriceSet {
-            shopMoney {
-              amount
-              currencyCode
-            }
-          }
-          subtotalPriceSet {
-            shopMoney {
-              amount
-              currencyCode
-            }
-          }
-          totalShippingPriceSet {
-            shopMoney {
-              amount
-              currencyCode
-            }
-          }
-          totalTaxSet {
-            shopMoney {
-              amount
-              currencyCode
-            }
-          }
-          customer {
-            id
-            email
-            firstName
-            lastName
-            phone
-          }
+          totalPriceSet { shopMoney { amount currencyCode } }
+          subtotalPriceSet { shopMoney { amount currencyCode } }
+          totalShippingPriceSet { shopMoney { amount currencyCode } }
+          totalTaxSet { shopMoney { amount currencyCode } }
+          customer { id email firstName lastName phone }
           lineItems(first: 50) {
             edges {
               node {
                 id
                 title
                 quantity
-                originalUnitPriceSet {
-                  shopMoney {
-                    amount
-                    currencyCode
-                  }
-                }
-                variant {
-                  id
-                  legacyResourceId
-                  sku
-                  title
-                  image {
-                    url
-                    altText
-                  }
-                }
-                product {
-                  id
-                  legacyResourceId
-                  title
-                }
+                originalUnitPriceSet { shopMoney { amount currencyCode } }
+                variant { id legacyResourceId sku title image { url altText } }
+                product { id legacyResourceId title }
               }
             }
           }
           shippingLine {
             title
-            priceSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
-            }
+            price
+            shippingRateHandle
           }
           shippingAddress {
-            firstName
-            lastName
-            address1
-            address2
-            city
-            company
-            phone
-            zip
-            provinceCode
-            countryCode
+            firstName lastName address1 address2 city company phone zip provinceCode countryCode
           }
           appliedDiscount {
-            title
-            description
-            value
-            valueType
-            amountSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
-            }
+            title description value valueType
+            amountSet { shopMoney { amount currencyCode } }
           }
-          note
+          createdAt
+          updatedAt
+          completedAt
+          invoiceSentAt
+          tags
+          customAttributes { key value }
+          email
+          taxExempt
+          currencyCode
+          billingAddress {
+            firstName lastName address1 address2 city company phone zip provinceCode countryCode
+          }
         }
       }
     `;
 
     const variables = {
-      id: id.includes('/') ? id : `gid://shopify/DraftOrder/${id}`, // Convert numeric ID to GID if needed
+      id: id.includes('/') ? id : `gid://shopify/DraftOrder/${id}`,
     };
 
     try {
-      console.log('[ShopifyService] Fetching draft order with ID:', id);
-      const response = await this.graphqlClient.request(query, { variables, retries: 2 });
+      console.log(`[ShopifyService] Fetching draft order: ${id}`);
+      const response: any = await this.graphqlClient.request(query, { variables, retries: 1 });
 
-      // Check for GraphQL errors
       if (response.errors) {
         console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
         throw new Error('GraphQL query failed');
       }
 
       if (!response.data?.draftOrder) {
-        console.log('[ShopifyService] No draft order found with ID:', id);
-        return null;
+        console.error('[ShopifyService] Draft order not found, full response:', JSON.stringify(response, null, 2));
+        throw new Error('Draft order not found');
       }
 
-      return response.data.draftOrder;
-    } catch (error) {
-      console.error(`[ShopifyService] Error fetching draft order with ID ${id}:`, error);
+      const draftOrder = response.data.draftOrder;
+      console.log('[ShopifyService] Draft order fetched successfully:', JSON.stringify(draftOrder, null, 2));
+      return draftOrder;
+    } catch (error: any) {
+      console.error('[ShopifyService] Error fetching draft order:', error);
+      if (error.response && error.response.errors) {
+        const messages = error.response.errors.map((e: any) => e.message).join(', ');
+        throw new Error(`Shopify API Error (Fetch Draft Order): ${messages}`);
+      }
       throw error;
     }
   }
-} 
+}

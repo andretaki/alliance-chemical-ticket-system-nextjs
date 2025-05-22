@@ -47,7 +47,7 @@ function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): 
     })),
     shippingLine: gqlResponse.shippingLine ? {
       title: gqlResponse.shippingLine.title,
-      price: parseFloat(gqlResponse.shippingLine.priceSet.shopMoney.amount),
+      price: parseFloat(gqlResponse.shippingLine.price),
     } : null,
     shippingAddress: gqlResponse.shippingAddress ? {
         ...gqlResponse.shippingAddress,
@@ -58,7 +58,15 @@ function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): 
         value: typeof gqlResponse.appliedDiscount.value === 'string' ? parseFloat(gqlResponse.appliedDiscount.value) : gqlResponse.appliedDiscount.value,
         valueType: gqlResponse.appliedDiscount.valueType,
     } : undefined,
-    note: gqlResponse.note,
+    createdAt: gqlResponse.createdAt,
+    updatedAt: gqlResponse.updatedAt,
+    completedAt: gqlResponse.completedAt,
+    invoiceSentAt: gqlResponse.invoiceSentAt,
+    tags: gqlResponse.tags,
+    customAttributes: gqlResponse.customAttributes,
+    email: gqlResponse.email,
+    taxExempt: gqlResponse.taxExempt,
+    billingAddress: gqlResponse.billingAddress,
   };
 }
 
@@ -71,6 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json() as AppDraftOrderInput;
+    console.log('[API /api/draft-orders POST] Received request body:', JSON.stringify(body, null, 2));
 
     if (!body.lineItems || body.lineItems.length === 0) {
       return NextResponse.json({ error: 'Line items are required' }, { status: 400 });
@@ -84,27 +93,29 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Shipping address is required to calculate shipping rates.' }, { status: 400 });
     }
 
+    // Ensure 'TicketSystemQuote' is present without duplicating if already there
+    const currentTags = new Set(body.tags || []);
+    currentTags.add('TicketSystemQuote');
+    body.tags = Array.from(currentTags);
 
-    // Add a default tag
-    body.tags = [...(body.tags || []), 'TicketSystemQuote'];
     if (!body.email && body.customer?.email) {
         body.email = body.customer.email; // Ensure draft order email is set for invoice
     }
 
+    console.log('[API /api/draft-orders POST] Prepared draft order input:', JSON.stringify(body, null, 2));
 
     const shopifyService = new ShopifyService();
     
     // Step 1: Create the draft order (without shipping initially to get an ID)
-    // We'll create it with a placeholder shipping line if needed, or Shopify might add a default.
-    // Alternatively, create it with line items and customer, then update with shipping address and calculate.
-    // For simplicity now, we'll create it and then attempt to calculate shipping if address is provided.
-    
+    console.log('[API /api/draft-orders POST] Creating draft order...');
     let shopifyDraftOrder = await shopifyService.createDraftOrder(body);
 
     if (!shopifyDraftOrder) {
+      console.error('[API /api/draft-orders POST] Failed to create draft order in Shopify (initial creation)');
       return NextResponse.json({ error: 'Failed to create draft order in Shopify (initial creation)' }, { status: 500 });
     }
     
+    console.log('[API /api/draft-orders POST] Draft order created successfully:', JSON.stringify(shopifyDraftOrder, null, 2));
     let outputData = mapShopifyResponseToOutput(shopifyDraftOrder);
 
     // Step 2: If shipping address is provided, calculate shipping rates
@@ -117,24 +128,15 @@ export async function POST(request: NextRequest) {
             const calculatedOrder = await shopifyService.calculateDraftOrderShipping(outputData.id, body.shippingAddress);
             if (calculatedOrder?.availableShippingRates?.length > 0) {
                 const firstRate = calculatedOrder.availableShippingRates[0];
-                // Update the outputData with the first available shipping rate.
-                // In a real app, you might need to then call draftOrderUpdate to set this.
-                // For now, we're just showing what rate was found.
                 outputData.shippingLine = {
                     title: firstRate.title,
-                    price: parseFloat(firstRate.price.amount)
+                    price: parseFloat(firstRate.price)
                 };
-                // Recalculate total if shipping was added (Shopify does this, but we can reflect it)
-                if (outputData.totalPrice && firstRate.price.amount) {
-                   // This is a simplification. Shopify's totalPriceSet from draftOrderCalculate would be more accurate.
-                   // outputData.totalPrice = parseFloat(calculatedOrder.totalPriceSet.shopMoney.amount);
-                }
-                 console.log(`[API /api/draft-orders POST] Calculated shipping: ${firstRate.title} - ${firstRate.price.amount}`);
-            } else if (calculatedOrder?.shippingLine?.title && calculatedOrder?.shippingLine?.priceSet?.shopMoney?.amount) {
-                 // If a default shipping line was already applied during creation or calculation
+                 console.log(`[API /api/draft-orders POST] Calculated shipping: ${firstRate.title} - ${firstRate.price}`);
+            } else if (calculatedOrder?.shippingLine?.title && calculatedOrder?.shippingLine?.price) { 
                  outputData.shippingLine = {
                     title: calculatedOrder.shippingLine.title,
-                    price: parseFloat(calculatedOrder.shippingLine.priceSet.shopMoney.amount)
+                    price: parseFloat(calculatedOrder.shippingLine.price)
                  };
                  console.log(`[API /api/draft-orders POST] Default/Applied shipping: ${outputData.shippingLine.title} - ${outputData.shippingLine.price}`);
             }
@@ -152,7 +154,7 @@ export async function POST(request: NextRequest) {
             console.warn(`[API /api/draft-orders POST] Could not calculate shipping for draft order ${outputData.id}: ${shippingError.message}`);
             // Proceed without shipping calculation if it fails, but log it.
             // The draft order is still created.
-            outputData.note = (outputData.note ? outputData.note + "\n" : "") + `Warning: Shipping calculation failed: ${shippingError.message}. Please set manually in Shopify.`;
+            console.warn(`Warning: Shipping calculation failed: ${shippingError.message}. Please set manually in Shopify.`);
         }
     }
 
@@ -167,7 +169,7 @@ export async function POST(request: NextRequest) {
             if (invoiceResult.status) outputData.status = invoiceResult.status;
         } else {
             console.warn(`Failed to send invoice for draft order ${outputData.id}: ${invoiceResult.error}`);
-            outputData.note = (outputData.note ? outputData.note + "\n" : "") + `Automated invoice sending failed: ${invoiceResult.error}. Please send manually from Shopify.`;
+            console.warn(`Automated invoice sending failed: ${invoiceResult.error}. Please send manually from Shopify.`);
         }
     }
 

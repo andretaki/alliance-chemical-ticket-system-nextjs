@@ -13,6 +13,7 @@ interface ShippingRateResponse {
   }>;
   subtotalPriceSet: { shopMoney: ShopifyMoney } | null;
   totalPriceSet: { shopMoney: ShopifyMoney } | null;
+  totalShippingPriceSet?: { shopMoney: ShopifyMoney } | null;
   totalTaxSet?: { shopMoney: ShopifyMoney } | null;
 }
 
