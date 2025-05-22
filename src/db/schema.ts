@@ -1,5 +1,5 @@
 // src/db/schema.ts
-import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, vector, type PgTable } from 'drizzle-orm/pg-core';
+import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, vector, type PgTable, index } from 'drizzle-orm/pg-core';
 import { relations, type One, type Many } from 'drizzle-orm';
 import crypto from 'crypto'; // For UUID generation
 import { pgTable, bigint, jsonb, decimal } from 'drizzle-orm/pg-core';
@@ -45,6 +45,10 @@ export const users = ticketingProdSchema.table('users', {
   ticketingRole: ticketingRoleEnum('ticketing_role'),
   updatedAt: timestamp('updated_at', { mode: 'date' }).defaultNow().notNull(),
   isExternal: boolean('is_external').default(false).notNull(),
+}, (table) => {
+  return {
+    roleIndex: index('idx_users_role').on(table.role),
+  };
 });
 
 export const accounts = ticketingProdSchema.table(
@@ -91,7 +95,7 @@ export const verificationTokens = ticketingProdSchema.table(
 // --- Your Application Tables (within ticketing_prod schema) ---
 
 export const tickets = ticketingProdSchema.table('tickets', {
-  id: serial('id').primaryKey(), // Tickets can keep serial ID
+  id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description'),
   status: ticketStatusEnum('status').default('new').notNull(),
@@ -99,32 +103,42 @@ export const tickets = ticketingProdSchema.table('tickets', {
   type: ticketTypeEcommerceEnum('type'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-  assigneeId: text('assignee_id').references(() => users.id, { onDelete: 'set null' }),      // References TEXT user ID
-  reporterId: text('reporter_id').notNull().references(() => users.id, { onDelete: 'set null' }), // References TEXT user ID
+  assigneeId: text('assignee_id').references(() => users.id, { onDelete: 'set null' }),
+  reporterId: text('reporter_id').notNull().references(() => users.id, { onDelete: 'set null' }),
   orderNumber: varchar('order_number', { length: 255 }),
   trackingNumber: varchar('tracking_number', { length: 255 }),
   senderEmail: varchar('sender_email', { length: 255 }),
   senderName: varchar('sender_name', { length: 255 }),
-  senderPhone: varchar('sender_phone', { length: 20 }), // Added phone field
-  sendercompany: varchar('sender_company', { length: 255 }), // Added company field
+  senderPhone: varchar('sender_phone', { length: 20 }),
   externalMessageId: varchar('external_message_id', { length: 255 }).unique(),
-  conversationId: text('conversation_id'), // <-- Added conversationId column (nullable)
-  sentiment: ticketSentimentEnum('sentiment'), // Nullable sentiment
-  ai_summary: text('ai_summary'), // Nullable AI-generated summary
-  ai_suggested_assignee_id: text('ai_suggested_assignee_id').references(() => users.id, { onDelete: 'set null' }), // Nullable suggested assignee ID
+  conversationId: text('conversation_id'),
+  sentiment: ticketSentimentEnum('sentiment'),
+  ai_summary: text('ai_summary'),
+  ai_suggested_assignee_id: text('ai_suggested_assignee_id').references(() => users.id, { onDelete: 'set null' }),
+  sendercompany: varchar('sender_company', { length: 255 }),
+  sender_company: varchar('sender_company', { length: 255 }),
 }, (table) => {
   return {
     externalMessageIdKey: unique('tickets_mailgun_message_id_key').on(table.externalMessageId),
-    // Optional: Index on conversationId if you added it via SQL
-    conversationIdIndex: unique('idx_tickets_conversation_id').on(table.conversationId),
+    conversationIdIndex: index('idx_tickets_conversation_id').on(table.conversationId),
+    statusIndex: index('idx_tickets_status').on(table.status),
+    priorityIndex: index('idx_tickets_priority').on(table.priority),
+    typeIndex: index('idx_tickets_type').on(table.type),
+    assigneeIdIndex: index('idx_tickets_assignee_id').on(table.assigneeId),
+    reporterIdIndex: index('idx_tickets_reporter_id').on(table.reporterId),
+    createdAtIndex: index('idx_tickets_created_at').on(table.createdAt),
+    updatedAtIndex: index('idx_tickets_updated_at').on(table.updatedAt),
+    statusPriorityIndex: index('idx_tickets_status_priority').on(table.status, table.priority),
+    assigneeStatusIndex: index('idx_tickets_assignee_status').on(table.assigneeId, table.status),
+    reporterStatusIndex: index('idx_tickets_reporter_status').on(table.reporterId, table.status),
   };
 });
 
 export const ticketComments = ticketingProdSchema.table('ticket_comments', {
-  id: serial('id').primaryKey(), // Comments can keep serial ID
+  id: serial('id').primaryKey(),
   ticketId: integer('ticket_id').notNull().references(() => tickets.id, { onDelete: 'cascade' }),
   commentText: text('comment_text').notNull(),
-  commenterId: text('commenter_id').references(() => users.id, { onDelete: 'set null' }), // References TEXT user ID
+  commenterId: text('commenter_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   isFromCustomer: boolean('is_from_customer').default(false).notNull(),
   isInternalNote: boolean('is_internal_note').default(false).notNull(),
@@ -133,6 +147,9 @@ export const ticketComments = ticketingProdSchema.table('ticket_comments', {
 }, (table) => {
   return {
     externalMessageIdKey: unique('ticket_comments_mailgun_message_id_key').on(table.externalMessageId),
+    ticketIdIndex: index('idx_ticket_comments_ticket_id').on(table.ticketId),
+    createdAtIndex: index('idx_ticket_comments_created_at').on(table.createdAt),
+    commenterIdIndex: index('idx_ticket_comments_commenter_id').on(table.commenterId),
   };
 });
 
@@ -155,17 +172,31 @@ export const ticketAttachments = ticketingProdSchema.table('ticket_attachments',
   id: serial('id').primaryKey(),
   filename: varchar('filename', { length: 255 }).notNull(),
   originalFilename: varchar('original_filename', { length: 255 }).notNull(),
-  fileSize: integer('file_size').notNull(), // Size in bytes
+  fileSize: integer('file_size').notNull(),
   mimeType: varchar('mime_type', { length: 100 }).notNull(),
-  storagePath: varchar('storage_path', { length: 500 }).notNull(), // Path to where the file is stored
+  storagePath: varchar('storage_path', { length: 500 }).notNull(),
   uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
   ticketId: integer('ticket_id').references(() => tickets.id, { onDelete: 'cascade' }),
   commentId: integer('comment_id').references(() => ticketComments.id, { onDelete: 'cascade' }),
-  uploaderId: text('uploader_id').references(() => users.id, { onDelete: 'set null' }), // References TEXT user ID
+  uploaderId: text('uploader_id').references(() => users.id, { onDelete: 'set null' }),
+}, (table) => {
+  return {
+    ticketIdIndex: index('idx_ticket_attachments_ticket_id').on(table.ticketId),
+    commentIdIndex: index('idx_ticket_attachments_comment_id').on(table.commentId),
+    uploaderIdIndex: index('idx_attachment_uploader_id').on(table.uploaderId),
+  };
+});
+
+export const userSignatures = ticketingProdSchema.table('user_signatures', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  signature: text('signature').notNull(),
+  isDefault: boolean('is_default').default(false).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 // --- Relations ---
-// (Relations should remain largely the same, just ensure they reference the correct types)
 export const accountsRelations = relations(accounts, ({ one }) => ({
   user: one(users, { fields: [accounts.userId], references: [users.id] }),
 }));
@@ -176,13 +207,14 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
 
 export const usersRelations = relations(users, ({ many }) => ({
   assignedTickets: many(tickets, { relationName: 'TicketAssignee' }),
-  suggestedTickets: many(tickets, { relationName: 'TicketAiSuggestedAssignee' }), // New relation for AI suggestion
+  suggestedTickets: many(tickets, { relationName: 'TicketAiSuggestedAssignee' }),
   reportedTickets: many(tickets, { relationName: 'TicketReporter' }),
   comments: many(ticketComments, { relationName: 'UserComments' }),
   uploadedAttachments: many(ticketAttachments, { relationName: 'AttachmentUploader' }),
   accounts: many(accounts),
   sessions: many(sessions),
   reviewedQuarantinedEmails: many(quarantinedEmails),
+  signatures: many(userSignatures),
 }));
 
 export const ticketsRelations = relations(tickets, ({ one, many }) => ({
@@ -350,6 +382,11 @@ export const ragDocuments = ragSystemSchema.table('documents', {
     documentVersion: integer('document_version').default(1).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+    return {
+        sourceTypeIndex: index('idx_rag_documents_source_type').on(table.sourceType),
+        sourceIdentifierIndex: index('idx_rag_documents_source_identifier').on(table.sourceIdentifier),
+    };
 });
 
 // Create the chunks table with self-reference
@@ -371,6 +408,11 @@ export const ragChunks = (() => {
         chunkVersion: integer('chunk_version').default(1).notNull(),
         createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
         contentEmbedding: vector('content_embedding', { dimensions: 1536 }).notNull(),
+    }, (table) => {
+        return {
+            documentIdIndex: index('idx_rag_chunks_document_id').on(table.documentId),
+            // Note: Vector index will be created separately via SQL as it requires special options
+        };
     });
     return table;
 })();
@@ -399,4 +441,12 @@ export const ragChunksRelations = relations(ragChunks, ({ one }) => ({
         fields: [ragChunks.parentChunkId],
         references: [ragChunks.id]
     })
+}));
+
+// Add relations for userSignatures
+export const userSignaturesRelations = relations(userSignatures, ({ one }) => ({
+  user: one(users, {
+    fields: [userSignatures.userId],
+    references: [users.id],
+  }),
 }));

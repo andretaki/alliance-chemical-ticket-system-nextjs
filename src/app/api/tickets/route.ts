@@ -4,6 +4,7 @@ import { tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEn
 import { eq, desc, asc, and, or, ilike, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { getServerSession } from "next-auth/next";
+import { authOptions } from '@/lib/authOptions';
 
 // --- Zod Schema for Validation ---
 const createTicketSchema = z.object({
@@ -172,7 +173,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     // --- Authentication Check ---
-    const session = await getServerSession();
+    const session = await getServerSession(authOptions);
     if (!session || !session.user || !session.user.id) {
       return NextResponse.json({ error: 'Unauthorized. Please sign in to create a ticket.' }, { status: 401 });
     }

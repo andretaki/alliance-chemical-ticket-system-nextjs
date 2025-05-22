@@ -6,8 +6,10 @@ import axios from 'axios';
 import { ClientSecretCredential } from '@azure/identity';
 import { Client } from '@microsoft/microsoft-graph-client';
 import 'isomorphic-fetch';
-import { db } from '@/lib/db';
+import { db } from '@/db';
 import { ticketComments } from '@/db/schema';
+import { headers } from 'next/headers';
+import * as graphService from '@/lib/graphService';
 
 // Microsoft Graph Authentication
 const getGraphClient = () => {
@@ -31,17 +33,29 @@ const getGraphClient = () => {
   return graphClient;
 };
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { draftOrderId, customerEmail, ticketId } = body;
+    const { draftOrderId, recipientEmail } = body;
 
-    if (!draftOrderId || !customerEmail) {
-      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    if (!draftOrderId || !recipientEmail) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Extract the numeric ID from the Shopify GID
+    const numericId = draftOrderId.split('/').pop();
+    if (!numericId) {
+      return NextResponse.json({ error: 'Invalid draft order ID format' }, { status: 400 });
+    }
+
+    // Get the host from the request headers
+    const headersList = await headers();
+    const host = headersList.get('host');
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
     // 1. Get draft order details from Shopify (using existing API)
-    const draftOrderResponse = await axios.get(`/api/draft-orders/${draftOrderId}`);
+    const draftOrderResponse = await axios.get(`${baseUrl}/api/draft-orders/${numericId}`);
     const draftOrder = draftOrderResponse.data;
 
     if (!draftOrder) {
@@ -49,17 +63,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Generate PDF invoice
-    const pdfBuffer = await generatePDF(draftOrder, ticketId);
+    const pdfBuffer = await generatePDF(draftOrder);
 
     // 3. Send email with PDF attachment using Microsoft Graph
-    await sendEmailWithGraph(customerEmail, draftOrder, pdfBuffer);
+    await sendEmailWithGraph(recipientEmail, draftOrder, pdfBuffer);
 
     // 4. Update ticket with email sent status if ticketId is provided
-    if (ticketId) {
+    if (draftOrder.ticketId) {
       // Add a comment to the ticket instead of a note
       await db.insert(ticketComments).values({
-        ticketId: ticketId,
-        commentText: `Invoice email sent to ${customerEmail} for quote ${draftOrder.name}`,
+        ticketId: draftOrder.ticketId,
+        commentText: `Invoice email sent to ${recipientEmail} for quote ${draftOrder.name}`,
         isInternalNote: true,
         commenterId: '1', // System user ID or default admin
         isFromCustomer: false,
@@ -67,22 +81,23 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, message: 'Invoice email sent successfully' });
-  } catch (error: any) {
+    return NextResponse.json({ message: 'Invoice email sent successfully' });
+  } catch (error) {
     console.error('Error sending invoice email:', error);
-    return NextResponse.json({ error: error.message || 'Failed to send invoice email' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to send invoice email' },
+      { status: 500 }
+    );
   }
 }
 
-async function generatePDF(draftOrder: any, ticketId: number | null) {
+async function generatePDF(draftOrder: any) {
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
-  let page = pdfDoc.addPage([595.28, 841.89]); // A4 size - changed from const to let to fix linter error
-  
-  // Load fonts
+  let pdfPage = pdfDoc.addPage([595.28, 841.89]); // A4 size
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  
+
   // Add company logo
   try {
     const logoPath = path.join(process.cwd(), 'public', 'WIDE - Color on Transparent _RGB-01.png');
@@ -97,9 +112,9 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
     const height = logoImageEmbed.height * scale;
     
     // Draw logo at top of page
-    page.drawImage(logoImageEmbed, {
+    pdfPage.drawImage(logoImageEmbed, {
       x: 50,
-      y: page.getHeight() - 100,
+      y: pdfPage.getHeight() - 100,
       width,
       height,
     });
@@ -111,67 +126,58 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
   // Add header text
   const titleText = 'INVOICE / QUOTE';
   const titleWidth = boldFont.widthOfTextAtSize(titleText, 24);
-  page.drawText(titleText, {
-    x: page.getWidth() - titleWidth - 50,
-    y: page.getHeight() - 80,
+  pdfPage.drawText(titleText, {
+    x: pdfPage.getWidth() - titleWidth - 50,
+    y: pdfPage.getHeight() - 80,
     size: 24,
     font: boldFont,
     color: rgb(0.1, 0.1, 0.4),
   });
 
   // Add quote information
-  page.drawText(`Quote #: ${draftOrder.name}`, {
+  pdfPage.drawText(`Quote #: ${draftOrder.name}`, {
     x: 50,
-    y: page.getHeight() - 150,
+    y: pdfPage.getHeight() - 150,
     size: 12,
     font: boldFont,
   });
 
-  page.drawText(`Date: ${new Date().toLocaleDateString()}`, {
+  pdfPage.drawText(`Date: ${new Date().toLocaleDateString()}`, {
     x: 50,
-    y: page.getHeight() - 170,
+    y: pdfPage.getHeight() - 170,
     size: 12,
     font: font,
   });
 
-  if (ticketId) {
-    page.drawText(`Reference: Ticket #${ticketId}`, {
-      x: 50,
-      y: page.getHeight() - 190,
-      size: 12,
-      font: font,
-    });
-  }
-
   // Add customer information
   if (draftOrder.customer) {
     const customer = draftOrder.customer;
-    page.drawText('Bill To:', {
-      x: 50, 
-      y: page.getHeight() - 230,
+    pdfPage.drawText('Bill To:', {
+      x: 50,
+      y: pdfPage.getHeight() - 230,
       size: 12,
       font: boldFont,
     });
     
-    page.drawText(`${customer.firstName || ''} ${customer.lastName || ''}`.trim(), {
+    pdfPage.drawText(`${customer.firstName || ''} ${customer.lastName || ''}`.trim(), {
       x: 50,
-      y: page.getHeight() - 250,
+      y: pdfPage.getHeight() - 250,
       size: 11,
       font: font,
     });
     
     if (customer.company) {
-      page.drawText(customer.company, {
+      pdfPage.drawText(customer.company, {
         x: 50,
-        y: page.getHeight() - 265,
+        y: pdfPage.getHeight() - 265,
         size: 11,
         font: font,
       });
     }
     
-    page.drawText(customer.email || '', {
+    pdfPage.drawText(customer.email || '', {
       x: 50,
-      y: page.getHeight() - 280,
+      y: pdfPage.getHeight() - 280,
       size: 11,
       font: font,
     });
@@ -180,85 +186,85 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
   // Shipping information
   if (draftOrder.shippingAddress) {
     const address = draftOrder.shippingAddress;
-    page.drawText('Ship To:', {
+    pdfPage.drawText('Ship To:', {
       x: 300, 
-      y: page.getHeight() - 230,
+      y: pdfPage.getHeight() - 230,
       size: 12,
       font: boldFont,
     });
     
-    page.drawText(`${address.firstName || ''} ${address.lastName || ''}`.trim(), {
+    pdfPage.drawText(`${address.firstName || ''} ${address.lastName || ''}`.trim(), {
       x: 300,
-      y: page.getHeight() - 250,
+      y: pdfPage.getHeight() - 250,
       size: 11,
       font: font,
     });
     
     if (address.company) {
-      page.drawText(address.company, {
+      pdfPage.drawText(address.company, {
         x: 300,
-        y: page.getHeight() - 265,
+        y: pdfPage.getHeight() - 265,
         size: 11,
         font: font,
       });
     }
     
-    page.drawText(address.address1 || '', {
+    pdfPage.drawText(address.address1 || '', {
       x: 300,
-      y: page.getHeight() - 280,
+      y: pdfPage.getHeight() - 280,
       size: 11,
       font: font,
     });
     
-    page.drawText(`${address.city || ''}, ${address.province || ''} ${address.zip || ''}`, {
+    pdfPage.drawText(`${address.city || ''}, ${address.province || ''} ${address.zip || ''}`, {
       x: 300,
-      y: page.getHeight() - 295,
+      y: pdfPage.getHeight() - 295,
       size: 11,
       font: font,
     });
     
-    page.drawText(address.country || '', {
+    pdfPage.drawText(address.country || '', {
       x: 300,
-      y: page.getHeight() - 310,
+      y: pdfPage.getHeight() - 310,
       size: 11,
       font: font,
     });
   }
 
   // Draw table header
-  const tableY = page.getHeight() - 360;
-  page.drawRectangle({
+  const tableY = pdfPage.getHeight() - 360;
+  pdfPage.drawRectangle({
     x: 50,
     y: tableY - 20,
-    width: page.getWidth() - 100,
+    width: pdfPage.getWidth() - 100,
     height: 20,
     color: rgb(0.9, 0.9, 0.9),
     borderColor: rgb(0.5, 0.5, 0.5),
     borderWidth: 1,
   });
   
-  page.drawText('Description', {
+  pdfPage.drawText('Description', {
     x: 60,
     y: tableY - 15,
     size: 11,
     font: boldFont,
   });
   
-  page.drawText('Quantity', {
+  pdfPage.drawText('Quantity', {
     x: 300,
     y: tableY - 15,
     size: 11,
     font: boldFont,
   });
   
-  page.drawText('Unit Price', {
+  pdfPage.drawText('Unit Price', {
     x: 380,
     y: tableY - 15,
     size: 11,
     font: boldFont,
   });
   
-  page.drawText('Total', {
+  pdfPage.drawText('Total', {
     x: 480,
     y: tableY - 15,
     size: 11,
@@ -272,7 +278,7 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
     for (let i = 0; i < draftOrder.lineItems.length; i++) {
       const item = draftOrder.lineItems[i];
       
-      page.drawText(item.title || 'Product', {
+      pdfPage.drawText(item.title || 'Product', {
         x: 60,
         y: currentY,
         size: 10,
@@ -280,14 +286,14 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
         maxWidth: 220,
       });
       
-      page.drawText(item.quantity.toString(), {
+      pdfPage.drawText(item.quantity.toString(), {
         x: 300,
         y: currentY,
         size: 10,
         font: font,
       });
       
-      page.drawText(`$${item.price ? parseFloat(item.price).toFixed(2) : '0.00'}`, {
+      pdfPage.drawText(`$${item.price ? parseFloat(item.price).toFixed(2) : '0.00'}`, {
         x: 380,
         y: currentY,
         size: 10,
@@ -295,7 +301,7 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
       });
       
       const lineTotal = (item.quantity || 0) * (parseFloat(item.price) || 0);
-      page.drawText(`$${lineTotal.toFixed(2)}`, {
+      pdfPage.drawText(`$${lineTotal.toFixed(2)}`, {
         x: 480,
         y: currentY,
         size: 10,
@@ -306,22 +312,22 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
       
       // Add a new page if we're running out of space
       if (currentY < 100) {
-        page = pdfDoc.addPage([595.28, 841.89]);
-        currentY = page.getHeight() - 50;
+        pdfPage = pdfDoc.addPage([595.28, 841.89]);
+        currentY = pdfPage.getHeight() - 50;
       }
     }
   }
 
   // Draw totals
   const totalsY = Math.max(currentY - 50, 100);
-  page.drawLine({
+  pdfPage.drawLine({
     start: { x: 380, y: totalsY + 20 },
     end: { x: 545, y: totalsY + 20 },
     thickness: 1,
     color: rgb(0.5, 0.5, 0.5),
   });
   
-  page.drawText('Subtotal:', {
+  pdfPage.drawText('Subtotal:', {
     x: 380,
     y: totalsY,
     size: 11,
@@ -329,14 +335,14 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
   });
   
   const subtotalAmount = draftOrder.subtotalPrice ? parseFloat(draftOrder.subtotalPrice) : 0;
-  page.drawText(`$${subtotalAmount.toFixed(2)}`, {
+  pdfPage.drawText(`$${subtotalAmount.toFixed(2)}`, {
     x: 480,
     y: totalsY,
     size: 11,
     font: font,
   });
   
-  page.drawText('Shipping:', {
+  pdfPage.drawText('Shipping:', {
     x: 380,
     y: totalsY - 20,
     size: 11,
@@ -344,14 +350,14 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
   });
   
   const shippingAmount = draftOrder.totalShippingPrice ? parseFloat(draftOrder.totalShippingPrice) : 0;
-  page.drawText(`$${shippingAmount.toFixed(2)}`, {
+  pdfPage.drawText(`$${shippingAmount.toFixed(2)}`, {
     x: 480,
     y: totalsY - 20,
     size: 11,
     font: font,
   });
   
-  page.drawText('Tax:', {
+  pdfPage.drawText('Tax:', {
     x: 380,
     y: totalsY - 40,
     size: 11,
@@ -359,21 +365,21 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
   });
   
   const taxAmount = draftOrder.totalTax ? parseFloat(draftOrder.totalTax) : 0;
-  page.drawText(`$${taxAmount.toFixed(2)}`, {
+  pdfPage.drawText(`$${taxAmount.toFixed(2)}`, {
     x: 480,
     y: totalsY - 40,
     size: 11,
     font: font,
   });
   
-  page.drawLine({
+  pdfPage.drawLine({
     start: { x: 380, y: totalsY - 50 },
     end: { x: 545, y: totalsY - 50 },
     thickness: 1,
     color: rgb(0.5, 0.5, 0.5),
   });
   
-  page.drawText('Total:', {
+  pdfPage.drawText('Total:', {
     x: 380,
     y: totalsY - 70,
     size: 12,
@@ -381,7 +387,7 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
   });
   
   const totalAmount = draftOrder.totalPrice ? parseFloat(draftOrder.totalPrice) : 0;
-  page.drawText(`$${totalAmount.toFixed(2)} ${draftOrder.currencyCode || 'USD'}`, {
+  pdfPage.drawText(`$${totalAmount.toFixed(2)} ${draftOrder.currencyCode || 'USD'}`, {
     x: 480,
     y: totalsY - 70,
     size: 12,
@@ -389,7 +395,7 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
   });
 
   // Add footer
-  page.drawText('Thank you for your business!', {
+  pdfPage.drawText('Thank you for your business!', {
     x: 50,
     y: 50,
     size: 12,
@@ -397,7 +403,7 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
     color: rgb(0.1, 0.1, 0.4),
   });
   
-  page.drawText('This is a quote - Not an invoice. Please contact us to finalize your order.', {
+  pdfPage.drawText('This is a quote - Not an invoice. Please contact us to finalize your order.', {
     x: 50,
     y: 30,
     size: 10,
@@ -410,109 +416,26 @@ async function generatePDF(draftOrder: any, ticketId: number | null) {
 }
 
 async function sendEmailWithGraph(to: string, draftOrder: any, pdfBuffer: Buffer) {
-  try {
-    const graphClient = getGraphClient();
-    const logoPath = path.join(process.cwd(), 'public', 'WIDE - Color on Transparent _RGB-01.png');
-    const logoData = fs.readFileSync(logoPath);
-    const logoBase64 = logoData.toString('base64');
-    
-    // Prepare the email message
-    const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background-color: #f0f0f0; padding: 20px; text-align: center;">
-          <img src="cid:company-logo" alt="Alliance Chemical" style="max-width: 200px;">
-        </div>
-        
-        <div style="padding: 20px; border: 1px solid #e0e0e0; border-top: none;">
-          <h2 style="color: #333;">Your Quote #${draftOrder.name}</h2>
-          
-          <p>Thank you for your interest in Alliance Chemical products!</p>
-          
-          <p>Please find attached your quote details as a PDF.</p>
-          
-          <p>To complete your order or if you have any questions, please:</p>
-          <ul>
-            <li>Reply to this email</li>
-            <li>Call us at ${process.env.COMPANY_PHONE || '(555) 123-4567'}</li>
-            <li>Visit our website at ${process.env.COMPANY_WEBSITE || 'https://example.com'}</li>
-          </ul>
-          
-          <p>If you've already received a Shopify invoice link, you can also complete your purchase there.</p>
-          
-          <p style="margin-top: 30px;">Thank you for choosing Alliance Chemical.</p>
-        </div>
-        
-        <div style="background-color: #333; color: white; padding: 15px; text-align: center; font-size: 0.8em;">
-          &copy; ${new Date().getFullYear()} Alliance Chemical. All rights reserved.
-        </div>
-      </div>
-    `;
-    
-    const textContent = `
-      Thank you for your interest in Alliance Chemical products!
+  const subject = `Invoice for Quote ${draftOrder.name}`;
+  const messageContent = `
+    <p>Dear ${draftOrder.customer?.firstName || 'Customer'},</p>
+    <p>Please find attached the invoice for quote ${draftOrder.name}.</p>
+    <p>Thank you for your business.</p>
+    <p>Best regards,<br/>Alliance Chemical</p>
+  `;
 
-      Please find attached your quote #${draftOrder.name}.
-      
-      To complete your order or if you have any questions, please:
-      - Reply to this email
-      - Call us at ${process.env.COMPANY_PHONE || '(555) 123-4567'}
-      - Visit our website at ${process.env.COMPANY_WEBSITE || 'https://example.com'}
+  const attachment = {
+    name: `Invoice-${draftOrder.name}.pdf`,
+    contentType: 'application/pdf',
+    contentBytes: pdfBuffer.toString('base64')
+  };
 
-      If you've already received a Shopify invoice link, you can also complete your purchase there.
-
-      Thank you for choosing Alliance Chemical.
-    `;
-
-    // Create message with PDF attachment
-    const message = {
-      subject: `Your Quote #${draftOrder.name} from Alliance Chemical`,
-      body: {
-        contentType: 'HTML',
-        content: htmlContent
-      },
-      toRecipients: [
-        {
-          emailAddress: {
-            address: to
-          }
-        }
-      ],
-      attachments: [
-        {
-          '@odata.type': '#microsoft.graph.fileAttachment',
-          name: `Quote-${draftOrder.name}.pdf`,
-          contentType: 'application/pdf',
-          contentBytes: pdfBuffer.toString('base64')
-        },
-        {
-          '@odata.type': '#microsoft.graph.fileAttachment',
-          name: 'logo.png',
-          contentType: 'image/png',
-          contentBytes: logoBase64,
-          contentId: 'company-logo',
-          isInline: true
-        }
-      ]
-    };
-
-    // Send the email from the shared mailbox if configured, or from the authenticated user
-    if (process.env.SHARED_MAILBOX_ADDRESS) {
-      await graphClient.api(`/users/${process.env.SHARED_MAILBOX_ADDRESS}/sendMail`)
-        .post({
-          message,
-          saveToSentItems: true
-        });
-    } else {
-      await graphClient.api('/me/sendMail')
-        .post({
-          message,
-          saveToSentItems: true
-        });
-    }
-
-    console.log(`Email sent to ${to} for quote #${draftOrder.name}`);
-  } catch (error) {
-    console.error('Error sending email through Graph API:', error);
-    throw error;
-  }
+  await graphService.sendEmailReply(
+    to,
+    subject,
+    messageContent,
+    { conversationId: draftOrder.ticketId?.toString() },
+    process.env.SHARED_MAILBOX_ADDRESS || '',
+    [attachment]
+  );
 } 

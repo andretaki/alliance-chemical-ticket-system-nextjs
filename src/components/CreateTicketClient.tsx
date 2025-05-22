@@ -80,7 +80,7 @@ const CreateTicketClient: React.FC = () => {
       console.log('Ticket created:', response.data);
       // Optionally show a success toast/message here
       setCreatedTicketId(response.data.ticket.id);
-      router.push('/tickets'); // Redirect to the list page
+      router.push(`/tickets/${response.data.ticket.id}`); // Redirect to the correct ticket view page
       router.refresh(); // Trigger data refresh on the target page
     } catch (err: unknown) {
       console.error('Error creating ticket:', err);
@@ -136,7 +136,7 @@ const CreateTicketClient: React.FC = () => {
             <i className="fas fa-check-circle me-2"></i>Ticket created successfully!
             <div className="mt-2">
               <Link 
-                href={`/admin/tickets/${createdTicketId}/create-quote`} 
+                href={`/tickets/${createdTicketId}/create-quote`} 
                 className="btn btn-sm btn-success"
               >
                 <i className="fas fa-file-invoice-dollar me-1"></i> Create Quote from this Ticket

@@ -160,7 +160,7 @@ export default function AutoResolvedTicketsTable() {
                 <tr key={ticket.id}>
                   <td>#{ticket.id}</td>
                   <td>
-                    <Link href={`/admin/tickets/${ticket.id}`}>
+                    <Link href={`/tickets/${ticket.id}`}>
                       {ticket.title}
                     </Link>
                   </td>

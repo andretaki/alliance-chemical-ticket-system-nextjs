@@ -26,27 +26,27 @@ interface ReplyRequestBody {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    // Ensure the user is authenticated
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user) {
       return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    const { id } = await context.params;
+    const ticketId = parseInt(id);
+    if (isNaN(ticketId)) {
+      return new NextResponse('Invalid ticket ID', { status: 400 });
     }
 
     // Get the current user
     const currentUser = await db.query.users.findFirst({
-      where: eq(users.email, session.user.email),
+      where: eq(users.email, session.user.email || ''),
     });
 
     if (!currentUser) {
       return new NextResponse('User not found', { status: 404 });
-    }
-
-    const ticketId = parseInt(params.id);
-    if (isNaN(ticketId)) {
-      return new NextResponse('Invalid ticket ID', { status: 400 });
     }
 
     // Verify the ticket exists AND fetch necessary fields for threading
@@ -156,7 +156,8 @@ export async function POST(
           // Add original ID before the replied-to ID for standard References order
           referencesIds.unshift(ticket.externalMessageId);
         }
-        referencesIds = [...new Set(referencesIds)]; // Ensure uniqueness
+        // Limit references to last 4 messages to stay within header limits
+        referencesIds = [...new Set(referencesIds)].slice(-4); // Ensure uniqueness and limit to last 4
 
         // --- End Determine Threading Headers ---
         console.log(`Sending Reply - In-Reply-To: ${inReplyToId}, References: ${referencesIds.join(' ')}, ConvID: ${ticket.conversationId}`);
@@ -164,7 +165,8 @@ export async function POST(
         // Get attachments for the email
         const emailAttachments = newComment.attachments || [];
 
-        await sendTicketReplyEmail({
+        // Send the email
+        const emailResult = await sendTicketReplyEmail({
           ticketId: ticket.id,
           recipientEmail: ticket.senderEmail,
           recipientName: ticket.senderName || 'Customer',
@@ -172,12 +174,16 @@ export async function POST(
           message: requestBody.content,
           senderName: currentUser.name || 'Support Team',
           attachments: emailAttachments,
-          // --- Pass Threading Info ---
           inReplyToId,
           referencesIds: referencesIds.length > 0 ? referencesIds : undefined,
           conversationId: ticket.conversationId || undefined
-          // --- End Pass Threading Info ---
         });
+
+        if (!emailResult) {
+          throw new Error('Email sending failed - no response from email service');
+        }
+
+        console.log(`Email reply sent successfully for ticket ${ticketId} to ${ticket.senderEmail}`);
         
         // Update the ticket status to "pending_customer" if it's not already closed
         if (ticket.status !== 'closed') {
@@ -188,14 +194,31 @@ export async function POST(
             })
             .where(eq(tickets.id, ticketId));
         }
+
+        // Update the comment to mark it as sent
+        await db.update(ticketComments)
+          .set({ 
+            isOutgoingReply: true,
+            externalMessageId: emailResult.internetMessageId || undefined
+          })
+          .where(eq(ticketComments.id, newComment.id));
+
       } catch (emailError) {
         console.error('Failed to send email reply:', emailError);
-        // We still created the comment, so don't return an error response
-        // Just add a message to the response
+        
+        // Update the comment to mark it as failed
+        await db.update(ticketComments)
+          .set({ 
+            isOutgoingReply: false
+          })
+          .where(eq(ticketComments.id, newComment.id));
+
+        // Return a response indicating the comment was saved but email failed
         return NextResponse.json({ 
           ...newComment, 
-          warning: 'Comment saved but email delivery failed'
-        });
+          warning: 'Comment saved but email delivery failed',
+          error: emailError instanceof Error ? emailError.message : 'Unknown error'
+        }, { status: 207 }); // 207 Multi-Status
       }
     }
 

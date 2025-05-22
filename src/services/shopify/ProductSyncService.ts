@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { agentProducts, agentProductVariants } from '@/lib/db/schema';
+import { agentProducts, agentProductVariants } from '@/db/schema';
 import { ShopifyService } from './ShopifyService';
 import { eq, notInArray, sql } from 'drizzle-orm';
 import { Config } from '@/config/appConfig';

@@ -46,7 +46,6 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
     const userEmail = session?.user?.email || 'sales@alliancechemical.com';
 
     // Create message object for threading
-    // Use provided threading info if available, otherwise create dummy info
     const originalMessage: Message = {
       id: inReplyToId ? `msg-${inReplyToId}` : `ticket-${ticketId}-${Date.now()}`,
       internetMessageId: inReplyToId || `ticket-${ticketId}-${Date.now()}@ticket-system.local`,
@@ -81,17 +80,25 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
       </div>
     `;
 
+    // Process attachments if any
+    const processedAttachments = attachments.map(att => ({
+      name: att.originalFilename,
+      contentType: att.mimeType,
+      contentBytes: att.contentBytes || '' // Ensure we have a string, even if empty
+    }));
+
     // Send the email using graphService with the user's email
     return await graphService.sendEmailReply(
       recipientEmail,
       subject,
       htmlBody,
       originalMessage,
-      userEmail // Pass the user's email as the sender
+      userEmail, // Pass the user's email as the sender
+      processedAttachments // Pass the processed attachments
     );
   } catch (error) {
     console.error('Email Service: Error sending ticket reply email:', error);
-    throw error;
+    throw error; // Let the caller handle the error
   }
 } 
 

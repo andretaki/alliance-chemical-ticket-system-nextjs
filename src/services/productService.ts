@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db } from '@/db';
 import { agentProducts, agentProductVariants } from '@/db/schema';
 import { eq, or, ilike, sql, asc, desc, and } from 'drizzle-orm';
 import type { ParentProductData, ProductVariantData } from '@/agents/quoteAssistant/quoteInterfaces';

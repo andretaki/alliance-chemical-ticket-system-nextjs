@@ -886,7 +886,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
             {createdTicketId && (
               <p className="mb-0 mt-1">
                 <strong>Ticket #{createdTicketId}</strong> created.
-                <a href={`/admin/tickets/${createdTicketId}`} className="alert-link ms-2" target="_blank" rel="noopener noreferrer">
+                <a href={`/tickets/${createdTicketId}`} className="alert-link ms-2" target="_blank" rel="noopener noreferrer">
                   View Ticket <i className="fas fa-external-link-alt fa-xs"></i>
                 </a>
               </p>
@@ -904,7 +904,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
               <p className="mb-1"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break alert-link">{createdDraftOrder.invoiceUrl} <i className="fas fa-external-link-alt fa-xs"></i></a></p>
             )}
             <div className="mt-3">
-              <a href={`/admin/tickets/${createdTicketId}`} className="btn btn-sm btn-outline-primary me-2">
+              <a href={`/tickets/${createdTicketId}`} className="btn btn-sm btn-outline-primary me-2">
                 <i className="fas fa-ticket-alt me-1"></i> View Ticket
               </a>
               {(createdDraftOrder as any).adminUrl && (

@@ -3,8 +3,9 @@ import 'dotenv/config';
 import { ClientSecretCredential } from '@azure/identity';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { Message, MailFolder, InternetMessageHeader } from '@microsoft/microsoft-graph-types';
-import { db } from '../db/index.js';
-import { subscriptions } from '../db/schema.js';
+import { db } from '@/db';
+import { subscriptions, userSignatures } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
 
 // Load environment variables
 const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
@@ -174,6 +175,12 @@ interface ThreadingInfo {
   conversationId?: string | null;
 }
 
+interface FileAttachment {
+  name: string;
+  contentType: string;
+  contentBytes: string;
+}
+
 /**
  * Sends an email reply using Microsoft Graph API, using provided threading information.
  * @param toEmailAddress The recipient's email address.
@@ -181,6 +188,8 @@ interface ThreadingInfo {
  * @param messageContent The HTML content of the reply.
  * @param threadingInfo Object containing inReplyToId, referencesIds, conversationId or a Message object.
  * @param fromEmailAddress The email address to send from (e.g., your shared mailbox).
+ * @param attachments Optional array of file attachments.
+ * @param userId Optional user ID to fetch their signature.
  * @returns The sent message object or null if sending fails.
  */
 export async function sendEmailReply(
@@ -188,15 +197,60 @@ export async function sendEmailReply(
   subject: string,
   messageContent: string, 
   threadingInfo: ThreadingInfo | Message,
-  fromEmailAddress: string = userEmail
+  fromEmailAddress: string = userEmail,
+  attachments?: FileAttachment[],
+  userId?: string
 ): Promise<Message | null> {
   try {
+    // Get user's signature if userId is provided
+    let signature = '';
+    if (userId) {
+      const userSignature = await db.query.userSignatures.findFirst({
+        where: and(
+          eq(userSignatures.userId, userId),
+          eq(userSignatures.isDefault, true)
+        ),
+      });
+      if (userSignature) {
+        signature = userSignature.signature;
+      }
+    }
+
     // Extract threading information regardless of input type
     let conversationId: string | undefined;
+    let inReplyToId: string | undefined;
+    let referencesIds: string[] = [];
+    
+    if ('conversationId' in threadingInfo) {
+      conversationId = threadingInfo.conversationId || undefined;
+    } else if (threadingInfo.conversationId) {
+      conversationId = threadingInfo.conversationId;
+    }
+    
+    if ('internetMessageId' in threadingInfo) {
+      inReplyToId = threadingInfo.internetMessageId || undefined;
+    } else if ('inReplyToId' in threadingInfo && threadingInfo.inReplyToId) {
+      inReplyToId = threadingInfo.inReplyToId;
+    }
+    
+    if ('internetMessageHeaders' in threadingInfo) {
+      const referencesHeader = threadingInfo.internetMessageHeaders?.find(
+        header => header.name?.toLowerCase() === 'references'
+      );
+      if (referencesHeader?.value) {
+        referencesIds = referencesHeader.value.split(' ');
+      }
+    } else if ('referencesIds' in threadingInfo && threadingInfo.referencesIds) {
+      referencesIds = threadingInfo.referencesIds;
+    }
     
     // Process the message content to ensure proper HTML formatting
-    // Convert plain text with line breaks to proper HTML paragraphs
     let formattedContent = messageContent;
+    
+    // Add signature if available
+    if (signature) {
+      formattedContent += `\n\n${signature}`;
+    }
     
     // Only apply formatting if it doesn't already contain HTML tags
     if (!formattedContent.includes('<html>') && !formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
@@ -247,34 +301,51 @@ export async function sendEmailReply(
       // Initialize an empty array for custom headers
       internetMessageHeaders: []
     };
-    
+
     // Add threading information if available
-    if ('conversationId' in threadingInfo && threadingInfo.conversationId) {
-      conversationId = threadingInfo.conversationId;
-    } else if ('id' in threadingInfo && threadingInfo.id) {
-      // If we have a Message object, get its conversation ID
-      const originalMessage = await getMessageById(threadingInfo.id);
-      if (originalMessage?.conversationId) {
-        conversationId = originalMessage.conversationId;
-      }
+    if (inReplyToId) {
+      messageToSend.internetMessageHeaders.push({
+        name: 'x-in-reply-to',
+        value: inReplyToId
+      });
     }
-    
+
+    if (referencesIds.length > 0) {
+      messageToSend.internetMessageHeaders.push({
+        name: 'x-references',
+        value: referencesIds.join(' ')
+      });
+    }
+
     if (conversationId) {
       messageToSend.conversationId = conversationId;
     }
-    
-    // Send the message
-    const response = await graphClient
-      .api(`/users/${fromEmailAddress}/sendMail`)
-      .post({
-        message: messageToSend,
-        saveToSentItems: true
-      });
-      
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      messageToSend.attachments = attachments.map(att => ({
+        '@odata.type': '#microsoft.graph.fileAttachment',
+        name: att.name,
+        contentType: att.contentType,
+        contentBytes: att.contentBytes
+      }));
+    }
+
+    // Send the email with retry logic
+    const response = await withRetry(
+      () => graphClient
+        .api(`/users/${fromEmailAddress}/sendMail`)
+        .post({
+          message: messageToSend,
+          saveToSentItems: true
+        }),
+      'sendEmailReply'
+    );
+
     return response;
   } catch (error) {
     console.error('Error sending email reply:', error);
-    return null;
+    throw error; // Let the caller handle the error
   }
 }
 

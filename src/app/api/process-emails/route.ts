@@ -18,7 +18,7 @@ const DEFAULT_TYPE = 'General Inquiry' as typeof ticketTypeEcommerceEnum.enumVal
 const INTERNAL_DOMAIN = "alliancechemical.com"; // Define your internal domain
 
 // Helper to find or create a user based on email
-async function findOrCreateUser(senderEmail: string, senderName?: string | null): Promise<number | null> {
+async function findOrCreateUser(senderEmail: string, senderName?: string | null): Promise<string | null> {
     if (!senderEmail) {
         console.warn("Email processing: Sender email missing.");
         return null; // Cannot create a user without an email
