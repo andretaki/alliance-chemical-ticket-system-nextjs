@@ -31,6 +31,14 @@ const DashboardStatsSection: React.FC = () => {
     ticketPriorityEnum.enumValues[3], // urgent
   ];
 
+  // Sample data for change percentages - replace with actual data in a real implementation
+  const stats = {
+    activeChange: { value: 12, isPositive: true },
+    criticalChange: { value: 5, isPositive: false },
+    newTodayChange: { value: 20, isPositive: true },
+    closedTodayChange: { value: 15, isPositive: true }
+  };
+
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -73,50 +81,75 @@ const DashboardStatsSection: React.FC = () => {
   }, [fetchStats]);
 
   if (error) {
-    return <div className="alert alert-warning">{error}</div>;
+    return (
+      <div className="alert alert-warning shadow-sm border-0 rounded-3 mb-4">
+        <div className="d-flex align-items-center">
+          <i className="fas fa-exclamation-triangle me-3 text-warning"></i>
+          <span>{error}</span>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="row mb-4 g-3"> {/* Added g-3 for gutter between cards */}
-      <div className="col-sm-6 col-lg-3">
-        <DashboardStatCard
-          title="Active Tickets"
-          value={activeTicketsCount}
-          iconClass="fas fa-folder-open"
-          iconColorClass="text-primary"
-          footerText="View all tickets"
-          footerLink="/tickets"
-          isLoading={isLoading}
-        />
+    <>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h4 className="fw-bold mb-0">Dashboard Overview</h4>
+        <button 
+          className="btn btn-sm btn-outline-primary rounded-pill"
+          onClick={() => fetchStats()}
+        >
+          <i className="fas fa-sync-alt me-2"></i> Refresh
+        </button>
       </div>
-      <div className="col-sm-6 col-lg-3">
-        <DashboardStatCard
-          title="Critical Priority"
-          value={criticalTicketsCount}
-          iconClass="fas fa-exclamation-circle"
-          iconColorClass="text-danger"
-          isLoading={isLoading}
-        />
+      
+      <div className="row mb-4 g-4">
+        <div className="col-sm-6 col-lg-3">
+          <DashboardStatCard
+            title="Active Tickets"
+            value={activeTicketsCount}
+            iconClass="fas fa-ticket-alt"
+            iconColorClass="text-primary"
+            footerText="View all tickets"
+            footerLink="/tickets"
+            isLoading={isLoading}
+            change={stats.activeChange}
+          />
+        </div>
+        <div className="col-sm-6 col-lg-3">
+          <DashboardStatCard
+            title="Critical Priority"
+            value={criticalTicketsCount}
+            iconClass="fas fa-exclamation-circle"
+            iconColorClass="text-danger"
+            footerText="View critical"
+            footerLink="/tickets?priority=high,urgent"
+            isLoading={isLoading}
+            change={stats.criticalChange}
+          />
+        </div>
+        <div className="col-sm-6 col-lg-3">
+          <DashboardStatCard
+            title="New Today"
+            value={newTodayCount}
+            iconClass="fas fa-calendar-plus"
+            iconColorClass="text-success"
+            isLoading={isLoading}
+            change={stats.newTodayChange}
+          />
+        </div>
+        <div className="col-sm-6 col-lg-3">
+          <DashboardStatCard
+            title="Closed Today"
+            value={closedTodayCount}
+            iconClass="fas fa-check-circle"
+            iconColorClass="text-warning"
+            isLoading={isLoading}
+            change={stats.closedTodayChange}
+          />
+        </div>
       </div>
-      <div className="col-sm-6 col-lg-3">
-        <DashboardStatCard
-          title="New Today"
-          value={newTodayCount}
-          iconClass="fas fa-calendar-plus"
-          iconColorClass="text-success"
-          isLoading={isLoading}
-        />
-      </div>
-      <div className="col-sm-6 col-lg-3">
-        <DashboardStatCard
-          title="Closed Today"
-          value={closedTodayCount}
-          iconClass="fas fa-calendar-check"
-          iconColorClass="text-info"
-          isLoading={isLoading}
-        />
-      </div>
-    </div>
+    </>
   );
 };
 

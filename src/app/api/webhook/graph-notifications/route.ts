@@ -98,11 +98,12 @@ export async function POST(request: NextRequest) {
     // 1. Handle Subscription Validation Request
     if (validationToken) {
         console.log('Webhook: Received validation token:', validationToken);
-        return new NextResponse(validationToken, {
+        // Return the validation token exactly as received, with plain text content type
+        // Important: No JSON, just the plain token text
+        return new Response(validationToken, {
             status: 200,
             headers: {
                 'Content-Type': 'text/plain',
-                'Content-Length': validationToken.length.toString()
             },
         });
     }

@@ -1,8 +1,19 @@
 @import "tailwindcss";
 
 :root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
   --background: #ffffff;
   --foreground: #171717;
+  --sidebar-bg: #f8fafc;
+  --sidebar-hover: #e0e7ff;
+  --sidebar-active: #c7d2fe;
+  --sidebar-text: #4b5563;
+  --sidebar-active-text: #1e3a8a;
+  --card-bg: #ffffff;
+  --card-border: #e5e7eb;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --border-radius: 0.5rem;
   
   /* Replacing @theme with root-level variables */
   --color-background: var(--background);
@@ -13,35 +24,92 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --primary: #3b82f6;
+    --primary-hover: #60a5fa;
+    --background: #0f172a;
+    --foreground: #f1f5f9;
+    --sidebar-bg: #1e293b;
+    --sidebar-hover: #334155;
+    --sidebar-active: #475569;
+    --sidebar-text: #94a3b8;
+    --sidebar-active-text: #f8fafc;
+    --card-bg: #1e293b;
+    --card-border: #334155;
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
 }
 
 td {
   max-width: 250px;
 }
 
+/* Button styling */
+.btn-primary {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover) !important;
+  border-color: var(--primary-hover) !important;
+  transform: translateY(-1px);
+}
+
+.btn {
+  border-radius: var(--border-radius) !important;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Card styling */
+.card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+  border-bottom: 1px solid var(--card-border);
+  font-weight: 600;
+}
+
 .navbar {
   padding: 15px 10px;
-  background: #fff;
-  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  border-bottom: 1px solid var(--card-border);
 }
 
 .nav-link {
   outline: none;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .nav-link i, .btn i {
-  margin-right: 0.35rem;
+  margin-right: 0.5rem;
 }
 
 /* ---------------------------------------------------
@@ -55,20 +123,28 @@ td {
 }
 
 .sidebar {
+  background-color: var(--sidebar-bg);
   box-shadow: 1px 0 3px rgba(0, 0, 0, .1);
+  border-right: 1px solid var(--card-border);
 }
 
-.sidebar .nav-link{
-  color: #aaa;
-  transition: 0.3s all;
+.sidebar .nav-link {
+  color: var(--sidebar-text);
+  padding: 0.75rem 1rem;
+  margin: 0.25rem 0.5rem;
+  border-radius: var(--border-radius);
+  transition: all 0.2s ease;
 }
 
 .sidebar .nav-link.active {
-  color: #000;
+  color: var(--sidebar-active-text);
+  background-color: var(--sidebar-active);
+  font-weight: 600;
 }
 
-.sidebar .nav-link:hover{
-  color: #000;
+.sidebar .nav-link:hover {
+  color: var(--sidebar-active-text);
+  background-color: var(--sidebar-hover);
 }
 
 /* ---------------------------------------------------
@@ -77,44 +153,81 @@ td {
 
 #content {
   width: 100%;
-  padding: 20px;
+  padding: 1.5rem;
   min-height: 100vh;
-  background-color: var(--bs-gray-100);
+  transition: all 0.3s;
 }
 
+/* Priority colors with enhanced visibility */
 .low-priority {
-  color: green;
+  color: #10b981;
+  font-weight: 600;
 }
 
 .med-priority {
-  color: darkgoldenrod;
+  color: #f59e0b;
+  font-weight: 600;
 }
 
 .high-priority {
-  color: red;
+  color: #ef4444;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------
+  TABLE STYLING
+----------------------------------------------------- */
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.table th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.table td, .table th {
+  padding: 1rem;
+  vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 /* ---------------------------------------------------
   SORTABLE HEADERS & FILTER STYLES
 ----------------------------------------------------- */
 
+.filters-bar {
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--card-shadow);
+}
+
 .filters-bar label {
-  font-weight: 500; /* Make filter labels slightly bolder */
-  font-size: 0.875rem; /* Smaller labels for compact bar */
+  font-weight: 500;
+  font-size: 0.875rem;
 }
 
 .sortable-header {
   cursor: pointer;
   transition: background-color 0.2s ease-in-out;
-  white-space: nowrap; /* Prevent header text from wrapping */
+  white-space: nowrap;
 }
 
 .sortable-header:hover {
-  background-color: #e9ecef; /* Slightly darker hover for Bootstrap light theme */
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
-.sortable-header .fas { /* Font Awesome sort icons */
-  opacity: 0.4; /* Make default icons more subtle */
+.sortable-header .fas {
+  opacity: 0.4;
   font-size: 0.8em;
   transition: opacity 0.2s ease-in-out;
   margin-left: 0.3rem;
@@ -126,36 +239,43 @@ td {
 
 .sortable-header .fa-sort-down,
 .sortable-header .fa-sort-up {
-  opacity: 1; /* Active sort icons fully visible */
+  opacity: 1;
 }
 
-/* Ensure Bootstrap's subtle background is defined, if not using BS 5.3+ by default */
-.bg-light-subtle {
-  background-color: #fcfcfd !important;
+/* ---------------------------------------------------
+  FORM CONTROLS
+----------------------------------------------------- */
+.form-control, .form-select {
+  border-radius: var(--border-radius);
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--card-border);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
-@media (prefers-color-scheme: dark) {
-  .bg-light-subtle {
-    background-color: #343a40 !important; /* Adjust for dark theme if needed */
-  }
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
 }
 
 /* ---------------------------------------------------
   COMMENT & ATTACHMENT STYLES
 ----------------------------------------------------- */
 
-/* For TicketViewClient Attachments */
 .selected-files-preview .list-unstyled li {
-  background-color: transparent; /* Make list items blend with parent bg */
-  border-bottom: 1px solid var(--bs-border-color-translucent) !important; /* Subtle separator */
+  background-color: transparent;
+  border-bottom: 1px solid var(--card-border);
+  padding: 0.75rem 0;
 }
 
 .selected-files-preview .list-unstyled li:last-child {
-  border-bottom: none !important;
+  border-bottom: none;
 }
 
 .comment-attachments .list-group-item {
   font-size: 0.9rem;
+  border-radius: var(--border-radius);
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
 }
 
 .comment-attachments .list-group-item i.fa-download {
@@ -169,45 +289,45 @@ td {
 
 /* Subtle background colors for different comment types */
 .bg-light-subtle {
-  background-color: #fcfcfd !important;
+  background-color: #f8fafc !important;
 }
 
 .bg-warning-subtle {
-  background-color: #fff9e0 !important; /* Light yellow */
+  background-color: #fef3c7 !important;
 }
 
 .border-warning {
-  border-color: #ffe480 !important;
+  border-color: #fbbf24 !important;
 }
 
 .bg-info-subtle {
-  background-color: #e7f5ff !important; /* Light blue */
+  background-color: #dbeafe !important;
 }
 
 .border-info {
-  border-color: #79c6f7 !important;
+  border-color: #60a5fa !important;
 }
 
 .bg-success-subtle {
-  background-color: #e6ffed !important; /* Light green */
+  background-color: #d1fae5 !important;
 }
 
 .border-success {
-  border-color: #89d9a2 !important;
+  border-color: #34d399 !important;
 }
 
 @media (prefers-color-scheme: dark) {
   .bg-light-subtle {
-    background-color: #1c1c1c !important;
+    background-color: #1e293b !important;
   }
   .bg-warning-subtle {
-    background-color: #332700 !important;
+    background-color: #422006 !important;
   }
   .bg-info-subtle {
-    background-color: #1c2933 !important;
+    background-color: #172554 !important;
   }
   .bg-success-subtle {
-    background-color: #0c2a12 !important;
+    background-color: #064e3b !important;
   }
 }
 
@@ -215,60 +335,73 @@ td {
   OUTLOOK-STYLE TICKET VIEW
 ----------------------------------------------------- */
 
-/* Main layout styles */
 .ticket-view-outlook {
   height: 100vh;
   overflow: hidden;
+  background-color: var(--card-bg);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
 }
 
-/* Fixed header height for calculations */
 .ticket-header-bar {
   height: 60px;
   z-index: 100;
+  background-color: var(--card-bg);
+  border-bottom: 1px solid var(--card-border);
 }
 
-/* Main content area that fills remaining height */
 .ticket-main-content {
   height: calc(100vh - 60px);
 }
 
-/* Left side (communication pane) */
 .communication-pane {
   height: 100%;
   overflow-y: auto;
+  padding: 1.5rem;
   padding-bottom: 100px;
 }
 
-/* Right side (details sidebar) */
 .details-sidebar {
   height: 100%;
   overflow-y: auto;
-  background-color: #f8f9fa;
-  border-left: 1px solid #dee2e6;
+  background-color: var(--sidebar-bg);
+  border-left: 1px solid var(--card-border);
+  padding: 1.5rem;
   padding-bottom: 100px;
 }
 
-/* Message styling for Outlook-like appearance */
 .message-item {
-  background-color: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  margin-bottom: 1.5rem;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
 }
 
 .message-header {
-  background-color: #f8f9fa;
+  padding: 1rem;
+  border-bottom: 1px solid var(--card-border);
 }
 
 .avatar-icon {
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
 }
 
-/* Reply form styling */
 .reply-form-container {
-  background-color: #fff;
-  box-shadow: 0 -1px 5px rgba(0,0,0,0.05);
+  position: sticky;
+  bottom: 0;
+  background-color: var(--card-bg);
+  padding: 1rem;
+  border-top: 1px solid var(--card-border);
+  box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* Responsive adjustments */
 @media (max-width: 992px) {
   .ticket-view-outlook {
     height: auto;
@@ -277,22 +410,22 @@ td {
   
   .ticket-main-content {
     height: auto;
-    overflow: visible;
+    flex-direction: column;
   }
   
   .communication-pane,
   .details-sidebar {
     height: auto;
-    overflow: visible;
     max-height: none;
+    overflow-y: visible;
   }
   
   .ticket-header-bar {
     position: relative;
+    height: auto;
   }
 }
 
-/* Custom scrollbar for the panes */
 .communication-pane::-webkit-scrollbar,
 .details-sidebar::-webkit-scrollbar {
   width: 8px;
@@ -300,16 +433,96 @@ td {
 
 .communication-pane::-webkit-scrollbar-track,
 .details-sidebar::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .communication-pane::-webkit-scrollbar-thumb,
 .details-sidebar::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
 }
 
 .communication-pane::-webkit-scrollbar-thumb:hover,
 .details-sidebar::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+  background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* ---------------------------------------------------
+  USER PROFILE STYLING
+----------------------------------------------------- */
+.avatar-circle {
+  width: 64px;
+  height: 64px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.user-profile {
+  padding: 1rem;
+  border-radius: var(--border-radius);
+  background-color: rgba(0, 0, 0, 0.03);
+  margin: 0 0.5rem 1rem;
+}
+
+.sidebar-heading {
+  letter-spacing: 0.05em;
+  font-size: 0.7rem;
+}
+
+/* ---------------------------------------------------
+  DASHBOARD STYLING
+----------------------------------------------------- */
+.stat-icon-circle {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: rgba(37, 99, 235, 0.1);
+  font-size: 1.25rem;
+}
+
+.stat-icon-circle.text-primary {
+  background-color: rgba(37, 99, 235, 0.1);
+  color: var(--primary);
+}
+
+.stat-icon-circle.text-success {
+  background-color: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.stat-icon-circle.text-warning {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.stat-icon-circle.text-danger {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.card-footer {
+  border-top: 1px solid var(--card-border);
+  background-color: var(--card-bg);
+  transition: all 0.2s ease;
+}
+
+.card-footer:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Chart styling */
+.chart-container {
+  position: relative;
+  height: 280px;
+  width: 100%;
 }

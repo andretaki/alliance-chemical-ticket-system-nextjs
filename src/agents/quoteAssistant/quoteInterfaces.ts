@@ -116,6 +116,7 @@ export interface DraftOrderLineItemInput {
 export interface AppDraftOrderInput {
   lineItems: DraftOrderLineItemInput[];
   customer?: DraftOrderCustomerInput;
+  shopifyCustomerId?: string; // ID of existing Shopify customer if available
   shippingAddress?: DraftOrderAddressInput;
   note?: string;
   email?: string; // Email to send Shopify draft order invoice to

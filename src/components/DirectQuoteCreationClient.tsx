@@ -8,6 +8,28 @@ import DOMPurify from 'dompurify';
 import Image from 'next/image'; // Keep for future use
 import { toast } from 'react-hot-toast';
 
+// Customer search interface
+interface CustomerSearchResult {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  company: string;
+  defaultAddress?: {
+    firstName?: string;
+    lastName?: string;
+    address1?: string;
+    address2?: string;
+    city?: string;
+    province?: string;
+    country?: string;
+    zip?: string;
+    company?: string;
+    phone?: string;
+  };
+}
+
 // Updated SearchResult interface to match backend
 interface SearchResult {
   parentProduct: ParentProductData;
@@ -53,7 +75,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
 
   // Customer data states
   const [lineItems, setLineItems] = useState<Array<DraftOrderLineItemInput & { productDisplay?: string; unitPrice?: number; currencyCode?: string }>>([{ numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
-  const [customer, setCustomer] = useState<DraftOrderCustomerInput>({
+  const [customer, setCustomer] = useState<DraftOrderCustomerInput & { shopifyCustomerId?: string }>({
     email: '',
     firstName: '',
     lastName: '',
@@ -109,6 +131,16 @@ export const DirectQuoteCreationClient: React.FC = () => {
   const setRef = (index: number) => (el: HTMLDivElement | null) => {
     searchContainerRefs.current[index] = el;
   };
+
+  // Customer search state
+  const [customerSearchTerm, setCustomerSearchTerm] = useState<string>('');
+  const [isSearchingCustomer, setIsSearchingCustomer] = useState<boolean>(false);
+  const [customerSearchResults, setCustomerSearchResults] = useState<CustomerSearchResult[]>([]);
+  const [showCustomerResults, setShowCustomerResults] = useState<boolean>(false);
+  const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
+
+  const customerSearchRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (shippingAddress.country in provinces) {
@@ -571,9 +603,14 @@ export const DirectQuoteCreationClient: React.FC = () => {
         quoteTags.push(`TicketID-${ticketId}`);
       }
       
+      // Prepare customer input - include the shopifyCustomerId if available
+      const customerInput = { ...customer };
+      delete customerInput.shopifyCustomerId; // Remove from the base object to avoid sending an unknown property
+      
       const draftOrderInput: AppDraftOrderInput = {
         lineItems: filteredLineItems.map(({ productDisplay, unitPrice, currencyCode, ...rest }) => rest),
-        customer,
+        customer: customerInput,
+        shopifyCustomerId: customer.shopifyCustomerId, // Add as a separate property
         shippingAddress,
         note: noteText.trim(),
         email: sendShopifyInvoice ? customer.email : undefined,
@@ -703,6 +740,115 @@ export const DirectQuoteCreationClient: React.FC = () => {
     }
   };
 
+  // Customer search functionality
+  const searchCustomer = async (term: string) => {
+    if (!term || term.trim().length < 3) {
+      setCustomerSearchResults([]);
+      setShowCustomerResults(false);
+      setCustomerSearchError(null);
+      return;
+    }
+
+    setIsSearchingCustomer(true);
+    setCustomerSearchError(null);
+    setShowCustomerResults(true);
+
+    try {
+      const response = await axios.get<{ customers: CustomerSearchResult[] }>(
+        `/api/customers/search?query=${encodeURIComponent(term.trim())}`
+      );
+      
+      if (response.data.customers.length > 0) {
+        setCustomerSearchResults(response.data.customers);
+      } else {
+        setCustomerSearchResults([]);
+        setCustomerSearchError('No customers found with that email or name.');
+      }
+    } catch (error) {
+      console.error('Customer search error:', error);
+      setCustomerSearchResults([]);
+      setCustomerSearchError('Failed to search for customers. Please try again.');
+    } finally {
+      setIsSearchingCustomer(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (customerSearchTerm && customerSearchTerm.trim().length >= 3) {
+        searchCustomer(customerSearchTerm);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [customerSearchTerm]);
+
+  const handleCustomerSelect = (customer: CustomerSearchResult) => {
+    setSelectedCustomer(customer);
+    setCustomerSearchTerm(customer.email);
+    setShowCustomerResults(false);
+    
+    // Populate customer form fields with the shopifyCustomerId field included
+    setCustomer({
+      email: customer.email || '',
+      firstName: customer.firstName || '',
+      lastName: customer.lastName || '',
+      phone: customer.phone || '',
+      company: customer.company || '',
+      shopifyCustomerId: customer.id, // Store the Shopify customer ID
+    });
+
+    // Populate shipping address if available
+    if (customer.defaultAddress) {
+      setShippingAddress({
+        firstName: customer.defaultAddress.firstName || customer.firstName || '',
+        lastName: customer.defaultAddress.lastName || customer.lastName || '',
+        address1: customer.defaultAddress.address1 || '',
+        city: customer.defaultAddress.city || '',
+        province: customer.defaultAddress.province || '',
+        country: customer.defaultAddress.country || 'United States',
+        zip: customer.defaultAddress.zip || '',
+        company: customer.defaultAddress.company || customer.company || '',
+        phone: customer.defaultAddress.phone || customer.phone || '',
+      });
+    }
+
+    toast.success(`Customer ${customer.firstName} ${customer.lastName} loaded`);
+  };
+
+  const clearCustomerSearch = () => {
+    setCustomerSearchTerm('');
+    setCustomerSearchResults([]);
+    setShowCustomerResults(false);
+    setSelectedCustomer(null);
+    setCustomerSearchError(null);
+  };
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        customerSearchRef.current && 
+        !customerSearchRef.current.contains(event.target as Node) &&
+        showCustomerResults
+      ) {
+        setShowCustomerResults(false);
+      }
+      
+      // Existing code for search results
+      const isOutside = searchContainerRefs.current.every((ref) => {
+        return !ref || !ref.contains(event.target as Node);
+      });
+      
+      if (isOutside && activeSearchDropdown !== null) {
+        setActiveSearchDropdown(null);
+        setFocusedResultIndex(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeSearchDropdown, showCustomerResults]);
+
   return (
     <div className="card shadow-sm">
       <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
@@ -792,6 +938,101 @@ export const DirectQuoteCreationClient: React.FC = () => {
         <form onSubmit={handleSubmit} noValidate>
           <fieldset className="border p-3 rounded mb-4">
             <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Customer Information</legend>
+            
+            {/* Customer Search Field */}
+            <div className="mb-4 pb-3 border-bottom">
+              <label htmlFor="customerSearch" className="form-label">Find Existing Customer</label>
+              <div className="position-relative" ref={customerSearchRef}>
+                <div className="input-group">
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="customerSearch"
+                    placeholder="Search by email or name..."
+                    value={customerSearchTerm}
+                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                    onFocus={() => {
+                      if (customerSearchTerm.trim().length >= 3) {
+                        setShowCustomerResults(true);
+                      }
+                    }}
+                    aria-autocomplete="list"
+                  />
+                  {customerSearchTerm && (
+                    <button 
+                      className="btn btn-outline-secondary" 
+                      type="button"
+                      onClick={clearCustomerSearch}
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  )}
+                  <button 
+                    className="btn btn-outline-primary" 
+                    type="button"
+                    onClick={() => searchCustomer(customerSearchTerm)}
+                    disabled={isSearchingCustomer || customerSearchTerm.trim().length < 3}
+                  >
+                    {isSearchingCustomer ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : (
+                      <i className="fas fa-search"></i>
+                    )}
+                  </button>
+                </div>
+                
+                {showCustomerResults && (
+                  <div className="dropdown-menu d-block position-absolute start-0 w-100 mt-1 shadow-lg" style={{zIndex: 1051}}>
+                    <div className="px-2 py-1 bg-light text-muted small border-bottom">
+                      {isSearchingCustomer ? (
+                        <span><i className="fas fa-spinner fa-spin me-1"></i>Searching...</span>
+                      ) : (
+                        <span>
+                          {customerSearchResults.length} customer(s) found
+                        </span>
+                      )}
+                    </div>
+                    
+                    {customerSearchError && !isSearchingCustomer && (
+                      <div className="p-2 text-danger small">{customerSearchError}</div>
+                    )}
+                    
+                    {!customerSearchError && customerSearchResults.length === 0 && !isSearchingCustomer && customerSearchTerm.trim() !== "" && (
+                      <div className="p-2 text-muted small">No customers found.</div>
+                    )}
+                    
+                    <div className="list-group list-group-flush" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                      {customerSearchResults.map((customer) => (
+                        <button
+                          type="button"
+                          key={customer.id}
+                          className="list-group-item list-group-item-action py-2 px-3 text-start"
+                          onClick={() => handleCustomerSelect(customer)}
+                        >
+                          <div className="d-flex justify-content-between align-items-center">
+                            <div>
+                              <div className="fw-medium">{customer.firstName} {customer.lastName}</div>
+                              <div className="small text-muted">
+                                {customer.email}
+                                {customer.company && <span> • {customer.company}</span>}
+                              </div>
+                            </div>
+                            {customer.defaultAddress && (
+                              <span className="badge bg-light text-dark border">
+                                <i className="fas fa-map-marker-alt me-1"></i>
+                                Has Address
+                              </span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <small className="form-text text-muted">Enter at least 3 characters to search for existing customers</small>
+            </div>
+            
             <div className="row g-3">
               <div className="col-md-4">
                 <label htmlFor="firstName" className="form-label">First Name</label>

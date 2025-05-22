@@ -39,11 +39,23 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthSessionProvider>
-          <Toaster position="bottom-right" toastOptions={{ duration: 3000 }} />
-          <div className="d-flex">
+          <Toaster 
+            position="bottom-right" 
+            toastOptions={{ 
+              duration: 3000,
+              style: {
+                background: 'var(--card-bg)',
+                color: 'var(--foreground)',
+                border: '1px solid var(--card-border)',
+                borderRadius: 'var(--border-radius)',
+                boxShadow: 'var(--card-shadow)',
+              },
+            }} 
+          />
+          <div className="app-wrapper d-flex min-vh-100">
             <Sidebar />
-            <main id="content" className="flex-grow-1 p-4">
-              <div className="container-fluid px-4">
+            <main id="content" className="flex-grow-1">
+              <div className="container-fluid py-4 px-md-5">
                 {children}
               </div>
             </main>
