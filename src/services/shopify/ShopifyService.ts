@@ -579,76 +579,66 @@ export class ShopifyService {
       }
   }
 
-  public async calculateDraftOrderShipping(draftOrderId: string, shippingAddress: ShopifyDraftOrderInput_Address): Promise<any> {
+  public async updateDraftOrderShippingLine(
+    draftOrderId: string,
+    shippingLineInput: { title: string; price: string } // price as string e.g., "10.00"
+  ): Promise<ShopifyDraftOrderGQLResponse | null> {
     const mutation = `
-      mutation draftOrderCalculate($input: DraftOrderInput!) {
-        draftOrderCalculate(input: $input) {
-          calculatedDraftOrder {
+      mutation draftOrderUpdate($id: ID!, $input: DraftOrderInput!) {
+        draftOrderUpdate(id: $id, input: $input) {
+          draftOrder {
             id
-            availableShippingRates {
-              handle
-              title
-              price {
-                amount
-                currencyCode
-              }
-            }
-            shippingLine { # This will be populated if a default or previously selected rate exists
-              handle
-              title
-              price
-            }
-            subtotalPriceSet { shopMoney { amount currencyCode } }
+            legacyResourceId
+            name
+            invoiceUrl
+            status
             totalPriceSet { shopMoney { amount currencyCode } }
             totalShippingPriceSet { shopMoney { amount currencyCode } }
+            subtotalPriceSet { shopMoney { amount currencyCode } }
             totalTaxSet { shopMoney { amount currencyCode } }
+            shippingLine {
+              title
+              price
+              shippingRateHandle
+            }
           }
           userErrors { field message }
         }
       }
     `;
+
     const variables = {
+      id: draftOrderId,
       input: {
-        id: draftOrderId, // GID of the existing draft order
-        shippingAddress: {
-            ...shippingAddress,
-            countryCode: mapCountryToCode(shippingAddress.countryCode), // map full name to code
-            provinceCode: mapProvinceToCode(shippingAddress.provinceCode, shippingAddress.countryCode),
-        },
+        shippingLine: shippingLineInput,
       },
     };
 
     try {
-      console.log(`[ShopifyService] Calculating shipping for draft order ${draftOrderId} with address:`, JSON.stringify(variables.input.shippingAddress));
+      console.log(`[ShopifyService] Updating shipping line for draft order ${draftOrderId} with:`, JSON.stringify(shippingLineInput));
       const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
 
-      // Check for GraphQL errors
       if (response.errors) {
-        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
-        throw new Error('GraphQL query failed');
+        console.error('[ShopifyService] GraphQL Errors on draftOrderUpdate:', JSON.stringify(response.errors, null, 2));
+        throw new Error('GraphQL query failed during draftOrderUpdate');
       }
 
-      // Check for userErrors
-      const userErrors = response.data?.draftOrderCalculate?.userErrors;
-      if (userErrors && userErrors.length) {
-        console.error('[ShopifyService] UserErrors calculating draft order shipping:', userErrors);
+      const userErrors = response.data?.draftOrderUpdate?.userErrors;
+      if (userErrors && userErrors.length > 0) {
+        console.error('[ShopifyService] UserErrors updating draft order shipping line:', userErrors);
         throw new Error(userErrors.map((e: any) => e.message).join('; '));
       }
 
-      if (!response.data?.draftOrderCalculate?.calculatedDraftOrder) {
-        throw new Error('No calculated draft order data returned.');
+      if (!response.data?.draftOrderUpdate?.draftOrder) {
+        throw new Error('Draft order not returned after update.');
       }
-      
-      console.log('[ShopifyService] Shipping calculation result:', response.data.draftOrderCalculate.calculatedDraftOrder);
-      return response.data.draftOrderCalculate.calculatedDraftOrder;
 
+      console.log('[ShopifyService] Draft order shipping line updated successfully.');
+      return response.data.draftOrderUpdate.draftOrder;
     } catch (error: any) {
-      console.error('[ShopifyService] Error calculating draft order shipping:', error);
-      if (error.response && error.response.errors) {
-        const messages = error.response.errors.map((e: any) => e.message).join(', ');
-        throw new Error(`Shopify API Error (Shipping Calc): ${messages}`);
-      }
-      throw error;
+      console.error('[ShopifyService] Error updating draft order shipping line:', error);
+      const errorMessage = error.response?.errors ? error.response.errors.map((e: any) => e.message).join(', ') : error.message;
+      throw new Error(`Shopify API Error (Update Shipping Line): ${errorMessage}`);
     }
   }
 
