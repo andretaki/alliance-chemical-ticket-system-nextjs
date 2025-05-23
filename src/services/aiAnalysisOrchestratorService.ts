@@ -1,5 +1,6 @@
 import { EmailAnalysisData } from '@/types/emailAnalysis';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig, type GenerativeModel } from '@google/generative-ai';
+import { NotificationService } from './notificationService';
 
 // Minimal representation of a raw email for analysis
 interface RawEmailInput {
@@ -28,6 +29,8 @@ function initializeGoogleAI(): GenerativeModel | null {
 geminiModel = initializeGoogleAI();
 
 export class AiAnalysisOrchestratorService {
+  private notificationService: NotificationService;
+
   // Defined primary topics list
   private definedPrimaryTopics = [
     "Order Placement", "Order Status Inquiry", "Order Modification/Cancellation", "Quote Request",
@@ -40,10 +43,54 @@ export class AiAnalysisOrchestratorService {
     "Regulatory Compliance", "Other: New Category"
   ];
 
+  // Add credit application detection patterns
+  private creditApplicationPatterns = {
+    requestPatterns: [
+      /credit\s+application/i,
+      /apply\s+for\s+credit/i,
+      /credit\s+terms/i,
+      /credit\s+account/i,
+      /net\s+\d+\s+terms/i,
+      /payment\s+terms/i,
+      /credit\s+line/i,
+      /credit\s+limit/i,
+      /credit\s+check/i,
+      /credit\s+approval/i
+    ],
+    followUpPatterns: [
+      /credit\s+application\s+status/i,
+      /status\s+of\s+credit\s+application/i,
+      /check\s+credit\s+application/i,
+      /credit\s+application\s+update/i,
+      /credit\s+application\s+follow\s+up/i
+    ],
+    otherCreditPatterns: [
+      /credit\s+card/i,
+      /credit\s+note/i,
+      /credit\s+balance/i,
+      /credit\s+refund/i,
+      /credit\s+back/i,
+      /credit\s+on\s+account/i
+    ]
+  };
+
+  private isCreditApplicationRequest(text: string): boolean {
+    const lowerText = text.toLowerCase();
+    return this.creditApplicationPatterns.requestPatterns.some(pattern => pattern.test(lowerText)) &&
+           !this.creditApplicationPatterns.followUpPatterns.some(pattern => pattern.test(lowerText)) &&
+           !this.creditApplicationPatterns.otherCreditPatterns.some(pattern => pattern.test(lowerText));
+  }
+
+  private isCreditApplicationFollowUp(text: string): boolean {
+    const lowerText = text.toLowerCase();
+    return this.creditApplicationPatterns.followUpPatterns.some(pattern => pattern.test(lowerText));
+  }
+
   constructor() {
     if (!geminiModel) {
       console.warn("[AIService] Gemini model not available during construction.");
     }
+    this.notificationService = new NotificationService();
   }
 
   /**
@@ -136,6 +183,32 @@ Be extremely thorough in 'extractedEntities'. Ensure the JSON is perfectly forme
       if (!responseText) { throw new Error("Empty AI response from Gemini."); }
 
       const parsedGeminiOutput = JSON.parse(responseText.trim());
+
+      // Add credit application detection logic
+      if (parsedGeminiOutput.primaryTopic === "Credit Application") {
+        const isRequest = this.isCreditApplicationRequest(email.bodyText);
+        const isFollowUp = this.isCreditApplicationFollowUp(email.bodyText);
+        
+        if (isRequest) {
+          parsedGeminiOutput.suggestedNextActions.push("Send credit application form URL to customer");
+          parsedGeminiOutput.keyInformationForResolution.push("Customer is requesting a new credit application");
+          
+          // Send credit application email
+          try {
+            await this.notificationService.handleCreditApplicationRequest(email.senderEmail);
+            parsedGeminiOutput.suggestedNextActions.push("Credit application form URL has been sent to customer");
+          } catch (error) {
+            console.error(`Failed to send credit application email to ${email.senderEmail}:`, error);
+            parsedGeminiOutput.suggestedNextActions.push("Failed to send credit application form URL - manual follow-up required");
+          }
+        } else if (isFollowUp) {
+          parsedGeminiOutput.suggestedNextActions.push("Check status of existing credit application");
+          parsedGeminiOutput.keyInformationForResolution.push("Customer is following up on an existing credit application");
+        } else {
+          parsedGeminiOutput.suggestedNextActions.push("Review email content for credit-related context");
+          parsedGeminiOutput.keyInformationForResolution.push("Credit-related discussion detected but not a direct application request");
+        }
+      }
 
       // Code-based normalization for primaryTopic
       if (parsedGeminiOutput.primaryTopic === "Automated System Notification") {

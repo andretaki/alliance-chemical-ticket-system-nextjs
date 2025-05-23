@@ -4,25 +4,34 @@ import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { ticketTypeEcommerceEnum } from '@/db/schema';
 
 // Register necessary Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Define the ticket structure expected from the API
 interface TicketSummary {
-  type?: string; // Make optional since it might not be in all tickets yet
+  type?: typeof ticketTypeEcommerceEnum.enumValues[number] | null; // Properly type the ticket type
 }
 
-// Predefined ticket types - these would normally come from your schema
-const typeValues = ['Bug/Error', 'Feature Request', 'Documentation', 'Question', 'Other'];
+// Use the actual ticket types from the schema
+const typeValues = ticketTypeEcommerceEnum.enumValues;
 
-// Chart colors for different types
+// Chart colors for different types - using a more professional color palette
 const backgroundColor = [
-  'rgba(255, 99, 132, 0.6)',   // Bug/Error - Red
-  'rgba(54, 162, 235, 0.6)',   // Feature Request - Blue
-  'rgba(255, 206, 86, 0.6)',   // Documentation - Yellow
-  'rgba(75, 192, 192, 0.6)',   // Question - Teal
-  'rgba(153, 102, 255, 0.6)',  // Other - Purple
+  'rgba(54, 162, 235, 0.6)',   // Blue
+  'rgba(255, 99, 132, 0.6)',   // Red
+  'rgba(75, 192, 192, 0.6)',   // Teal
+  'rgba(255, 206, 86, 0.6)',   // Yellow
+  'rgba(153, 102, 255, 0.6)',  // Purple
+  'rgba(255, 159, 64, 0.6)',   // Orange
+  'rgba(199, 199, 199, 0.6)',  // Gray
+  'rgba(83, 102, 255, 0.6)',   // Indigo
+  'rgba(40, 159, 64, 0.6)',    // Green
+  'rgba(210, 199, 199, 0.6)',  // Light Gray
+  'rgba(78, 205, 196, 0.6)',   // Turquoise
+  'rgba(255, 99, 255, 0.6)',   // Pink
+  'rgba(255, 159, 64, 0.6)',   // Orange
 ];
 
 const options = {
@@ -31,6 +40,13 @@ const options = {
   plugins: {
     legend: {
       position: 'right' as const,
+      labels: {
+        boxWidth: 15,
+        padding: 15,
+        font: {
+          size: 11
+        }
+      }
     },
     tooltip: {
       callbacks: {
@@ -67,7 +83,7 @@ export default function TypeChartClient() {
       const tickets = res.data;
 
       // Process data
-      const counts: Record<string, number> = {};
+      const counts: Record<typeof ticketTypeEcommerceEnum.enumValues[number], number> = {} as Record<typeof ticketTypeEcommerceEnum.enumValues[number], number>;
       
       // Initialize all possible types with 0
       typeValues.forEach(type => {
@@ -76,17 +92,11 @@ export default function TypeChartClient() {
 
       // Count tickets by type
       tickets.forEach(ticket => {
-        if (ticket.type) {
-          const type = ticket.type;
-          if (typeValues.includes(type)) {
-            counts[type]++;
-          } else {
-            // If it's a type we don't recognize, count it as "Other"
-            counts['Other'] = (counts['Other'] || 0) + 1;
-          }
+        if (ticket.type && typeValues.includes(ticket.type)) {
+          counts[ticket.type]++;
         } else {
-          // If ticket has no type, count it as "Other"
-          counts['Other'] = (counts['Other'] || 0) + 1;
+          // If ticket has no type or unrecognized type, count it as "General Inquiry"
+          counts['General Inquiry']++;
         }
       });
 
@@ -112,7 +122,7 @@ export default function TypeChartClient() {
   }, [fetchTicketData]);
 
   if (isLoading) return <div className="card-body text-center py-5">Loading Type Chart...</div>;
-  if (error) return <div className="card-body alert alert-warning">{error}</div>;
+  if (error) return <div className="card-body text-center py-5 text-danger">{error}</div>;
 
   // Conditional rendering if no data
   const hasData = chartData.datasets[0].data.some(count => count > 0);

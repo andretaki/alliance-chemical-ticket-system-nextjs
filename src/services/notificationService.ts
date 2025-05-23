@@ -79,4 +79,40 @@ export class NotificationService {
     // Actual email sending logic
     return true;
   }
+
+  private async sendCreditApplicationEmail(to: string, customerName?: string): Promise<void> {
+    const subject = "Alliance Chemical - Credit Application Form";
+    const creditApplicationUrl = process.env.CREDIT_APPLICATION_URL || "https://apply.alliancechemical.com";
+    
+    const emailContent = `
+Dear ${customerName || 'Valued Customer'},
+
+Thank you for your interest in establishing credit terms with Alliance Chemical. To proceed with your credit application, please use the following link:
+
+${creditApplicationUrl}
+
+This secure form will guide you through the application process. Once submitted, our credit department will review your application and contact you with the results.
+
+If you have any questions during the application process, please don't hesitate to contact us.
+
+Best regards,
+Alliance Chemical Credit Department
+    `;
+
+    try {
+      await this.sendEmail({
+        to,
+        subject,
+        text: emailContent,
+        html: emailContent.replace(/\n/g, '<br>')
+      });
+    } catch (error) {
+      console.error(`Failed to send credit application email to ${to}:`, error);
+      throw error;
+    }
+  }
+
+  public async handleCreditApplicationRequest(email: string, customerName?: string): Promise<void> {
+    await this.sendCreditApplicationEmail(email, customerName);
+  }
 } 

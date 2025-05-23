@@ -15,7 +15,8 @@ export const userRoleEnum = ticketingProdSchema.enum('user_role', ['admin', 'man
 export const ticketingRoleEnum = ticketingProdSchema.enum('ticketing_role_enum', ['Admin', 'Project Manager', 'Developer', 'Submitter', 'Viewer', 'Other']);
 export const ticketTypeEcommerceEnum = ticketingProdSchema.enum('ticket_type_ecommerce_enum', [
     'Return', 'Shipping Issue', 'Order Issue', 'New Order', 'Credit Request',
-    'COA Request', 'COC Request', 'SDS Request', 'Quote Request', 'Purchase Order', 'General Inquiry', 'Test Entry'
+    'COA Request', 'COC Request', 'SDS Request', 'Quote Request', 'Purchase Order', 'General Inquiry', 'Test Entry',
+    'International Shipping'
 ]);
 export const ticketSentimentEnum = ticketingProdSchema.enum('ticket_sentiment_enum', ['positive', 'neutral', 'negative']);
 
@@ -117,6 +118,18 @@ export const tickets = ticketingProdSchema.table('tickets', {
   ai_suggested_assignee_id: text('ai_suggested_assignee_id').references(() => users.id, { onDelete: 'set null' }),
   sendercompany: varchar('sender_company', { length: 255 }),
   sender_company: varchar('sender_company', { length: 255 }),
+  // Shipping address fields
+  shippingName: varchar('shipping_name', { length: 255 }),
+  shippingCompany: varchar('shipping_company', { length: 255 }),
+  shippingCountry: varchar('shipping_country', { length: 100 }),
+  shippingAddressLine1: varchar('shipping_address_line1', { length: 255 }),
+  shippingAddressLine2: varchar('shipping_address_line2', { length: 255 }),
+  shippingAddressLine3: varchar('shipping_address_line3', { length: 255 }),
+  shippingCity: varchar('shipping_city', { length: 100 }),
+  shippingState: varchar('shipping_state', { length: 100 }),
+  shippingPostalCode: varchar('shipping_postal_code', { length: 20 }),
+  shippingPhone: varchar('shipping_phone', { length: 20 }),
+  shippingEmail: varchar('shipping_email', { length: 255 }),
 }, (table) => {
   return {
     externalMessageIdKey: unique('tickets_mailgun_message_id_key').on(table.externalMessageId),
@@ -450,3 +463,31 @@ export const userSignaturesRelations = relations(userSignatures, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const creditApplications = ticketingProdSchema.table('credit_applications', {
+  id: serial('id').primaryKey(),
+  companyName: varchar('company_name', { length: 255 }).notNull(),
+  contactName: varchar('contact_name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 20 }).notNull(),
+  address: text('address').notNull(),
+  city: varchar('city', { length: 100 }).notNull(),
+  state: varchar('state', { length: 100 }).notNull(),
+  zipCode: varchar('zip_code', { length: 20 }).notNull(),
+  taxId: varchar('tax_id', { length: 50 }),
+  creditLimit: decimal('credit_limit', { precision: 10, scale: 2 }),
+  bankReferences: text('bank_references'),
+  tradeReferences: text('trade_references'),
+  status: varchar('status', { length: 50 }).default('pending').notNull(),
+  submittedAt: timestamp('submitted_at', { withTimezone: true }).defaultNow().notNull(),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+  reviewedBy: text('reviewed_by').references(() => users.id),
+  notes: text('notes'),
+  applicationForm: text('application_form'), // Store the form data as JSON
+}, (table) => {
+  return {
+    emailIndex: index('idx_credit_applications_email').on(table.email),
+    statusIndex: index('idx_credit_applications_status').on(table.status),
+    submittedAtIndex: index('idx_credit_applications_submitted_at').on(table.submittedAt),
+  };
+});
