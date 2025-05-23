@@ -1,11 +1,41 @@
 import type { SimpleQuoteEmailData } from '@/types/quoteInterfaces';
 
+interface EmailParams {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+  from?: string;
+  headers?: Record<string, string>;
+}
+
 export class NotificationService {
   private readonly salesTeamEmail = process.env.SALES_TEAM_EMAIL || 'sales@alliancechemical.com';
   private readonly agentSenderEmail = process.env.AGENT_SENDER_EMAIL || 'quotes@alliancechemical.com';
 
   constructor() {
     // Initialize email client
+  }
+
+  private async sendEmail(params: EmailParams): Promise<void> {
+    const { to, subject, text, html, from = this.agentSenderEmail, headers } = params;
+    
+    console.log(`[NotificationService] Sending email to: ${to}`);
+    console.log(`  Subject: ${subject}`);
+    console.log(`  From: ${from}`);
+    console.log(`  Body Preview: ${text.substring(0, 200)}...`);
+
+    // TODO: Implement actual email sending logic here
+    // For now, we'll just log it
+    // Example implementation:
+    // await this.emailClient.send({
+    //   to,
+    //   from,
+    //   subject,
+    //   text,
+    //   html,
+    //   headers
+    // });
   }
 
   /**
@@ -74,10 +104,22 @@ export class NotificationService {
                  `We aim to respond within 1-2 business days. If your request is urgent, please contact us directly at ${this.salesTeamEmail} and reference your ticket number.\n\n` +
                  `Sincerely,\nAlliance Chemical Support`;
 
-    console.log(`[NotificationService] STUB: Sending Complex Quote Acknowledgement to: ${recipientEmail}`);
-    console.log(`  Subject: ${subject}`);
-    // Actual email sending logic
-    return true;
+    try {
+      await this.sendEmail({
+        to: recipientEmail,
+        subject,
+        text: body,
+        html: body.replace(/\n/g, '<br>'),
+        headers: originalEmailIdToThread ? {
+          'In-Reply-To': `<${originalEmailIdToThread}>`,
+          'References': `<${originalEmailIdToThread}>`
+        } : undefined
+      });
+      return true;
+    } catch (error) {
+      console.error(`Failed to send complex quote acknowledgement to ${recipientEmail}:`, error);
+      return false;
+    }
   }
 
   private async sendCreditApplicationEmail(to: string, customerName?: string): Promise<void> {
