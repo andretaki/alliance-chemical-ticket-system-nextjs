@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';
+
 import { NextResponse, NextRequest } from 'next/server';
 import * as graphService from '@/lib/graphService';
 import { db } from '@/db';

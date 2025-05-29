@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { ticketAttachments, tickets, users } from '@/db/schema';

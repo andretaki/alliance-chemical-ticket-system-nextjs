@@ -369,11 +369,13 @@ export async function getMessageById(messageId: string): Promise<Message | null>
  * Creates a new Microsoft Graph subscription for new emails with direct parameters.
  * @param notificationUrl The URL of your webhook endpoint.
  * @param clientState A secret string for validation (optional but recommended).
+ * @param validationTimeout The timeout in seconds for subscription validation (optional).
  * @returns The created subscription object or null.
  */
 export async function createEmailSubscription(
   notificationUrl: string,
-  clientState?: string
+  clientState?: string,
+  validationTimeout?: number
 ): Promise<any | null> {
   const expirationDateTime = new Date();
   expirationDateTime.setDate(expirationDateTime.getDate() + 2); // Expires in 2 days (adjust as needed, max usually 3 for mail)
@@ -384,7 +386,8 @@ export async function createEmailSubscription(
     resource: `/users/${userEmail}/mailFolders/inbox/messages`, // Or just /users/${userEmail}/messages
     expirationDateTime: expirationDateTime.toISOString(),
     clientState: clientState || process.env.MICROSOFT_GRAPH_WEBHOOK_SECRET || "DefaultSecretState", // Use a secret
-    latestSupportedTlsVersion: "v1_2" // Recommended by Microsoft
+    latestSupportedTlsVersion: "v1_2", // Recommended by Microsoft
+    ...(validationTimeout && { validationTimeout }) // Add validationTimeout if provided
   };
 
   try {

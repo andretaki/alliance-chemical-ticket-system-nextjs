@@ -3,7 +3,7 @@ import { ProductSyncService } from '@/services/shopify/ProductSyncService';
 
 // This is a Vercel Cron Job handler
 // The cron schedule is configured in vercel.json
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   // Verify the request is from Vercel Cron

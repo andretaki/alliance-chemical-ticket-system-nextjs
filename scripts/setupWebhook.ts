@@ -17,6 +17,9 @@ if (!process.env.MICROSOFT_GRAPH_WEBHOOK_SECRET) {
 
 const NOTIFICATION_URL = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/graph-notifications`;
 
+// Add validation timeout
+const VALIDATION_TIMEOUT = 30000; // 30 seconds
+
 async function saveSubscriptionToDbWithRetry(newSubscription: any, retries = 3, delayMs = 1000) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -58,6 +61,7 @@ async function saveSubscriptionToDbWithRetry(newSubscription: any, retries = 3, 
 async function main() {
   console.log(`Setting up Microsoft Graph subscription for email notifications...`);
   console.log(`Webhook URL: ${NOTIFICATION_URL}`);
+  console.log(`Validation timeout: ${VALIDATION_TIMEOUT}ms`);
   
   try {
     // 1. Check if we already have active subscriptions
@@ -73,11 +77,12 @@ async function main() {
       }
     }
     
-    // 2. Create a new subscription
+    // 2. Create a new subscription with validation timeout
     console.log('Creating new subscription...');
     const newSubscription = await graphService.createEmailSubscription(
       NOTIFICATION_URL,
-      process.env.MICROSOFT_GRAPH_WEBHOOK_SECRET
+      process.env.MICROSOFT_GRAPH_WEBHOOK_SECRET,
+      VALIDATION_TIMEOUT
     );
     
     if (!newSubscription) {
