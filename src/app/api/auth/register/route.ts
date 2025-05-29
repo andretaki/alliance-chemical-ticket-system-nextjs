@@ -1,11 +1,10 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db/config';
+import { db } from '@/lib/db'; // Use the consolidated db instance
 import { users } from '@/db/schema';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { sql } from 'drizzle-orm';
 
 export async function POST(request: Request) {
   try {
@@ -29,40 +28,34 @@ export async function POST(request: Request) {
       );
     }
     
-    // Check if user already exists using direct SQL
-    const existingUserResult = await db.execute(sql`
-      SELECT id FROM ticketing_prod.users WHERE email = ${email.toLowerCase()}
-    `);
-    
-    if (existingUserResult.length > 0) {
+    // Check if user already exists using Drizzle query builder
+    const existingUser = await db.query.users.findFirst({
+      where: (dbUsers, { eq }) => eq(dbUsers.email, email.toLowerCase()),
+      columns: { id: true }
+    });
+
+    if (existingUser) {
       return NextResponse.json(
         { message: 'Email already registered' },
         { status: 409 }
       );
     }
-    
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Create new user with default role 'user' using direct SQL
+
+    // Create new user with default role 'user' using Drizzle query builder
     try {
-      // Generate UUID manually
       const userId = crypto.randomUUID();
-      const currentTime = new Date().toISOString();
       
-      await db.execute(sql`
-        INSERT INTO ticketing_prod.users (
-          id, email, password, name, role, created_at, updated_at
-        ) VALUES (
-          ${userId}, 
-          ${email.toLowerCase()}, 
-          ${hashedPassword}, 
-          ${name}, 
-          'user', 
-          ${currentTime}, 
-          ${currentTime}
-        )
-      `);
+      await db.insert(users).values({
+        id: userId,
+        email: email.toLowerCase(),
+        password: hashedPassword,
+        name,
+        role: 'user', // Default role
+        // createdAt and updatedAt will use defaultNow() from schema
+      });
       
       console.log('User registered successfully:', userId);
       

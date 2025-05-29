@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import type { Metadata } from 'next';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/lib/authOptions';
 import Link from 'next/link';
 
 export const metadata: Metadata = {

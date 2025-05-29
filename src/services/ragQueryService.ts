@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { ragChunks } from '@/db/schema';
+import { ragChunks } from '@/lib/db';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { eq, and, inArray, sql, SQL } from 'drizzle-orm';
 import OpenAI from 'openai';

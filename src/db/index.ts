@@ -1,5 +1,5 @@
 // Export the database instance
-export { db } from './config';
+export { db } from '../lib/db';
 
 // Re-export the schema
 export * from './schema'; 

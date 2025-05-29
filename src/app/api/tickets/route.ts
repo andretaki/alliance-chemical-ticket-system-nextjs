@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/db';
 import { tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum, ticketTypeEcommerceEnum } from '@/db/schema';
-import { eq, desc, asc, and, or, ilike, sql } from 'drizzle-orm';
+import { eq, desc, asc, and, or, ilike, sql, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/lib/authOptions';
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     }
     if (assigneeIdFilter) {
       if (assigneeIdFilter === 'unassigned') {
-        conditions.push(sql`${tickets.assigneeId} is null`);
+        conditions.push(isNull(tickets.assigneeId));
       } else {
         // Assuming assigneeIdFilter is the UUID string if not 'unassigned'
         conditions.push(eq(tickets.assigneeId, assigneeIdFilter));

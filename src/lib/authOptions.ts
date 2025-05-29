@@ -1,7 +1,7 @@
 // src/lib/authOptions.ts
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
-import { db } from '@/db/config';
+import { db } from '@/lib/db';
 import {
     users,
     accounts,
@@ -67,7 +67,7 @@ export const authOptions: AuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials.password) return null;
         
         const userFromDb = await db.query.users.findFirst({

@@ -3,17 +3,18 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card, Table, Badge, Button, Spinner, Pagination } from 'react-bootstrap';
-import Link from 'next/link';
 
 interface ResolvedTicket {
   id: number;
   title: string;
   senderName: string | null;
-  senderEmail: string | null;
-  resolutionSummary: string;
+  senderEmail: string;
   closedAt: string;
-  autoClose: boolean;
+  resolutionSummary: string;
   confidence: 'high' | 'medium' | 'low';
+  autoClose: boolean;
+  aiReasoning?: string;
+  conversationTurns?: number;
 }
 
 export default function AutoResolvedTicketsTable() {
@@ -43,14 +44,20 @@ export default function AutoResolvedTicketsTable() {
   const getConfidenceBadge = (confidence: 'high' | 'medium' | 'low') => {
     switch (confidence) {
       case 'high':
-        return <Badge bg="success">High</Badge>;
+        return <Badge bg="success" className="me-1">High Confidence</Badge>;
       case 'medium':
-        return <Badge bg="warning">Medium</Badge>;
+        return <Badge bg="warning" className="me-1">Medium Confidence</Badge>;
       case 'low':
-        return <Badge bg="danger">Low</Badge>;
+        return <Badge bg="danger" className="me-1">Low Confidence</Badge>;
       default:
-        return null;
+        return <Badge bg="secondary" className="me-1">Unknown</Badge>;
     }
+  };
+  
+  const getAutoCloseBadge = (autoClose: boolean) => {
+    return autoClose ? 
+      <Badge bg="primary" className="me-1">AI Auto-Closed</Badge> : 
+      <Badge bg="secondary" className="me-1">Manual Resolution</Badge>;
   };
   
   const handleReopenTicket = async (ticketId: number) => {
@@ -143,51 +150,84 @@ export default function AutoResolvedTicketsTable() {
         ) : tickets.length === 0 ? (
           <div className="p-3 text-center text-muted">No auto-resolved tickets found</div>
         ) : (
-          <Table hover responsive className="mb-0">
-            <thead className="bg-light">
+          <Table responsive hover>
+            <thead>
               <tr>
-                <th>ID</th>
-                <th>Title</th>
+                <th>Ticket #</th>
                 <th>Customer</th>
-                <th>Resolution</th>
-                <th>Closed At</th>
-                <th>Confidence</th>
+                <th>Resolution Details</th>
+                <th>AI Analysis</th>
+                <th>Closed Date</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {tickets.map(ticket => (
+              {tickets.map((ticket) => (
                 <tr key={ticket.id}>
-                  <td>#{ticket.id}</td>
                   <td>
-                    <Link href={`/tickets/${ticket.id}`}>
-                      {ticket.title}
-                    </Link>
+                    <strong>#{ticket.id}</strong>
+                    <br />
+                    <small className="text-muted" title={ticket.title}>
+                      {ticket.title.length > 30 ? `${ticket.title.substring(0, 30)}...` : ticket.title}
+                    </small>
                   </td>
                   <td>
-                    {ticket.senderName || ticket.senderEmail || 'Unknown'}
+                    <div>
+                      <strong>{ticket.senderName || 'Unknown'}</strong>
+                      <br />
+                      <small className="text-muted">{ticket.senderEmail}</small>
+                    </div>
                   </td>
                   <td>
-                    <span title={ticket.resolutionSummary}>
-                      {ticket.resolutionSummary.length > 50 
-                        ? `${ticket.resolutionSummary.substring(0, 50)}...` 
+                    <div className="mb-1">
+                      {getAutoCloseBadge(ticket.autoClose)}
+                      {getConfidenceBadge(ticket.confidence)}
+                    </div>
+                    <small className="text-muted">
+                      {ticket.resolutionSummary.length > 100 
+                        ? `${ticket.resolutionSummary.substring(0, 100)}...` 
                         : ticket.resolutionSummary}
-                    </span>
+                    </small>
                   </td>
                   <td>
-                    {new Date(ticket.closedAt).toLocaleString()}
+                    <div className="d-flex flex-column">
+                      <div className="mb-1">
+                        <i className="bi bi-robot me-1"></i>
+                        <span className="badge bg-light text-dark">AI Analyzed</span>
+                      </div>
+                      {ticket.conversationTurns && (
+                        <small className="text-muted">
+                          <i className="bi bi-chat-dots me-1"></i>
+                          {ticket.conversationTurns} turns
+                        </small>
+                      )}
+                      {ticket.aiReasoning && (
+                        <small className="text-muted mt-1" title={ticket.aiReasoning}>
+                          <i className="bi bi-lightbulb me-1"></i>
+                          {ticket.aiReasoning.length > 50 
+                            ? `${ticket.aiReasoning.substring(0, 50)}...` 
+                            : ticket.aiReasoning}
+                        </small>
+                      )}
+                    </div>
                   </td>
                   <td>
-                    {getConfidenceBadge(ticket.confidence)}
-                    {' '}
-                    {ticket.autoClose && <Badge bg="info">Auto</Badge>}
+                    <div className="text-nowrap">
+                      {new Date(ticket.closedAt).toLocaleDateString()}
+                      <br />
+                      <small className="text-muted">
+                        {new Date(ticket.closedAt).toLocaleTimeString()}
+                      </small>
+                    </div>
                   </td>
                   <td>
                     <Button 
+                      variant="outline-warning" 
                       size="sm" 
-                      variant="outline-primary"
                       onClick={() => handleReopenTicket(ticket.id)}
+                      title="Reopen this ticket if the AI closure was incorrect"
                     >
+                      <i className="bi bi-arrow-clockwise me-1"></i>
                       Reopen
                     </Button>
                   </td>

@@ -138,6 +138,7 @@ This secure form will guide you through the application process. Once submitted,
 If you have any questions during the application process, please don't hesitate to contact us.
 
 Best regards,
+
 Alliance Chemical Credit Department
     `;
 

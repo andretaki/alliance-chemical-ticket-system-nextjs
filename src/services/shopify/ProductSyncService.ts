@@ -30,7 +30,7 @@ export class ProductSyncService {
             productIdShopify: productIdShopifyBigInt,
             name: product.title,
             handleShopify: product.handle,
-            description: product.descriptionHtml ? product.descriptionHtml.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim().substring(0, 10000) : null,
+            description: product.descriptionHtml ? product.descriptionHtml.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim().substring(0, 10000) : undefined,
             productType: product.productType || null,
             vendor: product.vendor || null,
             tags: product.tags?.join(', ') || null,

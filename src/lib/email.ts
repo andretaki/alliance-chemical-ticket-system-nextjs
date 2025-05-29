@@ -2,6 +2,7 @@ import * as graphService from '@/lib/graphService';
 import { Message } from '@microsoft/microsoft-graph-types';
 import { ticketAttachments } from '@/db/schema';
 import { InferSelectModel } from 'drizzle-orm';
+import fs from 'fs/promises'; // Import fs.promises for async file reading
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -80,12 +81,22 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
       </div>
     `;
 
-    // Process attachments if any
-    const processedAttachments = attachments.map(att => ({
-      name: att.originalFilename,
-      contentType: att.mimeType,
-      contentBytes: att.contentBytes || '' // Ensure we have a string, even if empty
-    }));
+    // Add attachments if provided
+    let processedAttachments: { name: string; contentType: string; contentBytes: string; }[] = [];
+    if (attachments && attachments.length > 0) {      
+      processedAttachments = await Promise.all(attachments.map(async (att) => {
+        let contentBytes = '';
+        if (att.storagePath) {
+          const fileBuffer = await fs.readFile(att.storagePath);
+          contentBytes = fileBuffer.toString('base64');
+        }
+        return {
+          name: att.originalFilename,
+          contentType: att.mimeType,
+          contentBytes: contentBytes
+        };
+      }));
+    }
 
     // Send the email using graphService with the user's email
     return await graphService.sendEmailReply(

@@ -1,5 +1,0 @@
-{
-  "out": "./src/db/migrations",
-  "schema": "./src/db/schema.ts",
-  "connectionString": "postgresql://postgres:password@localhost:5432/tickets_db"
-} 

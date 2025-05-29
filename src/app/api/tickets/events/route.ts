@@ -13,7 +13,7 @@ export async function GET() {
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const headersList = headers();
+    const headersList = await headers();
     const userAgent = headersList.get('user-agent') || 'unknown';
     const clientIp = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || 'unknown';
 

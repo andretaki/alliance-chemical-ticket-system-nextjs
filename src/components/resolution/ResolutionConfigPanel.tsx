@@ -12,6 +12,11 @@ interface ResolutionConfig {
   sendCustomerNotification: boolean;
   includeSurveyLink: boolean;
   surveyUrl?: string;
+  autoCloseOnlyIfAgentRespondedLast: boolean;
+  minimumConversationTurnsForAI: number;
+  inactivityDaysForConfidentClosure: number;
+  enableAutoFollowUp: boolean;
+  analyzeLowActivityTickets: boolean;
 }
 
 export default function ResolutionConfigPanel() {
@@ -22,7 +27,12 @@ export default function ResolutionConfigPanel() {
     maxTicketsPerBatch: 50,
     sendCustomerNotification: true,
     includeSurveyLink: false,
-    surveyUrl: ''
+    surveyUrl: '',
+    autoCloseOnlyIfAgentRespondedLast: true,
+    minimumConversationTurnsForAI: 2,
+    inactivityDaysForConfidentClosure: 3,
+    enableAutoFollowUp: false,
+    analyzeLowActivityTickets: false
   });
   
   const [isLoading, setIsLoading] = useState(true);
@@ -69,7 +79,7 @@ export default function ResolutionConfigPanel() {
     return (
       <Card className="shadow-sm mb-4">
         <Card.Header>
-          <h5 className="mb-0">Resolution Configuration</h5>
+          <h5 className="mb-0">AI Sales Manager Configuration</h5>
         </Card.Header>
         <Card.Body className="text-center py-5">
           <Spinner animation="border" role="status">
@@ -83,7 +93,7 @@ export default function ResolutionConfigPanel() {
   return (
     <Card className="shadow-sm mb-4">
       <Card.Header>
-        <h5 className="mb-0">Resolution Configuration</h5>
+        <h5 className="mb-0">AI Sales Manager Configuration</h5>
       </Card.Header>
       <Card.Body>
         {error && <Alert variant="danger">{error}</Alert>}
@@ -151,6 +161,81 @@ export default function ResolutionConfigPanel() {
               Maximum number of tickets to process in a single batch
             </Form.Text>
           </Form.Group>
+          
+          <hr />
+          <h6 className="text-muted mb-3">AI Analysis Configuration</h6>
+          
+          <Form.Group className="mb-3">
+            <Form.Check 
+              type="switch"
+              id="autoCloseOnlyIfAgentRespondedLast"
+              label="Only Auto-Close When Agent Responded Last"
+              checked={config.autoCloseOnlyIfAgentRespondedLast}
+              onChange={(e) => setConfig({...config, autoCloseOnlyIfAgentRespondedLast: e.target.checked})}
+            />
+            <Form.Text className="text-muted">
+              Safety measure: Only auto-close tickets where the agent was the last to respond
+            </Form.Text>
+          </Form.Group>
+          
+          <Form.Group className="mb-3">
+            <Form.Label>Minimum Conversation Turns for AI</Form.Label>
+            <Form.Control
+              type="number"
+              id="minimumConversationTurnsForAI"
+              min="1"
+              max="10"
+              value={config.minimumConversationTurnsForAI}
+              onChange={(e) => setConfig({...config, minimumConversationTurnsForAI: parseInt(e.target.value)})}
+            />
+            <Form.Text className="text-muted">
+              Minimum number of customer+agent messages before AI analysis is performed
+            </Form.Text>
+          </Form.Group>
+          
+          <Form.Group className="mb-3">
+            <Form.Label>Inactivity Days for High Confidence Closure</Form.Label>
+            <Form.Control
+              type="number"
+              id="inactivityDaysForConfidentClosure"
+              min="1"
+              max="14"
+              value={config.inactivityDaysForConfidentClosure}
+              onChange={(e) => setConfig({...config, inactivityDaysForConfidentClosure: parseInt(e.target.value)})}
+            />
+            <Form.Text className="text-muted">
+              Days of inactivity required for high confidence AI closures (can be less than general inactivity days)
+            </Form.Text>
+          </Form.Group>
+          
+          <Form.Group className="mb-3">
+            <Form.Check 
+              type="switch"
+              id="enableAutoFollowUp"
+              label="Enable Auto Follow-Up Questions"
+              checked={config.enableAutoFollowUp}
+              onChange={(e) => setConfig({...config, enableAutoFollowUp: e.target.checked})}
+            />
+            <Form.Text className="text-muted">
+              Allow AI to automatically send follow-up questions to customers when needed
+            </Form.Text>
+          </Form.Group>
+          
+          <Form.Group className="mb-3">
+            <Form.Check 
+              type="switch"
+              id="analyzeLowActivityTickets"
+              label="Analyze Low Activity Tickets"
+              checked={config.analyzeLowActivityTickets}
+              onChange={(e) => setConfig({...config, analyzeLowActivityTickets: e.target.checked})}
+            />
+            <Form.Text className="text-muted">
+              Include tickets with minimal conversation in AI analysis (normally skipped)
+            </Form.Text>
+          </Form.Group>
+          
+          <hr />
+          <h6 className="text-muted mb-3">Customer Notifications</h6>
           
           <Form.Group className="mb-3">
             <Form.Check 

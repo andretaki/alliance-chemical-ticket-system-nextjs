@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import type { Metadata } from 'next';
 import TicketListClient from '@/components/TicketListClient';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/lib/authOptions';
 
 export const metadata: Metadata = {
   title: 'All Tickets - Alliance Chemical Support',

@@ -95,9 +95,14 @@ export async function markEmailAsRead(messageId: string): Promise<void> {
       .update({
         isRead: true
       });
-  } catch (error) {
-    console.error(`Error marking email ${messageId} as read:`, error);
-    throw error;
+  } catch (error: any) {
+    // Handle 404 errors gracefully - emails can be moved/deleted quickly
+    if (error.statusCode === 404 || error.code === 'ErrorItemNotFound') {
+      console.log(`Email ${messageId} not found when marking as read - likely moved/deleted (normal for webhooks)`);
+    } else {
+      console.error(`Error marking email ${messageId} as read:`, error);
+      throw error;
+    }
   }
 }
 
@@ -361,6 +366,28 @@ export async function getMessageById(messageId: string): Promise<Message | null>
       .get();
   } catch (error) {
     console.error(`Error getting message ${messageId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get email headers and basic info for quick filtering (lighter than full message).
+ * @param messageId The ID of the message.
+ * @returns Basic message info with sender details or null if not found/error.
+ */
+export async function getEmailHeaders(messageId: string): Promise<{ sender?: { emailAddress?: { address?: string } } } | null> {
+  try {
+    return await graphClient
+      .api(`/users/${userEmail}/messages/${messageId}`)
+      .select('sender,subject,internetMessageHeaders')
+      .get();
+  } catch (error: any) {
+    // Handle 404 errors gracefully - emails can be moved/deleted quickly  
+    if (error.statusCode === 404 || error.code === 'ErrorItemNotFound') {
+      console.log(`Email headers for ${messageId} not found - likely moved/deleted quickly (normal for webhooks)`);
+    } else {
+      console.error(`Error getting email headers ${messageId}:`, error);
+    }
     return null;
   }
 }

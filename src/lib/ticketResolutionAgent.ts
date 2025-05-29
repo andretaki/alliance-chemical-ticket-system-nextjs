@@ -1,5 +1,5 @@
 // src/lib/ticketResolutionAgent.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerationConfig } from "@google/generative-ai";
 import { db } from '@/db';
 import { tickets, ticketComments, ticketStatusEnum } from '@/db/schema';
 import { eq, and, not, gte, lte, sql } from 'drizzle-orm';
@@ -20,6 +20,7 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
+// Use gemini-1.5-flash for cost-effectiveness and speed, or gemini-pro for more complex reasoning.
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 interface TicketWithComments {
@@ -70,214 +71,232 @@ async function updateLastRunTime() {
 }
 
 /**
- * Analyzes ticket conversation to determine if it's resolved
+ * Builds comprehensive conversation text for AI analysis
+ */
+function buildConversationTextForAI(ticket: TicketWithComments): string {
+  let conversationText = `TICKET #${ticket.id}: ${ticket.title}\n`;
+  conversationText += `INITIAL DESCRIPTION: ${ticket.description || '(No description provided)'}\n`;
+  
+  if (ticket.orderNumber) {
+    conversationText += `ORDER NUMBER: ${ticket.orderNumber}\n`;
+  }
+  if (ticket.trackingNumber) {
+    conversationText += `TRACKING NUMBER: ${ticket.trackingNumber}\n`;
+  }
+  conversationText += `PRIORITY: ${ticket.priority}\n`;
+  conversationText += `STATUS (at time of analysis): ${ticket.status}\n\n`;
+  
+  conversationText += `CONVERSATION HISTORY (chronological, excluding internal notes):\n`;
+  conversationText += `${'='.repeat(50)}\n`;
+  
+  ticket.comments.filter(c => !c.isInternalNote).forEach((comment) => {
+    const sender = comment.isFromCustomer ? 
+      (ticket.senderName || 'Customer') : 
+      (comment.commenterName || 'Agent');
+    
+    const formattedDate = new Date(comment.createdAt).toISOString().split('T')[0];
+    const formattedTime = new Date(comment.createdAt).toTimeString().split(' ')[0];
+    
+    const messageType = comment.isFromCustomer ? '[CUSTOMER MESSAGE]' : '[AGENT RESPONSE]';
+    
+    conversationText += `\n${messageType} from ${sender} on ${formattedDate} at ${formattedTime}:\n`;
+    conversationText += `${'-'.repeat(30)}\n`;
+    conversationText += `${comment.commentText || '(No text content)'}\n`;
+    conversationText += `${'-'.repeat(30)}\n`;
+  });
+  
+  conversationText += `${'='.repeat(50)}\n`;
+  
+  return conversationText;
+}
+
+/**
+ * Determines if a ticket should be auto-closed based on AI analysis and configuration
+ */
+function determineAutoCloseEligibility(
+  analysis: ResolutionAnalysis, 
+  config: ResolutionConfig
+): boolean {
+  if (!analysis.isResolved || !config.autoCloseEnabled) {
+    return false;
+  }
+
+  const confidenceMet = (
+    config.confidenceThreshold === 'low' ||
+    (config.confidenceThreshold === 'medium' && ['medium', 'high'].includes(analysis.confidence)) ||
+    (config.confidenceThreshold === 'high' && analysis.confidence === 'high')
+  );
+
+  if (!confidenceMet) return false;
+  if (analysis.recommendedAction !== 'close') return false;
+  if (analysis.satisfactionIndicators?.negativeSentiment) return false; // Don't close if negative sentiment
+
+  if (config.autoCloseOnlyIfAgentRespondedLast && analysis.analysisContext.customerRespondedLast) {
+    return false;
+  }
+
+  const requiredInactivityDays = analysis.confidence === 'high' && !analysis.analysisContext.customerRespondedLast
+    ? config.inactivityDaysForConfidentClosure
+    : config.inactivityDays;
+    
+  if (analysis.analysisContext.daysSinceLastAgentResponse < requiredInactivityDays) {
+    return false;
+  }
+  
+  // If medium/low confidence, require explicit satisfaction or gratitude, unless it's been inactive for much longer
+  if (analysis.confidence !== 'high') {
+    const hasPositiveConfirmation = analysis.satisfactionIndicators?.explicitSatisfaction || analysis.satisfactionIndicators?.expresstionOfGratitude;
+    if (!hasPositiveConfirmation && analysis.analysisContext.daysSinceLastAgentResponse < (config.inactivityDays * 1.5)) {
+        return false; // Requires stronger positive signal or longer inactivity for non-high confidence
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Analyzes ticket conversation to determine if it's resolved using advanced AI analysis
  */
 export async function analyzeTicketResolution(ticketId: number): Promise<ResolutionAnalysis | null> {
   try {
-    // Fetch ticket with comments
-    const ticket = await db.query.tickets.findFirst({
+    const config = await getResolutionConfig();
+    
+    const ticketData = await db.query.tickets.findFirst({
       where: eq(tickets.id, ticketId),
       columns: {
-        id: true,
-        title: true,
-        status: true,
-        priority: true,
-        description: true,
-        senderEmail: true,
-        senderName: true,
-        orderNumber: true,
-        trackingNumber: true,
-        createdAt: true,
-        updatedAt: true,
+        id: true, title: true, status: true, priority: true, description: true,
+        senderEmail: true, senderName: true, orderNumber: true, trackingNumber: true,
+        createdAt: true, updatedAt: true,
       },
       with: {
         comments: {
           orderBy: (comments, { asc }) => [asc(comments.createdAt)],
-          with: {
-            commenter: {
-              columns: {
-                name: true,
-              }
-            }
-          }
+          with: { commenter: { columns: { name: true } } }
         }
       }
     });
 
-    if (!ticket) {
-      console.error(`Resolution Agent: Ticket ${ticketId} not found`);
+    if (!ticketData) {
+      console.error(`Resolution Agent: Ticket ${ticketId} not found for analysis.`);
       return null;
     }
-
-    // Transform comments for analysis
-    const transformedComments = ticket.comments.map(comment => ({
-      id: comment.id,
-      commentText: comment.commentText,
-      isFromCustomer: comment.isFromCustomer,
-      isInternalNote: comment.isInternalNote,
-      isOutgoingReply: comment.isOutgoingReply,
-      createdAt: comment.createdAt,
-      commenterName: comment.commenter?.name,
-    }));
-
-    // Simplified ticket for analysis
-    const ticketForAnalysis: TicketWithComments = {
-      ...ticket,
-      comments: transformedComments
+    
+    const ticket: TicketWithComments = {
+        ...ticketData,
+        comments: ticketData.comments.map(c => ({...c, commenterName: c.commenter?.name}))
     };
 
-    // Only analyze tickets with at least one customer message and one agent response
-    const customerMessages = transformedComments.filter(c => c.isFromCustomer);
-    const agentResponses = transformedComments.filter(c => c.isOutgoingReply);
-    
-    if (customerMessages.length === 0 || agentResponses.length === 0) {
-      console.log(`Resolution Agent: Ticket ${ticketId} has insufficient conversation for analysis`);
+    const customerMessages = ticket.comments.filter(c => c.isFromCustomer && !c.isInternalNote);
+    const agentResponses = ticket.comments.filter(c => c.isOutgoingReply && !c.isInternalNote);
+    const conversationTurns = customerMessages.length + agentResponses.length;
+
+    if (conversationTurns < config.minimumConversationTurnsForAI && !config.analyzeLowActivityTickets) {
+      console.log(`Resolution Agent: Ticket ${ticketId} has ${conversationTurns} turns, less than min ${config.minimumConversationTurnsForAI}. Skipping AI.`);
       return {
-        isResolved: false,
-        resolutionSummary: null,
-        confidence: 'high',
-        reasonForConclusion: 'Insufficient conversation (requires at least one customer message and one agent response)',
-        shouldAutoClose: false,
-        recommendedAction: 'none'
-      };
-    }
-
-    // Has the customer responded after the last agent message?
-    const lastComment = transformedComments[transformedComments.length - 1];
-    const lastAgentResponse = agentResponses[agentResponses.length - 1];
-    const customerRespondedLast = lastComment.isFromCustomer;
-    
-    // Calculate response times
-    const lastAgentResponseTime = lastAgentResponse?.createdAt;
-    const timeSinceLastAgentResponse = lastAgentResponseTime ? 
-      Date.now() - lastAgentResponseTime.getTime() : 0;
-    const daysSinceLastAgentResponse = timeSinceLastAgentResponse / (1000 * 60 * 60 * 24);
-
-    // Basic pre-check for auto-closure candidates
-    let skipAIAnalysis = false;
-    let preCheckResult: ResolutionAnalysis | null = null;
-    
-    // Auto-close candidates:
-    // 1. Last message was from agent
-    // 2. Message was sent more than 7 days ago 
-    // 3. No customer response after agent's last message
-    if (!customerRespondedLast && daysSinceLastAgentResponse > 7) {
-      skipAIAnalysis = true;
-      preCheckResult = {
-        isResolved: true,
-        resolutionSummary: `Ticket auto-closed after ${Math.floor(daysSinceLastAgentResponse)} days with no customer response to our last message`,
-        confidence: 'high',
-        reasonForConclusion: 'Customer did not respond to agent message for an extended period',
-        shouldAutoClose: true,
-        recommendedAction: 'close'
+        isResolved: false, confidence: 'low', reasonForConclusion: 'Conversation too short for AI analysis.',
+        resolutionSummary: null, recommendedAction: 'none', shouldAutoClose: false,
+        analysisContext: { customerRespondedLast: false, daysSinceLastAgentResponse: 0, conversationTurns, hasMultipleIssues: false, identifiedIssues: [] },
+        satisfactionIndicators: { explicitSatisfaction: false, expresstionOfGratitude: false, negativeSentiment: false, satisfactionConfidence: 'low' }
       };
     }
     
-    // If pre-check determined this is a clear auto-close case, skip AI analysis
-    if (skipAIAnalysis && preCheckResult) {
-      return preCheckResult;
-    }
+    const lastNonInternalComment = ticket.comments.filter(c => !c.isInternalNote).pop();
+    const customerRespondedLast = !!lastNonInternalComment?.isFromCustomer;
+    
+    const lastAgentResponse = agentResponses.length > 0 ? agentResponses[agentResponses.length - 1] : null;
+    const daysSinceLastAgentResponse = lastAgentResponse ? (Date.now() - new Date(lastAgentResponse.createdAt).getTime()) / (1000 * 60 * 60 * 24) : 0;
 
-    // Prepare the conversation for AI analysis
-    let conversationText = `TICKET #${ticket.id}: ${ticket.title}\n\n`;
-    conversationText += `INITIAL DESCRIPTION: ${ticket.description || '(No description)'}\n\n`;
-    
-    if (ticket.orderNumber) {
-      conversationText += `ORDER NUMBER: ${ticket.orderNumber}\n`;
-    }
-    
-    if (ticket.trackingNumber) {
-      conversationText += `TRACKING NUMBER: ${ticket.trackingNumber}\n`;
-    }
-    
-    conversationText += `\nCONVERSATION HISTORY:\n`;
-    
-    transformedComments.forEach((comment, index) => {
-      const sender = comment.isFromCustomer ? 
-        (ticket.senderName || 'Customer') : 
-        (comment.isInternalNote ? 'Internal Note' : (comment.commenterName || 'Agent'));
-      
-      const formattedDate = comment.createdAt.toISOString().split('T')[0];
-      const messageType = comment.isInternalNote ? '[INTERNAL NOTE]' : 
-                          comment.isOutgoingReply ? '[OUTGOING EMAIL]' : 
-                          comment.isFromCustomer ? '[CUSTOMER EMAIL]' : '[COMMENT]';
-      
-      conversationText += `\n--- ${messageType} from ${sender} on ${formattedDate} ---\n`;
-      conversationText += `${comment.commentText || '(No text content)'}\n`;
-    });
+    const conversationText = buildConversationTextForAI(ticket);
 
-    // Prepare the prompt for the AI
     const prompt = `
-      You are an expert customer support ticket analyzer. Review this ticket conversation and determine if the ticket appears to be resolved.
-      
-      ${conversationText}
-      
-      Answer these questions:
-      1. Is this ticket resolved based on the conversation? Consider factors like:
-         - Did the agent properly address the customer's issue?
-         - Did the customer confirm their issue was resolved?
-         - Were all the customer's questions answered?
-         - For order status inquiries, was tracking information provided?
-         - Has there been a significant period of inactivity (suggesting the issue is resolved)?
-      
-      2. What is the recommended action: 'close', 'follow_up', or 'none'?
-      
-      3. If a follow-up is needed, what specific question should be asked?
-      
-      4. Write a brief (1-2 sentence) summary of how this ticket was resolved, or why it's not resolved.
-      
-      Respond in this JSON format:
-      {
-        "isResolved": true|false,
-        "confidence": "high"|"medium"|"low",
-        "reasonForConclusion": "explanation of why you believe the ticket is resolved or not",
-        "recommendedAction": "close"|"follow_up"|"none",
-        "followUpQuestion": "suggested follow up question if relevant",
-        "resolutionSummary": "brief summary of how the issue was resolved"
-      }
-    `;
+You are an expert Customer Support Manager AI with deep experience in customer service resolution analysis. Your task is to analyze this support ticket conversation and provide a comprehensive assessment.
+
+ANALYSIS REQUIREMENTS:
+1. RESOLUTION STATUS: Has the customer's primary issue been fully addressed?
+2. CUSTOMER SATISFACTION INDICATORS: Explicit confirmations ("thank you, it works!", "all set"), gratitude, negative sentiment, etc.
+3. CONVERSATION CONTEXT: Who responded last, timing since last agent response, total conversation turns.
+4. BUSINESS CONTEXT: What was the ticket about (order, product, technical issue)?
+
+DECISION CRITERIA:
+- High confidence resolution: Customer explicitly confirmed satisfaction OR agent provided a complete, clear solution and customer has not replied for several days (${config.inactivityDaysForConfidentClosure}+ days).
+- Medium confidence: Agent likely resolved the issue, but no explicit confirmation from customer. Customer has been inactive for a few days (${config.inactivityDays}+ days).
+- Low confidence: Unclear if resolved, or potential for unresolved issues.
+
+Ticket Conversation:
+${conversationText}
+
+Respond with this exact JSON structure:
+{
+  "isResolved": boolean,
+  "confidence": "high" | "medium" | "low",
+  "reasonForConclusion": "Detailed explanation of your decision (2-3 sentences).",
+  "resolutionSummary": "If resolved, concise summary of how issue was resolved. If not resolved, state 'Not yet resolved'.",
+  "recommendedAction": "close" | "follow_up" | "none",
+  "followUpQuestion": "If 'follow_up' recommended, specific question to ask customer. Otherwise null.",
+  "analysisContext": {
+    "customerRespondedLast": ${customerRespondedLast},
+    "daysSinceLastAgentResponse": ${parseFloat(daysSinceLastAgentResponse.toFixed(1))},
+    "conversationTurns": ${conversationTurns},
+    "hasMultipleIssues": boolean, // Determine if multiple distinct issues were discussed
+    "identifiedIssues": ["list", "of", "distinct issues identified"] // List the core issues
+  },
+  "satisfactionIndicators": {
+    "explicitSatisfaction": boolean, // e.g., "Thanks, that worked!", "Perfect!"
+    "expresstionOfGratitude": boolean, // e.g., "Thank you for your help", "Appreciate it"
+    "negativeSentiment": boolean, // e.g., "This is frustrating", "Still not working"
+    "satisfactionConfidence": "high" | "medium" | "low" // Confidence in the satisfaction assessment
+  }
+}`;
     
-    // Call the AI model
-    console.log(`Resolution Agent: Analyzing ticket ${ticketId} conversation`);
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.2,
+    const generationConfig: GenerationConfig = {
+        temperature: 0.2, // Lower for more factual, less creative responses
         topP: 0.8,
         topK: 40,
-        maxOutputTokens: 1024,
+        maxOutputTokens: 2048, // Increased to handle potentially longer contexts and structured JSON
         responseMimeType: "application/json"
-      }
+    };
+
+    console.log(`Resolution Agent: Analyzing ticket ${ticketId} with Gemini (${conversationTurns} turns). Customer responded last: ${customerRespondedLast}. Days since last agent: ${daysSinceLastAgentResponse.toFixed(1)}`);
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig
     });
     
     const responseText = result.response.text();
     if (!responseText) {
-      console.error(`Resolution Agent: Empty response for ticket ${ticketId}`);
+      console.error(`Resolution Agent: Empty Gemini response for ticket ${ticketId}`);
       return null;
     }
     
-    // Parse the JSON response
     try {
-      // Clean the response to handle potential markdown formatting
       const cleanedJson = responseText.replace(/^```json\s*|```$/g, '').trim();
       const analysis = JSON.parse(cleanedJson) as ResolutionAnalysis;
       
-      // Add auto-close logic based on confidence and analysis
-      analysis.shouldAutoClose = analysis.isResolved && 
-                                analysis.confidence === 'high' && 
-                                analysis.recommendedAction === 'close' &&
-                                !customerRespondedLast &&
-                                daysSinceLastAgentResponse > 5;
+      // Ensure all nested objects exist with defaults if AI omits them
+      analysis.analysisContext = analysis.analysisContext || { 
+        customerRespondedLast, daysSinceLastAgentResponse, conversationTurns, 
+        hasMultipleIssues: false, identifiedIssues: [] 
+      };
+      analysis.satisfactionIndicators = analysis.satisfactionIndicators || { 
+        explicitSatisfaction: false, expresstionOfGratitude: false, negativeSentiment: false, satisfactionConfidence: 'low' 
+      };
       
-      console.log(`Resolution Agent: Ticket ${ticketId} analysis complete. Resolved: ${analysis.isResolved}, Action: ${analysis.recommendedAction}`);
+      // Correct typo in property name if it comes from AI with 'expresstion'
+      if ((analysis.satisfactionIndicators as any).expresstionOfGratitude !== undefined) {
+          analysis.satisfactionIndicators.expresstionOfGratitude = (analysis.satisfactionIndicators as any).expresstionOfGratitude;
+      }
+
+      analysis.shouldAutoClose = determineAutoCloseEligibility(analysis, config);
+      
+      console.log(`Resolution Agent: Ticket ${ticketId} AI analysis complete. Resolved: ${analysis.isResolved}, Confidence: ${analysis.confidence}, Action: ${analysis.recommendedAction}, Auto-close: ${analysis.shouldAutoClose}`);
       return analysis;
     } catch (parseError) {
-      console.error(`Resolution Agent: Failed to parse JSON response for ticket ${ticketId}:`, parseError);
-      console.error("Response was:", responseText);
+      console.error(`Resolution Agent: Failed to parse Gemini JSON response for ticket ${ticketId}:`, parseError);
+      console.error("Gemini Response was:", responseText);
       return null;
     }
   } catch (error) {
-    console.error(`Resolution Agent: Error analyzing ticket ${ticketId}:`, error);
+    console.error(`Resolution Agent: Error in analyzeTicketResolution for ticket ${ticketId}:`, error);
     return null;
   }
 }
@@ -288,177 +307,89 @@ export async function analyzeTicketResolution(ticketId: number): Promise<Resolut
 export async function applyResolutionAnalysis(
   ticketId: number, 
   analysis: ResolutionAnalysis,
-  autoClose: boolean = false
+  autoCloseOverride: boolean = false
 ): Promise<boolean> {
   try {
-    // Skip if analysis is null
-    if (!analysis) return false;
+    if (!analysis) {
+        console.warn(`Resolution Agent: No analysis provided for ticket ${ticketId}. Skipping application.`);
+        return false;
+    }
     
-    console.log(`Resolution Agent: Applying analysis to ticket ${ticketId}`);
+    console.log(`Resolution Agent: Applying analysis to ticket ${ticketId}. AI Recommendation: ${analysis.recommendedAction}, Auto-close eligible based on AI: ${analysis.shouldAutoClose}`);
     
-    // Get configuration
     const config = await getResolutionConfig();
-    
-    // Check if the confidence level meets the threshold
-    const confidenceMeetsThreshold = (
-      config.confidenceThreshold === 'low' ||
-      (config.confidenceThreshold === 'medium' && ['medium', 'high'].includes(analysis.confidence)) ||
-      (config.confidenceThreshold === 'high' && analysis.confidence === 'high')
-    );
-    
-    // Should we auto-close based on configuration?
-    const shouldAutoClose = (
-      (autoClose || analysis.shouldAutoClose) && 
-      config.autoCloseEnabled && 
-      confidenceMeetsThreshold
-    );
-    
-    // Determine what action to take
-    if (analysis.isResolved && shouldAutoClose) {
-      // Fetch ticket for sender information (needed for notification)
+    const effectiveAutoClose = autoCloseOverride || analysis.shouldAutoClose;
+
+    if (analysis.isResolved && effectiveAutoClose) {
       const ticketInfo = await db.query.tickets.findFirst({
         where: eq(tickets.id, ticketId),
-        columns: {
-          senderEmail: true,
-          senderName: true,
-          orderNumber: true
-        }
+        columns: { senderEmail: true, senderName: true, orderNumber: true }
       });
       
-      // Close the ticket
-      await db.update(tickets)
-        .set({
-          status: 'closed',
-          updatedAt: new Date()
-        })
-        .where(eq(tickets.id, ticketId));
+      await db.update(tickets).set({ status: 'closed', updatedAt: new Date() }).where(eq(tickets.id, ticketId));
       
-      // Add an internal note about auto-closure
       await db.insert(ticketComments).values({
         ticketId: ticketId,
-        commentText: `**Ticket Auto-Closed**\n\nThis ticket was automatically closed based on AI analysis.\n\n**Resolution Summary**: ${analysis.resolutionSummary}\n\n**Reason**: ${analysis.reasonForConclusion}\n\n**Confidence**: ${analysis.confidence}`,
-        isInternalNote: true,
-        isFromCustomer: false,
-        isOutgoingReply: false
+        commentText: `**Ticket Auto-Closed by AI Sales Manager**\n\n**Resolution Summary**: ${analysis.resolutionSummary || 'Issue resolved.'}\n**AI Reason**: ${analysis.reasonForConclusion}\n**AI Confidence**: ${analysis.confidence}\n**Satisfaction Signal**: ${analysis.satisfactionIndicators?.explicitSatisfaction ? 'Explicit' : (analysis.satisfactionIndicators?.expresstionOfGratitude ? 'Gratitude' : 'Implicit/None')}`,
+        isInternalNote: true, isFromCustomer: false, isOutgoingReply: false
       });
       
-      console.log(`Resolution Agent: Ticket ${ticketId} auto-closed with resolution: ${analysis.resolutionSummary}`);
+      console.log(`Resolution Agent: Ticket ${ticketId} auto-closed. Summary: ${analysis.resolutionSummary}`);
       
-      // Send customer notification if enabled and we have an email
-      if (
-        config.sendCustomerNotification && 
-        ticketInfo && 
-        ticketInfo.senderEmail
-      ) {
+      if (config.sendCustomerNotification && ticketInfo?.senderEmail) {
         try {
-          // Format survey link if enabled
           let surveyLink: string | undefined = undefined;
           if (config.includeSurveyLink && config.surveyUrl) {
             surveyLink = config.surveyUrl.replace('[TICKET_ID]', ticketId.toString());
           }
-          
-          // Send closure notification
           await notificationService.sendTicketClosureNotification({
-            ticketId,
-            recipientEmail: ticketInfo.senderEmail,
-            recipientName: ticketInfo.senderName || undefined,
+            ticketId, recipientEmail: ticketInfo.senderEmail, recipientName: ticketInfo.senderName || undefined,
             resolutionSummary: analysis.resolutionSummary || 'Your issue has been resolved.',
-            referenceNumber: ticketInfo.orderNumber || undefined,
-            surveyLink
+            referenceNumber: ticketInfo.orderNumber || undefined, surveyLink
           });
-          
-          console.log(`Resolution Agent: Notification sent to ${ticketInfo.senderEmail} for ticket ${ticketId}`);
-        } catch (notificationError) {
-          console.error(`Resolution Agent: Failed to send notification for ticket ${ticketId}:`, notificationError);
-        }
+          console.log(`Resolution Agent: Closure notification sent to ${ticketInfo.senderEmail} for ticket ${ticketId}`);
+        } catch (e) { console.error(`Resolution Agent: Failed to send closure notification for ticket ${ticketId}:`, e); }
       }
       
-      // Emit event for the ticket update
-      ticketEventEmitter.emit({
-        type: 'ticket_closed',
-        ticketId: ticketId,
-        autoClose: true,
-        resolution: analysis.resolutionSummary
-      });
-      
+      ticketEventEmitter.emit({ type: 'ticket_closed', ticketId: ticketId, autoClose: true, resolution: analysis.resolutionSummary });
       return true;
-    } else if (analysis.isResolved) {
-      // Add resolution recommendations without closing
+
+    } else if (analysis.isResolved && analysis.recommendedAction === 'close' && !effectiveAutoClose) {
       await db.insert(ticketComments).values({
         ticketId: ticketId,
-        commentText: `**Resolution Recommendation**\n\nThis ticket appears to be resolved and can be closed.\n\n**Resolution Summary**: ${analysis.resolutionSummary}\n\n**Reason**: ${analysis.reasonForConclusion}\n\n**Confidence**: ${analysis.confidence}`,
-        isInternalNote: true,
-        isFromCustomer: false,
-        isOutgoingReply: false
+        commentText: `**AI Resolution Recommendation (Manual Close Suggested)**\n\nThis ticket appears resolved and can likely be closed.\n**AI Summary**: ${analysis.resolutionSummary}\n**AI Reason**: ${analysis.reasonForConclusion}\n**AI Confidence**: ${analysis.confidence}`,
+        isInternalNote: true, isFromCustomer: false, isOutgoingReply: false
       });
-      
-      console.log(`Resolution Agent: Added resolution recommendation to ticket ${ticketId}`);
-      
-      // Emit event for the recommendation
-      ticketEventEmitter.emit({
-        type: 'ticket_resolution_recommended',
-        ticketId: ticketId,
-        resolution: analysis.resolutionSummary
-      });
-      
+      console.log(`Resolution Agent: Added manual close recommendation to ticket ${ticketId}`);
+      ticketEventEmitter.emit({ type: 'ticket_resolution_recommended', ticketId: ticketId, resolution: analysis.resolutionSummary });
       return true;
+
     } else if (analysis.recommendedAction === 'follow_up' && analysis.followUpQuestion) {
-      // Add follow-up recommendation
+      const followUpNote = `**AI Follow-Up Recommendation**\n\nConsider asking the customer: "${analysis.followUpQuestion}"\n**AI Reason**: ${analysis.reasonForConclusion}\n**AI Confidence**: ${analysis.confidence}`;
       await db.insert(ticketComments).values({
-        ticketId: ticketId,
-        commentText: `**Follow-Up Recommendation**\n\nThis ticket may need follow-up. Consider sending the following question to the customer:\n\n"${analysis.followUpQuestion}"`,
-        isInternalNote: true,
-        isFromCustomer: false,
-        isOutgoingReply: false
+        ticketId: ticketId, commentText: followUpNote, isInternalNote: true, isFromCustomer: false, isOutgoingReply: false
       });
-      
       console.log(`Resolution Agent: Added follow-up recommendation to ticket ${ticketId}`);
       
-      // Auto-send follow-up if configured
-      const ticketInfo = await db.query.tickets.findFirst({
-        where: eq(tickets.id, ticketId),
-        columns: {
-          senderEmail: true
-        }
-      });
-      
-      if (
-        config.sendCustomerNotification && 
-        ticketInfo && 
-        ticketInfo.senderEmail
-      ) {
-        try {
-          await notificationService.sendFollowUpQuestion(
-            ticketId,
-            ticketInfo.senderEmail,
-            analysis.followUpQuestion
-          );
-          
-          // Record that we sent a follow-up
-          await db.insert(ticketComments).values({
-            ticketId: ticketId,
-            commentText: `**Auto Follow-Up Sent**\n\nThe system automatically sent the following follow-up question to the customer:\n\n"${analysis.followUpQuestion}"`,
-            isInternalNote: true,
-            isFromCustomer: false,
-            isOutgoingReply: false
-          });
-          
-          console.log(`Resolution Agent: Auto follow-up sent for ticket ${ticketId}`);
-          
-          // Emit event
-          ticketEventEmitter.emit({
-            type: 'ticket_follow_up_sent',
-            ticketId: ticketId,
-            question: analysis.followUpQuestion
-          });
-        } catch (followUpError) {
-          console.error(`Resolution Agent: Failed to send follow-up for ticket ${ticketId}:`, followUpError);
+      if (config.enableAutoFollowUp && config.sendCustomerNotification) {
+        const ticketInfo = await db.query.tickets.findFirst({ where: eq(tickets.id, ticketId), columns: { senderEmail: true } });
+        if (ticketInfo?.senderEmail) {
+          try {
+            await notificationService.sendFollowUpQuestion(ticketId, ticketInfo.senderEmail, analysis.followUpQuestion);
+            await db.insert(ticketComments).values({
+              ticketId: ticketId,
+              commentText: `**Auto Follow-Up Sent by AI**\nQuestion: "${analysis.followUpQuestion}"`,
+              isInternalNote: true, isFromCustomer: false, isOutgoingReply: true // Mark as outgoing
+            });
+            console.log(`Resolution Agent: Auto follow-up sent for ticket ${ticketId}`);
+            ticketEventEmitter.emit({ type: 'ticket_follow_up_sent', ticketId: ticketId, question: analysis.followUpQuestion });
+          } catch (e) { console.error(`Resolution Agent: Failed to send auto follow-up for ticket ${ticketId}:`, e); }
         }
       }
-      
       return true;
     }
     
+    console.log(`Resolution Agent: No definitive action taken for ticket ${ticketId} based on AI analysis. isResolved: ${analysis.isResolved}, recommendedAction: ${analysis.recommendedAction}, shouldAutoClose (derived): ${analysis.shouldAutoClose}, effectiveAutoClose: ${effectiveAutoClose}`);
     return false;
   } catch (error) {
     console.error(`Resolution Agent: Error applying analysis to ticket ${ticketId}:`, error);
@@ -473,98 +404,67 @@ export async function checkTicketsForResolution(
   daysWithoutActivityOverride?: number,
   maxTicketsToProcessOverride?: number,
   autoCloseConfidentResultsOverride?: boolean
-): Promise<{ processed: number, resolved: number, autoClosed: number, followUp: number, error: number, reopened?: number }> {
+): Promise<{ processed: number, resolvedByAI: number, autoClosedByAI: number, followUpRecommendedByAI: number, errors: number, reopened?: number, aiAnalysisUsed: number }> {
   try {
-    // Get configuration
     const config = await getResolutionConfig();
     
-    // Use overrides or config values
-    const daysWithoutActivity = daysWithoutActivityOverride ?? config.inactivityDays ?? 5;
-    const maxTicketsToProcess = maxTicketsToProcessOverride ?? config.maxTicketsPerBatch ?? 50;
-    const autoCloseConfidentResults = autoCloseConfidentResultsOverride ?? config.autoCloseEnabled ?? true;
+    const daysWithoutActivity = daysWithoutActivityOverride ?? config.inactivityDays;
+    const maxTicketsToProcess = maxTicketsToProcessOverride ?? config.maxTicketsPerBatch;
+    const autoCloseConfidentResults = autoCloseConfidentResultsOverride ?? config.autoCloseEnabled;
     
-  console.log(`Resolution Agent: Starting batch check of tickets inactive for ${daysWithoutActivity}+ days`);
+    console.log(`Resolution Agent: Starting batch check (inactive ${daysWithoutActivity}d, max ${maxTicketsToProcess}). Auto-close: ${autoCloseConfidentResults}`);
   
-    let processed = 0, resolved = 0, autoClosed = 0, followUp = 0, error = 0, reopened = 0;
+    let processed = 0, resolvedByAI = 0, autoClosedByAI = 0, followUpRecommendedByAI = 0, errors = 0, reopened = 0, aiAnalysisUsed = 0;
   
-    // Calculate the cutoff date
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysWithoutActivity);
     
-    // Find tickets that haven't been updated for the specified days
-    // and are not already closed
     const eligibleTickets = await db.query.tickets.findMany({
       where: and(
         not(eq(tickets.status, 'closed')),
-        lte(tickets.updatedAt, cutoffDate)
+        lte(tickets.updatedAt, cutoffDate) // Ticket hasn't been updated recently
       ),
-      orderBy: (tickets, { asc }) => [asc(tickets.updatedAt)],
-      limit: maxTicketsToProcess
+      orderBy: (t) => [sql`RANDOM()`], // Process in random order to vary AI inputs
+      limit: maxTicketsToProcess,
+      with: { comments: { orderBy: (c, { asc }) => [asc(c.createdAt)], columns: { isFromCustomer: true } } }
     });
     
-    console.log(`Resolution Agent: Found ${eligibleTickets.length} eligible tickets for resolution check`);
+    console.log(`Resolution Agent: Found ${eligibleTickets.length} eligible tickets.`);
     
-    // Process each ticket
     for (const ticket of eligibleTickets) {
       processed++;
-      
       try {
         const analysis = await analyzeTicketResolution(ticket.id);
+        if (!analysis) { errors++; continue; }
+        aiAnalysisUsed++;
         
-        if (!analysis) {
-          error++;
-          continue;
-        }
-        
-        const applied = await applyResolutionAnalysis(
-          ticket.id, 
-          analysis,
-          autoCloseConfidentResults
-        );
-        
+        const applied = await applyResolutionAnalysis(ticket.id, analysis, autoCloseConfidentResults);
         if (applied) {
-          if (analysis.isResolved) {
-            resolved++;
-            if (analysis.shouldAutoClose || autoCloseConfidentResults) {
-              autoClosed++;
-            }
-          } else if (analysis.recommendedAction === 'follow_up') {
-            followUp++;
-          }
+          if (analysis.isResolved) resolvedByAI++;
+          if (analysis.shouldAutoClose && autoCloseConfidentResults) autoClosedByAI++;
+          if (analysis.recommendedAction === 'follow_up') followUpRecommendedByAI++;
         }
       } catch (ticketError) {
         console.error(`Resolution Agent: Error processing ticket ${ticket.id}:`, ticketError);
-        error++;
+        errors++;
       }
-      
-      // Small delay to avoid overwhelming the API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 1200)); // Increased delay
     }
     
-    // Find closed tickets that were reopened by customers
+    // This part is for metrics, not directly part of the AI decision loop for THIS run
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const reopenedResult = await db.select({ count: sql<number>`count(*)` }).from(ticketComments)
+      .where(and(sql`${ticketComments.commentText} LIKE '%Ticket Reopened by Customer%'`, gte(ticketComments.createdAt, thirtyDaysAgo)));
+    reopened = reopenedResult[0]?.count || 0;
     
-    const reopenedTickets = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(ticketComments)
-      .where(
-        and(
-          sql`${ticketComments.commentText} LIKE '%Ticket Reopened by Customer%'`,
-          gte(ticketComments.createdAt, thirtyDaysAgo)
-        )
-      );
-    
-    reopened = reopenedTickets[0]?.count || 0;
-    
-    // Update last run time
     await updateLastRunTime();
     
-    console.log(`Resolution Agent: Batch processing complete. Processed: ${processed}, Resolved: ${resolved}, Auto-closed: ${autoClosed}, Follow-up: ${followUp}, Reopened: ${reopened}, Errors: ${error}`);
+    console.log(`Resolution Agent: Batch complete. Processed: ${processed}, AI Analyzed: ${aiAnalysisUsed}, Resolved by AI: ${resolvedByAI}, Auto-Closed by AI: ${autoClosedByAI}, Follow-up by AI: ${followUpRecommendedByAI}, Errors: ${errors}, Reopened (last 30d): ${reopened}`);
     
-    return { processed, resolved, autoClosed, followUp, error, reopened };
+    return { processed, resolvedByAI, autoClosedByAI, followUpRecommendedByAI, errors, reopened, aiAnalysisUsed };
   } catch (batchError) {
     console.error(`Resolution Agent: Error during batch processing:`, batchError);
-    return { processed: 0, resolved: 0, autoClosed: 0, followUp: 0, error: 1 };
+    return { processed: 0, resolvedByAI: 0, autoClosedByAI: 0, followUpRecommendedByAI: 0, errors: 1, aiAnalysisUsed: 0 };
   }
 }

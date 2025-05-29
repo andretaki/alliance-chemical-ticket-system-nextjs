@@ -2,12 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Card, Row, Col, Spinner } from 'react-bootstrap';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
-
-// Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title);
+import { Alert, Card, Spinner } from 'react-bootstrap';
 
 interface ResolutionMetrics {
   totalResolved: number;
@@ -19,6 +14,10 @@ interface ResolutionMetrics {
   reopenedCount: number;
   autoCloseRate: number;
   reopenRate: number;
+  confidenceDistribution: { high: number; medium: number; low: number };
+  averageConversationTurns: number;
+  autoFollowUpsSent: number;
+  aiRecommendationAccuracy: number;
 }
 
 export default function ResolutionMetricsPanel() {
@@ -46,7 +45,7 @@ export default function ResolutionMetricsPanel() {
     return (
       <Card className="shadow-sm mb-4">
         <Card.Header>
-          <h5 className="mb-0">Resolution Metrics</h5>
+          <h5 className="mb-0">AI Sales Manager Metrics</h5>
         </Card.Header>
         <Card.Body className="text-center py-5">
           <Spinner animation="border" role="status">
@@ -80,121 +79,167 @@ export default function ResolutionMetricsPanel() {
     lastRunTime: null,
     reopenedCount: 0,
     autoCloseRate: 0,
-    reopenRate: 0
+    reopenRate: 0,
+    confidenceDistribution: { high: 0, medium: 0, low: 0 },
+    averageConversationTurns: 0,
+    autoFollowUpsSent: 0,
+    aiRecommendationAccuracy: 0
   };
   
   const m = metrics || defaultMetrics;
   
-  // Prepare chart data
-  const autoCloseData = {
-    labels: ['Auto-Closed', 'Manually Closed'],
-    datasets: [
-      {
-        data: [
-          m.totalAutoClosed,
-          m.totalResolved - m.totalAutoClosed
-        ],
-        backgroundColor: ['rgba(54, 162, 235, 0.8)', 'rgba(255, 206, 86, 0.8)'],
-        borderWidth: 1
-      }
-    ]
-  };
-  
-  const reopenRateData = {
-    labels: ['Reopened', 'Remained Closed'],
-    datasets: [
-      {
-        data: [
-          m.reopenedCount,
-          m.totalAutoClosed - m.reopenedCount
-        ],
-        backgroundColor: ['rgba(255, 99, 132, 0.8)', 'rgba(75, 192, 192, 0.8)'],
-        borderWidth: 1
-      }
-    ]
-  };
+  // Format last run time
+  const lastRun = m.lastRunTime ? new Date(m.lastRunTime).toLocaleString() : 'Never';
   
   return (
     <Card className="shadow-sm mb-4">
       <Card.Header className="d-flex justify-content-between align-items-center">
-        <h5 className="mb-0">Resolution Metrics</h5>
-        {m.lastRunTime && (
-          <small className="text-muted">Last run: {new Date(m.lastRunTime).toLocaleString()}</small>
-        )}
+        <h5 className="mb-0">AI Sales Manager Metrics</h5>
+        <small className="text-muted">Last 30 days</small>
       </Card.Header>
       <Card.Body>
-        <Row>
-          <Col md={4} className="text-center border-end mb-3 mb-md-0">
-            <h3 className="text-primary">{m.totalResolved}</h3>
-            <p className="text-muted mb-0">Total Resolved</p>
-          </Col>
-          <Col md={4} className="text-center border-end mb-3 mb-md-0">
-            <h3 className="text-success">{m.totalAutoClosed}</h3>
-            <p className="text-muted mb-0">Auto-Closed</p>
-          </Col>
-          <Col md={4} className="text-center mb-3 mb-md-0">
-            <h3 className="text-info">{m.totalFollowUp}</h3>
-            <p className="text-muted mb-0">Follow-ups Sent</p>
-          </Col>
-        </Row>
+        <div className="row">
+          {/* Core Metrics */}
+          <div className="col-md-6 col-lg-3 mb-3">
+            <div className="text-center p-3 border rounded bg-light">
+              <h4 className="text-primary mb-1">{m.totalResolved}</h4>
+              <small className="text-muted">Total Resolved</small>
+            </div>
+          </div>
+          
+          <div className="col-md-6 col-lg-3 mb-3">
+            <div className="text-center p-3 border rounded bg-light">
+              <h4 className="text-success mb-1">{m.totalAutoClosed}</h4>
+              <small className="text-muted">AI Auto-Closed</small>
+            </div>
+          </div>
+          
+          <div className="col-md-6 col-lg-3 mb-3">
+            <div className="text-center p-3 border rounded bg-light">
+              <h4 className="text-info mb-1">{m.totalFollowUp}</h4>
+              <small className="text-muted">Follow-Up Recommendations</small>
+            </div>
+          </div>
+          
+          <div className="col-md-6 col-lg-3 mb-3">
+            <div className="text-center p-3 border rounded bg-light">
+              <h4 className="text-warning mb-1">{m.reopenedCount}</h4>
+              <small className="text-muted">Reopened Tickets</small>
+            </div>
+          </div>
+        </div>
         
         <hr />
         
-        <Row className="mt-3 mb-4">
-          <Col md={4} className="text-center border-end mb-3 mb-md-0">
-            <h4>
-              {m.averageResolutionTime.toFixed(1)} <small className="text-muted">days</small>
-            </h4>
-            <p className="text-muted mb-0">Avg. Resolution Time</p>
-          </Col>
-          <Col md={4} className="text-center border-end mb-3 mb-md-0">
-            <h4>
-              {(m.autoCloseRate || (m.resolutionRate * 100)).toFixed(1)}% <small className="text-muted">rate</small>
-            </h4>
-            <p className="text-muted mb-0">Auto-Close Rate</p>
-          </Col>
-          <Col md={4} className="text-center">
-            <h4 className="text-danger">
-              {(m.reopenRate || 0).toFixed(1)}% <small className="text-muted">rate</small>
-            </h4>
-            <p className="text-muted mb-0">Reopen Rate</p>
-          </Col>
-        </Row>
+        {/* AI Performance Metrics */}
+        <div className="row">
+          <div className="col-md-4 mb-3">
+            <h6 className="text-muted mb-2">AI Confidence Distribution</h6>
+            <div className="mb-2">
+              <div className="d-flex justify-content-between">
+                <span>High Confidence</span>
+                <strong className="text-success">{m.confidenceDistribution.high}</strong>
+              </div>
+              <div className="progress mb-1" style={{height: '6px'}}>
+                <div 
+                  className="progress-bar bg-success" 
+                  style={{width: `${m.totalAutoClosed > 0 ? (m.confidenceDistribution.high / m.totalAutoClosed) * 100 : 0}%`}}
+                ></div>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="d-flex justify-content-between">
+                <span>Medium Confidence</span>
+                <strong className="text-warning">{m.confidenceDistribution.medium}</strong>
+              </div>
+              <div className="progress mb-1" style={{height: '6px'}}>
+                <div 
+                  className="progress-bar bg-warning" 
+                  style={{width: `${m.totalAutoClosed > 0 ? (m.confidenceDistribution.medium / m.totalAutoClosed) * 100 : 0}%`}}
+                ></div>
+              </div>
+            </div>
+            <div className="mb-2">
+              <div className="d-flex justify-content-between">
+                <span>Low Confidence</span>
+                <strong className="text-danger">{m.confidenceDistribution.low}</strong>
+              </div>
+              <div className="progress mb-1" style={{height: '6px'}}>
+                <div 
+                  className="progress-bar bg-danger" 
+                  style={{width: `${m.totalAutoClosed > 0 ? (m.confidenceDistribution.low / m.totalAutoClosed) * 100 : 0}%`}}
+                ></div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="col-md-4 mb-3">
+            <h6 className="text-muted mb-2">Performance Metrics</h6>
+            <div className="mb-2">
+              <div className="d-flex justify-content-between">
+                <span>AI Accuracy</span>
+                <strong className="text-success">{m.aiRecommendationAccuracy.toFixed(1)}%</strong>
+              </div>
+              <small className="text-muted">Auto-closed tickets not reopened</small>
+            </div>
+            <div className="mb-2 mt-3">
+              <div className="d-flex justify-content-between">
+                <span>Avg Conversation Turns</span>
+                <strong>{m.averageConversationTurns.toFixed(1)}</strong>
+              </div>
+              <small className="text-muted">Before AI closure</small>
+            </div>
+            <div className="mb-2 mt-3">
+              <div className="d-flex justify-content-between">
+                <span>Auto Follow-Ups Sent</span>
+                <strong className="text-info">{m.autoFollowUpsSent}</strong>
+              </div>
+              <small className="text-muted">AI-generated follow-up questions</small>
+            </div>
+          </div>
+          
+          <div className="col-md-4 mb-3">
+            <h6 className="text-muted mb-2">System Metrics</h6>
+            <div className="mb-2">
+              <div className="d-flex justify-content-between">
+                <span>Resolution Rate</span>
+                <strong>{(m.resolutionRate * 100).toFixed(1)}%</strong>
+              </div>
+              <small className="text-muted">All tickets closed</small>
+            </div>
+            <div className="mb-2 mt-3">
+              <div className="d-flex justify-content-between">
+                <span>Auto-Close Rate</span>
+                <strong>{m.autoCloseRate.toFixed(1)}%</strong>
+              </div>
+              <small className="text-muted">Of all closed tickets</small>
+            </div>
+            <div className="mb-2 mt-3">
+              <div className="d-flex justify-content-between">
+                <span>Avg Resolution Time</span>
+                <strong>{m.averageResolutionTime.toFixed(1)} days</strong>
+              </div>
+              <small className="text-muted">From creation to closure</small>
+            </div>
+          </div>
+        </div>
         
-        <Row className="mt-4">
-          <Col md={6}>
-            <div style={{ height: '200px' }}>
-              <Doughnut 
-                data={autoCloseData} 
-                options={{ 
-                  maintainAspectRatio: false,
-                  plugins: {
-                    title: {
-                      display: true,
-                      text: 'Auto vs. Manual Closures'
-                    }
-                  }
-                }} 
-              />
-            </div>
-          </Col>
-          <Col md={6}>
-            <div style={{ height: '200px' }}>
-              <Doughnut 
-                data={reopenRateData} 
-                options={{ 
-                  maintainAspectRatio: false,
-                  plugins: {
-                    title: {
-                      display: true,
-                      text: 'Auto-Closed Tickets Reopen Rate'
-                    }
-                  }
-                }} 
-              />
-            </div>
-          </Col>
-        </Row>
+        <hr />
+        
+        <div className="d-flex justify-content-between align-items-center">
+          <small className="text-muted">
+            <strong>Last AI Analysis Run:</strong> {lastRun}
+          </small>
+          {m.aiRecommendationAccuracy >= 90 && (
+            <span className="badge bg-success">High AI Performance</span>
+          )}
+          {m.aiRecommendationAccuracy >= 75 && m.aiRecommendationAccuracy < 90 && (
+            <span className="badge bg-warning">Good AI Performance</span>
+          )}
+          {m.aiRecommendationAccuracy < 75 && (
+            <span className="badge bg-danger">Review AI Settings</span>
+          )}
+        </div>
       </Card.Body>
     </Card>
   );

@@ -9,7 +9,7 @@ import EmailProcessingButton from '@/components/EmailProcessingButton';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
 import DashboardClient from '@/components/DashboardClient';
-import { authOptions } from '@/lib/auth';
+import { authOptions } from '@/lib/authOptions';
 
 export const metadata: Metadata = {
   title: 'Dashboard - Issue Tracker',

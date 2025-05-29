@@ -52,6 +52,48 @@ export async function GET(req: NextRequest) {
     
     const totalAutoClosed = autoClosedResult[0]?.count || 0;
     
+    // Get AI confidence distribution for auto-closed tickets
+    const highConfidenceResult = await db
+      .select({ count: count() })
+      .from(ticketComments)
+      .where(and(
+        sql`${ticketComments.commentText} LIKE '%Ticket Auto-Closed%' AND ${ticketComments.commentText} LIKE '%Confidence**: high%'`,
+        gte(ticketComments.createdAt, thirtyDaysAgo)
+      ));
+    
+    const mediumConfidenceResult = await db
+      .select({ count: count() })
+      .from(ticketComments)
+      .where(and(
+        sql`${ticketComments.commentText} LIKE '%Ticket Auto-Closed%' AND ${ticketComments.commentText} LIKE '%Confidence**: medium%'`,
+        gte(ticketComments.createdAt, thirtyDaysAgo)
+      ));
+    
+    const lowConfidenceResult = await db
+      .select({ count: count() })
+      .from(ticketComments)
+      .where(and(
+        sql`${ticketComments.commentText} LIKE '%Ticket Auto-Closed%' AND ${ticketComments.commentText} LIKE '%Confidence**: low%'`,
+        gte(ticketComments.createdAt, thirtyDaysAgo)
+      ));
+    
+    const confidenceDistribution = {
+      high: highConfidenceResult[0]?.count || 0,
+      medium: mediumConfidenceResult[0]?.count || 0,
+      low: lowConfidenceResult[0]?.count || 0
+    };
+    
+    // Get auto follow-up statistics
+    const autoFollowUpResult = await db
+      .select({ count: count() })
+      .from(ticketComments)
+      .where(and(
+        sql`${ticketComments.commentText} LIKE '%Auto Follow-Up Sent%'`,
+        gte(ticketComments.createdAt, thirtyDaysAgo)
+      ));
+    
+    const autoFollowUpsSent = autoFollowUpResult[0]?.count || 0;
+    
     // Get follow-up recommendations
     const followUpResult = await db
       .select({ count: count() })
@@ -121,6 +163,36 @@ export async function GET(req: NextRequest) {
     // Calculate reopen rate (reopened / auto-closed)
     const reopenRate = totalAutoClosed > 0 ? (reopenedCount / totalAutoClosed) * 100 : 0;
     
+    // Calculate average conversation turns for auto-closed tickets
+    // This requires a more complex query to analyze the conversation history
+    const conversationTurnsQuery = await db.execute(sql`
+      WITH auto_closed_tickets AS (
+        SELECT DISTINCT tc.ticket_id
+        FROM ${ticketComments} tc
+        WHERE tc.comment_text LIKE '%Ticket Auto-Closed%'
+          AND tc.created_at >= ${thirtyDaysAgo}
+      ),
+      conversation_analysis AS (
+        SELECT 
+          ac.ticket_id,
+          COUNT(CASE WHEN tc2.is_from_customer = true THEN 1 END) as customer_messages,
+          COUNT(CASE WHEN tc2.is_from_customer = false AND tc2.is_internal_note = false THEN 1 END) as agent_messages
+        FROM auto_closed_tickets ac
+        LEFT JOIN ${ticketComments} tc2 ON ac.ticket_id = tc2.ticket_id
+        WHERE tc2.is_internal_note = false
+        GROUP BY ac.ticket_id
+      )
+      SELECT AVG(customer_messages + agent_messages) as avg_turns
+      FROM conversation_analysis
+      WHERE customer_messages > 0 AND agent_messages > 0
+    `);
+    
+    const averageConversationTurns = conversationTurnsQuery[0]?.avg_turns || 0;
+    
+    // Calculate AI recommendation accuracy (auto-closed tickets that weren't reopened)
+    const aiRecommendationAccuracy = totalAutoClosed > 0 ? 
+      ((totalAutoClosed - reopenedCount) / totalAutoClosed) * 100 : 100;
+    
     // Get last run time from KV store
     const lastRunTime = await kv.get(LAST_RESOLUTION_RUN_KEY);
     
@@ -133,6 +205,10 @@ export async function GET(req: NextRequest) {
       resolutionRate,
       autoCloseRate,
       reopenRate,
+      confidenceDistribution,
+      averageConversationTurns,
+      autoFollowUpsSent,
+      aiRecommendationAccuracy,
       lastRunTime
     });
   } catch (error) {

@@ -6,7 +6,6 @@ import { pgTable, bigint, jsonb, decimal } from 'drizzle-orm/pg-core';
 
 // Define your PostgreSQL schema objects
 export const ticketingProdSchema = pgSchema('ticketing_prod');
-export const ragSystemSchema = pgSchema('rag_system');
 
 // --- Enums ---
 export const ticketStatusEnum = ticketingProdSchema.enum('ticket_status_enum', ['new', 'open', 'in_progress', 'pending_customer', 'closed']);
@@ -117,7 +116,6 @@ export const tickets = ticketingProdSchema.table('tickets', {
   ai_summary: text('ai_summary'),
   ai_suggested_assignee_id: text('ai_suggested_assignee_id').references(() => users.id, { onDelete: 'set null' }),
   sendercompany: varchar('sender_company', { length: 255 }),
-  sender_company: varchar('sender_company', { length: 255 }),
   // Shipping address fields
   shippingName: varchar('shipping_name', { length: 255 }),
   shippingCompany: varchar('shipping_company', { length: 255 }),
@@ -374,86 +372,6 @@ export const agentProductVariantsRelations = relations(agentProductVariants, ({ 
     fields: [agentProductVariants.agent_product_id],
     references: [agentProducts.id]
   })
-}));
-
-// --- RAG System Tables ---
-export const ragDocuments = ragSystemSchema.table('documents', {
-    id: serial('id').primaryKey(),
-    sourceIdentifier: varchar('source_identifier', { length: 512 }).notNull(),
-    sourceType: varchar('source_type', { length: 50 }).notNull(),
-    name: varchar('name', { length: 512 }).notNull(),
-    type: varchar('type', { length: 100 }),
-    size: integer('size'),
-    numPages: integer('num_pages'),
-    uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
-    lastModifiedAt: timestamp('last_modified_at', { withTimezone: true }).defaultNow().notNull(),
-    processingStatus: varchar('processing_status', { length: 50 }).default('pending').notNull(),
-    extractedMetadata: jsonb('extracted_metadata'),
-    contentHash: varchar('content_hash', { length: 64 }),
-    accessControlTags: jsonb('access_control_tags'),
-    sourceUrl: text('source_url'),
-    documentVersion: integer('document_version').default(1).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-}, (table) => {
-    return {
-        sourceTypeIndex: index('idx_rag_documents_source_type').on(table.sourceType),
-        sourceIdentifierIndex: index('idx_rag_documents_source_identifier').on(table.sourceIdentifier),
-    };
-});
-
-// Create the chunks table with self-reference
-export const ragChunks = (() => {
-    // @ts-expect-error - Self-referencing table requires type suppression
-    const table = ragSystemSchema.table('chunks', {
-        id: serial('id').primaryKey(),
-        documentId: integer('document_id').notNull().references(() => ragDocuments.id, { onDelete: 'cascade' }),
-        content: text('content').notNull(),
-        chunkHash: varchar('chunk_hash', { length: 64 }),
-        metadata: jsonb('metadata').notNull(),
-        chunkType: text('chunk_type').default('text').notNull(),
-        wordCount: integer('word_count'),
-        charCount: integer('char_count'),
-        // @ts-expect-error - Self-referencing function requires type suppression
-        parentChunkId: integer('parent_chunk_id').references(() => table.id, { onDelete: 'set null' }),
-        confidenceScore: integer('confidence_score').default(70),
-        chunkLastModified: timestamp('chunk_last_modified', { withTimezone: true }).defaultNow().notNull(),
-        chunkVersion: integer('chunk_version').default(1).notNull(),
-        createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-        contentEmbedding: vector('content_embedding', { dimensions: 1536 }).notNull(),
-    }, (table) => {
-        return {
-            documentIdIndex: index('idx_rag_chunks_document_id').on(table.documentId),
-            // Note: Vector index will be created separately via SQL as it requires special options
-        };
-    });
-    return table;
-})();
-
-
-// --- Relations for RAG System ---
-interface RagDocumentsRelationsConfig {
-    chunks: Many<'chunks'>;
-}
-
-export const ragDocumentsRelations = relations(ragDocuments, ({ many }) => ({
-    chunks: many(ragChunks)
-}));
-
-interface RagChunksRelationsConfig {
-    document: One<'documents'>;
-    parentChunk: One<'chunks'>;
-}
-
-export const ragChunksRelations = relations(ragChunks, ({ one }) => ({
-    document: one(ragDocuments, {
-        fields: [ragChunks.documentId],
-        references: [ragDocuments.id]
-    }),
-    parentChunk: one(ragChunks, {
-        fields: [ragChunks.parentChunkId],
-        references: [ragChunks.id]
-    })
 }));
 
 // Add relations for userSignatures

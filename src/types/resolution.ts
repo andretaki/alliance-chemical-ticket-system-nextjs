@@ -26,6 +26,21 @@ export interface ResolutionConfig {
   
   /** URL template for the survey link */
   surveyUrl: string;
+  
+  /** Whether to only auto-close tickets where the agent responded last (safety measure) */
+  autoCloseOnlyIfAgentRespondedLast: boolean;
+  
+  /** Minimum number of conversation turns before AI analysis is performed */
+  minimumConversationTurnsForAI: number;
+  
+  /** Number of days of inactivity after agent response required for high confidence auto-closure */
+  inactivityDaysForConfidentClosure: number;
+  
+  /** Whether AI can automatically send follow-up questions to customers */
+  enableAutoFollowUp: boolean;
+  
+  /** Whether to analyze tickets with low activity as well */
+  analyzeLowActivityTickets: boolean;
 }
 
 /**
@@ -38,11 +53,16 @@ export const DEFAULT_RESOLUTION_CONFIG: ResolutionConfig = {
   maxTicketsPerBatch: 50,
   sendCustomerNotification: true,
   includeSurveyLink: false,
-  surveyUrl: ''
+  surveyUrl: '',
+  autoCloseOnlyIfAgentRespondedLast: true,
+  minimumConversationTurnsForAI: 2,
+  inactivityDaysForConfidentClosure: 3,
+  enableAutoFollowUp: false,
+  analyzeLowActivityTickets: false
 };
 
 /**
- * Analysis of a ticket's resolution status
+ * Analysis of a ticket's resolution status (enhanced with AI insights)
  */
 export interface ResolutionAnalysis {
   /** Whether the ticket is considered resolved */
@@ -51,27 +71,50 @@ export interface ResolutionAnalysis {
   /** Summary of the resolution */
   resolutionSummary: string | null;
   
-  /** Confidence level of the analysis */
+  /** AI confidence level of the analysis */
   confidence: 'high' | 'medium' | 'low';
   
-  /** Reason for the conclusion */
+  /** AI's detailed reason for the conclusion */
   reasonForConclusion: string;
   
-  /** Whether the ticket should be automatically closed */
+  /** Whether the ticket should be automatically closed (derived from AI + config rules) */
   shouldAutoClose: boolean;
   
-  /** Recommended action for the ticket */
+  /** AI's recommended action for the ticket */
   recommendedAction: 'close' | 'follow_up' | 'none';
   
-  /** Suggested follow-up question if recommendedAction is 'follow_up' */
-  followUpQuestion?: string;
+  /** AI's suggested follow-up question if recommendedAction is 'follow_up' */
+  followUpQuestion?: string | null;
   
-  /** Expected next steps for the ticket */
-  expectedNextSteps?: string;
+  /** Additional context factors that influenced the AI's decision */
+  analysisContext: {
+    /** Whether the last message was from the customer */
+    customerRespondedLast: boolean;
+    /** Number of days since last agent response */
+    daysSinceLastAgentResponse: number;
+    /** Total conversation turns (customer + agent messages) */
+    conversationTurns: number;
+    /** Whether this ticket had multiple issues */
+    hasMultipleIssues: boolean;
+    /** Key topics/issues identified by AI */
+    identifiedIssues: string[];
+  };
+  
+  /** AI's assessment of customer satisfaction indicators */
+  satisfactionIndicators: {
+    /** Whether customer explicitly expressed satisfaction */
+    explicitSatisfaction: boolean;
+    /** Whether customer thanked the agent */
+    expresstionOfGratitude: boolean;
+    /** Any negative sentiment detected */
+    negativeSentiment: boolean;
+    /** Confidence in satisfaction assessment */
+    satisfactionConfidence: 'high' | 'medium' | 'low';
+  };
 }
 
 /**
- * Metrics for the resolution system
+ * Metrics for the resolution system (enhanced with AI-specific metrics)
  */
 export interface ResolutionMetrics {
   /** Total number of resolved tickets */
@@ -100,4 +143,20 @@ export interface ResolutionMetrics {
   
   /** Percentage of auto-closed tickets that were reopened */
   reopenRate: number;
+  
+  /** AI confidence distribution for auto-closed tickets */
+  confidenceDistribution: {
+    high: number;
+    medium: number;
+    low: number;
+  };
+  
+  /** Average number of conversation turns before AI closure */
+  averageConversationTurns: number;
+  
+  /** Number of follow-up questions automatically sent */
+  autoFollowUpsSent: number;
+  
+  /** Success rate of AI recommendations (tickets not reopened) */
+  aiRecommendationAccuracy: number;
 } 
