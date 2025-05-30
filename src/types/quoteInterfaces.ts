@@ -1,5 +1,10 @@
 import type { ExtractedEntityDetail } from './emailAnalysis';
 
+/**
+ * Types of quotes that can be generated
+ */
+export type QuoteType = 'material_only' | 'full_service' | 'consultation';
+
 export interface QuoteRequest {
   emailId: string;
   receivedDateTime: string;
@@ -17,6 +22,9 @@ export interface QuoteRequest {
   rawSummary: string;
 }
 
+/**
+ * Enhanced quote response interface with quote type and billing address
+ */
 export interface QuoteResponse {
   quoteId: string;
   requestEmailId: string;
@@ -26,11 +34,16 @@ export interface QuoteResponse {
   totalAmount: number;
   currency: string;
   lineItems: QuoteLineItem[];
+  quoteType: QuoteType; // New field to specify quote type
   shippingAddress?: Address;
   billingAddress?: Address;
   paymentTerms?: string;
   notes?: string;
   attachments?: string[]; // URLs to attached documents
+  // Additional fields for material-only quotes
+  materialOnlyDisclaimer?: string;
+  deliveryTerms?: string; // e.g., "FOB Origin", "Delivered"
+  shippingResponsibility?: 'customer' | 'supplier'; // Who handles shipping for material-only
 }
 
 export interface QuoteLineItem {
@@ -78,13 +91,17 @@ export interface PriceTier {
   description?: string;
 }
 
+/**
+ * Enhanced customer contact interface with billing address support
+ */
 export interface CustomerContact {
   id?: string;
   name: string;
   email: string;
   company?: string;
   phone?: string;
-  address?: Address;
+  shippingAddress?: Address; // Primary shipping address
+  billingAddress?: Address; // Billing address (can be different from shipping)
   customerType?: 'retail' | 'wholesale' | 'distributor';
   specialPricing?: boolean;
 }
@@ -126,6 +143,9 @@ export interface ComplexQuoteTicketData {
   rawSummary: string;
 }
 
+/**
+ * Enhanced simple quote email data with quote type support
+ */
 export interface SimpleQuoteEmailData {
   quoteId?: string;
   customer: CustomerContact;
@@ -142,7 +162,10 @@ export interface SimpleQuoteEmailData {
   subtotal: number;
   grandTotal: number;
   currency: string;
+  quoteType: QuoteType; // New field
   shippingInfo?: string;
   validityMessage: string;
   nextStepsMessage: string;
+  materialOnlyDisclaimer?: string; // For material-only quotes
+  deliveryTerms?: string; // e.g., "FOB Origin", "Customer arranges pickup"
 } 

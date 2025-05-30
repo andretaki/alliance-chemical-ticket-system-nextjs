@@ -104,6 +104,27 @@ export async function POST(request: NextRequest) {
         body.email = body.customer.email; // Ensure draft order email is set for invoice
     }
 
+    // Prepare custom attributes for quote metadata
+    const customAttributes: Array<{ key: string; value: string }> = [];
+    
+    if (body.quoteType) {
+      customAttributes.push({ key: 'quoteType', value: body.quoteType });
+    }
+    
+    if (body.quoteType === 'material_only') {
+      if (body.materialOnlyDisclaimer) {
+        customAttributes.push({ key: 'materialOnlyDisclaimer', value: body.materialOnlyDisclaimer });
+      }
+      if (body.deliveryTerms) {
+        customAttributes.push({ key: 'deliveryTerms', value: body.deliveryTerms });
+      }
+    }
+    
+    // Add custom attributes to the body for Shopify processing
+    if (customAttributes.length > 0) {
+      body.customAttributes = customAttributes;
+    }
+
     console.log('[API /api/draft-orders POST] Prepared draft order input:', JSON.stringify(body, null, 2));
 
     const shopifyService = new ShopifyService();

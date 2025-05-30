@@ -123,45 +123,81 @@ async function generatePDF(draftOrder: any) {
     // Continue without logo if there's an error
   }
 
-  // Add header text
-  const titleText = 'INVOICE / QUOTE';
-  const titleWidth = boldFont.widthOfTextAtSize(titleText, 24);
+  // Determine quote type from tags or custom attributes
+  const quoteType = draftOrder.customAttributes?.find((attr: any) => attr.key === 'quoteType')?.value || 
+                   (draftOrder.tags?.some((tag: any) => tag.includes('MaterialOnly')) ? 'material_only' : 'full_service');
+  
+  // Add header text with quote type
+  let titleText = 'QUOTE';
+  if (quoteType === 'material_only') {
+    titleText = 'MATERIAL QUOTE';
+  } else if (quoteType === 'consultation') {
+    titleText = 'CONSULTATION QUOTE';
+  } else {
+    titleText = 'FULL SERVICE QUOTE';
+  }
+  
+  const titleWidth = boldFont.widthOfTextAtSize(titleText, 22);
   pdfPage.drawText(titleText, {
     x: pdfPage.getWidth() - titleWidth - 50,
-    y: pdfPage.getHeight() - 80,
-    size: 24,
+    y: pdfPage.getHeight() - 70,
+    size: 22,
     font: boldFont,
     color: rgb(0.1, 0.1, 0.4),
   });
 
+  // Add quote type indicator
+  if (quoteType === 'material_only') {
+    pdfPage.drawText('Materials Only - Shipping/Installation Not Included', {
+      x: pdfPage.getWidth() - titleWidth - 50,
+      y: pdfPage.getHeight() - 90,
+      size: 10,
+      font: font,
+      color: rgb(0.8, 0.2, 0.2),
+    });
+  }
+
   // Add quote information
   pdfPage.drawText(`Quote #: ${draftOrder.name}`, {
     x: 50,
-    y: pdfPage.getHeight() - 150,
+    y: pdfPage.getHeight() - 140,
     size: 12,
     font: boldFont,
   });
 
   pdfPage.drawText(`Date: ${new Date().toLocaleDateString()}`, {
     x: 50,
-    y: pdfPage.getHeight() - 170,
+    y: pdfPage.getHeight() - 160,
     size: 12,
     font: font,
   });
 
-  // Add customer information
+  // Valid until date (30 days from now)
+  const validUntil = new Date();
+  validUntil.setDate(validUntil.getDate() + 30);
+  pdfPage.drawText(`Valid Until: ${validUntil.toLocaleDateString()}`, {
+    x: 50,
+    y: pdfPage.getHeight() - 180,
+    size: 12,
+    font: font,
+  });
+
+  // Customer and address information section
+  let customerSectionY = pdfPage.getHeight() - 240;
+  
+  // Bill To section
   if (draftOrder.customer) {
     const customer = draftOrder.customer;
     pdfPage.drawText('Bill To:', {
       x: 50,
-      y: pdfPage.getHeight() - 230,
+      y: customerSectionY,
       size: 12,
       font: boldFont,
     });
     
     pdfPage.drawText(`${customer.firstName || ''} ${customer.lastName || ''}`.trim(), {
       x: 50,
-      y: pdfPage.getHeight() - 250,
+      y: customerSectionY - 20,
       size: 11,
       font: font,
     });
@@ -169,7 +205,7 @@ async function generatePDF(draftOrder: any) {
     if (customer.company) {
       pdfPage.drawText(customer.company, {
         x: 50,
-        y: pdfPage.getHeight() - 265,
+        y: customerSectionY - 35,
         size: 11,
         font: font,
       });
@@ -177,25 +213,50 @@ async function generatePDF(draftOrder: any) {
     
     pdfPage.drawText(customer.email || '', {
       x: 50,
-      y: pdfPage.getHeight() - 280,
+      y: customerSectionY - 50,
       size: 11,
       font: font,
     });
+
+    // Add billing address if different from shipping
+    if (draftOrder.billingAddress) {
+      const billing = draftOrder.billingAddress;
+      pdfPage.drawText(billing.address1 || '', {
+        x: 50,
+        y: customerSectionY - 65,
+        size: 10,
+        font: font,
+      });
+      
+      pdfPage.drawText(`${billing.city || ''}, ${billing.province || ''} ${billing.zip || ''}`, {
+        x: 50,
+        y: customerSectionY - 80,
+        size: 10,
+        font: font,
+      });
+      
+      pdfPage.drawText(billing.country || '', {
+        x: 50,
+        y: customerSectionY - 95,
+        size: 10,
+        font: font,
+      });
+    }
   }
 
-  // Shipping information
-  if (draftOrder.shippingAddress) {
+  // Ship To section (only if not material-only or if different from billing)
+  if (draftOrder.shippingAddress && quoteType !== 'material_only') {
     const address = draftOrder.shippingAddress;
     pdfPage.drawText('Ship To:', {
       x: 300, 
-      y: pdfPage.getHeight() - 230,
+      y: customerSectionY,
       size: 12,
       font: boldFont,
     });
     
     pdfPage.drawText(`${address.firstName || ''} ${address.lastName || ''}`.trim(), {
       x: 300,
-      y: pdfPage.getHeight() - 250,
+      y: customerSectionY - 20,
       size: 11,
       font: font,
     });
@@ -203,7 +264,7 @@ async function generatePDF(draftOrder: any) {
     if (address.company) {
       pdfPage.drawText(address.company, {
         x: 300,
-        y: pdfPage.getHeight() - 265,
+        y: customerSectionY - 35,
         size: 11,
         font: font,
       });
@@ -211,28 +272,45 @@ async function generatePDF(draftOrder: any) {
     
     pdfPage.drawText(address.address1 || '', {
       x: 300,
-      y: pdfPage.getHeight() - 280,
+      y: customerSectionY - 50,
       size: 11,
       font: font,
     });
     
     pdfPage.drawText(`${address.city || ''}, ${address.province || ''} ${address.zip || ''}`, {
       x: 300,
-      y: pdfPage.getHeight() - 295,
+      y: customerSectionY - 65,
       size: 11,
       font: font,
     });
     
     pdfPage.drawText(address.country || '', {
       x: 300,
-      y: pdfPage.getHeight() - 310,
+      y: customerSectionY - 80,
       size: 11,
       font: font,
+    });
+  } else if (quoteType === 'material_only') {
+    // For material-only quotes, show delivery terms instead
+    pdfPage.drawText('Delivery Terms:', {
+      x: 300, 
+      y: customerSectionY,
+      size: 12,
+      font: boldFont,
+    });
+    
+    const deliveryTerms = draftOrder.customAttributes?.find((attr: any) => attr.key === 'deliveryTerms')?.value || 'Customer arranges pickup';
+    pdfPage.drawText(deliveryTerms, {
+      x: 300,
+      y: customerSectionY - 20,
+      size: 11,
+      font: font,
+      maxWidth: 245,
     });
   }
 
   // Draw table header
-  const tableY = pdfPage.getHeight() - 360;
+  const tableY = customerSectionY - 140;
   pdfPage.drawRectangle({
     x: 50,
     y: tableY - 20,
@@ -311,7 +389,7 @@ async function generatePDF(draftOrder: any) {
       currentY -= 20;
       
       // Add a new page if we're running out of space
-      if (currentY < 100) {
+      if (currentY < 150) {
         pdfPage = pdfDoc.addPage([595.28, 841.89]);
         currentY = pdfPage.getHeight() - 50;
       }
@@ -319,7 +397,7 @@ async function generatePDF(draftOrder: any) {
   }
 
   // Draw totals
-  const totalsY = Math.max(currentY - 50, 100);
+  const totalsY = Math.max(currentY - 50, 150);
   pdfPage.drawLine({
     start: { x: 380, y: totalsY + 20 },
     end: { x: 545, y: totalsY + 20 },
@@ -342,24 +420,27 @@ async function generatePDF(draftOrder: any) {
     font: font,
   });
   
-  pdfPage.drawText('Shipping:', {
-    x: 380,
-    y: totalsY - 20,
-    size: 11,
-    font: boldFont,
-  });
-  
-  const shippingAmount = draftOrder.totalShippingPrice ? parseFloat(draftOrder.totalShippingPrice) : 0;
-  pdfPage.drawText(`$${shippingAmount.toFixed(2)}`, {
-    x: 480,
-    y: totalsY - 20,
-    size: 11,
-    font: font,
-  });
+  // Only show shipping if not material-only
+  if (quoteType !== 'material_only') {
+    pdfPage.drawText('Shipping:', {
+      x: 380,
+      y: totalsY - 20,
+      size: 11,
+      font: boldFont,
+    });
+    
+    const shippingAmount = draftOrder.totalShippingPrice ? parseFloat(draftOrder.totalShippingPrice) : 0;
+    pdfPage.drawText(`$${shippingAmount.toFixed(2)}`, {
+      x: 480,
+      y: totalsY - 20,
+      size: 11,
+      font: font,
+    });
+  }
   
   pdfPage.drawText('Tax:', {
     x: 380,
-    y: totalsY - 40,
+    y: quoteType === 'material_only' ? totalsY - 20 : totalsY - 40,
     size: 11,
     font: boldFont,
   });
@@ -367,21 +448,22 @@ async function generatePDF(draftOrder: any) {
   const taxAmount = draftOrder.totalTax ? parseFloat(draftOrder.totalTax) : 0;
   pdfPage.drawText(`$${taxAmount.toFixed(2)}`, {
     x: 480,
-    y: totalsY - 40,
+    y: quoteType === 'material_only' ? totalsY - 20 : totalsY - 40,
     size: 11,
     font: font,
   });
   
+  const totalLineY = quoteType === 'material_only' ? totalsY - 30 : totalsY - 50;
   pdfPage.drawLine({
-    start: { x: 380, y: totalsY - 50 },
-    end: { x: 545, y: totalsY - 50 },
+    start: { x: 380, y: totalLineY },
+    end: { x: 545, y: totalLineY },
     thickness: 1,
     color: rgb(0.5, 0.5, 0.5),
   });
   
   pdfPage.drawText('Total:', {
     x: 380,
-    y: totalsY - 70,
+    y: totalLineY - 20,
     size: 12,
     font: boldFont,
   });
@@ -389,15 +471,60 @@ async function generatePDF(draftOrder: any) {
   const totalAmount = draftOrder.totalPrice ? parseFloat(draftOrder.totalPrice) : 0;
   pdfPage.drawText(`$${totalAmount.toFixed(2)} ${draftOrder.currencyCode || 'USD'}`, {
     x: 480,
-    y: totalsY - 70,
+    y: totalLineY - 20,
     size: 12,
     font: boldFont,
   });
 
+  // Add quote-type specific disclaimers
+  let disclaimerY = totalLineY - 60;
+  
+  if (quoteType === 'material_only') {
+    pdfPage.drawText('MATERIAL ONLY QUOTE DISCLAIMER:', {
+      x: 50,
+      y: disclaimerY,
+      size: 11,
+      font: boldFont,
+      color: rgb(0.8, 0.2, 0.2),
+    });
+    
+    const disclaimer = draftOrder.customAttributes?.find((attr: any) => attr.key === 'materialOnlyDisclaimer')?.value || 
+      'This quote includes materials only. Shipping, installation, and setup services are not included. Customer is responsible for arranging transportation and installation.';
+    
+    // Split disclaimer into lines to fit
+    const disclaimerLines = [];
+    const maxWidth = 495;
+    let currentLine = '';
+    const words = disclaimer.split(' ');
+    
+    for (const word of words) {
+      const testLine = currentLine + (currentLine ? ' ' : '') + word;
+      const testWidth = font.widthOfTextAtSize(testLine, 10);
+      if (testWidth <= maxWidth) {
+        currentLine = testLine;
+      } else {
+        if (currentLine) disclaimerLines.push(currentLine);
+        currentLine = word;
+      }
+    }
+    if (currentLine) disclaimerLines.push(currentLine);
+    
+    disclaimerLines.forEach((line, index) => {
+      pdfPage.drawText(line, {
+        x: 50,
+        y: disclaimerY - 20 - (index * 15),
+        size: 10,
+        font: font,
+      });
+    });
+    
+    disclaimerY -= 20 + (disclaimerLines.length * 15);
+  }
+
   // Add footer
   pdfPage.drawText('Thank you for your business!', {
     x: 50,
-    y: 50,
+    y: Math.max(disclaimerY - 20, 70),
     size: 12,
     font: boldFont,
     color: rgb(0.1, 0.1, 0.4),
@@ -405,7 +532,7 @@ async function generatePDF(draftOrder: any) {
   
   pdfPage.drawText('This is a quote - Not an invoice. Please contact us to finalize your order.', {
     x: 50,
-    y: 30,
+    y: Math.max(disclaimerY - 40, 50),
     size: 10,
     font: font,
   });
@@ -416,16 +543,96 @@ async function generatePDF(draftOrder: any) {
 }
 
 async function sendEmailWithGraph(to: string, draftOrder: any, pdfBuffer: Buffer) {
-  const subject = `Invoice for Quote ${draftOrder.name}`;
-  const messageContent = `
-    <p>Dear ${draftOrder.customer?.firstName || 'Customer'},</p>
-    <p>Please find attached the invoice for quote ${draftOrder.name}.</p>
-    <p>Thank you for your business.</p>
-    <p>Best regards,<br/>Alliance Chemical</p>
-  `;
+  // Determine quote type
+  const quoteType = draftOrder.customAttributes?.find((attr: any) => attr.key === 'quoteType')?.value || 
+                   (draftOrder.tags?.some((tag: any) => tag.includes('MaterialOnly')) ? 'material_only' : 'full_service');
+  
+  // Customize subject and content based on quote type
+  let subject = `Quote ${draftOrder.name} from Alliance Chemical`;
+  let messageContent = '';
+  
+  if (quoteType === 'material_only') {
+    subject = `Material Quote ${draftOrder.name} from Alliance Chemical`;
+    messageContent = `
+      <p>Dear ${draftOrder.customer?.firstName || 'Customer'},</p>
+      <p>Thank you for your inquiry. Please find attached your <strong>material-only quote</strong> ${draftOrder.name}.</p>
+      
+      <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 5px;">
+        <strong>⚠️ Important Notice:</strong> This is a <strong>material-only quote</strong>. 
+        Shipping, installation, and setup services are <strong>not included</strong>. 
+        You will be responsible for arranging transportation and installation.
+      </div>
+      
+      <p><strong>What's included:</strong></p>
+      <ul>
+        <li>All materials and products listed in the quote</li>
+        <li>Product specifications and technical data</li>
+        <li>Manufacturer warranties (where applicable)</li>
+      </ul>
+      
+      <p><strong>What's NOT included:</strong></p>
+      <ul>
+        <li>Shipping or delivery services</li>
+        <li>Installation or setup</li>
+        <li>Training or support services</li>
+      </ul>
+      
+      <p>The materials will be ready for pickup or you may arrange your own shipping. Please contact us to coordinate pickup or discuss delivery options.</p>
+      
+      <p>This quote is valid for 30 days from the date issued. If you have any questions or would like to proceed with this order, please reply to this email or contact us directly.</p>
+      
+      <p>Thank you for choosing Alliance Chemical!</p>
+      <p>Best regards,<br/>Alliance Chemical Sales Team</p>
+    `;
+  } else if (quoteType === 'consultation') {
+    subject = `Consultation Quote ${draftOrder.name} from Alliance Chemical`;
+    messageContent = `
+      <p>Dear ${draftOrder.customer?.firstName || 'Customer'},</p>
+      <p>Thank you for your interest in our consultation services. Please find attached your consultation quote ${draftOrder.name}.</p>
+      
+      <p><strong>Consultation Services Include:</strong></p>
+      <ul>
+        <li>On-site assessment and evaluation</li>
+        <li>Technical recommendations</li>
+        <li>Written report with findings</li>
+        <li>Follow-up support</li>
+      </ul>
+      
+      <p>Our experienced team will work with you to understand your specific needs and provide tailored recommendations.</p>
+      
+      <p>This quote is valid for 30 days from the date issued. To schedule your consultation or if you have any questions, please reply to this email.</p>
+      
+      <p>Thank you for choosing Alliance Chemical!</p>
+      <p>Best regards,<br/>Alliance Chemical Consultation Team</p>
+    `;
+  } else {
+    // Full service quote
+    subject = `Complete Service Quote ${draftOrder.name} from Alliance Chemical`;
+    messageContent = `
+      <p>Dear ${draftOrder.customer?.firstName || 'Customer'},</p>
+      <p>Thank you for your inquiry. Please find attached your complete service quote ${draftOrder.name}.</p>
+      
+      <p><strong>This comprehensive quote includes:</strong></p>
+      <ul>
+        <li>All materials and products</li>
+        <li>Delivery to your specified address</li>
+        <li>Professional installation and setup</li>
+        <li>Testing and commissioning</li>
+        <li>Training and documentation</li>
+        <li>Warranty and ongoing support</li>
+      </ul>
+      
+      <p>Our experienced team will handle everything from delivery to final commissioning, ensuring your system is ready for operation.</p>
+      
+      <p>This quote is valid for 30 days from the date issued. If you have any questions or would like to proceed with this project, please reply to this email.</p>
+      
+      <p>Thank you for choosing Alliance Chemical!</p>
+      <p>Best regards,<br/>Alliance Chemical Project Team</p>
+    `;
+  }
 
   const attachment = {
-    name: `Invoice-${draftOrder.name}.pdf`,
+    name: `Quote-${draftOrder.name}.pdf`,
     contentType: 'application/pdf',
     contentBytes: pdfBuffer.toString('base64')
   };

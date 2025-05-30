@@ -351,7 +351,7 @@ export class ShopifyService {
 
   // --- New Draft Order Methods ---
   public async createDraftOrder(appInput: AppDraftOrderInput): Promise<ShopifyDraftOrderGQLResponse | null> {
-    const { lineItems, customer, shopifyCustomerId, shippingAddress, note, email: emailForInvoice, tags } = appInput;
+    const { lineItems, customer, shopifyCustomerId, shippingAddress, billingAddress, note, email: emailForInvoice, tags, customAttributes } = appInput;
 
     const shopifyLineItems: ShopifyDraftOrderInput_LineItem[] = lineItems.map(item => ({
       variantId: `gid://shopify/ProductVariant/${item.numericVariantIdShopify}`,
@@ -382,6 +382,32 @@ export class ShopifyService {
         // Only error if province was provided but couldn't be mapped, and country code was valid
         if (shopifyShippingAddressInput.countryCode) {
           throw new Error(`Invalid province '${shippingAddress.province}' for country '${shippingAddress.country}'. Could not map to a valid code.`);
+        }
+      }
+    }
+
+    let shopifyBillingAddressInput: ShopifyDraftOrderInput_Address | undefined = undefined;
+    if (billingAddress) {
+      shopifyBillingAddressInput = {
+        address1: billingAddress.address1,
+        address2: billingAddress.address2,
+        city: billingAddress.city,
+        company: billingAddress.company,
+        countryCode: mapCountryToCode(billingAddress.country),
+        firstName: billingAddress.firstName,
+        lastName: billingAddress.lastName,
+        phone: billingAddress.phone,
+        provinceCode: mapProvinceToCode(billingAddress.province, billingAddress.country),
+        zip: billingAddress.zip,
+      };
+       // Validate country and province codes for billing address
+       if (billingAddress.country && !shopifyBillingAddressInput.countryCode) {
+        throw new Error(`Invalid billing country provided: ${billingAddress.country}. Could not map to a valid code.`);
+      }
+      if (billingAddress.province && billingAddress.country && !shopifyBillingAddressInput.provinceCode) {
+        // Only error if province was provided but couldn't be mapped, and country code was valid
+        if (shopifyBillingAddressInput.countryCode) {
+          throw new Error(`Invalid billing province '${billingAddress.province}' for country '${billingAddress.country}'. Could not map to a valid code.`);
         }
       }
     }
@@ -473,11 +499,19 @@ export class ShopifyService {
       draftOrderMutationInput.shippingAddress = shopifyShippingAddressInput;
     }
 
+    if (shopifyBillingAddressInput) {
+      draftOrderMutationInput.billingAddress = shopifyBillingAddressInput;
+    }
+
     if (note) {
       draftOrderMutationInput.note = note;
     }
     if (tags && tags.length > 0) {
       draftOrderMutationInput.tags = tags;
+    }
+
+    if (customAttributes && customAttributes.length > 0) {
+      draftOrderMutationInput.customAttributes = customAttributes;
     }
 
     const variables = {

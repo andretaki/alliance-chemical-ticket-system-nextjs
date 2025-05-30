@@ -93,6 +93,21 @@ export const DirectQuoteCreationClient: React.FC = () => {
     company: '', 
     phone: '',
   });
+  const [billingAddress, setBillingAddress] = useState<DraftOrderAddressInput>({
+    firstName: '',
+    lastName: '',
+    address1: '', 
+    city: '', 
+    country: 'United States', 
+    zip: '', 
+    province: '',
+    company: '', 
+    phone: '',
+  });
+  const [useSameAddressForBilling, setUseSameAddressForBilling] = useState<boolean>(true);
+  const [quoteType, setQuoteType] = useState<'material_only' | 'full_service' | 'consultation'>('full_service');
+  const [materialOnlyDisclaimer, setMaterialOnlyDisclaimer] = useState<string>('This quote includes materials only. Shipping, installation, and setup services are not included. Customer is responsible for arranging transportation and installation.');
+  const [deliveryTerms, setDeliveryTerms] = useState<string>('Customer arranges pickup');
   const [note, setNote] = useState<string>('');
   const [sendShopifyInvoice, setSendShopifyInvoice] = useState<boolean>(true);
 
@@ -603,18 +618,43 @@ export const DirectQuoteCreationClient: React.FC = () => {
         quoteTags.push(`TicketID-${ticketId}`);
       }
       
+      // Add quote type tag
+      if (quoteType === 'material_only') {
+        quoteTags.push('MaterialOnly');
+      } else if (quoteType === 'consultation') {
+        quoteTags.push('Consultation');
+      } else {
+        quoteTags.push('FullService');
+      }
+      
       // Prepare customer input - include the shopifyCustomerId if available
       const customerInput = { ...customer };
-      delete customerInput.shopifyCustomerId; // Remove from the base object to avoid sending an unknown property
+      delete customerInput.shopifyCustomerId;
+      
+      // Prepare custom attributes for quote metadata
+      const customAttributes = [
+        { key: 'quoteType', value: quoteType },
+      ];
+      
+      if (quoteType === 'material_only') {
+        customAttributes.push(
+          { key: 'materialOnlyDisclaimer', value: materialOnlyDisclaimer },
+          { key: 'deliveryTerms', value: deliveryTerms }
+        );
+      }
       
       const draftOrderInput: AppDraftOrderInput = {
         lineItems: filteredLineItems.map(({ productDisplay, unitPrice, currencyCode, ...rest }) => rest),
         customer: customerInput,
         shopifyCustomerId: customer.shopifyCustomerId, // Add as a separate property
         shippingAddress,
+        billingAddress: useSameAddressForBilling ? shippingAddress : billingAddress,
         note: noteText.trim(),
         email: sendShopifyInvoice ? customer.email : undefined,
         tags: quoteTags,
+        quoteType,
+        materialOnlyDisclaimer: quoteType === 'material_only' ? materialOnlyDisclaimer : undefined,
+        deliveryTerms: quoteType === 'material_only' ? deliveryTerms : undefined,
       };
 
       const response = await axios.post<DraftOrderOutput>('/api/draft-orders', draftOrderInput);
@@ -649,6 +689,10 @@ export const DirectQuoteCreationClient: React.FC = () => {
 
   const handleCustomerChange = (e: ChangeEvent<HTMLInputElement>) => setCustomer({ ...customer, [e.target.name]: e.target.value });
   const handleShippingAddressChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setShippingAddress({ ...shippingAddress, [e.target.name]: e.target.value });
+  const handleBillingAddressChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setBillingAddress(prev => ({ ...prev, [name]: value }));
+  };
 
   useEffect(() => {
     setShippingAddress(prev => ({
@@ -873,6 +917,24 @@ export const DirectQuoteCreationClient: React.FC = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activeSearchDropdown, showCustomerResults]);
+
+  // Sync billing address with shipping address when checkbox is checked
+  useEffect(() => {
+    if (useSameAddressForBilling) {
+      setBillingAddress({
+        firstName: shippingAddress.firstName,
+        lastName: shippingAddress.lastName,
+        company: shippingAddress.company,
+        address1: shippingAddress.address1,
+        address2: shippingAddress.address2,
+        city: shippingAddress.city,
+        province: shippingAddress.province,
+        zip: shippingAddress.zip,
+        country: shippingAddress.country,
+        phone: shippingAddress.phone,
+      });
+    }
+  }, [useSameAddressForBilling, shippingAddress]);
 
   return (
     <div className="card shadow-sm">
@@ -1359,9 +1421,137 @@ export const DirectQuoteCreationClient: React.FC = () => {
           </fieldset>
 
           <fieldset className="border p-3 rounded mb-4">
+            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Quote Type & Options</legend>
+            
+            <div className="mb-3">
+              <label htmlFor="quoteType" className="form-label">Quote Type <span className="text-danger">*</span></label>
+              <select 
+                className="form-select" 
+                id="quoteType" 
+                value={quoteType} 
+                onChange={(e) => setQuoteType(e.target.value as 'material_only' | 'full_service' | 'consultation')}
+                required
+              >
+                <option value="full_service">Full Service (Materials + Installation + Delivery)</option>
+                <option value="material_only">Material Only (Customer arranges shipping/installation)</option>
+                <option value="consultation">Consultation Services</option>
+              </select>
+              <div className="form-text">
+                {quoteType === 'material_only' && 'Materials only - customer arranges pickup/delivery and installation'}
+                {quoteType === 'full_service' && 'Complete service including delivery, installation, and setup'}
+                {quoteType === 'consultation' && 'Professional consultation and assessment services'}
+              </div>
+            </div>
+
+            {quoteType === 'material_only' && (
+              <>
+                <div className="mb-3">
+                  <label htmlFor="deliveryTerms" className="form-label">Delivery Terms</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    id="deliveryTerms" 
+                    value={deliveryTerms} 
+                    onChange={(e) => setDeliveryTerms(e.target.value)}
+                    placeholder="e.g., Customer arranges pickup, FOB Origin, etc."
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label htmlFor="materialOnlyDisclaimer" className="form-label">Material-Only Disclaimer</label>
+                  <textarea 
+                    className="form-control" 
+                    id="materialOnlyDisclaimer" 
+                    rows={3} 
+                    value={materialOnlyDisclaimer} 
+                    onChange={(e) => setMaterialOnlyDisclaimer(e.target.value)}
+                    placeholder="Disclaimer text that will appear on the quote..."
+                  />
+                  <div className="form-text">This disclaimer will appear prominently on the quote and email.</div>
+                </div>
+              </>
+            )}
+          </fieldset>
+
+          {/* Billing Address Section */}
+          <fieldset className="border p-3 rounded mb-4">
+            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Billing Address</legend>
+            
+            <div className="form-check mb-3">
+              <input 
+                className="form-check-input" 
+                type="checkbox" 
+                id="useSameAddressForBilling"
+                checked={useSameAddressForBilling}
+                onChange={(e) => setUseSameAddressForBilling(e.target.checked)}
+              />
+              <label className="form-check-label" htmlFor="useSameAddressForBilling">
+                Same as shipping address
+              </label>
+            </div>
+
+            {!useSameAddressForBilling && (
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label htmlFor="billCompany" className="form-label">Company</label>
+                  <input type="text" className="form-control" id="billCompany" name="company" value={billingAddress.company || ''} onChange={handleBillingAddressChange} />
+                </div>
+                <div className="col-md-3">
+                  <label htmlFor="billFirstName" className="form-label">First Name <span className="text-danger">*</span></label>
+                  <input type="text" className="form-control" id="billFirstName" name="firstName" value={billingAddress.firstName || ''} onChange={handleBillingAddressChange} required />
+                </div>
+                <div className="col-md-3">
+                  <label htmlFor="billLastName" className="form-label">Last Name <span className="text-danger">*</span></label>
+                  <input type="text" className="form-control" id="billLastName" name="lastName" value={billingAddress.lastName || ''} onChange={handleBillingAddressChange} required />
+                </div>
+                
+                <div className="col-12">
+                  <label htmlFor="billAddress1" className="form-label">Address <span className="text-danger">*</span></label>
+                  <input type="text" className="form-control" id="billAddress1" name="address1" value={billingAddress.address1 || ''} onChange={handleBillingAddressChange} required />
+                </div>
+                
+                <div className="col-12">
+                  <label htmlFor="billAddress2" className="form-label">Address Line 2</label>
+                  <input type="text" className="form-control" id="billAddress2" name="address2" value={billingAddress.address2 || ''} onChange={handleBillingAddressChange} />
+                </div>
+                
+                <div className="col-md-4">
+                  <label htmlFor="billCity" className="form-label">City <span className="text-danger">*</span></label>
+                  <input type="text" className="form-control" id="billCity" name="city" value={billingAddress.city || ''} onChange={handleBillingAddressChange} required />
+                </div>
+                
+                <div className="col-md-3">
+                  <label htmlFor="billCountry" className="form-label">Country <span className="text-danger">*</span></label>
+                  <select id="billCountry" name="country" className="form-select" value={billingAddress.country} onChange={handleBillingAddressChange} required>
+                    <option value="United States">United States</option>
+                    <option value="Canada">Canada</option>
+                  </select>
+                </div>
+                
+                <div className="col-md-3">
+                  <label htmlFor="billProvince" className="form-label">State/Province <span className="text-danger">*</span></label>
+                  <input type="text" className="form-control" id="billProvince" name="province" value={billingAddress.province || ''} onChange={handleBillingAddressChange} placeholder="e.g., TX or Texas" required />
+                </div>
+                
+                <div className="col-md-2">
+                  <label htmlFor="billZip" className="form-label">ZIP/Postal Code <span className="text-danger">*</span></label>
+                  <input type="text" className="form-control" id="billZip" name="zip" value={billingAddress.zip || ''} onChange={handleBillingAddressChange} required />
+                </div>
+                
+                <div className="col-md-6">
+                  <label htmlFor="billPhone" className="form-label">Phone</label>
+                  <input type="tel" className="form-control" id="billPhone" name="phone" value={billingAddress.phone || ''} onChange={handleBillingAddressChange} />
+                </div>
+              </div>
+            )}
+          </fieldset>
+
+          <fieldset className="border p-3 rounded mb-4">
             <legend className="h5 fw-normal mb-3 float-none w-auto px-2">
-              Shipping Address 
-              <small className="text-muted fw-light"> (Required for quote & shipping calculation)</small>
+              {quoteType === 'material_only' ? 'Material Pickup/Delivery Address' : 'Shipping Address'}
+              <small className="text-muted fw-light"> 
+                ({quoteType === 'material_only' ? 'For pickup coordination or customer-arranged delivery' : 'Required for quote & shipping calculation'})
+              </small>
             </legend>
             <div className="row g-3">
               <div className="col-md-6">

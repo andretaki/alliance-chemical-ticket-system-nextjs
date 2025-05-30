@@ -118,9 +118,14 @@ export interface AppDraftOrderInput {
   customer?: DraftOrderCustomerInput;
   shopifyCustomerId?: string; // ID of existing Shopify customer if available
   shippingAddress?: DraftOrderAddressInput;
+  billingAddress?: DraftOrderAddressInput;
   note?: string;
   email?: string; // Email to send Shopify draft order invoice to
   tags?: string[];
+  quoteType?: 'material_only' | 'full_service' | 'consultation';
+  materialOnlyDisclaimer?: string;
+  deliveryTerms?: string;
+  customAttributes?: Array<{ key: string; value: string }>;
 }
 
 export interface ShopifyMoney {
