@@ -1,9 +1,9 @@
 import type { ExtractedEntityDetail } from './emailAnalysis';
 
 /**
- * Types of quotes that can be generated
+ * Types of quotes that can be generated for a chemical company
  */
-export type QuoteType = 'material_only' | 'full_service' | 'consultation';
+export type QuoteType = 'material_only' | 'material_and_delivery';
 
 export interface QuoteRequest {
   emailId: string;

@@ -122,7 +122,7 @@ export interface AppDraftOrderInput {
   note?: string;
   email?: string; // Email to send Shopify draft order invoice to
   tags?: string[];
-  quoteType?: 'material_only' | 'full_service' | 'consultation';
+  quoteType?: 'material_only' | 'material_and_delivery';
   materialOnlyDisclaimer?: string;
   deliveryTerms?: string;
   customAttributes?: Array<{ key: string; value: string }>;

@@ -125,16 +125,14 @@ async function generatePDF(draftOrder: any) {
 
   // Determine quote type from tags or custom attributes
   const quoteType = draftOrder.customAttributes?.find((attr: any) => attr.key === 'quoteType')?.value || 
-                   (draftOrder.tags?.some((tag: any) => tag.includes('MaterialOnly')) ? 'material_only' : 'full_service');
+                   (draftOrder.tags?.some((tag: any) => tag.includes('MaterialOnly')) ? 'material_only' : 'material_and_delivery');
   
   // Add header text with quote type
-  let titleText = 'QUOTE';
+  let titleText = 'CHEMICAL QUOTE';
   if (quoteType === 'material_only') {
     titleText = 'MATERIAL QUOTE';
-  } else if (quoteType === 'consultation') {
-    titleText = 'CONSULTATION QUOTE';
-  } else {
-    titleText = 'FULL SERVICE QUOTE';
+  } else if (quoteType === 'material_and_delivery') {
+    titleText = 'DELIVERY QUOTE';
   }
   
   const titleWidth = boldFont.widthOfTextAtSize(titleText, 22);
@@ -148,12 +146,20 @@ async function generatePDF(draftOrder: any) {
 
   // Add quote type indicator
   if (quoteType === 'material_only') {
-    pdfPage.drawText('Materials Only - Shipping/Installation Not Included', {
+    pdfPage.drawText('Materials Only - Customer Arranges Pickup/Shipping', {
       x: pdfPage.getWidth() - titleWidth - 50,
       y: pdfPage.getHeight() - 90,
       size: 10,
       font: font,
       color: rgb(0.8, 0.2, 0.2),
+    });
+  } else if (quoteType === 'material_and_delivery') {
+    pdfPage.drawText('Materials with Delivery Included', {
+      x: pdfPage.getWidth() - titleWidth - 50,
+      y: pdfPage.getHeight() - 90,
+      size: 10,
+      font: font,
+      color: rgb(0.1, 0.6, 0.1),
     });
   }
 
@@ -545,7 +551,7 @@ async function generatePDF(draftOrder: any) {
 async function sendEmailWithGraph(to: string, draftOrder: any, pdfBuffer: Buffer) {
   // Determine quote type
   const quoteType = draftOrder.customAttributes?.find((attr: any) => attr.key === 'quoteType')?.value || 
-                   (draftOrder.tags?.some((tag: any) => tag.includes('MaterialOnly')) ? 'material_only' : 'full_service');
+                   (draftOrder.tags?.some((tag: any) => tag.includes('MaterialOnly')) ? 'material_only' : 'material_and_delivery');
   
   // Customize subject and content based on quote type
   let subject = `Quote ${draftOrder.name} from Alliance Chemical`;
@@ -559,75 +565,55 @@ async function sendEmailWithGraph(to: string, draftOrder: any, pdfBuffer: Buffer
       
       <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 10px; margin: 10px 0; border-radius: 5px;">
         <strong>⚠️ Important Notice:</strong> This is a <strong>material-only quote</strong>. 
-        Shipping, installation, and setup services are <strong>not included</strong>. 
-        You will be responsible for arranging transportation and installation.
+        Delivery and shipping services are <strong>not included</strong>. 
+        You will be responsible for arranging transportation and pickup.
       </div>
       
       <p><strong>What's included:</strong></p>
       <ul>
-        <li>All materials and products listed in the quote</li>
-        <li>Product specifications and technical data</li>
+        <li>All chemicals and products listed in the quote</li>
+        <li>Product specifications and safety data sheets</li>
+        <li>Proper packaging for pickup</li>
         <li>Manufacturer warranties (where applicable)</li>
       </ul>
       
       <p><strong>What's NOT included:</strong></p>
       <ul>
         <li>Shipping or delivery services</li>
-        <li>Installation or setup</li>
-        <li>Training or support services</li>
+        <li>Freight or transportation costs</li>
+        <li>Loading assistance at pickup location</li>
       </ul>
       
-      <p>The materials will be ready for pickup or you may arrange your own shipping. Please contact us to coordinate pickup or discuss delivery options.</p>
+      <p>The materials will be ready for pickup at our facility. Please contact us to coordinate pickup arrangements and scheduling.</p>
       
       <p>This quote is valid for 30 days from the date issued. If you have any questions or would like to proceed with this order, please reply to this email or contact us directly.</p>
       
       <p>Thank you for choosing Alliance Chemical!</p>
       <p>Best regards,<br/>Alliance Chemical Sales Team</p>
     `;
-  } else if (quoteType === 'consultation') {
-    subject = `Consultation Quote ${draftOrder.name} from Alliance Chemical`;
-    messageContent = `
-      <p>Dear ${draftOrder.customer?.firstName || 'Customer'},</p>
-      <p>Thank you for your interest in our consultation services. Please find attached your consultation quote ${draftOrder.name}.</p>
-      
-      <p><strong>Consultation Services Include:</strong></p>
-      <ul>
-        <li>On-site assessment and evaluation</li>
-        <li>Technical recommendations</li>
-        <li>Written report with findings</li>
-        <li>Follow-up support</li>
-      </ul>
-      
-      <p>Our experienced team will work with you to understand your specific needs and provide tailored recommendations.</p>
-      
-      <p>This quote is valid for 30 days from the date issued. To schedule your consultation or if you have any questions, please reply to this email.</p>
-      
-      <p>Thank you for choosing Alliance Chemical!</p>
-      <p>Best regards,<br/>Alliance Chemical Consultation Team</p>
-    `;
   } else {
-    // Full service quote
-    subject = `Complete Service Quote ${draftOrder.name} from Alliance Chemical`;
+    // Material and delivery quote
+    subject = `Chemical Delivery Quote ${draftOrder.name} from Alliance Chemical`;
     messageContent = `
       <p>Dear ${draftOrder.customer?.firstName || 'Customer'},</p>
-      <p>Thank you for your inquiry. Please find attached your complete service quote ${draftOrder.name}.</p>
+      <p>Thank you for your inquiry. Please find attached your chemical delivery quote ${draftOrder.name}.</p>
       
       <p><strong>This comprehensive quote includes:</strong></p>
       <ul>
-        <li>All materials and products</li>
+        <li>All chemicals and products listed</li>
+        <li>Professional packaging and labeling</li>
         <li>Delivery to your specified address</li>
-        <li>Professional installation and setup</li>
-        <li>Testing and commissioning</li>
-        <li>Training and documentation</li>
-        <li>Warranty and ongoing support</li>
+        <li>Proper handling and transportation</li>
+        <li>Safety data sheets and documentation</li>
+        <li>Delivery coordination and scheduling</li>
       </ul>
       
-      <p>Our experienced team will handle everything from delivery to final commissioning, ensuring your system is ready for operation.</p>
+      <p>Our experienced logistics team will handle the safe transport and delivery of your chemicals, ensuring compliance with all regulations and safety requirements.</p>
       
-      <p>This quote is valid for 30 days from the date issued. If you have any questions or would like to proceed with this project, please reply to this email.</p>
+      <p>This quote is valid for 30 days from the date issued. If you have any questions or would like to proceed with this order, please reply to this email.</p>
       
       <p>Thank you for choosing Alliance Chemical!</p>
-      <p>Best regards,<br/>Alliance Chemical Project Team</p>
+      <p>Best regards,<br/>Alliance Chemical Delivery Team</p>
     `;
   }
 

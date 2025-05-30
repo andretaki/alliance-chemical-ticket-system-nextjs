@@ -105,7 +105,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
     phone: '',
   });
   const [useSameAddressForBilling, setUseSameAddressForBilling] = useState<boolean>(true);
-  const [quoteType, setQuoteType] = useState<'material_only' | 'full_service' | 'consultation'>('full_service');
+  const [quoteType, setQuoteType] = useState<'material_only' | 'material_and_delivery'>('material_and_delivery');
   const [materialOnlyDisclaimer, setMaterialOnlyDisclaimer] = useState<string>('This quote includes materials only. Shipping, installation, and setup services are not included. Customer is responsible for arranging transportation and installation.');
   const [deliveryTerms, setDeliveryTerms] = useState<string>('Customer arranges pickup');
   const [note, setNote] = useState<string>('');
@@ -621,10 +621,8 @@ export const DirectQuoteCreationClient: React.FC = () => {
       // Add quote type tag
       if (quoteType === 'material_only') {
         quoteTags.push('MaterialOnly');
-      } else if (quoteType === 'consultation') {
-        quoteTags.push('Consultation');
-      } else {
-        quoteTags.push('FullService');
+      } else if (quoteType === 'material_and_delivery') {
+        quoteTags.push('MaterialAndDelivery');
       }
       
       // Prepare customer input - include the shopifyCustomerId if available
@@ -771,7 +769,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
     try {
       const response = await axios.post('/api/email/send-invoice', {
         draftOrderId: createdDraftOrder.id,
-        customerEmail: customer.email,
+        recipientEmail: customer.email,
         ticketId: createdTicketId
       });
       
@@ -1429,17 +1427,15 @@ export const DirectQuoteCreationClient: React.FC = () => {
                 className="form-select" 
                 id="quoteType" 
                 value={quoteType} 
-                onChange={(e) => setQuoteType(e.target.value as 'material_only' | 'full_service' | 'consultation')}
+                onChange={(e) => setQuoteType(e.target.value as 'material_only' | 'material_and_delivery')}
                 required
               >
-                <option value="full_service">Full Service (Materials + Installation + Delivery)</option>
-                <option value="material_only">Material Only (Customer arranges shipping/installation)</option>
-                <option value="consultation">Consultation Services</option>
+                <option value="material_and_delivery">Material and Delivery</option>
+                <option value="material_only">Material Only (Customer arranges pickup)</option>
               </select>
               <div className="form-text">
-                {quoteType === 'material_only' && 'Materials only - customer arranges pickup/delivery and installation'}
-                {quoteType === 'full_service' && 'Complete service including delivery, installation, and setup'}
-                {quoteType === 'consultation' && 'Professional consultation and assessment services'}
+                {quoteType === 'material_only' && 'Materials only - customer arranges pickup/delivery'}
+                {quoteType === 'material_and_delivery' && 'Materials with delivery - Alliance Chemical delivers to customer location'}
               </div>
             </div>
 
