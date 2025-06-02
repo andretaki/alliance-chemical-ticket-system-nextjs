@@ -665,17 +665,6 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
 
         // Prepare Internal Note
         let internalNoteContent = '';
-        if (automationInfo?.found) {
-             internalNoteContent += `**ShipStation Info for Order ${analysisResult?.orderNumber}:**\nStatus: ${automationInfo.orderStatus}\n`;
-             if (automationInfo.orderDate) internalNoteContent += `Order Date: ${new Date(automationInfo.orderDate).toLocaleDateString()}\n`;
-             if (automationInfo.shipments && automationInfo.shipments.length > 0) {
-                 internalNoteContent += `Shipments:\n`;
-                 automationInfo.shipments.forEach(ship => { internalNoteContent += `- ${ship.carrier}: ${ship.trackingNumber} (Shipped: ${new Date(ship.shipDate).toLocaleDateString()})\n`; });
-             }
-             // Add items if needed: internalNoteContent += `Items:\n${automationInfo.items?.map(i => `- ${i.name} (Qty: ${i.quantity})`).join('\n')}\n`;
-        } else if (automationAttempted) {
-            internalNoteContent += `**ShipStation Lookup:** Order ${analysisResult?.orderNumber} - ${automationInfo?.errorMessage || 'Lookup failed or order not found.'}\n`;
-        }
         if (draftReplyContent) {
             // Add document type-specific label to the internal note
             let replyLabel = "Suggested Reply";
@@ -698,7 +687,7 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                     replyLabel += ` - ${automationInfo.orderStatus.replace('_', ' ').toUpperCase()}`;
                 }
             }
-            internalNoteContent += `\n\n---\n\n**${replyLabel}:**\n${draftReplyContent}`;
+            internalNoteContent += `**${replyLabel}:**\n${draftReplyContent}`;
         }
 
         // --- Prepare ticket data WITH NEW FIELDS ---

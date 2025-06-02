@@ -178,6 +178,27 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
   const [extractedShipDate, setExtractedShipDate] = useState<string | null>(null);
   const [extractedOrderDate, setExtractedOrderDate] = useState<string | null>(null);
 
+  // Order Status Draft state
+  const [isLoadingOrderStatusDraft, setIsLoadingOrderStatusDraft] = useState(false);
+  const [orderStatusDraft, setOrderStatusDraft] = useState<string | null>(null);
+  const [orderStatusDraftError, setOrderStatusDraftError] = useState<string | null>(null);
+  const [fetchedOrderStatusUIDetails, setFetchedOrderStatusUIDetails] = useState<{
+    carrier?: string;
+    trackingNumber?: string;
+    trackingLink?: string;
+    isStalled?: boolean;
+    isException?: boolean;
+    exceptionDetails?: string;
+    confidence?: 'high' | 'medium' | 'low';
+    orderNumber?: string;
+  } | null>(null);
+
+  // **NEW: Live ShipStation Data State**
+  const [liveShipStationData, setLiveShipStationData] = useState<any>(null);
+  const [isLoadingLiveData, setIsLoadingLiveData] = useState(false);
+  const [liveDataFetchedAt, setLiveDataFetchedAt] = useState<string | null>(null);
+  const [liveDataError, setLiveDataError] = useState<string | null>(null);
+
   // --- Helper to safely parse date strings ---
   const parseDate = (dateString: string | Date | null | undefined): Date | null => {
       if (!dateString) return null;
@@ -209,44 +230,58 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
     fetchUsers();
   }, []);
 
-  // Parse ShipStation Info from Comments
+  // Parse ShipStation Info from Comments - **DISABLED: Now using live data instead**
   useEffect(() => {
-    const findAndParseShippingInfo = () => {
-      setExtractedStatus(null); setExtractedOrderDate(null); setExtractedCarrier(null);
-      setExtractedTracking(null); setExtractedShipDate(null);
-
-      const shipStationNote = ticket.comments.find(
-        comment => comment.isInternalNote && comment.commentText?.includes('**ShipStation Info for Order')
-      );
-
-      if (shipStationNote?.commentText) {
-        const text = shipStationNote.commentText;
-        const statusMatch = text.match(/Status:\s*([\w_]+)/i);
-        const currentStatus = statusMatch ? statusMatch[1].toLowerCase() : null;
-        setExtractedStatus(currentStatus);
-
-        const orderDateMatch = text.match(/Order Date:\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
-        setExtractedOrderDate(orderDateMatch ? orderDateMatch[1] : null);
-
-        // Only parse ship date if status makes sense (e.g., shipped)
-        if (currentStatus === 'shipped') {
-            const shipDateMatch = text.match(/Shipped:\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
-            setExtractedShipDate(shipDateMatch ? shipDateMatch[1] : null);
-        }
-
-        const carrierTrackingMatch = text.match(/Carrier:\s*([\w\s.&/-]+?),\s*Tracking:\s*([\w#.\-/]+)/i);
-        if (carrierTrackingMatch) {
-            setExtractedCarrier(carrierTrackingMatch[1]?.trim() || 'Unknown');
-            setExtractedTracking(carrierTrackingMatch[2]?.trim());
-        } else {
-            const carrierMatch = text.match(/Carrier:\s*([\w\s.&/-]+)/i);
-            const trackingMatch = text.match(/Tracking:\s*([\w#.\-/]+)/i);
-            setExtractedCarrier(carrierMatch ? carrierMatch[1]?.trim() : 'Unknown');
-            setExtractedTracking(trackingMatch ? trackingMatch[1]?.trim() : null);
-        }
-      }
-    };
-    findAndParseShippingInfo();
+    // **DISABLED: Old comment parsing that was showing stale/incorrect data**
+    // Since we now fetch live ShipStation data, we don't need to parse old comments
+    // that may contain outdated or incorrect information
+    
+    console.log('[TicketViewClient] ShipStation comment parsing DISABLED - using live data instead');
+    
+    // Reset all extracted values to prevent old data from showing
+    setExtractedStatus(null); 
+    setExtractedOrderDate(null); 
+    setExtractedCarrier(null);
+    setExtractedTracking(null); 
+    setExtractedShipDate(null);
+    
+    // OLD CODE (now disabled):
+    // const findAndParseShippingInfo = () => {
+    //   setExtractedStatus(null); setExtractedOrderDate(null); setExtractedCarrier(null);
+    //   setExtractedTracking(null); setExtractedShipDate(null);
+    //
+    //   const shipStationNote = ticket.comments.find(
+    //     comment => comment.isInternalNote && comment.commentText?.includes('**ShipStation Info for Order')
+    //   );
+    //
+    //   if (shipStationNote?.commentText) {
+    //     const text = shipStationNote.commentText;
+    //     const statusMatch = text.match(/Status:\s*([\w_]+)/i);
+    //     const currentStatus = statusMatch ? statusMatch[1].toLowerCase() : null;
+    //     setExtractedStatus(currentStatus);
+    //
+    //     const orderDateMatch = text.match(/Order Date:\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+    //     setExtractedOrderDate(orderDateMatch ? orderDateMatch[1] : null);
+    //
+    //     // Only parse ship date if status makes sense (e.g., shipped)
+    //     if (currentStatus === 'shipped') {
+    //         const shipDateMatch = text.match(/Shipped:\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+    //         setExtractedShipDate(shipDateMatch ? shipDateMatch[1] : null);
+    //     }
+    //
+    //     const carrierTrackingMatch = text.match(/Carrier:\s*([\w\s.&/-]+?),\s*Tracking:\s*([\w#.\-/]+)/i);
+    //     if (carrierTrackingMatch) {
+    //         setExtractedCarrier(carrierTrackingMatch[1]?.trim() || 'Unknown');
+    //         setExtractedTracking(carrierTrackingMatch[2]?.trim());
+    //     } else {
+    //         const carrierMatch = text.match(/Carrier:\s*([\w\s.&/-]+)/i);
+    //         const trackingMatch = text.match(/Tracking:\s*([\w#.\-/]+)/i);
+    //         setExtractedCarrier(carrierMatch ? carrierMatch[1]?.trim() : 'Unknown');
+    //         setExtractedTracking(trackingMatch ? trackingMatch[1]?.trim() : null);
+    //     }
+    //   }
+    // };
+    // findAndParseShippingInfo();
   }, [ticket.comments]); // Rerun only when comments change
 
   // Checkbox mutual exclusivity
@@ -315,6 +350,130 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
       setIsUpdatingStatus(false);
     }
   }, [ticket.id, ticket.status, refreshTicket]);
+
+  // --- Order Status Draft Handler ---
+
+  const handleGetOrderStatusDraft = useCallback(async () => {
+    if (!ticket?.id) return;
+
+    setIsLoadingOrderStatusDraft(true);
+    setOrderStatusDraft(null);
+    setOrderStatusDraftError(null);
+    setFetchedOrderStatusUIDetails(null);
+
+    try {
+      const response = await axios.get(`/api/tickets/${ticket.id}/draft-order-status`);
+      
+      if (response.data && response.data.draftMessage) {
+        setOrderStatusDraft(response.data.draftMessage);
+        setNewComment(response.data.draftMessage); // Populate the reply form
+        setSendAsEmail(true); // Default to sending as email for status updates
+        setIsInternalNote(false); // Ensure it's not an internal note
+
+        // Store additional details for UI display
+        setFetchedOrderStatusUIDetails({
+          carrier: response.data.detectedCarrier,
+          trackingNumber: response.data.trackingNumber,
+          trackingLink: response.data.trackingLink,
+          isStalled: response.data.isStalledTracking,
+          isException: response.data.isDeliveryException,
+          exceptionDetails: response.data.exceptionDetails,
+          confidence: response.data.confidence,
+          orderNumber: response.data.orderNumber,
+        });
+
+        // Show success notification
+        const toastElement = document.createElement('div');
+        toastElement.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastElement.innerHTML = `
+          <div class="toast show" role="alert">
+            <div class="toast-header">
+              <i class="fas fa-check-circle text-success me-2"></i>
+              <strong class="me-auto">Order Status Draft Ready</strong>
+              <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body">
+              AI generated response ready for review. Confidence: ${response.data.confidence || 'medium'}
+            </div>
+          </div>
+        `;
+        document.body.appendChild(toastElement);
+        setTimeout(() => document.body.removeChild(toastElement), 5000);
+      } else {
+        const errorMsg = response.data.error || "Couldn't generate a status update draft.";
+        setOrderStatusDraftError(errorMsg);
+        setError(errorMsg);
+      }
+
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || "Failed to get order status draft.";
+      setOrderStatusDraftError(errorMsg);
+      setError(errorMsg);
+      console.error("Order Status Draft Error:", err);
+    } finally {
+      setIsLoadingOrderStatusDraft(false);
+    }
+  }, [ticket?.id]);
+
+  // **NEW: Live ShipStation Data Handler**
+  const fetchLiveShipStationData = useCallback(async () => {
+    if (!ticket?.id) return;
+
+    setIsLoadingLiveData(true);
+    setLiveDataError(null);
+
+    try {
+      console.log(`🔄 [TicketViewClient] Fetching live ShipStation data for ticket #${ticket.id}`);
+      const response = await axios.get(`/api/tickets/${ticket.id}/shipstation-live`);
+      
+      if (response.data) {
+        setLiveShipStationData(response.data.shipstationData);
+        setLiveDataFetchedAt(response.data.fetchedAt);
+        
+        // Log what we received
+        console.log(`✅ [TicketViewClient] Live ShipStation data received:`, response.data.shipstationData);
+        
+        // Show a small notification that data was refreshed
+        if (response.data.shipstationData) {
+          const toastElement = document.createElement('div');
+          toastElement.className = 'toast-container position-fixed top-0 end-0 p-3';
+          toastElement.innerHTML = `
+            <div class="toast show" role="alert">
+              <div class="toast-header">
+                <i class="fas fa-sync-alt text-success me-2"></i>
+                <strong class="me-auto">Live Shipping Data</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+              </div>
+              <div class="toast-body">
+                Latest ShipStation data loaded successfully
+              </div>
+            </div>
+          `;
+          document.body.appendChild(toastElement);
+          setTimeout(() => {
+            if (document.body.contains(toastElement)) {
+              document.body.removeChild(toastElement);
+            }
+          }, 3000);
+        }
+      }
+
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || "Failed to fetch live ShipStation data.";
+      setLiveDataError(errorMsg);
+      console.error("Live ShipStation Data Error:", err);
+    } finally {
+      setIsLoadingLiveData(false);
+    }
+  }, [ticket?.id]);
+
+  // **NEW: Effect to fetch live data when ticket loads**
+  useEffect(() => {
+    if (ticket?.orderNumber) {
+      console.log(`🚀 [TicketViewClient] Ticket loaded with order number ${ticket.orderNumber}, fetching live ShipStation data...`);
+      fetchLiveShipStationData();
+    }
+  }, [ticket?.orderNumber, fetchLiveShipStationData]);
 
   // --- Comment & Attachment Functions ---
 
@@ -473,6 +632,9 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
         handleAssigneeChange={handleAssigneeChange} 
         handleStatusSelectChange={handleStatusSelectChange}
         showAiSuggestionIndicator={!!(extractedOrderDate || extractedTracking || extractedStatus || extractedShipDate || isDraftReplyNote(ticket.comments[0]?.commentText))}
+        orderNumberForStatus={ticket.orderNumber}
+        onGetOrderStatusDraft={handleGetOrderStatusDraft}
+        isLoadingOrderStatusDraft={isLoadingOrderStatusDraft}
       />
 
       {/* Main Content Area (Scrollable) */}
@@ -521,6 +683,101 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
             ticket={ticket} 
           />
 
+          {/* **NEW: Live ShipStation Data Section** */}
+          {ticket.orderNumber && (
+            <div className={`card shadow-sm mb-4 ${liveShipStationData ? 'border-success' : 'border-warning'} border-opacity-50`}>
+              <div className={`card-header ${liveShipStationData ? 'bg-success' : 'bg-warning'} bg-opacity-10 d-flex justify-content-between align-items-center`}>
+                <h6 className="mb-0 d-flex align-items-center">
+                  <i className={`fas ${isLoadingLiveData ? 'fa-spinner fa-spin' : 'fa-satellite-dish'} me-2 ${liveShipStationData ? 'text-success' : 'text-warning'}`}></i>
+                  Live Shipping Status
+                  {liveDataFetchedAt && (
+                    <small className="ms-2 text-muted">
+                      ({format(new Date(liveDataFetchedAt), 'MMM d, h:mm a')})
+                    </small>
+                  )}
+                </h6>
+                <button 
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={fetchLiveShipStationData}
+                  disabled={isLoadingLiveData}
+                  title="Refresh live data"
+                >
+                  <i className={`fas fa-sync-alt ${isLoadingLiveData ? 'fa-spin' : ''}`}></i>
+                </button>
+              </div>
+              <div className="card-body p-3">
+                {isLoadingLiveData && (
+                  <div className="text-center py-3">
+                    <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    Fetching latest data...
+                  </div>
+                )}
+                
+                {liveDataError && (
+                  <div className="alert alert-warning py-2 mb-0">
+                    <i className="fas fa-exclamation-triangle me-2"></i>
+                    <small>{liveDataError}</small>
+                  </div>
+                )}
+                
+                {!isLoadingLiveData && liveShipStationData && (
+                  <div className="d-flex flex-column gap-2">
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted"><i className="fas fa-hashtag me-2"></i> Order:</span>
+                      <span className="fw-medium">#{ticket.orderNumber}</span>
+                    </div>
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted"><i className="fas fa-info-circle me-2"></i> Status:</span>
+                      <span className={`badge ${liveShipStationData.orderStatus === 'shipped' ? 'bg-success' : 
+                                                liveShipStationData.orderStatus === 'awaiting_payment' ? 'bg-warning' :
+                                                liveShipStationData.orderStatus === 'cancelled' ? 'bg-danger' : 'bg-secondary'}`}>
+                        {liveShipStationData.orderStatus?.replace('_', ' ')}
+                      </span>
+                    </div>
+                    {liveShipStationData.orderDate && (
+                      <div className="d-flex justify-content-between">
+                        <span className="text-muted"><i className="fas fa-calendar-alt me-2"></i> Order Date:</span>
+                        <span className="fw-medium">{format(new Date(liveShipStationData.orderDate), 'MMM d, yyyy')}</span>
+                      </div>
+                    )}
+                    {liveShipStationData.shipments && liveShipStationData.shipments.length > 0 && (
+                      <div className="mt-2">
+                        <small className="text-muted d-block mb-1"><i className="fas fa-shipping-fast me-2"></i> Shipments:</small>
+                        {liveShipStationData.shipments.map((shipment: any, index: number) => (
+                          <div key={index} className="border rounded p-2 mb-1 bg-light">
+                            <div className="d-flex justify-content-between align-items-center">
+                              <div>
+                                <span className="fw-medium">{shipment.carrierCode?.toUpperCase()}: </span>
+                                <span className="font-monospace small">{shipment.trackingNumber}</span>
+                              </div>
+                              {shipment.voided && (
+                                <span className="badge bg-danger">VOIDED</span>
+                              )}
+                            </div>
+                            {shipment.shipDate && (
+                              <small className="text-muted">
+                                Shipped: {format(new Date(shipment.shipDate), 'MMM d, yyyy')}
+                              </small>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {!isLoadingLiveData && !liveShipStationData && !liveDataError && (
+                  <div className="text-muted text-center py-2">
+                    <i className="fas fa-search me-2"></i>
+                    <small>No ShipStation data found for order #{ticket.orderNumber}</small>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* AI Insights Panel - New addition */}
           {(extractedOrderDate || extractedTracking || extractedStatus || extractedShipDate) && (
             <div className="card shadow-sm mb-4 border-info border-opacity-50">
@@ -553,6 +810,75 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
                     <div className="d-flex justify-content-between">
                       <span className="text-muted"><i className="fas fa-truck me-2"></i> Tracking:</span>
                       <span className="fw-medium">{extractedCarrier}: {extractedTracking}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* AI-Generated Order Status Details */}
+          {fetchedOrderStatusUIDetails && !isLoadingOrderStatusDraft && (
+            <div className="card shadow-sm mb-4 border-success border-opacity-50">
+              <div className="card-header bg-success bg-opacity-10 border-success border-opacity-25">
+                <h6 className="mb-0 d-flex align-items-center">
+                  <i className="fas fa-clipboard-list me-2 text-success"></i> 
+                  Latest Order Status
+                  {fetchedOrderStatusUIDetails.confidence && (
+                    <span className={`badge ms-2 ${
+                      fetchedOrderStatusUIDetails.confidence === 'high' ? 'bg-success' :
+                      fetchedOrderStatusUIDetails.confidence === 'medium' ? 'bg-warning' : 'bg-secondary'
+                    }`}>
+                      {fetchedOrderStatusUIDetails.confidence} confidence
+                    </span>
+                  )}
+                </h6>
+              </div>
+              <div className="card-body p-3">
+                <div className="d-flex flex-column gap-2">
+                  {fetchedOrderStatusUIDetails.orderNumber && (
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted"><i className="fas fa-hashtag me-2"></i> Order:</span>
+                      <span className="fw-medium">#{fetchedOrderStatusUIDetails.orderNumber}</span>
+                    </div>
+                  )}
+                  {fetchedOrderStatusUIDetails.carrier && (
+                    <div className="d-flex justify-content-between">
+                      <span className="text-muted"><i className="fas fa-truck me-2"></i> Carrier:</span>
+                      <span className="fw-medium">{fetchedOrderStatusUIDetails.carrier}</span>
+                    </div>
+                  )}
+                  {fetchedOrderStatusUIDetails.trackingNumber && (
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="text-muted"><i className="fas fa-barcode me-2"></i> Tracking:</span>
+                      <div className="d-flex align-items-center">
+                        <span className="fw-medium me-2">{fetchedOrderStatusUIDetails.trackingNumber}</span>
+                        {fetchedOrderStatusUIDetails.trackingLink && (
+                          <a 
+                            href={fetchedOrderStatusUIDetails.trackingLink} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-outline-primary"
+                            title="Track package"
+                          >
+                            <i className="fas fa-external-link-alt fa-xs"></i>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {fetchedOrderStatusUIDetails.isStalled && (
+                    <div className="alert alert-warning py-2 mb-2">
+                      <i className="fas fa-exclamation-triangle me-2"></i>
+                      <small>Tracking may be stalled - consider following up</small>
+                    </div>
+                  )}
+                  {fetchedOrderStatusUIDetails.isException && (
+                    <div className="alert alert-danger py-2 mb-0">
+                      <i className="fas fa-times-circle me-2"></i>
+                      <small>
+                        Delivery Exception: {fetchedOrderStatusUIDetails.exceptionDetails || "Check tracking for details"}
+                      </small>
                     </div>
                   )}
                 </div>

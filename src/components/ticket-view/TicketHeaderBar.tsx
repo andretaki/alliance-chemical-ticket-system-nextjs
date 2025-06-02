@@ -30,6 +30,10 @@ interface TicketHeaderBarProps {
   handleStatusSelectChange: (e: React.ChangeEvent<HTMLSelectElement>) => Promise<void>;
   showAiSuggestionIndicator?: boolean;
   copyTicketLink?: () => void;
+  // Order status draft props
+  orderNumberForStatus?: string | null;
+  onGetOrderStatusDraft: () => void;
+  isLoadingOrderStatusDraft: boolean;
 }
 
 const getStatusClass = (status: string | null): string => {
@@ -72,7 +76,11 @@ export default function TicketHeaderBar({
   handleAssigneeChange,
   handleStatusSelectChange,
   showAiSuggestionIndicator,
-  copyTicketLink
+  copyTicketLink,
+  // Order status draft props
+  orderNumberForStatus,
+  onGetOrderStatusDraft,
+  isLoadingOrderStatusDraft
 }: TicketHeaderBarProps) {
   // Function to copy ticket link to clipboard
   const handleCopyLink = () => {
@@ -158,6 +166,28 @@ export default function TicketHeaderBar({
               </div>
               
               {/* Action Buttons */}
+              {orderNumberForStatus && (
+                <button
+                  type="button"
+                  className="btn btn-outline-info btn-sm"
+                  onClick={onGetOrderStatusDraft}
+                  disabled={isLoadingOrderStatusDraft}
+                  title="Get latest order status and draft a reply"
+                >
+                  {isLoadingOrderStatusDraft ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1"></span> 
+                      Fetching...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-truck-loading me-1"></i> 
+                      Status & Draft
+                    </>
+                  )}
+                </button>
+              )}
+
               <Link href={`/tickets/${ticket.id}/create-quote`} className="btn btn-success btn-sm">
                 <i className="fas fa-file-invoice-dollar me-1"></i>Create Quote
               </Link>

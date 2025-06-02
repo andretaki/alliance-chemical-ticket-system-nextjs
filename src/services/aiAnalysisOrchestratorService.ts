@@ -2,6 +2,9 @@ import { EmailAnalysisData } from '@/types/emailAnalysis';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig, type GenerativeModel } from '@google/generative-ai';
 import { NotificationService } from './notificationService';
 
+// Define the FORM_URL
+const FORM_URL = "https://alliance-form.vercel.app/";
+
 // Minimal representation of a raw email for analysis
 interface RawEmailInput {
   id: string;
@@ -43,34 +46,21 @@ export class AiAnalysisOrchestratorService {
     "Regulatory Compliance", "Other: New Category"
   ];
 
-  // Add credit application detection patterns
+  // Credit application detection patterns
   private creditApplicationPatterns = {
     requestPatterns: [
-      /credit\s+application/i,
-      /apply\s+for\s+credit/i,
-      /credit\s+terms/i,
-      /credit\s+account/i,
-      /net\s+\d+\s+terms/i,
-      /payment\s+terms/i,
-      /credit\s+line/i,
-      /credit\s+limit/i,
-      /credit\s+check/i,
-      /credit\s+approval/i
+      /credit\s+application/i, /apply\s+for\s+credit/i, /credit\s+terms/i, /credit\s+account/i,
+      /net\s+\d+\s+terms/i, /payment\s+terms/i, /credit\s+line/i, /credit\s+limit/i,
+      /credit\s+check/i, /credit\s+approval/i
     ],
     followUpPatterns: [
-      /credit\s+application\s+status/i,
-      /status\s+of\s+credit\s+application/i,
-      /check\s+credit\s+application/i,
-      /credit\s+application\s+update/i,
+      /credit\s+application\s+status/i, /status\s+of\s+credit\s+application/i,
+      /check\s+credit\s+application/i, /credit\s+application\s+update/i,
       /credit\s+application\s+follow\s+up/i
     ],
-    otherCreditPatterns: [
-      /credit\s+card/i,
-      /credit\s+note/i,
-      /credit\s+balance/i,
-      /credit\s+refund/i,
-      /credit\s+back/i,
-      /credit\s+on\s+account/i
+    otherCreditPatterns: [ // Patterns to exclude to avoid false positives
+      /credit\s+card/i, /credit\s+note/i, /credit\s+balance/i,
+      /credit\s+refund/i, /credit\s+back/i, /credit\s+on\s+account/i
     ]
   };
 
@@ -99,25 +89,15 @@ export class AiAnalysisOrchestratorService {
   public async analyzeEmail(email: RawEmailInput): Promise<EmailAnalysisData> {
     if (!geminiModel) {
       console.error("[AIService] Gemini model not initialized. Cannot analyze email.");
+      // Return a default error structure
       return {
-        emailId: email.id,
-        conversationId: email.conversationId,
-        receivedDateTime: email.receivedDateTime,
-        subject: email.subject,
-        senderEmail: email.senderEmail,
-        bodyText: email.bodyText,
-        primaryTopic: "Error: AI_Service_Unavailable",
-        customerGoal: "N/A",
-        extractedEntities: [],
-        overallSentiment: null,
-        estimatedComplexityToResolve: 'medium',
-        automationPotentialScore: 0,
-        keyInformationForResolution: [],
-        suggestedNextActions: [`Investigate AI Service unavailability for ${email.id}`],
-        rawSummary: "AI analysis service (Gemini) is not available.",
-        aiAnalysisError: "Gemini model not initialized.",
-        aiModelUsed: GEMINI_MODEL_NAME,
-        aiAnalysisTimestamp: new Date().toISOString(),
+        emailId: email.id, conversationId: email.conversationId, receivedDateTime: email.receivedDateTime,
+        subject: email.subject, senderEmail: email.senderEmail, bodyText: email.bodyText,
+        primaryTopic: "Error: AI_Service_Unavailable", customerGoal: "N/A", extractedEntities: [],
+        overallSentiment: null, estimatedComplexityToResolve: 'medium', automationPotentialScore: 0,
+        keyInformationForResolution: [], suggestedNextActions: [`Investigate AI Service unavailability for ${email.id}`],
+        rawSummary: "AI analysis service (Gemini) is not available.", aiAnalysisError: "Gemini model not initialized.",
+        aiModelUsed: GEMINI_MODEL_NAME, aiAnalysisTimestamp: new Date().toISOString(),
       };
     }
 
@@ -160,10 +140,7 @@ Be extremely thorough in 'extractedEntities'. Ensure the JSON is perfectly forme
     `;
 
     const generationConfig: GenerationConfig = {
-      responseMimeType: "application/json",
-      temperature: 0.15,
-      maxOutputTokens: 4096,
-      topP: 0.8,
+      responseMimeType: "application/json", temperature: 0.15, maxOutputTokens: 4096, topP: 0.8,
     };
 
     const safetySettings = [
@@ -176,41 +153,59 @@ Be extremely thorough in 'extractedEntities'. Ensure the JSON is perfectly forme
     try {
       const result = await geminiModel.generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig,
-        safetySettings,
+        generationConfig, safetySettings,
       });
       const responseText = result.response.text();
       if (!responseText) { throw new Error("Empty AI response from Gemini."); }
 
       const parsedGeminiOutput = JSON.parse(responseText.trim());
 
-      // Add credit application detection logic
-      if (parsedGeminiOutput.primaryTopic === "Credit Application") {
-        const isRequest = this.isCreditApplicationRequest(email.bodyText);
-        const isFollowUp = this.isCreditApplicationFollowUp(email.bodyText);
-        
-        if (isRequest) {
-          parsedGeminiOutput.suggestedNextActions.push("Send credit application form URL to customer");
-          parsedGeminiOutput.keyInformationForResolution.push("Customer is requesting a new credit application");
-          
-          // Send credit application email
-          try {
-            await this.notificationService.handleCreditApplicationRequest(email.senderEmail);
-            parsedGeminiOutput.suggestedNextActions.push("Credit application form URL has been sent to customer");
-          } catch (error) {
-            console.error(`Failed to send credit application email to ${email.senderEmail}:`, error);
-            parsedGeminiOutput.suggestedNextActions.push("Failed to send credit application form URL - manual follow-up required");
-          }
-        } else if (isFollowUp) {
-          parsedGeminiOutput.suggestedNextActions.push("Check status of existing credit application");
-          parsedGeminiOutput.keyInformationForResolution.push("Customer is following up on an existing credit application");
-        } else {
-          parsedGeminiOutput.suggestedNextActions.push("Review email content for credit-related context");
-          parsedGeminiOutput.keyInformationForResolution.push("Credit-related discussion detected but not a direct application request");
-        }
-      }
+      // --- CREDIT APPLICATION LOGIC MODIFICATION ---
+      const emailTextForPatternMatching = `${email.subject} ${email.bodyText}`.toLowerCase();
+      const isDirectCreditApplicationRequest = this.isCreditApplicationRequest(emailTextForPatternMatching);
+      const isCreditApplicationFollowUp = this.isCreditApplicationFollowUp(emailTextForPatternMatching);
 
-      // Code-based normalization for primaryTopic
+      // Ensure suggestedNextActions and keyInformationForResolution are initialized
+      parsedGeminiOutput.suggestedNextActions = parsedGeminiOutput.suggestedNextActions || [];
+      parsedGeminiOutput.keyInformationForResolution = parsedGeminiOutput.keyInformationForResolution || [];
+
+      if (parsedGeminiOutput.primaryTopic === "Credit Application" || isDirectCreditApplicationRequest) {
+        if (isDirectCreditApplicationRequest && parsedGeminiOutput.primaryTopic !== "Credit Application") {
+            console.log(`[AIService] Pattern detected credit application for email ${email.id}, AI topic was: ${parsedGeminiOutput.primaryTopic}. Setting to 'Credit Application'.`);
+            parsedGeminiOutput.primaryTopic = "Credit Application";
+        }
+
+        const creditApplicationSuggestion = `Customer may be asking to apply for credit. Suggest sending the application link: ${FORM_URL}`;
+        if (!parsedGeminiOutput.suggestedNextActions.includes(creditApplicationSuggestion)) {
+            parsedGeminiOutput.suggestedNextActions.push(creditApplicationSuggestion);
+        }
+        if (!parsedGeminiOutput.keyInformationForResolution.includes("Inquiry identified as a request to apply for credit.")) {
+            parsedGeminiOutput.keyInformationForResolution.push("Inquiry identified as a request to apply for credit.");
+        }
+        console.log(`[AIService] Email ${email.id} identified as credit application request. Suggestion added.`);
+        
+        // NOTE: The automatic sending `this.notificationService.handleCreditApplicationRequest(email.senderEmail);`
+        // has been REMOVED to align with the requirement of "offering the suggestion in the ticket view".
+        // The NotificationService still contains the method if manual triggering or other workflows need it.
+
+      } else if (isCreditApplicationFollowUp) {
+        // If it's a follow-up, ensure primaryTopic is Credit Application if AI missed it.
+        if (parsedGeminiOutput.primaryTopic !== "Credit Application") {
+             console.log(`[AIService] Pattern detected credit application FOLLOW-UP for email ${email.id}, AI topic was: ${parsedGeminiOutput.primaryTopic}. Setting to 'Credit Application'.`);
+             parsedGeminiOutput.primaryTopic = "Credit Application";
+        }
+        const followUpSuggestion = "Customer is following up on an existing credit application. Check status.";
+        if (!parsedGeminiOutput.suggestedNextActions.includes(followUpSuggestion)) {
+            parsedGeminiOutput.suggestedNextActions.push(followUpSuggestion);
+        }
+        if (!parsedGeminiOutput.keyInformationForResolution.includes("Customer is following up on an existing credit application.")) {
+             parsedGeminiOutput.keyInformationForResolution.push("Customer is following up on an existing credit application.");
+        }
+        console.log(`[AIService] Email ${email.id} identified as credit application follow-up.`);
+      }
+      // --- END CREDIT APPLICATION LOGIC MODIFICATION ---
+
+      // Code-based normalization for primaryTopic (e.g., for Automated System Notifications)
       if (parsedGeminiOutput.primaryTopic === "Automated System Notification") {
         const lowerBody = email.bodyText.toLowerCase();
         const lowerSubject = email.subject.toLowerCase();
@@ -240,20 +235,11 @@ Be extremely thorough in 'extractedEntities'. Ensure the JSON is perfectly forme
     } catch (error: any) {
       console.error(`[AIService] Gemini API/Parse Error for email ${email.id}: ${error.message}. Response snippet: ${error.response?.text()?.substring(0,200) || 'N/A'}`);
       return {
-        emailId: email.id,
-        conversationId: email.conversationId,
-        receivedDateTime: email.receivedDateTime,
-        subject: email.subject,
-        senderEmail: email.senderEmail,
-        bodyText: email.bodyText,
-        primaryTopic: "Error: AI_API_Failure",
-        customerGoal: "N/A",
-        extractedEntities: [],
-        overallSentiment: null,
-        estimatedComplexityToResolve: 'high',
-        automationPotentialScore: 0.0,
-        keyInformationForResolution: [],
-        suggestedNextActions: [`Investigate Gemini API error for ${email.id}`],
+        emailId: email.id, conversationId: email.conversationId, receivedDateTime: email.receivedDateTime,
+        subject: email.subject, senderEmail: email.senderEmail, bodyText: email.bodyText,
+        primaryTopic: "Error: AI_API_Failure", customerGoal: "N/A", extractedEntities: [],
+        overallSentiment: null, estimatedComplexityToResolve: 'high', automationPotentialScore: 0.0,
+        keyInformationForResolution: [], suggestedNextActions: [`Investigate Gemini API error for ${email.id}`],
         rawSummary: `Gemini API call failed for this email. Error: ${error.message}`,
         aiAnalysisError: `Gemini API/Parse Error: ${error.message}`,
         aiModelUsed: GEMINI_MODEL_NAME,

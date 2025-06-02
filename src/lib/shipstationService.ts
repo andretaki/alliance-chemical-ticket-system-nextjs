@@ -78,6 +78,26 @@ interface ShipStationOrder {
     orderDate: string;
     items?: ShipStationOrderItem[];
     shipments: ShipStationShipment[] | null; // Shipments might be null or empty
+    // **NEW: Additional fields found in real API responses**
+    externallyFulfilled?: boolean;
+    externallyFulfilledBy?: string | null;
+    externallyFulfilledById?: string | null;
+    externallyFulfilledByName?: string | null;
+    carrierCode?: string | null;
+    serviceCode?: string | null;
+    packageCode?: string | null;
+    confirmation?: string | null;
+    labelMessages?: any; // Can be null or contain tracking info
+    customerNotes?: string | null;
+    internalNotes?: string | null;
+    shipDate?: string | null;
+    modifyDate?: string;
+    advancedOptions?: {
+        customField1?: string | null;
+        customField2?: string | null;
+        customField3?: string | null;
+        [key: string]: any; // Allow other fields
+    };
     // Add other fields if needed
 }
 
@@ -118,6 +138,7 @@ export interface OrderTrackingInfo {
     shipments?: ShipmentInfo[];
     items?: OrderItem[];
     errorMessage?: string; // In case of lookup errors
+    shipStationOrderId?: number;
 }
 
 /**
@@ -126,6 +147,8 @@ export interface OrderTrackingInfo {
  * @returns OrderTrackingInfo object or null if critical error occurs.
  */
 export async function getOrderTrackingInfo(orderNumber: string): Promise<OrderTrackingInfo | null> {
+    console.log(`🚨 [ShipStationService] *** UPDATED CODE RUNNING *** Looking up order: ${orderNumber} at ${new Date().toISOString()}`);
+    
     if (!SHIPSTATION_API_KEY || !SHIPSTATION_API_SECRET) {
         console.error("ShipStation Service: API Key or Secret not configured.");
         await alertService.trackErrorAndAlert(
@@ -151,7 +174,7 @@ export async function getOrderTrackingInfo(orderNumber: string): Promise<OrderTr
         if (orderInfo.found && (!orderInfo.shipments || orderInfo.shipments.length === 0)) {
             console.log(`ShipStation Service: Order ${orderNumber} found but no shipments in order data. Checking shipments endpoint...`);
             
-            const shipmentsInfo = await getShipmentsInfo(orderNumber, authHeader);
+            const shipmentsInfo = await getShipmentsInfo(orderNumber, authHeader, orderInfo.orderDate);
             
             if (shipmentsInfo.shipments && shipmentsInfo.shipments.length > 0) {
                 // We found shipments via the shipments endpoint, update the order info
@@ -209,10 +232,14 @@ async function getOrderInfo(orderNumber: string, authHeader: string): Promise<Or
                 params: {
                     orderNumber: orderNumber,
                     pageSize: 100, // Increase to get all orders with this number
-                    sortBy: 'OrderDate',
-                    sortDir: 'DESC' // Sort newest first
+                    sortBy: 'ModifyDate', // Sort by modification date to get most recently updated
+                    sortDir: 'DESC', // Sort newest first
+                    includeShipmentItems: true // Try to include shipment details
                 }
             });
+
+            // **Step 2: Add extensive logging as suggested**
+            console.log(`[ShipStationService getOrderInfo] RAW Response for orderNumber ${orderNumber}:`, JSON.stringify(response.data, null, 2));
 
             if (response.data && response.data.orders && response.data.orders.length > 0) {
                 // Handle pagination if there are more orders
@@ -234,7 +261,7 @@ async function getOrderInfo(orderNumber: string, authHeader: string): Promise<Or
                             orderNumber: orderNumber,
                             pageSize: 100,
                             page: currentPage,
-                            sortBy: 'OrderDate',
+                            sortBy: 'ModifyDate',
                             sortDir: 'DESC'
                         }
                     });
@@ -246,18 +273,128 @@ async function getOrderInfo(orderNumber: string, authHeader: string): Promise<Or
                 
                 // Since we're sorting DESC, the first order is the newest
                 const order = allOrders[0];
+                console.log(`[ShipStationService getOrderInfo] Selected Order Data for ${order.orderNumber}:`, JSON.stringify(order, null, 2));
+                console.log(`[ShipStationService getOrderInfo] Shipments within Order Data for ${order.orderNumber}:`, JSON.stringify(order.shipments, null, 2));
+                
+                // **NEW: Enhanced tracking detection for externally fulfilled orders**
+                if (order.externallyFulfilled) {
+                    console.log(`[ShipStationService getOrderInfo] *** EXTERNALLY FULFILLED ORDER DETECTED ***`);
+                    console.log(`[ShipStationService getOrderInfo] External fulfillment details:`, {
+                        externallyFulfilled: order.externallyFulfilled,
+                        externallyFulfilledBy: order.externallyFulfilledBy,
+                        externallyFulfilledById: order.externallyFulfilledById,
+                        externallyFulfilledByName: order.externallyFulfilledByName
+                    });
+                    
+                    // Check for tracking in various order fields that might contain it
+                    console.log(`[ShipStationService getOrderInfo] Checking order-level tracking fields:`, {
+                        carrierCode: order.carrierCode,
+                        serviceCode: order.serviceCode,
+                        packageCode: order.packageCode,
+                        confirmation: order.confirmation,
+                        labelMessages: order.labelMessages,
+                        customerNotes: order.customerNotes,
+                        internalNotes: order.internalNotes,
+                        customField1: order.advancedOptions?.customField1,
+                        customField2: order.advancedOptions?.customField2,
+                        customField3: order.advancedOptions?.customField3
+                    });
+                    
+                    console.log(`[ShipStationService getOrderInfo] Ship date and status:`, {
+                        shipDate: order.shipDate,
+                        orderStatus: order.orderStatus,
+                        modifyDate: order.modifyDate
+                    });
+                }
+                
                 console.log(`ShipStation Service: Found order ${order.orderId} with status ${order.orderStatus}`);
+                
+                // **IMPORTANT: If there were multiple orders with the same order number, we prioritize the most recent one**
+                if (allOrders.length > 1) {
+                    console.warn(`[ShipStationService] DUPLICATE ORDER NUMBERS: Found ${allOrders.length} orders with number ${orderNumber}. Using the most recent order (ID: ${order.orderId}, Date: ${order.orderDate}) and ignoring older duplicates.`);
+                    allOrders.slice(1).forEach((oldOrder, index) => {
+                        console.warn(`[ShipStationService] - Ignoring older duplicate: Order ID ${oldOrder.orderId}, Date: ${oldOrder.orderDate}`);
+                    });
+                }
 
-                // Process shipments
-                const validShipments = (order.shipments || [])
-                    .filter(shipment => !shipment.voided && shipment.trackingNumber && shipment.carrierCode)
-                    .map(shipment => ({
+                // **Step 3: Enhanced date filtering logic**
+                let validShipments: ShipmentInfo[] = [];
+                
+                if (order.shipments && order.shipments.length > 0) {
+                    const orderCreationDate = new Date(order.orderDate);
+                    
+                    // **Improved shipment filtering with enhanced date validation**
+                    const logicalShipments = order.shipments.filter(shipment => {
+                        // Basic validation: not voided, has tracking and carrier
+                        if (shipment.voided || !shipment.trackingNumber || !shipment.carrierCode) {
+                            return false;
+                        }
+                        
+                        // If order status is 'awaiting_payment' or 'awaiting_shipment', 
+                        // there should be NO valid shipments
+                        if (order.orderStatus === 'awaiting_payment' || order.orderStatus === 'awaiting_shipment') {
+                            console.warn(`ShipStation Service: Order ${order.orderNumber} has status '${order.orderStatus}' but contains shipments. Filtering out invalid shipment data.`);
+                            return false;
+                        }
+                        
+                        // **Enhanced date filtering as suggested**
+                        if (shipment.shipDate) {
+                            const shipmentDate = new Date(shipment.shipDate);
+                            
+                            // **DEBUG: Log the date comparison details**
+                            console.log(`[ShipStationService] Analyzing shipment date for order ${order.orderNumber}:`);
+                            console.log(`[ShipStationService] - Order Date: ${order.orderDate} (${orderCreationDate.toISOString()})`);
+                            console.log(`[ShipStationService] - Shipment Date: ${shipment.shipDate} (${shipmentDate.toISOString()})`);
+                            console.log(`[ShipStationService] - Tracking: ${shipment.trackingNumber}`);
+                            
+                            // **AGGRESSIVE: Reject shipments from years that are significantly different**
+                            const orderYear = orderCreationDate.getFullYear();
+                            const shipmentYear = shipmentDate.getFullYear();
+                            const yearDifference = Math.abs(orderYear - shipmentYear);
+                            
+                            if (yearDifference > 1) {
+                                console.warn(`[ShipStationService] MAJOR DATE MISMATCH: Order ${order.orderNumber} from ${orderYear} has shipment from ${shipmentYear}. Year difference: ${yearDifference}. Filtering out this clearly incorrect data.`);
+                                return false;
+                            }
+                            
+                            // Ensure shipment date is on or after order date, and not unreasonably old
+                            // Allow shipments up to 7 days before order date to account for pre-fulfillment or timezone issues
+                            const reasonableStartDate = new Date(orderCreationDate);
+                            reasonableStartDate.setDate(reasonableStartDate.getDate() - 7);
+                            
+                            // A shipment cannot be years before the order - this handles the 2022 vs 2025 issue
+                            if (shipmentDate < reasonableStartDate) {
+                                console.warn(`[ShipStationService] DATE FILTER: Order ${order.orderNumber} shipment from ${shipment.shipDate} is before reasonable start date ${reasonableStartDate.toISOString()}. Filtering out potentially stale/incorrect data.`);
+                                return false;
+                            }
+                            
+                            // Also check for shipments that are too far in the future (more than 30 days from order date)
+                            const maxFutureDate = new Date(orderCreationDate);
+                            maxFutureDate.setDate(maxFutureDate.getDate() + 30);
+                            
+                            if (shipmentDate > maxFutureDate) {
+                                console.warn(`[ShipStationService] DATE FILTER: Order ${order.orderNumber} shipment from ${shipment.shipDate} is too far in the future from order date ${order.orderDate}. Filtering out potentially incorrect data.`);
+                                return false;
+                            }
+                            
+                            console.log(`[ShipStationService] ✅ Shipment date validation PASSED for order ${order.orderNumber}`);
+                        }
+                        
+                        return true;
+                    });
+                    
+                    validShipments = logicalShipments.map(shipment => ({
                         trackingNumber: shipment.trackingNumber!,
                         carrier: shipment.carrierCode!,
                         shipDate: shipment.shipDate,
                         serviceLevel: shipment.serviceCode,
                         estimatedDelivery: shipment.estimatedDeliveryDate
                     }));
+                    
+                    if (order.shipments.length > validShipments.length) {
+                        console.log(`ShipStation Service: Filtered out ${order.shipments.length - validShipments.length} invalid/stale shipments for order ${order.orderNumber}`);
+                    }
+                }
 
                 // Process order items
                 const orderItems = (order.items || []).map(item => ({
@@ -272,7 +409,8 @@ async function getOrderInfo(orderNumber: string, authHeader: string): Promise<Or
                     orderStatus: order.orderStatus,
                     orderDate: order.orderDate,
                     shipments: validShipments.length > 0 ? validShipments : undefined,
-                    items: orderItems.length > 0 ? orderItems : undefined
+                    items: orderItems.length > 0 ? orderItems : undefined,
+                    shipStationOrderId: order.orderId
                 };
             } else {
                 console.log(`ShipStation Service: OrderNumber ${orderNumber} not found.`);
@@ -330,7 +468,7 @@ async function getOrderInfo(orderNumber: string, authHeader: string): Promise<Or
 /**
  * Helper function to get shipment information from the /shipments endpoint
  */
-async function getShipmentsInfo(orderNumber: string, authHeader: string): Promise<{shipments?: ShipmentInfo[], errorMessage?: string}> {
+async function getShipmentsInfo(orderNumber: string, authHeader: string, originalOrderDate?: string): Promise<{shipments?: ShipmentInfo[], errorMessage?: string}> {
     const url = `${SHIPSTATION_BASE_URL}/shipments`;
     let retryCount = 0;
     
@@ -351,6 +489,9 @@ async function getShipmentsInfo(orderNumber: string, authHeader: string): Promis
                     sortDir: 'DESC' // Sort newest first
                 }
             });
+
+            // **Step 2: Add extensive logging as suggested**
+            console.log(`[ShipStationService getShipmentsInfo] RAW Response for orderNumber ${orderNumber}:`, JSON.stringify(response.data, null, 2));
 
             if (response.data && response.data.shipments && response.data.shipments.length > 0) {
                 console.log(`ShipStation Service: Found ${response.data.shipments.length} shipments for order ${orderNumber}`);
@@ -384,21 +525,130 @@ async function getShipmentsInfo(orderNumber: string, authHeader: string): Promis
                     }
                 }
 
-                const validShipments = allShipments
-                    .filter(shipment => !shipment.voided && shipment.trackingNumber && shipment.carrierCode)
-                    .map(shipment => ({
-                        trackingNumber: shipment.trackingNumber!,
-                        carrier: shipment.carrierCode!,
-                        shipDate: shipment.shipDate,
-                        serviceLevel: shipment.serviceCode,
-                        estimatedDelivery: shipment.estimatedDeliveryDate
-                    }));
+                // **Step 3: Apply date filtering if original order date is provided**
+                let validShipments;
+                if (originalOrderDate) {
+                    const orderCreationDate = new Date(originalOrderDate);
+                    
+                    validShipments = allShipments
+                        .filter(shipment => {
+                            if (shipment.voided || !shipment.trackingNumber || !shipment.carrierCode) {
+                                return false;
+                            }
+                            
+                            // **Apply same date filtering logic as getOrderInfo**
+                            if (shipment.shipDate) {
+                                const shipmentDate = new Date(shipment.shipDate);
+                                
+                                // **DEBUG: Log the date comparison details**
+                                console.log(`[ShipStationService getShipmentsInfo] Analyzing shipment date for order ${orderNumber}:`);
+                                console.log(`[ShipStationService getShipmentsInfo] - Original Order Date: ${originalOrderDate} (${orderCreationDate.toISOString()})`);
+                                console.log(`[ShipStationService getShipmentsInfo] - Shipment Date: ${shipment.shipDate} (${shipmentDate.toISOString()})`);
+                                console.log(`[ShipStationService getShipmentsInfo] - Tracking: ${shipment.trackingNumber}`);
+                                
+                                // **RELAXED FILTERING: For very recent orders (within 30 days), be more lenient**
+                                const now = new Date();
+                                const daysSinceOrder = Math.abs(now.getTime() - orderCreationDate.getTime()) / (1000 * 60 * 60 * 24);
+                                
+                                if (daysSinceOrder <= 30) {
+                                    console.log(`[ShipStationService getShipmentsInfo] Recent order (${daysSinceOrder.toFixed(1)} days old). Using relaxed date filtering.`);
+                                    
+                                    // For recent orders, only reject shipments that are clearly from wrong years
+                                    const orderYear = orderCreationDate.getFullYear();
+                                    const shipmentYear = shipmentDate.getFullYear();
+                                    const yearDifference = Math.abs(orderYear - shipmentYear);
+                                    
+                                    if (yearDifference > 0) {
+                                        console.warn(`[ShipStationService getShipmentsInfo] YEAR MISMATCH: Recent order ${orderNumber} from ${orderYear} has shipment from ${shipmentYear}. Year difference: ${yearDifference}. Filtering out this incorrect data.`);
+                                        return false;
+                                    }
+                                    
+                                    // For recent orders, allow wider date range (30 days before to 7 days after)
+                                    const recentStartDate = new Date(orderCreationDate);
+                                    recentStartDate.setDate(recentStartDate.getDate() - 30);
+                                    
+                                    const recentEndDate = new Date(orderCreationDate);
+                                    recentEndDate.setDate(recentEndDate.getDate() + 7);
+                                    
+                                    if (shipmentDate < recentStartDate || shipmentDate > recentEndDate) {
+                                        console.warn(`[ShipStationService getShipmentsInfo] DATE FILTER (RECENT): Shipment for order ${orderNumber} from ${shipment.shipDate} is outside reasonable range for recent order. Filtering out.`);
+                                        return false;
+                                    }
+                                    
+                                    console.log(`[ShipStationService getShipmentsInfo] ✅ Recent order shipment validation PASSED for order ${orderNumber}`);
+                                    return true;
+                                }
+                                
+                                // **AGGRESSIVE: Reject shipments from years that are significantly different for older orders**
+                                const orderYear = orderCreationDate.getFullYear();
+                                const shipmentYear = shipmentDate.getFullYear();
+                                const yearDifference = Math.abs(orderYear - shipmentYear);
+                                
+                                if (yearDifference > 1) {
+                                    console.warn(`[ShipStationService getShipmentsInfo] MAJOR DATE MISMATCH: Order ${orderNumber} from ${orderYear} has shipment from ${shipmentYear}. Year difference: ${yearDifference}. Filtering out this clearly incorrect data.`);
+                                    return false;
+                                }
+                                
+                                // Allow shipments up to 7 days before order date to account for pre-fulfillment or timezone issues
+                                const reasonableStartDate = new Date(orderCreationDate);
+                                reasonableStartDate.setDate(reasonableStartDate.getDate() - 7);
+                                
+                                // Filter out shipments that are too old (this prevents the 2022 vs 2025 issue)
+                                if (shipmentDate < reasonableStartDate) {
+                                    console.warn(`[ShipStationService getShipmentsInfo] DATE FILTER: Shipment for order ${orderNumber} from ${shipment.shipDate} is before reasonable start date ${reasonableStartDate.toISOString()}. Filtering out potentially stale/incorrect data.`);
+                                    return false;
+                                }
+                                
+                                // Also check for shipments that are too far in the future (more than 30 days from order date)
+                                const maxFutureDate = new Date(orderCreationDate);
+                                maxFutureDate.setDate(maxFutureDate.getDate() + 30);
+                                
+                                if (shipmentDate > maxFutureDate) {
+                                    console.warn(`[ShipStationService getShipmentsInfo] DATE FILTER: Shipment for order ${orderNumber} from ${shipment.shipDate} is too far in the future from order date ${originalOrderDate}. Filtering out potentially incorrect data.`);
+                                    return false;
+                                }
+                                
+                                console.log(`[ShipStationService getShipmentsInfo] ✅ Shipment date validation PASSED for order ${orderNumber}`);
+                            }
+                            
+                            return true;
+                        })
+                        .map(shipment => ({
+                            trackingNumber: shipment.trackingNumber!,
+                            carrier: shipment.carrierCode!,
+                            shipDate: shipment.shipDate,
+                            serviceLevel: shipment.serviceCode,
+                            estimatedDelivery: shipment.estimatedDeliveryDate
+                        }));
+                    
+                    if (allShipments.length > validShipments.length) {
+                        console.log(`ShipStation Service: Filtered out ${allShipments.length - validShipments.length} invalid/stale shipments for order ${orderNumber} using date filtering`);
+                    }
+                } else {
+                    // Fallback to basic filtering without date validation if no order date provided
+                    validShipments = allShipments
+                        .filter(shipment => !shipment.voided && shipment.trackingNumber && shipment.carrierCode)
+                        .map(shipment => ({
+                            trackingNumber: shipment.trackingNumber!,
+                            carrier: shipment.carrierCode!,
+                            shipDate: shipment.shipDate,
+                            serviceLevel: shipment.serviceCode,
+                            estimatedDelivery: shipment.estimatedDeliveryDate
+                        }));
+                }
 
                 return {
                     shipments: validShipments.length > 0 ? validShipments : undefined
                 };
             } else {
                 console.log(`ShipStation Service: No shipments found for orderNumber ${orderNumber}.`);
+                
+                // **NEW: Try date-based search for externally fulfilled orders**
+                if (originalOrderDate) {
+                    console.log(`ShipStation Service: Trying date-based shipment search for potentially externally fulfilled order ${orderNumber}`);
+                    return await tryDateBasedShipmentSearch(orderNumber, authHeader, originalOrderDate);
+                }
+                
                 return { shipments: undefined };
             }
 
@@ -449,4 +699,138 @@ async function getShipmentsInfo(orderNumber: string, authHeader: string): Promis
 
     console.log(`ShipStation Service: Max retries reached when fetching shipments for order ${orderNumber}`);
     return { shipments: undefined, errorMessage: 'Maximum retry attempts reached for ShipStation API' };
+}
+
+/**
+ * Try to find shipments by searching within a date range around the order date
+ * This is useful for externally fulfilled orders where shipments might not be linked properly
+ */
+async function tryDateBasedShipmentSearch(orderNumber: string, authHeader: string, originalOrderDate: string): Promise<{shipments?: ShipmentInfo[], errorMessage?: string}> {
+    const url = `${SHIPSTATION_BASE_URL}/shipments`;
+    
+    try {
+        console.log(`[ShipStationService tryDateBasedShipmentSearch] Searching for shipments around order date for ${orderNumber}`);
+        
+        const orderDate = new Date(originalOrderDate);
+        
+        // Search for shipments within ±3 days of order date
+        const startDate = new Date(orderDate);
+        startDate.setDate(startDate.getDate() - 3);
+        
+        const endDate = new Date(orderDate);
+        endDate.setDate(endDate.getDate() + 3);
+        
+        // Format dates for ShipStation API (YYYY-MM-DD)
+        const startDateStr = startDate.toISOString().split('T')[0];
+        const endDateStr = endDate.toISOString().split('T')[0];
+        
+        console.log(`[ShipStationService tryDateBasedShipmentSearch] Searching shipments from ${startDateStr} to ${endDateStr}`);
+        
+        await rateLimiter.waitForSlot();
+        
+        const response = await axios.get<ShipStationShipmentsResponse>(url, {
+            headers: {
+                'Authorization': authHeader,
+                'Accept': 'application/json',
+            },
+            params: {
+                shipDateStart: startDateStr,
+                shipDateEnd: endDateStr,
+                pageSize: 500, // Get more results since we're searching by date
+                sortBy: 'ShipDate',
+                sortDir: 'DESC'
+            }
+        });
+        
+        console.log(`[ShipStationService tryDateBasedShipmentSearch] Found ${response.data?.shipments?.length || 0} shipments in date range`);
+        
+        if (response.data && response.data.shipments && response.data.shipments.length > 0) {
+            // Look for shipments that might match this order (by order number in various fields)
+            const matchingShipments = response.data.shipments.filter(shipment => {
+                const matchesOrderNumber = 
+                    shipment.orderNumber === orderNumber ||
+                    shipment.orderNumber === `#${orderNumber}` ||
+                    (shipment.orderId && shipment.orderId.toString().includes(orderNumber));
+                
+                const isValid = !shipment.voided && shipment.trackingNumber && shipment.carrierCode;
+                
+                if (matchesOrderNumber && isValid) {
+                    console.log(`[ShipStationService tryDateBasedShipmentSearch] Found potential match: shipmentId=${shipment.shipmentId}, orderNumber=${shipment.orderNumber}, tracking=${shipment.trackingNumber}`);
+                }
+                
+                return matchesOrderNumber && isValid;
+            });
+            
+            if (matchingShipments.length > 0) {
+                console.log(`[ShipStationService tryDateBasedShipmentSearch] Found ${matchingShipments.length} matching shipments for order ${orderNumber}`);
+                
+                const validShipments = matchingShipments.map(shipment => ({
+                    trackingNumber: shipment.trackingNumber!,
+                    carrier: shipment.carrierCode!,
+                    shipDate: shipment.shipDate,
+                    serviceLevel: shipment.serviceCode,
+                    estimatedDelivery: shipment.estimatedDeliveryDate
+                }));
+                
+                return { shipments: validShipments };
+            }
+        }
+        
+        console.log(`[ShipStationService tryDateBasedShipmentSearch] No matching shipments found for order ${orderNumber} in date range`);
+        return { shipments: undefined };
+        
+    } catch (error) {
+        console.error(`[ShipStationService tryDateBasedShipmentSearch] Error searching shipments by date for order ${orderNumber}:`, error);
+        return { shipments: undefined, errorMessage: 'Error in date-based shipment search' };
+    }
+}
+
+/**
+ * Gets ShipStation order details including the order ID for URL construction
+ * @param orderNumber The customer's order number
+ * @returns Enhanced OrderTrackingInfo with ShipStation order ID
+ */
+export async function getShipStationOrderDetails(orderNumber: string): Promise<OrderTrackingInfo | null> {
+    console.log(`[ShipStationService] Getting order details for URL construction: ${orderNumber}`);
+    
+    if (!SHIPSTATION_API_KEY || !SHIPSTATION_API_SECRET) {
+        console.error("ShipStation Service: API Key or Secret not configured.");
+        return null;
+    }
+
+    const authHeader = `Basic ${Buffer.from(`${SHIPSTATION_API_KEY}:${SHIPSTATION_API_SECRET}`).toString('base64')}`;
+    
+    try {
+        // Get order info which should include the ShipStation order ID
+        const orderInfo = await getOrderInfo(orderNumber, authHeader);
+        return orderInfo;
+    } catch (error) {
+        console.error("ShipStation Service: Error getting order details for URL construction", error);
+        return null;
+    }
+}
+
+/**
+ * Constructs a ShipStation admin URL for an order
+ * Note: The URL format may need to be adjusted based on your ShipStation instance
+ * @param shipStationOrderId The ShipStation internal order ID
+ * @param orderNumber The order number for the quickSearch parameter
+ * @returns ShipStation admin URL or null if construction fails
+ */
+export function constructShipStationUrl(shipStationOrderId: number, orderNumber: string): string | null {
+    try {
+        const baseUrl = process.env.SHIPSTATION_WEB_URL || 'https://ship12.shipstation.com';
+        
+        // **FIXED: Use the correct URL format based on user testing**
+        // Search URL that actually works: https://ship12.shipstation.com/orders/all-orders-search-result?quickSearch=4422
+        return `${baseUrl}/orders/all-orders-search-result?quickSearch=${orderNumber}`;
+        
+        // **NOTE: Direct order URL would be ideal but requires a GUID we don't have from API:**
+        // https://ship12.shipstation.com/orders/all-orders-search-result/order/8719a4a2-95e2-5929-8098-544d9007f002/active/433202969?quickSearch=4422
+        // The GUID (8719a4a2-95e2-5929-8098-544d9007f002) is not available in the ShipStation API response
+        
+    } catch (error) {
+        console.error(`Error constructing ShipStation URL for order ${shipStationOrderId}:`, error);
+        return null;
+    }
 } 

@@ -891,4 +891,322 @@ export class ShopifyService {
       throw error;
     }
   }
+
+  /**
+   * Search orders by order name or number
+   */
+  public async searchOrdersByNameOrNumber(query: string, limit: number = 5): Promise<any[]> {
+    // Clean the query - remove # and whitespace
+    const cleanQuery = query.replace(/[#\s]/g, '');
+    const numericQuery = cleanQuery.replace(/\D/g, ''); // Extract only digits
+    
+    const orderQuery = `
+      query SearchOrders($query: String!, $first: Int!) {
+        orders(first: $first, query: $query) {
+          edges {
+            node {
+              id
+              legacyResourceId
+              name
+              email
+              phone
+              createdAt
+              updatedAt
+              displayFinancialStatus
+              displayFulfillmentStatus
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              customer {
+                id
+                email
+                firstName
+                lastName
+                phone
+                displayName
+              }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    id
+                    title
+                    quantity
+                    variant {
+                      title
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      console.log(`[ShopifyService] Searching orders for: "${query}" (cleaned: "${cleanQuery}", numeric: "${numericQuery}")`);
+      
+      // Try search patterns in order of specificity (most specific first)
+      const searchQueries = [
+        `name:#${cleanQuery}`,        // Exact match with #
+        `name:${cleanQuery}`,         // Exact match without #
+        `order_number:${numericQuery}` // Numeric order number match
+      ];
+
+      let allResults: any[] = [];
+      
+      for (const searchQuery of searchQueries) {
+        try {
+          console.log(`[ShopifyService] Trying search pattern: "${searchQuery}"`);
+          const variables = { query: searchQuery, first: limit };
+          const response: any = await this.graphqlClient.request(orderQuery, { variables, retries: 1 });
+
+          if (response.errors) {
+            console.warn(`[ShopifyService] GraphQL Errors for query "${searchQuery}":`, response.errors);
+            continue;
+          }
+
+          const orders = response.data?.orders?.edges || [];
+          console.log(`[ShopifyService] Found ${orders.length} orders with pattern "${searchQuery}"`);
+          
+          if (orders.length > 0) {
+            const newResults = orders.map((edge: any) => edge.node);
+            console.log(`[ShopifyService] Order names found:`, newResults.map((order: any) => order.name));
+            
+            // Add unique results only
+            newResults.forEach((order: any) => {
+              if (!allResults.find((existing: any) => existing.id === order.id)) {
+                allResults.push(order);
+              }
+            });
+            
+            // If we found exact matches, don't try broader searches
+            if (searchQuery.includes('name:#') || searchQuery.includes('name:') && !searchQuery.includes('*')) {
+              console.log(`[ShopifyService] Found exact matches, stopping search here`);
+              break;
+            }
+          }
+        } catch (error) {
+          console.warn(`[ShopifyService] Error with search query "${searchQuery}":`, error);
+          continue;
+        }
+      }
+
+      // Only try wildcard search if no exact matches were found
+      if (allResults.length === 0) {
+        console.log(`[ShopifyService] No exact matches found, trying wildcard search`);
+        try {
+          const wildcardQuery = `name:*${cleanQuery}*`;
+          console.log(`[ShopifyService] Trying wildcard pattern: "${wildcardQuery}"`);
+          
+          const variables = { query: wildcardQuery, first: limit };
+          const response: any = await this.graphqlClient.request(orderQuery, { variables, retries: 1 });
+
+          if (!response.errors) {
+            const orders = response.data?.orders?.edges || [];
+            console.log(`[ShopifyService] Found ${orders.length} orders with wildcard pattern`);
+            
+            if (orders.length > 0) {
+              const newResults = orders.map((edge: any) => edge.node);
+              console.log(`[ShopifyService] Wildcard order names found:`, newResults.map((order: any) => order.name));
+              
+              newResults.forEach((order: any) => {
+                if (!allResults.find((existing: any) => existing.id === order.id)) {
+                  allResults.push(order);
+                }
+              });
+            }
+          }
+        } catch (error) {
+          console.warn(`[ShopifyService] Error with wildcard search:`, error);
+        }
+      }
+
+      console.log(`[ShopifyService] Final results for query "${query}": ${allResults.length} orders found`);
+      if (allResults.length > 0) {
+        console.log(`[ShopifyService] Final order names:`, allResults.map(order => order.name));
+      }
+      
+      return allResults.slice(0, limit); // Ensure we don't exceed the limit
+    } catch (error: any) {
+      console.error('[ShopifyService] Error searching orders by name/number:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search orders by customer email
+   */
+  public async searchOrdersByCustomerEmail(email: string, limit: number = 5): Promise<any[]> {
+    const orderQuery = `
+      query SearchOrdersByEmail($query: String!, $first: Int!) {
+        orders(first: $first, query: $query) {
+          edges {
+            node {
+              id
+              legacyResourceId
+              name
+              email
+              phone
+              createdAt
+              updatedAt
+              displayFinancialStatus
+              displayFulfillmentStatus
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              customer {
+                id
+                email
+                firstName
+                lastName
+                phone
+                displayName
+              }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    id
+                    title
+                    quantity
+                    variant {
+                      title
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      console.log(`[ShopifyService] Searching orders by email: ${email}`);
+      const variables = { query: `email:${email}`, first: limit };
+      const response: any = await this.graphqlClient.request(orderQuery, { variables, retries: 1 });
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
+        throw new Error('GraphQL query failed');
+      }
+
+      const orders = response.data?.orders?.edges || [];
+      console.log(`[ShopifyService] Found ${orders.length} orders for email: ${email}`);
+      return orders.map((edge: any) => edge.node);
+    } catch (error: any) {
+      console.error('[ShopifyService] Error searching orders by email:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Search orders by customer name
+   */
+  public async searchOrdersByCustomerName(name: string, limit: number = 5): Promise<any[]> {
+    const orderQuery = `
+      query SearchOrdersByCustomerName($query: String!, $first: Int!) {
+        orders(first: $first, query: $query) {
+          edges {
+            node {
+              id
+              legacyResourceId
+              name
+              email
+              phone
+              createdAt
+              updatedAt
+              displayFinancialStatus
+              displayFulfillmentStatus
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              customer {
+                id
+                email
+                firstName
+                lastName
+                phone
+                displayName
+              }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    id
+                    title
+                    quantity
+                    variant {
+                      title
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      console.log(`[ShopifyService] Searching orders by customer name: ${name}`);
+      
+      // Try multiple search patterns for customer names
+      const searchQueries = [
+        `customer:"${name}"`,
+        `customer:*${name}*`,
+        `first_name:*${name}* OR last_name:*${name}*`
+      ];
+
+      let allResults: any[] = [];
+      
+      for (const searchQuery of searchQueries) {
+        try {
+          const variables = { query: searchQuery, first: limit };
+          const response: any = await this.graphqlClient.request(orderQuery, { variables, retries: 1 });
+
+          if (response.errors) {
+            console.warn(`[ShopifyService] GraphQL Errors for query "${searchQuery}":`, response.errors);
+            continue;
+          }
+
+          const orders = response.data?.orders?.edges || [];
+          if (orders.length > 0) {
+            const newResults = orders.map((edge: any) => edge.node);
+            // Add unique results only
+            newResults.forEach((order: any) => {
+              if (!allResults.find(existing => existing.id === order.id)) {
+                allResults.push(order);
+              }
+            });
+          }
+        } catch (error) {
+          console.warn(`[ShopifyService] Error with search query "${searchQuery}":`, error);
+          continue;
+        }
+      }
+
+      console.log(`[ShopifyService] Found ${allResults.length} orders for customer name: ${name}`);
+      return allResults.slice(0, limit); // Ensure we don't exceed the limit
+    } catch (error: any) {
+      console.error('[ShopifyService] Error searching orders by customer name:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Helper method to construct Shopify Admin URL for an order
+   */
+  public getOrderAdminUrl(legacyResourceId: string): string {
+    const storeUrl = Config.shopify.storeUrl;
+    return `${storeUrl}/admin/orders/${legacyResourceId}`;
+  }
 }

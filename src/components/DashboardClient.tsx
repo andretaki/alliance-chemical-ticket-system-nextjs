@@ -9,6 +9,7 @@ import StatusChartClient from './charts/StatusChartClient';
 import PriorityChartClient from './charts/PriorityChartClient';
 import TypeChartClient from './charts/TypeChartClient';
 import TicketListClient from './TicketListClient';
+import SimpleOrderSearch from './dashboard/SimpleOrderSearch';
 
 export default function DashboardClient() {
   const { data: session, status } = useSession();
@@ -39,6 +40,13 @@ export default function DashboardClient() {
         </button>
       </div>
       
+      {/* NEW: Simple Order Search Section */}
+      <div className="row mb-4">
+        <div className="col-12">
+          <SimpleOrderSearch />
+        </div>
+      </div>
+
       {/* Stats Cards Section */}
       <DashboardStatsSection />
       
