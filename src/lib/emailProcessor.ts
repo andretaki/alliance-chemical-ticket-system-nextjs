@@ -184,6 +184,21 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
         const lowerSender = senderEmail.toLowerCase();
         const lowerSubject = subject.toLowerCase();
 
+        // === NEW: Early Quarantine Check ===
+        if (internetMessageId) {
+            const alreadyQuarantined = await db.query.quarantinedEmails.findFirst({
+                where: eq(quarantinedEmails.internetMessageId, internetMessageId),
+                columns: { id: true }
+            });
+            if (alreadyQuarantined) {
+                console.log(`EmailProcessor: Email ${messageId} (Internet ID: ${internetMessageId}) is already in quarantine (ID: ${alreadyQuarantined.id}). Skipping full processing.`);
+                // It's good practice to ensure it's marked as read if it keeps re-appearing
+                try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                return { success: true, message: "Skipped, already in quarantine.", quarantined: true, skipped: true };
+            }
+        }
+        // === End Early Quarantine Check ===
+
         // === Phase 2: Hard Rules Filter ===
         const hardFilterRules: HardFilterRule[] = [
             { type: 'header', name: 'precedence', value: 'bulk' },

@@ -118,8 +118,11 @@ Respond with ONLY this JSON format:
   "isLikelyAutomated": true|false
 }`;
 
+    console.log(`AI Service (Triage): Sending request for sender: ${senderAddress}, subject: "${subject.substring(0, 50)}..."`);
+    // Add detailed prompt logging for debugging
+    // console.log("AI Service (Triage): Full prompt being sent:", prompt); 
+
     try {
-        console.log(`AI Service (Triage): Sending request for sender: ${senderAddress}, subject: "${subject.substring(0, 50)}..."`);
         // Use updated generation config for better compatibility
         const generationConfigTriage: GenerationConfig = {
             responseMimeType: "application/json",
@@ -134,11 +137,25 @@ Respond with ONLY this JSON format:
             safetySettings,
         });
 
-        const responseText = result.response.text();
+        const response = result.response;
+        const responseText = response.text(); // Call text() once and store it
+
+        // Check for safety blocks first
+        if (response.promptFeedback && response.promptFeedback.blockReason) {
+            console.error("AI Service (Triage): Prompt was blocked by safety settings.", {
+                blockReason: response.promptFeedback.blockReason,
+                safetyRatings: JSON.stringify(response.promptFeedback.safetyRatings, null, 2),
+                sender: senderAddress,
+                subject: subject.substring(0,100)
+            });
+            return null; // Blocked content should be treated as a failure to triage
+        }
+        
         console.log(`AI Service (Triage): Raw response for ${senderAddress}:`, responseText?.substring(0, 200) || 'null');
         
         if (!responseText) {
-             console.error("AI Service Error (Triage): Response was empty."); return null;
+             console.error("AI Service Error (Triage): Response text was empty. Full response object:", JSON.stringify(response, null, 2));
+             return null;
         }
 
         const cleanedJson = responseText.replace(/^```json\s*|```$/g, '').trim();
@@ -146,7 +163,8 @@ Respond with ONLY this JSON format:
         try {
             parsedResult = JSON.parse(cleanedJson);
         } catch (parseError) {
-            console.error("AI Service Error (Triage): Failed to parse JSON:", parseError, "\nText:", responseText); return null;
+            console.error("AI Service Error (Triage): Failed to parse JSON:", parseError, "\nCleaned Text:", cleanedJson, "\nOriginal Text:", responseText); 
+            return null;
         }
 
         // Validate the parsed result
@@ -161,7 +179,12 @@ Respond with ONLY this JSON format:
         console.log("AI Service (Triage): Successfully parsed triage result:", parsedResult);
         return parsedResult;
     } catch (error: any) {
-        console.error("AI Service Error (Triage): API call failed:", error.message || error);
+        console.error("AI Service Error (Triage): API call failed:", {
+            message: error.message || 'Unknown error',
+            errorObject: JSON.stringify(error, Object.getOwnPropertyNames(error)), // Log the full error object
+            sender: senderAddress,
+            subject: subject.substring(0,100)
+        });
         if (error.response?.promptFeedback) {
             console.error("AI Safety Feedback (Triage):", error.response.promptFeedback);
         }
