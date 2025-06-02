@@ -98,7 +98,58 @@ const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: 
   );
 };
 
-// Draft Reply Extraction
+// --- NEW: Helper functions to identify and process AI suggestions ---
+const AI_SUGGESTION_MARKERS = [
+    "**AI Suggested Reply:**",
+    "**Order Status Found - Suggested Reply:**", // Existing
+    "**Suggested Reply (Request for Lot #):**", // Specific example
+    "**Order Status Reply:**",
+    "**Suggested Reply (SDS Document):**",
+    "**Suggested Reply (COC Information):**",
+    "**Suggested Reply (Document Request):**",
+    "**AI Order Status Reply:**",
+    "**AI COA Reply:**"
+    // Add more specific markers as needed
+];
+
+const isAISuggestionNote = (commentText: string | null): boolean => {
+  return !!commentText && AI_SUGGESTION_MARKERS.some(marker => commentText.startsWith(marker));
+};
+
+const extractAISuggestionContent = (commentText: string | null): string => {
+  if (!commentText) return '';
+  for (const marker of AI_SUGGESTION_MARKERS) {
+    if (commentText.startsWith(marker)) {
+      // Find the first newline after the marker to get the actual content
+      const markerEndIndex = commentText.indexOf('\n', marker.length);
+      if (markerEndIndex !== -1) {
+        return commentText.substring(markerEndIndex + 1).trim();
+      }
+      // If no newline, might be a very short suggestion on the same line (less common)
+      return commentText.substring(marker.length).trim(); 
+    }
+  }
+  // Fallback for older/generic marker if necessary, though covered by AI_SUGGESTION_MARKERS
+  const genericMarkerEnd = commentText.indexOf('**\n');
+  if (genericMarkerEnd !== -1 && commentText.startsWith("**") && commentText.includes("Suggested Reply")) {
+    return commentText.substring(genericMarkerEnd + 3).trim();
+  }
+  return ''; // Should not happen if isAISuggestionNote is true
+};
+
+const getAISuggestionTitle = (commentText: string | null): string => {
+    if (!commentText) return "AI Suggestion";
+    if (commentText.startsWith("**Order Status Found - Suggested Reply:**") || commentText.startsWith("**Order Status Reply:**")) return "AI Order Status Reply";
+    if (commentText.startsWith("**Suggested Reply (Request for Lot #):**") || commentText.startsWith("**AI COA Reply:**")) return "AI COA/Lot# Reply";
+    if (commentText.startsWith("**Suggested Reply (SDS Document):**")) return "AI SDS Reply";
+    if (commentText.startsWith("**Suggested Reply (COC Information):**")) return "AI COC Reply";
+    if (commentText.startsWith("**AI Suggested Reply:**")) return "AI General Reply";
+    // Fallback for any other recognized AI note
+    if (AI_SUGGESTION_MARKERS.some(marker => commentText.startsWith(marker))) return "AI Suggested Action";
+    return "AI Suggestion"; // Default
+}
+
+// Draft Reply Extraction (keeping for backward compatibility)
 const isDraftReplyNote = (commentText: string | null): boolean => {
   return !!commentText && commentText.includes('**Suggested Reply');
 };
@@ -150,45 +201,57 @@ export default function CommunicationHistory({
       {sortedComments.map((comment) => {
         // Determine message styling and icons based on type
         let messageClasses = 'message-item mb-4';
-        let headerClasses = 'message-header d-flex justify-content-between align-items-center mb-2 px-3 py-2';
+        let headerClasses = 'message-header d-flex justify-content-between align-items-start mb-2 px-3 py-2';
         let contentClasses = 'message-content px-3 pb-3';
         let avatarClassNames = 'avatar-icon rounded-circle d-flex align-items-center justify-content-center me-2';
         let iconClass = 'fas fa-comment';
         let badge: React.ReactNode = null;
         let avatarColor = 'bg-secondary';
-        let headerBgColor = 'bg-light';
+        
+        const isAIResponse = isAISuggestionNote(comment.commentText);
+        const aiSuggestionContent = isAIResponse ? extractAISuggestionContent(comment.commentText) : '';
+        const aiSuggestionTitle = isAIResponse ? getAISuggestionTitle(comment.commentText) : '';
 
-        // Different styling based on comment type
-        if (comment.isInternalNote) {
+        if (isAIResponse) {
+            messageClasses += ' border border-primary rounded bg-primary-subtle';
+            headerClasses += ' bg-primary-subtle border-bottom border-primary';
+            iconClass = 'fas fa-robot text-primary';
+            badge = <span className="badge bg-primary ms-2">AI Suggestion</span>;
+            avatarColor = 'bg-primary text-white';
+        } else if (comment.isInternalNote) {
+          messageClasses += ' border border-warning rounded bg-warning-subtle';
           headerClasses += ' bg-warning-subtle border-bottom border-warning';
-          messageClasses += ' border border-warning rounded';
-          iconClass = 'fas fa-lock';
+          iconClass = 'fas fa-lock text-warning';
           badge = <span className="badge bg-warning text-dark ms-2">Internal Note</span>;
           avatarColor = 'bg-warning text-dark';
         } else if (comment.isOutgoingReply) {
+          messageClasses += ' border border-info rounded bg-info-subtle';
           headerClasses += ' bg-info-subtle border-bottom border-info';
-          messageClasses += ' border border-info rounded';
-          iconClass = 'fas fa-paper-plane';
+          iconClass = 'fas fa-paper-plane text-info';
           badge = <span className="badge bg-info text-dark ms-2" title="Sent as email">Sent</span>;
           avatarColor = 'bg-info text-white';
         } else if (comment.isFromCustomer) {
+          messageClasses += ' border border-success rounded bg-success-subtle';
           headerClasses += ' bg-success-subtle border-bottom border-success';
-          messageClasses += ' border border-success rounded';
-          iconClass = 'fas fa-envelope';
+          iconClass = 'fas fa-envelope text-success';
           badge = <span className="badge bg-success ms-2" title="Received via Email">Received</span>;
           avatarColor = 'bg-success text-white';
         } else {
+          messageClasses += ' border rounded bg-light'; 
           headerClasses += ' bg-light border-bottom';
-          messageClasses += ' border rounded';
-          iconClass = 'fas fa-user-edit';
+          iconClass = 'fas fa-user-edit text-secondary';
           avatarColor = 'bg-secondary text-white';
         }
 
-        // Handle draft replies
+        // Handle draft replies (backward compatibility)
         const isDraft = isDraftReplyNote(comment.commentText);
         const hasOrderStatus = checkIsOrderStatusDraft(comment.commentText);
         const draftContent = isDraft ? extractDraftContent(comment.commentText) : '';
         const commentDate = parseDate(comment.createdAt);
+        
+        const senderDisplayName = isAIResponse ? "AI Assistant" : 
+                                  comment.commenter?.name || 
+                                  (comment.isFromCustomer ? (ticket.senderName || ticket.senderEmail || 'Customer') : 'System/Agent');
 
         return (
           <div key={comment.id} className={messageClasses}>
@@ -202,10 +265,7 @@ export default function CommunicationHistory({
                 {/* Sender Name */}
                 <div className="sender-details">
                   <div className="d-flex align-items-center">
-                    <strong className="me-2">
-                      {comment.commenter?.name || 
-                       (comment.isFromCustomer ? (ticket.senderName || ticket.senderEmail || 'Customer') : 'System/Agent')}
-                    </strong>
+                    <strong className="me-2">{senderDisplayName}</strong>
                     {badge}
                   </div>
                 </div>
@@ -219,7 +279,34 @@ export default function CommunicationHistory({
             
             {/* Message Content */}
             <div className={contentClasses}>
-              {isDraft || hasOrderStatus ? (
+              {isAIResponse ? (
+                <div className="ai-suggestion-section mt-2">
+                  <h6 className="text-primary fw-bold d-flex align-items-center">
+                    <i className="fas fa-lightbulb me-2"></i> {aiSuggestionTitle}
+                  </h6>
+                  <div className="comment-text pt-1 mb-3" style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
+                    {aiSuggestionContent}
+                  </div>
+                  <div className="d-flex gap-2">
+                    <button 
+                      className="btn btn-sm btn-outline-secondary" 
+                      onClick={() => navigator.clipboard.writeText(aiSuggestionContent)} 
+                      title="Copy reply text"
+                      disabled={isSubmittingComment}
+                    >
+                      <i className="fas fa-copy"></i> Copy
+                    </button>
+                    <button 
+                      className="btn btn-sm btn-primary" 
+                      onClick={() => handleApproveAndSendDraft(aiSuggestionContent)} 
+                      disabled={isSubmittingComment} 
+                      title="Use this reply and send as email"
+                    >
+                      <i className="fas fa-paper-plane me-1"></i> Approve & Send Email
+                    </button>
+                  </div>
+                </div>
+              ) : (isDraft || hasOrderStatus) ? (
                 <div className="draft-reply-section mt-2 p-3 border border-primary rounded bg-primary-subtle">
                   <h6 className="text-primary fw-bold d-flex align-items-center">
                     <i className={`fas ${hasOrderStatus ? 'fa-shipping-fast' : 'fa-robot'} me-2`}></i> 
@@ -237,6 +324,7 @@ export default function CommunicationHistory({
                         ? extractDraftContent(comment.commentText) 
                         : draftContent)} 
                       title="Copy reply text"
+                      disabled={isSubmittingComment}
                     >
                       <i className="fas fa-copy"></i> Copy
                     </button>

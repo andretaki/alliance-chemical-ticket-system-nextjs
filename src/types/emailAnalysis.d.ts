@@ -37,7 +37,7 @@ export interface EmailAnalysisData {
   keyInformationForResolution: string[];
   suggestedNextActions: string[];
   rawSummary: string; // AI's summary of THIS specific email
-  aiModelUsed?: string; // e.g., "gemini-1.5-flash"
+  aiModelUsed?: string; // e.g., "models/gemini-2.5-flash-preview-05-20"
   aiAnalysisTimestamp?: string; // ISO string
   aiAnalysisError?: string; // If Gemini call failed for this email
 } 

@@ -13,9 +13,9 @@ if (!apiKey) {
 // --- Initialize Google AI Client ---
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// --- Select the Gemini 2.0 Flash model ---
+// --- Select the Gemini 2.5 Flash Preview model ---
 const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: "models/gemini-2.5-flash-preview-05-20",
 });
 
 // --- Define Valid Options Based on Schema ---
@@ -61,6 +61,7 @@ export interface EmailAnalysisResult {
     documentName: string | null; // NEW: Actual name of the requested document if not one of the standard types
     intent: 'order_status_inquiry' | 'tracking_request' | 'return_request' | 'order_issue' | 'documentation_request' | 'quote_request' | 'purchase_order_submission' | 'general_inquiry' | 'other' | null;
     suggestedRoleOrKeywords: string | null; // NEW: For assignee suggestion
+    suggestedReply?: string | null; // NEW: Field for AI suggested reply
 }
 
 // --- Configure Generation Settings ---
@@ -68,7 +69,7 @@ export interface EmailAnalysisResult {
 const generationConfig: GenerationConfig = {
     responseMimeType: "application/json",
     temperature: 0.4, // Lower temperature for more consistent results
-    maxOutputTokens: 1024, // Optimize for our use case
+    maxOutputTokens: 2048, // Increased to accommodate potential replies
     topP: 0.8, // Add topP for better response quality
     topK: 40, // Add topK for better response quality
 };
@@ -88,56 +89,44 @@ const safetySettings = [
  * Focuses on identifying if it's a customer support request vs. other types.
  */
 export async function triageEmailWithAI(subject: string, bodyPreview: string, senderAddress: string): Promise<EmailTriageResult | null> {
-    const validCategories = [
-        'CUSTOMER_SUPPORT_REQUEST', 'CUSTOMER_REPLY', 'SYSTEM_NOTIFICATION',
-        'MARKETING_PROMOTIONAL', 'SPAM_PHISHING', 'OUT_OF_OFFICE',
-        'PERSONAL_INTERNAL', 'VENDOR_BUSINESS', 'UNCLEAR_NEEDS_REVIEW'
-    ];
-
     const prompt = `
-        Analyze the following email's metadata and preview to classify its primary purpose. Focus intensely on differentiating genuine customer support needs from automated system notifications, marketing, spam, or internal chatter.
+You are an expert email classifier. Analyze this email and classify it into one of these categories:
 
-        **Sender:** ${senderAddress}
-        **Subject:** ${subject}
-        **Body Preview (first ~300 chars):**
-        ${bodyPreview.substring(0, 300)}...
+CUSTOMER_SUPPORT_REQUEST, CUSTOMER_REPLY, SYSTEM_NOTIFICATION, MARKETING_PROMOTIONAL, SPAM_PHISHING, OUT_OF_OFFICE, PERSONAL_INTERNAL, VENDOR_BUSINESS, UNCLEAR_NEEDS_REVIEW
 
-        **Valid Classification Categories:** ${validCategories.join(', ')}
+Email Details:
+- From: ${senderAddress}
+- Subject: ${subject}
+- Preview: ${bodyPreview.substring(0, 300)}
 
-        **Your Task:**
-        1.  Determine the most fitting **classification** from the valid categories. Be critical:
-            *   **CUSTOMER_SUPPORT_REQUEST:** Only use if it clearly seems like a human customer asking a question, reporting a problem, or requesting a specific action related to their order/account/product *that requires a support response*.
-            *   **CUSTOMER_REPLY:** Use if it looks like a direct reply in an ongoing conversation with a customer.
-            *   **SYSTEM_NOTIFICATION:** Use for ANY automated email from e-commerce platforms (Shopify, Amazon), payment processors, shipping carriers, internal tools (like abandoned cart alerts), etc. Look for keywords like "Order Confirmation", "Shipping Update", "Refund Initiated", "Payment Received", "Abandoned Cart", "Welcome", "Verify Your Email".
-            *   **MARKETING_PROMOTIONAL:** Newsletters, sales announcements, promotions.
-            *   **SPAM_PHISHING:** Unsolicited commercial email, scams, suspicious links.
-            *   **OUT_OF_OFFICE:** Automatic replies indicating absence.
-            *   **PERSONAL_INTERNAL:** Casual chat or non-work topics from internal staff.
-            *   **VENDOR_BUSINESS:** Emails from suppliers, B2B partners, service providers.
-            *   **UNCLEAR_NEEDS_REVIEW:** Use ONLY if the content is too ambiguous or minimal to classify confidently.
-        2.  Assess your **confidence** level ('high', 'medium', 'low'). Use 'low' if guessing.
-        3.  Provide brief **reasoning** for your classification (1-2 sentences).
-        4.  Explicitly state if the email is **isLikelyAutomated** (true/false). Be strict: most system notifications, marketing, OOO, and spam are automated.
+Classification Guidelines:
+- CUSTOMER_SUPPORT_REQUEST: Human customer asking for help, reporting issues, requesting quotes, or asking questions
+- CUSTOMER_REPLY: Reply from customer in ongoing conversation
+- SYSTEM_NOTIFICATION: Automated emails (order confirmations, shipping updates, payment notifications)
+- MARKETING_PROMOTIONAL: Newsletters, promotions, marketing content
+- SPAM_PHISHING: Unsolicited commercial email or suspicious content
+- OUT_OF_OFFICE: Automatic absence replies
+- PERSONAL_INTERNAL: Non-work emails from internal staff
+- VENDOR_BUSINESS: Communications from suppliers, partners, vendors
+- UNCLEAR_NEEDS_REVIEW: Cannot determine classification confidently
 
-        **Output Format:**
-        Return **ONLY** a valid JSON object matching this structure:
-        {
-          "classification": "...",
-          "confidence": "...",
-          "reasoning": "...",
-          "isLikelyAutomated": true | false
-        }
-    `;
+Respond with ONLY this JSON format:
+{
+  "classification": "category_name",
+  "confidence": "high|medium|low", 
+  "reasoning": "brief explanation",
+  "isLikelyAutomated": true|false
+}`;
 
     try {
         console.log(`AI Service (Triage): Sending request for sender: ${senderAddress}, subject: "${subject.substring(0, 50)}..."`);
-        // Use slightly different generation config if needed for classification vs extraction
+        // Use updated generation config for better compatibility
         const generationConfigTriage: GenerationConfig = {
             responseMimeType: "application/json",
-            temperature: 0.3, // Lower temp for more deterministic classification
-            maxOutputTokens: 512,
-            topP: 0.8,
-            topK: 40,
+            temperature: 0.1, // Very low temperature for consistent classification
+            maxOutputTokens: 256, // Reduced for simpler response
+            topP: 0.9,
+            topK: 10,
         };
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -146,6 +135,8 @@ export async function triageEmailWithAI(subject: string, bodyPreview: string, se
         });
 
         const responseText = result.response.text();
+        console.log(`AI Service (Triage): Raw response for ${senderAddress}:`, responseText?.substring(0, 200) || 'null');
+        
         if (!responseText) {
              console.error("AI Service Error (Triage): Response was empty."); return null;
         }
@@ -160,7 +151,7 @@ export async function triageEmailWithAI(subject: string, bodyPreview: string, se
 
         // Validate the parsed result
         if (!parsedResult ||
-            !validCategories.includes(parsedResult.classification) ||
+            !['CUSTOMER_SUPPORT_REQUEST', 'CUSTOMER_REPLY', 'SYSTEM_NOTIFICATION', 'MARKETING_PROMOTIONAL', 'SPAM_PHISHING', 'OUT_OF_OFFICE', 'PERSONAL_INTERNAL', 'VENDOR_BUSINESS', 'UNCLEAR_NEEDS_REVIEW'].includes(parsedResult.classification) ||
             !['high', 'medium', 'low'].includes(parsedResult.confidence) ||
             typeof parsedResult.reasoning !== 'string' ||
             typeof parsedResult.isLikelyAutomated !== 'boolean') {
@@ -179,7 +170,7 @@ export async function triageEmailWithAI(subject: string, bodyPreview: string, se
 }
 
 /**
- * Analyzes email subject and body using Gemini 2.0 Flash to extract ticket information.
+ * Analyzes email subject and body using Gemini 2.5 Flash to extract ticket information and suggest a reply.
  * @param subject Email subject
  * @param body Email body (plain text preferred)
  * @returns A structured analysis result or null if analysis fails.
@@ -187,7 +178,7 @@ export async function triageEmailWithAI(subject: string, bodyPreview: string, se
 export async function analyzeEmailContent(subject: string, body: string): Promise<EmailAnalysisResult | null> {
     // --- Construct the Updated Prompt ---
     const prompt = `
-        Analyze the following e-commerce customer support email subject and body, known to be a likely customer request, to extract relevant information for a support ticket.
+        Analyze the following e-commerce customer support email subject and body, known to be a likely customer request, to extract relevant information for a support ticket and suggest a reply.
 
         **Valid Ticket Types:** ${validTicketTypes.join(', ')}, Other
         **Valid Priorities:** ${validPriorities.join(', ')}
@@ -218,6 +209,7 @@ export async function analyzeEmailContent(subject: string, body: string): Promis
             * For any other document type, set documentType to "OTHER" and extract the specific document name into documentName field
             * Provide your confidence level in this determination as "documentRequestConfidence" (high, medium, low)
         11. Identify keywords or the user role best suited to handle this request (e.g., 'shipping', 'billing', 'coa_request', 'sds_request', 'technical_support', 'sales'). Return this as **suggestedRoleOrKeywords** (string or null).
+        12. **NEW:** If the email is a customer inquiry that seems to require a direct response, generate a polite and helpful **suggestedReply** (string, up to 200 words). The reply should address the customer's query based *only* on the provided email content. Do not invent information or make promises. If no reply is needed (e.g., it's an FYI), or if it's too complex for a simple reply, return null for suggestedReply. Aim for a helpful, empathetic tone. Do not include a signature like "Best regards".
 
         **Output Format:**
         Return **ONLY** a valid JSON object matching this structure:
@@ -234,7 +226,8 @@ export async function analyzeEmailContent(subject: string, body: string): Promis
           "documentType": "SDS" | "COA" | "COC" | "OTHER" | null,
           "documentRequestConfidence": "high" | "medium" | "low" | null,
           "documentName": "..." | null,
-          "suggestedRoleOrKeywords": "..." | null
+          "suggestedRoleOrKeywords": "..." | null,
+          "suggestedReply": "..." | null
         }
     `;
 
@@ -267,6 +260,7 @@ export async function analyzeEmailContent(subject: string, body: string): Promis
              parsedResult.ai_summary = parsedResult.ai_summary || null;
              parsedResult.sentiment = validSentiments.includes(parsedResult.sentiment) ? parsedResult.sentiment : null;
              parsedResult.suggestedRoleOrKeywords = parsedResult.suggestedRoleOrKeywords || null;
+             parsedResult.suggestedReply = parsedResult.suggestedReply || null; // Ensure suggestedReply is present
         }
 
         // Ensure sentiment is valid or null
@@ -277,7 +271,7 @@ export async function analyzeEmailContent(subject: string, body: string): Promis
         
         // --- Add defaults/processing for other fields as before ---
         parsedResult.likelyCustomerRequest = true;
-        parsedResult.classificationReason = "Classified as customer request by triage AI.";
+        parsedResult.classificationReason = parsedResult.classificationReason || "Classified as customer request, details extracted.";
         if (parsedResult.intent === 'documentation_request') {
             if (!parsedResult.documentType) parsedResult.documentType = null;
             if (!parsedResult.documentRequestConfidence) parsedResult.documentRequestConfidence = 'low';

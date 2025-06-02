@@ -1,7 +1,7 @@
 // scripts/analyzeEmailTrends.ts
 // AI-Driven Email Trend Analysis for Actionable Insights
 // Fetches emails and performs an in-depth discovery analysis on a sample of
-// external emails using Google's Gemini 1.5 Flash model.
+// external emails using Google's Gemini 2.5 Flash Preview model.
 // The goal is to produce structured, actionable data to inform the design of
 // human workflows, targeted automations, or specialized AI agents.
 
@@ -36,7 +36,7 @@ const INTERNAL_EMAIL_DOMAIN: string = process.env.INTERNAL_EMAIL_DOMAIN || 'your
 const SHARED_MAILBOX_TO_ANALYZE: string | undefined = process.env.SHARED_MAILBOX_ADDRESS;
 const DEEP_DISCOVERY_SAMPLE_SIZE: number = parseInt(process.env.DEEP_DISCOVERY_SAMPLE_SIZE || '100', 10);
 const MAX_EXAMPLES_PER_DISCOVERED_TOPIC: number = 5;
-const GEMINI_MODEL_NAME: string = process.env.GEMINI_MODEL_NAME || "gemini-1.5-flash"; // Explicitly using Flash
+const GEMINI_MODEL_NAME: string = process.env.GEMINI_MODEL_NAME || "models/gemini-2.5-flash-preview-05-20"; // Explicitly using Flash
 const REPORTS_DIRECTORY = path.join(process.cwd(), 'reports', 'emailTrendsActionableData');
 
 // --- Interfaces (same as v1.3.0 - ensures detailed extraction) ---

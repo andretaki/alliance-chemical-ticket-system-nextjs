@@ -17,7 +17,7 @@ export interface AIDraftedOrderStatus {
 
 // Initialize Gemini Model for order status drafting
 let geminiModel: GenerativeModel | null = null;
-const GEMINI_MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-1.5-flash";
+const GEMINI_MODEL_NAME = process.env.GEMINI_MODEL_NAME || "models/gemini-2.5-flash-preview-05-20";
 
 function initializeGeminiForOrderStatus(): GenerativeModel | null {
   const apiKey = process.env.GOOGLE_API_KEY;
@@ -76,7 +76,7 @@ export class AIOrderStatusService {
       // Extract key order details
       const orderStatus = orderInfo.orderStatus || 'unknown';
       const hasShipments = orderInfo.shipments && orderInfo.shipments.length > 0;
-      const latestShipment = hasShipments ? orderInfo.shipments[0] : null;
+      const latestShipment = hasShipments && orderInfo.shipments ? orderInfo.shipments[0] : null;
       
       // Get carrier information and tracking link
       let carrierInfo = null;
@@ -348,7 +348,7 @@ Generate ONLY the draft message text.`;
     let score = 0;
     
     // Order status is clear
-    if (orderInfo.orderStatus && orderInfo.orderStatus !== 'unknown') score += 2;
+    if (orderInfo.orderStatus) score += 2;
     
     // Has shipment information
     if (orderInfo.shipments && orderInfo.shipments.length > 0) score += 2;

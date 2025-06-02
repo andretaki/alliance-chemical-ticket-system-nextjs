@@ -27,26 +27,26 @@ export class ProductSyncService {
           allSyncedShopifyProductIds.push(productIdShopifyBigInt);
 
           const agentProductData = {
-            productIdShopify: productIdShopifyBigInt,
+            product_id_shopify: productIdShopifyBigInt,
             name: product.title,
-            handleShopify: product.handle,
+            handle_shopify: product.handle,
             description: product.descriptionHtml ? product.descriptionHtml.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim().substring(0, 10000) : undefined,
-            productType: product.productType || null,
+            product_type: product.productType || null,
             vendor: product.vendor || null,
             tags: product.tags?.join(', ') || null,
             status: product.status?.toLowerCase() || 'active',
-            pageUrl: product.onlineStoreUrl || `https://${Config.shopify.storeUrl}/products/${product.handle}`,
-            primaryImageUrl: product.featuredImage?.url || null,
-            isActive: product.status?.toLowerCase() === 'active',
+            page_url: product.onlineStoreUrl || `https://${Config.shopify.storeUrl}/products/${product.handle}`,
+            primary_image_url: product.featuredImage?.url || null,
+            is_active: product.status?.toLowerCase() === 'active',
             metadata: {},
-            updatedAt: new Date(),
+            updated_at: new Date(),
           };
 
           const [upsertedProduct] = await db
             .insert(agentProducts)
-            .values({ ...agentProductData, createdAt: new Date() })
+            .values(agentProductData)
             .onConflictDoUpdate({
-              target: agentProducts.productIdShopify,
+              target: agentProducts.product_id_shopify,
               set: agentProductData,
             })
             .returning();
@@ -65,29 +65,28 @@ export class ProductSyncService {
             allSyncedShopifyVariantIds.push(variantIdShopifyBigInt);
 
             const agentVariantData = {
-              agentProductId: upsertedProduct.id,
-              variantIdShopify: variantIdShopifyBigInt,
-              numericVariantIdShopify: variant.legacyResourceId,
+              agent_product_id: BigInt(upsertedProduct.id),
+              variant_id_shopify: variantIdShopifyBigInt,
               sku: variant.sku,
-              variantTitle: variant.title,
-              displayName: variant.displayName || `${product.title} - ${variant.title}`,
-              price: parseFloat(variant.price),
+              variant_title: variant.title,
+              display_name: variant.displayName || `${product.title} - ${variant.title}`,
+              price: String(parseFloat(variant.price)),
               currency: Config.defaultCurrency,
-              inventoryQuantity: variant.inventoryQuantity ?? null,
+              inventory_quantity: variant.inventoryQuantity ? BigInt(variant.inventoryQuantity) : null,
               weight: variant.weight ? String(variant.weight) : null,
-              weightUnit: variant.weightUnit || null,
+              weight_unit: variant.weightUnit || null,
               taxable: variant.taxable ?? true,
-              requiresShipping: variant.requiresShipping ?? true,
-              isActive: true,
+              requires_shipping: variant.requiresShipping ?? true,
+              is_active: true,
               metadata: {},
-              updatedAt: new Date(),
+              updated_at: new Date(),
             };
 
             await db
               .insert(agentProductVariants)
-              .values({ ...agentVariantData, createdAt: new Date() })
+              .values(agentVariantData)
               .onConflictDoUpdate({
-                target: agentProductVariants.numericVariantIdShopify,
+                target: agentProductVariants.variant_id_shopify,
                 set: agentVariantData,
               });
 
@@ -109,22 +108,22 @@ export class ProductSyncService {
       if (allSyncedShopifyProductIds.length > 0) {
         await db
           .update(agentProducts)
-          .set({ isActive: false, updatedAt: new Date() })
-          .where(notInArray(agentProducts.productIdShopify, allSyncedShopifyProductIds));
+          .set({ is_active: false, updated_at: new Date() })
+          .where(notInArray(agentProducts.product_id_shopify, allSyncedShopifyProductIds));
       } else {
         console.warn("[ProductSyncService] No active products received from Shopify. Deactivating all local products.");
-        await db.update(agentProducts).set({ isActive: false, updatedAt: new Date() });
+        await db.update(agentProducts).set({ is_active: false, updated_at: new Date() });
       }
 
       // Deactivate variants that no longer exist in Shopify
       if (allSyncedShopifyVariantIds.length > 0) {
         await db
           .update(agentProductVariants)
-          .set({ isActive: false, updatedAt: new Date() })
-          .where(notInArray(agentProductVariants.variantIdShopify, allSyncedShopifyVariantIds));
+          .set({ is_active: false, updated_at: new Date() })
+          .where(notInArray(agentProductVariants.variant_id_shopify, allSyncedShopifyVariantIds));
       } else {
         console.warn("[ProductSyncService] No active variants received from Shopify. Deactivating all local variants.");
-        await db.update(agentProductVariants).set({ isActive: false, updatedAt: new Date() });
+        await db.update(agentProductVariants).set({ is_active: false, updated_at: new Date() });
       }
 
       console.log(`[ProductSyncService] Sync completed. Products processed/updated: ${productsProcessed}, Variants processed/updated: ${variantsProcessed}, Errors: ${errorsEncountered.length}`);

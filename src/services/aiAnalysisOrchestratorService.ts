@@ -17,7 +17,7 @@ interface RawEmailInput {
 
 // Initialize Gemini Model
 let geminiModel: GenerativeModel | null = null;
-const GEMINI_MODEL_NAME = process.env.GEMINI_MODEL_NAME || "gemini-1.5-flash";
+const GEMINI_MODEL_NAME = process.env.GEMINI_MODEL_NAME || "models/gemini-2.5-flash-preview-05-20";
 
 function initializeGoogleAI(): GenerativeModel | null {
   const apiKey = process.env.GOOGLE_API_KEY;

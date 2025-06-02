@@ -559,16 +559,61 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
     return markerEnd !== -1 ? commentText.substring(markerEnd + 3).trim() : '';
   };
 
+  // **NEW: Helper function to identify AI suggestions (for TicketHeaderBar indicator)**
+  const isAISuggestionNote = (commentText: string | null): boolean => {
+    const AI_SUGGESTION_MARKERS = [
+        "**AI Suggested Reply:**",
+        "**Order Status Found - Suggested Reply:**",
+        "**Suggested Reply (Request for Lot #):**",
+        "**Order Status Reply:**",
+        "**Suggested Reply (SDS Document):**",
+        "**Suggested Reply (COC Information):**",
+        "**Suggested Reply (Document Request):**",
+        "**AI Order Status Reply:**",
+        "**AI COA Reply:**"
+    ];
+    return !!commentText && AI_SUGGESTION_MARKERS.some(marker => commentText.startsWith(marker));
+  };
+
+  // **UPDATED: Improved handleApproveAndSendDraft function**
   const handleApproveAndSendDraft = useCallback(async (draftText: string) => {
-    if (!ticket.senderEmail) { setError("Cannot send email: Original sender email not found."); return; }
-    setIsSubmittingComment(true); setError(null);
+    if (!ticket?.senderEmail) {
+        setError("Cannot send email: Original sender email not found for this ticket.");
+        return;
+    }
+    
+    // Populate the reply form states
+    setNewComment(draftText);
+    setSendAsEmail(true); // Default to sending as email
+    setIsInternalNote(false); // Ensure it's not an internal note
+    setFiles([]); // Clear any existing files from manual input
+
+    // Directly trigger the submission logic
+    setIsSubmittingComment(true); 
+    setError(null);
+    
     try {
-      await axios.post(`/api/tickets/${ticket.id}/reply`, { content: draftText, isInternalNote: false, sendAsEmail: true });
+      await axios.post(`/api/tickets/${ticket.id}/reply`, {
+        content: draftText.trim(),
+        isInternalNote: false, 
+        sendAsEmail: true, 
+        attachmentIds: [], // No attachments for AI suggested replies
+      });
+      
+      // Clear the form after successful submission
+      setNewComment(''); 
+      setIsInternalNote(false); 
+      setSendAsEmail(false); 
+      setFiles([]);
+      
       await refreshTicket();
     } catch (err) {
-      console.error('Error sending draft reply:', err); setError('Failed to send the email reply.');
-    } finally { setIsSubmittingComment(false); }
-  }, [ticket.id, ticket.senderEmail, refreshTicket]);
+      console.error('Error sending AI suggested reply:', err);
+      setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to send the email reply.' : 'Failed to send the email reply.');
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  }, [ticket?.senderEmail, ticket?.id, refreshTicket]);
 
   const insertSuggestedResponse = useCallback(() => {
     setError(null);
@@ -631,7 +676,7 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
         isUpdatingStatus={isUpdatingStatus} 
         handleAssigneeChange={handleAssigneeChange} 
         handleStatusSelectChange={handleStatusSelectChange}
-        showAiSuggestionIndicator={!!(extractedOrderDate || extractedTracking || extractedStatus || extractedShipDate || isDraftReplyNote(ticket.comments[0]?.commentText))}
+        showAiSuggestionIndicator={ticket.comments.some(c => isAISuggestionNote(c.commentText))}
         orderNumberForStatus={ticket.orderNumber}
         onGetOrderStatusDraft={handleGetOrderStatusDraft}
         isLoadingOrderStatusDraft={isLoadingOrderStatusDraft}

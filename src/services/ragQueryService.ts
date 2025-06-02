@@ -17,7 +17,7 @@ if (!openaiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 const openai = new OpenAI({ apiKey: openaiKey });
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash-preview-05-20" });
 
 export interface RagFilters {
     source_type_in?: string[];

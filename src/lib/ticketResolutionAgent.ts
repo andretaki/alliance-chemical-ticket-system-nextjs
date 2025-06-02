@@ -20,8 +20,8 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
-// Use gemini-1.5-flash for cost-effectiveness and speed, or gemini-pro for more complex reasoning.
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Use models/gemini-2.5-flash-preview-05-20 for enhanced performance, better reasoning, and improved cost-effectiveness.
+const model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash-preview-05-20" });
 
 interface TicketWithComments {
   id: number;

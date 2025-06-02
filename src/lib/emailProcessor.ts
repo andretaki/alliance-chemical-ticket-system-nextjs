@@ -5,7 +5,7 @@ import * as alertService from '@/lib/alertService';
 import { db } from '@/db';
 import { tickets, users, ticketComments, ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum, quarantinedEmails, ticketSentimentEnum } from '@/db/schema'; // Added sentiment enum
 import { eq, or, inArray, and } from 'drizzle-orm'; // Added and
-import { analyzeEmailContent, triageEmailWithAI } from '@/lib/aiService'; // Import both AI functions
+import { analyzeEmailContent, triageEmailWithAI, EmailAnalysisResult } from '@/lib/aiService'; // Import EmailAnalysisResult
 import { getOrderTrackingInfo, OrderTrackingInfo } from '@/lib/shipstationService'; // Import the new service
 import { checkOrderAndGenerateResponse } from '@/lib/orderResponseService'; // Import the new order response service
 import { ticketEventEmitter } from '@/lib/eventEmitter'; // Import event emitter
@@ -327,71 +327,38 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                  try { await graphService.markEmailAsRead(messageId); } catch(e){}
                  throw new Error(`Could not find or create user for reply sender: ${senderEmail}`);
             }
-
-            // Fetch FULL body for comments if needed (or use preview)
-            const fullBodyContent = emailMessage.body?.content ?? bodyPreview; // Decide if you need full body
-
+            const fullBodyContent = emailMessage.body?.content ?? bodyPreview; 
             try {
                 const [newComment] = await db.insert(ticketComments).values({
-                    ticketId: existingTicketId,
-                    commentText: fullBodyContent,
-                    commenterId: replyCommenterId,
-                    isFromCustomer: !isInternalSender, // Set based on *this* email's sender
-                    isInternalNote: false,
-                    isOutgoingReply: isInternalSender, // True if reply *from* internal
-                    externalMessageId: internetMessageId || null,
-                    createdAt: receivedAt, // Use received time for comment
+                    ticketId: existingTicketId, commentText: fullBodyContent, commenterId: replyCommenterId,
+                    isFromCustomer: !isInternalSender, isInternalNote: false, isOutgoingReply: isInternalSender, 
+                    externalMessageId: internetMessageId || null, createdAt: receivedAt,
                 }).returning({ id: ticketComments.id });
-
                 console.log(`EmailProcessor: Added comment ${newComment.id} to ticket ${existingTicketId}.`);
                 await graphService.markEmailAsRead(messageId);
-                
-                // Update ticket status to 'open' if it was 'pending_customer' or 'closed'
-                await db.update(tickets).set({ 
-                    status: OPEN_STATUS, 
-                    updatedAt: new Date() 
-                }).where(and(
+                await db.update(tickets).set({ status: OPEN_STATUS, updatedAt: new Date() }).where(and(
                     eq(tickets.id, existingTicketId),
-                    or(
-                        eq(tickets.status, ticketStatusEnum.enumValues[3]), // pending_customer
-                        eq(tickets.status, ticketStatusEnum.enumValues[4])  // closed
-                    )
+                    or(eq(tickets.status, ticketStatusEnum.enumValues[3]), eq(tickets.status, ticketStatusEnum.enumValues[4]))
                 ));
 
-                // NEW: Check for order status inquiry in a reply
-                if (!isInternalSender && existingTicketId !== null) {
-                    try {
-                        console.log(`EmailProcessor: Checking reply for order status inquiry`);
-                        const orderResponse = await checkOrderAndGenerateResponse(
-                            senderName || 'Customer',
-                            subject,
-                            fullBodyContent
-                        );
-                        
-                        if (orderResponse.orderFound && orderResponse.responseText) {
-                            console.log(`EmailProcessor: Order found in reply, adding automated response draft`);
-                            
-                            // Add internal note with suggested reply
-                            await db.insert(ticketComments).values({
-                                ticketId: existingTicketId,
-                                commentText: `**Order Status Found - Suggested Reply:**\n\n${orderResponse.responseText}`,
-                                commenterId: null, // System
-                                isInternalNote: true,
-                                isFromCustomer: false
-                            });
-                            
-                            console.log(`EmailProcessor: Added order status reply suggestion to ticket ${existingTicketId}`);
-                        }
-                    } catch (orderCheckError) {
-                        console.error(`EmailProcessor: Error checking for order status in reply:`, orderCheckError);
-                        // Continue processing normally, this is just an enhancement
+                // **NEW: Generate AI suggested reply for customer replies**
+                if (!isInternalSender) { // Only for customer replies
+                    const analysisForReply = await analyzeEmailContent(subject, fullBodyContent);
+                    if (analysisForReply?.suggestedReply) {
+                        await db.insert(ticketComments).values({
+                            ticketId: existingTicketId,
+                            commentText: `**AI Suggested Reply:**\n${analysisForReply.suggestedReply}`,
+                            commenterId: null, // System
+                            isInternalNote: true,
+                            isFromCustomer: false,
+                        });
+                        console.log(`EmailProcessor: Added AI suggested reply to ticket ${existingTicketId} based on customer's comment.`);
                     }
                 }
 
                 ticketEventEmitter.emit({ type: 'comment_added', ticketId: existingTicketId, commentId: newComment.id });
                 return { success: true, ticketId: existingTicketId, commentId: newComment.id, message: "Reply added to ticket successfully" };
             } catch (commentError: any) {
-                // Handle potential duplicate comment insertion gracefully
                  if (commentError.code === '23505') {
                      console.warn(`EmailProcessor: Duplicate comment skipped (internetMessageId: ${internetMessageId}).`);
                      try { await graphService.markEmailAsRead(messageId); } catch(e){}
@@ -419,7 +386,8 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                     receivedAt: receivedAt,
                     aiClassification: false, 
                     aiReason: "AI Triage API call failed.", 
-                    status: 'pending_review'
+                    status: 'pending_review',
+                    reviewerId: null
                 });
                 try { await graphService.markEmailAsRead(messageId); } catch(e){}
                 return { success: false, message: "AI Triage failed, sent to quarantine", quarantined: true };
@@ -471,7 +439,8 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                             receivedAt: receivedAt,
                             aiClassification: true,
                             aiReason: triageResult.reasoning,
-                            status: 'pending_review'
+                            status: 'pending_review',
+                            reviewerId: null
                         });
                         try { await graphService.markEmailAsRead(messageId); } catch(e){}
                         return { success: true, message: "Sent to quarantine due to low AI confidence", quarantined: true, aiTriageClassification: triageResult.classification };
@@ -530,7 +499,8 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                     receivedAt: receivedAt,
                     aiClassification: false,
                     aiReason: triageResult.reasoning,
-                    status: 'pending_review'
+                    status: 'pending_review',
+                    reviewerId: null
                  });
                  try { await graphService.markEmailAsRead(messageId); } catch(e){}
                 return { success: true, message: "Sent to quarantine for review (AI unclear)", quarantined: true, aiTriageClassification: triageResult.classification };
@@ -543,7 +513,7 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
         const fullMessageDetails = await graphService.getMessageById(messageId); // Fetch again for full body
         const fullBody = fullMessageDetails?.body?.content ?? bodyPreview; // Use full body if available
 
-        let analysisResult = await analyzeEmailContent(subject, fullBody); // Use the *extraction* AI
+        let analysisResult: EmailAnalysisResult | null = await analyzeEmailContent(subject, fullBody); // Use the *extraction* AI
         const reporterId = await findOrCreateUser(senderEmail, senderName); // Re-confirm user ID
         if (!reporterId) { throw new Error(`User creation failed just before ticket creation for ${senderEmail}`); }
 
@@ -663,9 +633,9 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
             }
         }
 
-        // Prepare Internal Note
-        let internalNoteContent = '';
-        if (draftReplyContent) {
+        // **NEW: Combine specific drafts with general AI suggested reply**
+        let internalNoteForAISuggestion = '';
+        if (draftReplyContent) { // Specific draft takes precedence
             // Add document type-specific label to the internal note
             let replyLabel = "Suggested Reply";
             if (analysisResult?.documentType === 'COA' || analysisResult?.ticketType === 'COA Request') {
@@ -677,7 +647,7 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
             } else if (analysisResult?.documentType === 'OTHER') {
                 replyLabel += ` (${analysisResult.documentName || "Document Request"})`;
             } else if (analysisResult?.intent === 'order_status_inquiry' || analysisResult?.intent === 'tracking_request') {
-                replyLabel += " (Order Status)";
+                replyLabel = "Order Status Reply";
                 
                 // Add detailed information about found order status
                 if (automationInfo?.orderStatus === 'shipped' && automationInfo.shipments && automationInfo.shipments.length > 0) {
@@ -687,7 +657,10 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                     replyLabel += ` - ${automationInfo.orderStatus.replace('_', ' ').toUpperCase()}`;
                 }
             }
-            internalNoteContent += `**${replyLabel}:**\n${draftReplyContent}`;
+            internalNoteForAISuggestion = `**${replyLabel}:**\n${draftReplyContent}`;
+        } else if (analysisResult?.suggestedReply) { // Use general AI reply if no specific one
+            internalNoteForAISuggestion = `**AI Suggested Reply:**\n${analysisResult.suggestedReply}`;
+            if (ticketStatus === DEFAULT_STATUS && !isInternalSender) ticketStatus = OPEN_STATUS; // If AI suggests a reply for customer, open ticket
         }
 
         // --- Prepare ticket data WITH NEW FIELDS ---
@@ -716,20 +689,21 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
         // Create Ticket and Note
         const [newTicket] = await db.insert(tickets).values(ticketData).returning({ id: tickets.id });
         console.log(`EmailProcessor (Phase 8): Created ticket ${newTicket.id} for email ${messageId}.`);
-        if (internalNoteContent.trim()) {
-             const noteText = draftReplyContent ? internalNoteContent.replace("(Ref: Ticket ID will be generated shortly)", `(Ref: Ticket #${newTicket.id})`) : internalNoteContent;
+        
+        if (internalNoteForAISuggestion.trim()) {
+             const noteTextToSave = internalNoteForAISuggestion.replace("(Ref: Ticket ID will be generated shortly)", `(Ref: Ticket #${newTicket.id})`);
              await db.insert(ticketComments).values({
-                 ticketId: newTicket.id, commentText: noteText, commenterId: null, // System
+                 ticketId: newTicket.id, commentText: noteTextToSave, commenterId: null, // System
                  isInternalNote: true, isFromCustomer: false
              });
-             console.log(`EmailProcessor: Added internal note to ticket ${newTicket.id}`);
+             console.log(`EmailProcessor: Added internal AI suggestion note to ticket ${newTicket.id}`);
         }
 
         await graphService.markEmailAsRead(messageId);
         ticketEventEmitter.emit({ type: 'ticket_created', ticketId: newTicket.id });
         return {
             success: true, ticketId: newTicket.id,
-            message: draftReplyContent ? "Ticket created; reply drafted." : "Ticket created successfully.",
+            message: internalNoteForAISuggestion ? "Ticket created; AI reply drafted." : "Ticket created successfully.",
             aiTriageClassification: triageResult.classification,
             automation_attempted: automationAttempted, 
             automation_info: automationInfo
@@ -763,7 +737,8 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
                     receivedAt: receivedAt,
                     aiClassification: false,
                     aiReason: `Error: ${processingError.message || 'Unknown error'}`,
-                    status: 'pending_review' as const
+                    status: 'pending_review' as const,
+                    reviewerId: null
                 };
                 
                 await db.insert(quarantinedEmails).values(quarantineData);
