@@ -717,11 +717,24 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
                 fullBody
             );
             
+            console.log(`EmailProcessor DEBUG: Order response result:`, {
+                orderFound: orderResponse.orderFound,
+                hasResponseText: !!orderResponse.responseText,
+                orderNumber: orderResponse.orderNumber,
+                responseTextLength: orderResponse.responseText?.length || 0,
+                responsePreview: orderResponse.responseText?.substring(0, 100) || 'No response text'
+            });
+            
             if (orderResponse.orderFound) {
                 console.log(`EmailProcessor: Order found, generating response`);
                 
                 // Use the generated response as draft reply
                 draftReplyContent = orderResponse.responseText;
+                console.log(`EmailProcessor DEBUG: Set draftReplyContent:`, {
+                    hasDraftContent: !!draftReplyContent,
+                    draftLength: draftReplyContent?.length || 0,
+                    draftPreview: draftReplyContent?.substring(0, 100) || 'No draft content'
+                });
                 
                 // Update ticket status to pending if we have a draft
                 if (draftReplyContent) {
@@ -736,6 +749,8 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
                         orderNumber: orderResponse.orderNumber
                     } as typeof analysisResult;
                 }
+            } else {
+                console.log(`EmailProcessor DEBUG: Order not found in checkOrderAndGenerateResponse`);
             }
         }
 
@@ -816,7 +831,17 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
 
         // **NEW: Combine specific drafts with general AI suggested reply**
         let internalNoteForAISuggestion = '';
+        console.log(`EmailProcessor DEBUG: Draft selection logic:`, {
+            hasDraftReplyContent: !!draftReplyContent,
+            draftReplyPreview: draftReplyContent?.substring(0, 50) || 'No draft',
+            hasAISuggestedReply: !!analysisResult?.suggestedReply,
+            aiSuggestedReplyPreview: analysisResult?.suggestedReply?.substring(0, 50) || 'No AI suggestion',
+            intent: analysisResult?.intent,
+            orderNumber: analysisResult?.orderNumber
+        });
+        
         if (draftReplyContent) { // Specific draft takes precedence
+            console.log(`EmailProcessor DEBUG: Using specific draft reply (length: ${draftReplyContent.length})`);
             // Add document type-specific label to the internal note
             let replyLabel = "Suggested Reply";
             if (analysisResult?.documentType === 'COA' || analysisResult?.ticketType === 'COA Request') {
@@ -840,8 +865,11 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
             }
             internalNoteForAISuggestion = `**${replyLabel}:**\n${draftReplyContent}`;
         } else if (analysisResult?.suggestedReply) { // Use general AI reply if no specific one
+            console.log(`EmailProcessor DEBUG: Using general AI suggested reply (length: ${analysisResult.suggestedReply.length})`);
             internalNoteForAISuggestion = `**AI Suggested Reply:**\n${analysisResult.suggestedReply}`;
             if (ticketStatus === DEFAULT_STATUS && !isInternalSender) ticketStatus = OPEN_STATUS; // If AI suggests a reply for customer, open ticket
+        } else {
+            console.log(`EmailProcessor DEBUG: No draft or AI suggestion available`);
         }
 
         // --- Prepare ticket data WITH NEW FIELDS ---

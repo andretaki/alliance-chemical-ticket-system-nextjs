@@ -127,7 +127,10 @@ export function isOrderStatusInquiry(text: string): boolean {
     'where is my order', 'when will my order', 
     'has my order shipped', 'track my order',
     'tracking information', 'shipping status',
-    'my package', 'my shipment', 'delivery status'
+    'my package', 'my shipment', 'delivery status',
+    // Add more flexible patterns
+    'about order', 'regarding order', 'order update',
+    'shipped', 'delivery', 'tracking'
   ];
   
   // Check if any status keywords are present
@@ -138,8 +141,28 @@ export function isOrderStatusInquiry(text: string): boolean {
   const hasOrderId = ORDER_ID_PATTERNS.some(pattern => 
     pattern.test(lowercaseText));
   
-  // Consider it an order status inquiry if both conditions are met or
-  // if there's a very explicit status question
+  // More flexible logic: if there's an order ID and ANY indication of inquiry about status/shipping
+  if (hasOrderId) {
+    // If we have an order ID, look for ANY status-related terms or just general inquiry patterns
+    const hasAnyStatusTerm = hasStatusKeyword || 
+      lowercaseText.includes('update') ||
+      lowercaseText.includes('status') ||
+      lowercaseText.includes('when') ||
+      lowercaseText.includes('where') ||
+      lowercaseText.includes('shipped') ||
+      lowercaseText.includes('delivery') ||
+      lowercaseText.includes('track') ||
+      lowercaseText.includes('received') ||
+      lowercaseText.includes('arrive') ||
+      // Even simple inquiry patterns
+      lowercaseText.includes('about') ||
+      lowercaseText.includes('regarding') ||
+      lowercaseText.includes('concerning');
+    
+    if (hasAnyStatusTerm) return true;
+  }
+  
+  // Original strict conditions for explicit status questions
   return (hasStatusKeyword && hasOrderId) || 
          lowercaseText.includes('status of order') ||
          lowercaseText.includes('where is order');
@@ -198,7 +221,17 @@ export function generateShippedOrderResponse(
   orderNumber: string,
   orderInfo: OrderTrackingInfo
 ): string {
+  console.log(`OrderResponseService DEBUG: generateShippedOrderResponse called`, {
+    customerName,
+    orderNumber,
+    orderFound: orderInfo.found,
+    hasShipments: !!(orderInfo.shipments && orderInfo.shipments.length > 0),
+    shipmentsCount: orderInfo.shipments?.length || 0,
+    orderStatus: orderInfo.orderStatus
+  });
+  
   if (!orderInfo.found || !orderInfo.shipments || orderInfo.shipments.length === 0) {
+    console.log(`OrderResponseService DEBUG: Returning empty string - missing data`);
     return '';
   }
   
@@ -206,6 +239,14 @@ export function generateShippedOrderResponse(
   const shipment = orderInfo.shipments[0];
   const carrierInfo = getCarrierInfo(shipment.carrier);
   const trackingLink = generateTrackingLink(carrierInfo, shipment.trackingNumber);
+  
+  console.log(`OrderResponseService DEBUG: Shipment details`, {
+    carrier: shipment.carrier,
+    trackingNumber: shipment.trackingNumber,
+    shipDate: shipment.shipDate,
+    carrierName: carrierInfo.name,
+    trackingLink: trackingLink
+  });
   
   // Format the ship date
   const shipDate = new Date(shipment.shipDate);
@@ -240,6 +281,7 @@ export function generateShippedOrderResponse(
   response += `If you have any questions about your shipment or if there's anything else I can assist you with, please don't hesitate to ask.\n\n`;
   response += `Best regards,\nAlliance Chemical Customer Support`;
   
+  console.log(`OrderResponseService DEBUG: Generated response (length: ${response.length}):`, response.substring(0, 100));
   return response;
 }
 
