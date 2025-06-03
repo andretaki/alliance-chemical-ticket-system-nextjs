@@ -11,7 +11,7 @@ import { and, eq } from 'drizzle-orm';
 const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
 const clientId = process.env.MICROSOFT_GRAPH_CLIENT_ID;
 const clientSecret = process.env.MICROSOFT_GRAPH_CLIENT_SECRET;
-const userEmail = process.env.SHARED_MAILBOX_ADDRESS || '';
+export const userEmail = process.env.SHARED_MAILBOX_ADDRESS || '';
 
 if (!tenantId || !clientId || !clientSecret || !userEmail) {
   throw new Error('Microsoft Graph configuration is incomplete. Check your .env file.');
@@ -53,7 +53,7 @@ async function withRetry<T>(operation: () => Promise<T>, operationName: string):
 const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
 
 // Initialize the Graph client
-const graphClient = Client.init({
+export const graphClient = Client.init({
   authProvider: async (done) => {
     try {
       const token = await credential.getToken(['https://graph.microsoft.com/.default']);

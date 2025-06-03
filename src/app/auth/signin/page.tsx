@@ -14,8 +14,8 @@ type Provider = {
 export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
-  const error = searchParams.get('error');
+  const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard';
+  const error = searchParams?.get('error');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -126,7 +126,7 @@ export default function SignInPage() {
               
               <div className="mt-3 text-center">
                 <p>
-                  Don't have an account?{' '}
+                  Don&apos;t have an account?{' '}
                   <Link href="/auth/register" className="text-decoration-none">
                     Register here
                   </Link>

@@ -197,7 +197,7 @@ export function SignatureManager() {
       {signatures.length === 0 && (
         <div className="alert alert-info">
           <i className="fas fa-info-circle me-2"></i>
-          You haven't created any signatures yet. Create your first signature above.
+          You haven&apos;t created any signatures yet. Create your first signature above.
         </div>
       )}
     </div>

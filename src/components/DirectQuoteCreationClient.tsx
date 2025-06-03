@@ -1115,7 +1115,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                     type="button"
                     onClick={() => searchCustomer(customerSearchTerm)}
                     disabled={isSearchingCustomer || customerSearchTerm.trim().length < 3}
-                    title="Search automatically detects what you're looking for"
+                    title="Search automatically detects what you&apos;re looking for"
                   >
                     {isSearchingCustomer ? (
                       <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
@@ -1227,7 +1227,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                   Ask for their order number first (fastest!), then phone number, email, or name.
                   <br/>
                   <i className="fas fa-rocket me-1"></i>
-                  The system automatically detects what type of search you're doing.
+                  The system automatically detects what type of search you&apos;re doing.
                 </small>
               </div>
             </div>
@@ -1294,7 +1294,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                                 <span><i className="fas fa-spinner fa-spin me-1"></i>Searching...</span>
                               ) : (
                                 <span>
-                                  {currentSearchState.searchResults.length} result(s) for "{currentSearchState.searchTerm}"
+                                  {currentSearchState.searchResults.length} result(s) for &ldquo;{currentSearchState.searchTerm}&rdquo;
                                 </span>
                               )}
                             </div>
@@ -1718,7 +1718,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                 onChange={(e) => setSendShopifyInvoice(e.target.checked)}
               />
               <label className="form-check-label" htmlFor="sendShopifyInvoice">
-                Send Shopify invoice to customer's email
+                Send Shopify invoice to customer&apos;s email
               </label>
             </div>
           </fieldset>

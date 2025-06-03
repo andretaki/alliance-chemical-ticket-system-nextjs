@@ -1210,3 +1210,6 @@ export class ShopifyService {
     return `${storeUrl}/admin/orders/${legacyResourceId}`;
   }
 }
+
+// Create and export a singleton instance
+export const shopifyService = new ShopifyService();

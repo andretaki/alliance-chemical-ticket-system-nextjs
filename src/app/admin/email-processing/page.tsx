@@ -40,8 +40,8 @@ export default function EmailProcessingPage() {
                         {/* Removed line about project assignment */}
                       </ul>
                     </li>
-                    <li>Processed emails are marked as read and moved to a "Processed" folder</li>
-                    <li>Emails that fail processing are moved to an "Error" folder</li>
+                    <li>Processed emails are marked as read and moved to a &ldquo;Processed&rdquo; folder</li>
+                    <li>Emails that fail processing are moved to an &ldquo;Error&rdquo; folder</li>
                   </ol>
                   
                   <h5>Configuration</h5>
@@ -53,7 +53,7 @@ export default function EmailProcessingPage() {
                     <li><strong>Error</strong> - For emails that failed processing</li>
                   </ul>
                   <p>
-                    These folders will be created automatically if they don't exist.
+                    These folders will be created automatically if they don&apos;t exist.
                   </p>
                 </div>
               </div>

@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import Link from 'next/link';
 import DashboardStatsSection from './DashboardStatsSection';
 import EmailProcessingButton from './EmailProcessingButton';
 import StatusChartClient from './charts/StatusChartClient';
@@ -93,7 +94,7 @@ export default function DashboardClient() {
       <div className="card border-0 shadow-sm">
         <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center pt-3">
           <h5 className="card-title fw-semibold mb-0">Recent Tickets</h5>
-          <a href="/tickets" className="text-decoration-none text-primary">View All</a>
+          <Link href="/tickets" className="text-decoration-none text-primary">View All</Link>
         </div>
         <div className="card-body p-0">
           <TicketListClient limit={5} showSearch={false} />
