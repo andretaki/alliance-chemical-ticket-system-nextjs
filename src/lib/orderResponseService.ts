@@ -278,8 +278,7 @@ export function generateShippedOrderResponse(
     response += `Standard ${carrierInfo.name} shipments typically arrive within ${carrierInfo.estimatedDays} from the ship date.\n\n`;
   }
   
-  response += `If you have any questions about your shipment or if there's anything else I can assist you with, please don't hesitate to ask.\n\n`;
-  response += `Best regards,\nAlliance Chemical Customer Support`;
+  response += `If you have any questions about your shipment or if there's anything else I can assist you with, please don't hesitate to ask.`;
   
   console.log(`OrderResponseService DEBUG: Generated response (length: ${response.length}):`, response.substring(0, 100));
   return response;
@@ -319,8 +318,7 @@ export function generateProcessingOrderResponse(
     response += `You'll receive a shipping confirmation email with tracking details as soon as your order leaves our facility.\n\n`;
   }
   
-  response += `If you have any questions or concerns, please don't hesitate to let me know.\n\n`;
-  response += `Best regards,\nAlliance Chemical Customer Support`;
+  response += `If you have any questions or concerns, please don't hesitate to let me know.`;
   
   return response;
 }

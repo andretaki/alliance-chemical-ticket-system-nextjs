@@ -175,7 +175,8 @@ export default function TicketDetailsSidebar({ ticket }: TicketDetailsSidebarPro
         </div>
       </div>
 
-      {/* RAG Search Interface */}
+      {/* RAG Search Interface - Temporarily commented out as it's not fully set up */}
+      {/*
       <div className="card shadow-sm mb-4">
         <div className="card-header bg-light">
           <h3 className="h6 mb-0">Related Information</h3>
@@ -191,6 +192,7 @@ export default function TicketDetailsSidebar({ ticket }: TicketDetailsSidebarPro
           />
         </div>
       </div>
+      */}
     </div>
   );
 } 
