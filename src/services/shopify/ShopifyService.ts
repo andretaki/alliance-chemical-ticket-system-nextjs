@@ -127,7 +127,7 @@ if (!Config.shopify.storeUrl || !Config.shopify.adminAccessToken) {
 const shopify = shopifyApi({
   apiKey: process.env.SHOPIFY_API_KEY || "dummyAPIKeyIfNotUsedForAuth",
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "dummySecretIfNotUsedForAuth",
-  scopes: ['read_products', 'write_draft_orders', 'read_draft_orders', 'write_orders', 'read_orders'], // Added draft order scopes
+  scopes: ['read_products', 'write_draft_orders', 'read_draft_orders', 'write_orders', 'read_orders', 'read_customers', 'write_customers'], // Added customer scopes
   hostName: Config.shopify.storeUrl.replace(/^https?:\/\//, ''),
   apiVersion: Config.shopify.apiVersion as ApiVersion || LATEST_API_VERSION,
   isEmbeddedApp: false,
@@ -1208,6 +1208,221 @@ export class ShopifyService {
   public getOrderAdminUrl(legacyResourceId: string): string {
     const storeUrl = Config.shopify.storeUrl;
     return `${storeUrl}/admin/orders/${legacyResourceId}`;
+  }
+
+  /**
+   * Check if a customer exists in Shopify by email
+   */
+  public async checkCustomerExists(email: string): Promise<{ exists: boolean; customerId?: string; customer?: any }> {
+    const query = `
+      query checkCustomerExists($query: String!) {
+        customers(first: 1, query: $query) {
+          edges {
+            node {
+              id
+              email
+              firstName
+              lastName
+              phone
+              displayName
+              defaultAddress {
+                id
+                firstName
+                lastName
+                address1
+                address2
+                city
+                province
+                provinceCode
+                country
+                countryCodeV2
+                zip
+                phone
+                company
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      console.log(`[ShopifyService] Checking if customer exists: ${email}`);
+      const variables = { query: `email:${email}` };
+      const response: any = await this.graphqlClient.request(query, { variables, retries: 1 });
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors while checking customer:', response.errors);
+        return { exists: false };
+      }
+
+      const customers = response.data?.customers?.edges || [];
+      if (customers.length > 0) {
+        const customer = customers[0].node;
+        const customerId = customer.id.split('/').pop(); // Extract numeric ID from GID
+        console.log(`[ShopifyService] Customer exists: ${email} (ID: ${customerId})`);
+        return { 
+          exists: true, 
+          customerId, 
+          customer 
+        };
+      }
+
+      console.log(`[ShopifyService] Customer does not exist: ${email}`);
+      return { exists: false };
+    } catch (error: any) {
+      console.error('[ShopifyService] Error checking customer existence:', error);
+      return { exists: false };
+    }
+  }
+
+  /**
+   * Create a new customer in Shopify
+   */
+  public async createCustomer(customerData: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    tags?: string[];
+    note?: string;
+  }): Promise<{ success: boolean; customerId?: string; customer?: any; error?: string }> {
+    const mutation = `
+      mutation customerCreate($input: CustomerInput!) {
+        customerCreate(input: $input) {
+          customer {
+            id
+            email
+            firstName
+            lastName
+            phone
+            displayName
+            tags
+            note
+            defaultAddress {
+              id
+              firstName
+              lastName
+              address1
+              address2
+              city
+              province
+              provinceCode
+              country
+              countryCodeV2
+              zip
+              phone
+              company
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    // Prepare input data
+    const customerInput: any = {
+      email: customerData.email,
+    };
+
+    if (customerData.firstName) customerInput.firstName = customerData.firstName;
+    if (customerData.lastName) customerInput.lastName = customerData.lastName;
+    if (customerData.phone) customerInput.phone = customerData.phone;
+    if (customerData.tags && customerData.tags.length > 0) customerInput.tags = customerData.tags;
+    if (customerData.note) customerInput.note = customerData.note;
+
+    try {
+      console.log(`[ShopifyService] Creating customer: ${customerData.email}`);
+      const variables = { input: customerInput };
+      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 2 });
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors while creating customer:', response.errors);
+        return { success: false, error: 'GraphQL query failed' };
+      }
+
+      const userErrors = response.data?.customerCreate?.userErrors;
+      if (userErrors && userErrors.length > 0) {
+        const errorMessages = userErrors.map((e: any) => `${e.field?.join('.') || 'General'}: ${e.message}`).join('; ');
+        console.error('[ShopifyService] User errors creating customer:', errorMessages);
+        return { success: false, error: errorMessages };
+      }
+
+      if (!response.data?.customerCreate?.customer) {
+        console.error('[ShopifyService] Customer creation failed, no customer returned');
+        return { success: false, error: 'Customer creation failed' };
+      }
+
+      const customer = response.data.customerCreate.customer;
+      const customerId = customer.id.split('/').pop(); // Extract numeric ID from GID
+      
+      console.log(`[ShopifyService] Customer created successfully: ${customerData.email} (ID: ${customerId})`);
+      return { 
+        success: true, 
+        customerId, 
+        customer 
+      };
+
+    } catch (error: any) {
+      console.error('[ShopifyService] Error creating customer:', error);
+      const errorMessage = error.response?.errors ? error.response.errors.map((e: any) => e.message).join(', ') : error.message;
+      return { success: false, error: `Shopify API Error: ${errorMessage}` };
+    }
+  }
+
+  /**
+   * Create a customer if they don't already exist in Shopify
+   * This is the main method to use for automatic customer creation
+   */
+  public async createCustomerIfNotExists(customerData: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    tags?: string[];
+    note?: string;
+  }): Promise<{ success: boolean; customerId?: string; customer?: any; alreadyExists?: boolean; error?: string }> {
+    try {
+      // First check if customer already exists
+      const existingCustomer = await this.checkCustomerExists(customerData.email);
+      
+      if (existingCustomer.exists) {
+        console.log(`[ShopifyService] Customer already exists: ${customerData.email}`);
+        return {
+          success: true,
+          customerId: existingCustomer.customerId,
+          customer: existingCustomer.customer,
+          alreadyExists: true
+        };
+      }
+
+      // Customer doesn't exist, create them
+      const createResult = await this.createCustomer(customerData);
+      
+      if (createResult.success) {
+        return {
+          success: true,
+          customerId: createResult.customerId,
+          customer: createResult.customer,
+          alreadyExists: false
+        };
+      } else {
+        return {
+          success: false,
+          error: createResult.error
+        };
+      }
+
+    } catch (error: any) {
+      console.error('[ShopifyService] Error in createCustomerIfNotExists:', error);
+      return {
+        success: false,
+        error: error.message || 'Unknown error occurred'
+      };
+    }
   }
 }
 

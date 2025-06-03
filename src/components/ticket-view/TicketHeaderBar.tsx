@@ -34,6 +34,10 @@ interface TicketHeaderBarProps {
   orderNumberForStatus?: string | null;
   onGetOrderStatusDraft: () => void;
   isLoadingOrderStatusDraft: boolean;
+  // Resend invoice props
+  onResendInvoice?: () => void;
+  isResendingInvoice?: boolean;
+  hasInvoiceInfo?: boolean;
 }
 
 const getStatusClass = (status: string | null): string => {
@@ -80,7 +84,11 @@ export default function TicketHeaderBar({
   // Order status draft props
   orderNumberForStatus,
   onGetOrderStatusDraft,
-  isLoadingOrderStatusDraft
+  isLoadingOrderStatusDraft,
+  // Resend invoice props
+  onResendInvoice,
+  isResendingInvoice,
+  hasInvoiceInfo
 }: TicketHeaderBarProps) {
   // Function to copy ticket link to clipboard
   const handleCopyLink = () => {
@@ -183,6 +191,29 @@ export default function TicketHeaderBar({
                     <>
                       <i className="fas fa-truck-loading me-1"></i> 
                       Status & Draft
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Resend Invoice Button */}
+              {hasInvoiceInfo && onResendInvoice && (
+                <button
+                  type="button"
+                  className="btn btn-outline-warning btn-sm"
+                  onClick={onResendInvoice}
+                  disabled={isResendingInvoice}
+                  title="Resend the invoice email for this quote"
+                >
+                  {isResendingInvoice ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-1"></span> 
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-envelope-open-text me-1"></i> 
+                      Resend Invoice
                     </>
                   )}
                 </button>

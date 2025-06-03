@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/db';
 import { ticketComments, tickets, users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -22,8 +22,8 @@ const getTicketId = (params: { id: string }) => {
 
 // POST: Add a new comment to a ticket
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // --- Authentication Check ---
@@ -34,7 +34,8 @@ export async function POST(
     // --- End Authentication Check ---
 
     // Parse and validate ID
-    const ticketId = getTicketId(params);
+    const { id } = await params;
+    const ticketId = getTicketId({ id });
     
     // Check if ticket exists
     const ticketExists = await db.query.tickets.findFirst({
@@ -105,7 +106,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (error) {
-    console.error(`API Error [POST /api/tickets/${params.id}/comments]:`, error);
+    console.error(`API Error [POST /api/tickets/comments]:`, error);
     
     // Handle specific error types
     if (error instanceof Error && error.message === 'Invalid ticket ID') {
@@ -121,12 +122,13 @@ export async function POST(
 
 // GET: Fetch all comments for a specific ticket
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Parse and validate ID
-    const ticketId = getTicketId(params);
+    const { id } = await params;
+    const ticketId = getTicketId({ id });
 
     // Check if ticket exists
     const ticketExists = await db.query.tickets.findFirst({
@@ -162,7 +164,7 @@ export async function GET(
 
     return NextResponse.json(comments);
   } catch (error) {
-    console.error(`API Error [GET /api/tickets/${params.id}/comments]:`, error);
+    console.error(`API Error [GET /api/tickets/comments]:`, error);
     
     // Handle specific error types
     if (error instanceof Error && error.message === 'Invalid ticket ID') {

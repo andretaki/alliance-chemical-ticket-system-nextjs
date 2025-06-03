@@ -7,8 +7,8 @@ import { eq } from 'drizzle-orm';
 import { processSingleEmail } from '@/lib/emailProcessor';
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string; action: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; action: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,7 +17,7 @@ export async function POST(
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const { id, action } = params;
+    const { id, action } = await params;
     const { reviewNotes, targetTicketId } = await request.json();
 
     // Fetch the quarantined email

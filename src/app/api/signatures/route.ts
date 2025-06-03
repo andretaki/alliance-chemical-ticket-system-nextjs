@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/lib/authOptions';
 import { z } from 'zod';
+import { NextRequest } from 'next/server';
 
 // Schema for signature validation
 const signatureSchema = z.object({
@@ -82,52 +83,47 @@ export async function POST(request: Request) {
 }
 
 // PUT /api/signatures/:id - Update a signature
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const body = await request.json();
-    const validatedData = signatureSchema.parse(body);
-
-    // If this is set as default, unset any existing default signatures
-    if (validatedData.isDefault) {
-      await db
-        .update(userSignatures)
-        .set({ isDefault: false })
-        .where(
-          and(
-            eq(userSignatures.userId, session.user.id),
-            eq(userSignatures.isDefault, true)
-          )
-        );
+    
+    const { id } = await params;
+    const data = await request.json();
+    
+    // Validate input
+    const validatedData = signatureSchema.parse(data);
+    
+    // Check if signature exists and belongs to user
+    const existingSignature = await db.query.userSignatures.findFirst({
+      where: and(
+        eq(userSignatures.id, parseInt(id)),
+        eq(userSignatures.userId, session.user.id)
+      )
+    });
+    
+    if (!existingSignature) {
+      return NextResponse.json({ error: 'Signature not found' }, { status: 404 });
     }
-
-    const updatedSignature = await db
-      .update(userSignatures)
+    
+    // Update signature
+    const [updatedSignature] = await db.update(userSignatures)
       .set({
-        signature: validatedData.signature,
-        isDefault: validatedData.isDefault,
-        updatedAt: new Date(),
+        ...validatedData,
+        updatedAt: new Date()
       })
       .where(
         and(
-          eq(userSignatures.id, parseInt(params.id)),
+          eq(userSignatures.id, parseInt(id)),
           eq(userSignatures.userId, session.user.id)
         )
       )
       .returning();
 
-    if (!updatedSignature.length) {
-      return NextResponse.json(
-        { error: 'Signature not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json(updatedSignature[0]);
+    return NextResponse.json(updatedSignature);
   } catch (error) {
     console.error('Error updating signature:', error);
     if (error instanceof z.ZodError) {
@@ -144,18 +140,19 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 }
 
 // DELETE /api/signatures/:id - Delete a signature
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { id } = await params;
     const deletedSignature = await db
       .delete(userSignatures)
       .where(
         and(
-          eq(userSignatures.id, parseInt(params.id)),
+          eq(userSignatures.id, parseInt(id)),
           eq(userSignatures.userId, session.user.id)
         )
       )

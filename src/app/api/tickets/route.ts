@@ -5,6 +5,7 @@ import { eq, desc, asc, and, or, ilike, sql, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/lib/authOptions';
+import { customerAutoCreateService } from '@/services/customerAutoCreateService';
 
 // --- Zod Schema for Validation ---
 const createTicketSchema = z.object({
@@ -246,6 +247,51 @@ export async function POST(request: Request) {
     }).returning();
 
     console.log(`API Info [POST /api/tickets]: Ticket ${newTicket.id} created successfully.`);
+
+    // --- Auto-create customer in Shopify if enabled and customer info is provided ---
+    if (senderEmail && customerAutoCreateService.isAutoCreateEnabled()) {
+      try {
+        console.log(`[POST /api/tickets] Attempting to auto-create customer for ticket ${newTicket.id}`);
+        
+        // Parse sender name into first and last name
+        let firstName: string | undefined;
+        let lastName: string | undefined;
+        
+        if (senderName) {
+          const nameParts = senderName.trim().split(' ');
+          firstName = nameParts[0];
+          lastName = nameParts.slice(1).join(' ') || undefined;
+        }
+
+        const customerResult = await customerAutoCreateService.createCustomerFromTicket({
+          email: senderEmail,
+          firstName,
+          lastName,
+          phone: senderPhone || undefined,
+          company: sendercompany || undefined,
+          ticketId: newTicket.id,
+          source: externalMessageId ? 'email' : 'ticket'
+        });
+
+        if (customerResult.success) {
+          if (customerResult.alreadyExists) {
+            console.log(`[POST /api/tickets] Customer already exists in Shopify for ticket ${newTicket.id}: ${senderEmail}`);
+          } else {
+            console.log(`[POST /api/tickets] Successfully created customer in Shopify for ticket ${newTicket.id}: ${senderEmail} (ID: ${customerResult.customerId})`);
+          }
+        } else if (customerResult.skipped) {
+          console.log(`[POST /api/tickets] Skipped customer creation for ticket ${newTicket.id}: ${customerResult.skipReason}`);
+        } else {
+          console.warn(`[POST /api/tickets] Failed to create customer in Shopify for ticket ${newTicket.id}: ${customerResult.error}`);
+        }
+      } catch (customerError) {
+        // Don't fail ticket creation if customer creation fails
+        console.error(`[POST /api/tickets] Error during customer auto-creation for ticket ${newTicket.id}:`, customerError);
+      }
+    } else if (senderEmail) {
+      console.log(`[POST /api/tickets] Customer auto-creation is disabled, skipping for ticket ${newTicket.id}`);
+    }
+
     return NextResponse.json(
       { message: 'Ticket created successfully', ticket: newTicket },
       { status: 201 }

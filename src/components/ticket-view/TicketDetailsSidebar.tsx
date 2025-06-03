@@ -4,6 +4,7 @@ import React from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ticketPriorityEnum } from '@/db/schema';
 import { RagSearchInterface } from '@/components/RagSearchInterface';
+import CustomerOrderHistory from './CustomerOrderHistory';
 
 // Type definitions
 type BaseUser = {
@@ -174,6 +175,11 @@ export default function TicketDetailsSidebar({ ticket }: TicketDetailsSidebarPro
           )}
         </div>
       </div>
+
+      {/* Customer Order History */}
+      <CustomerOrderHistory 
+        customerEmail={ticket.senderEmail || ticket.reporter?.email || undefined}
+      />
 
       {/* RAG Search Interface - Temporarily commented out as it's not fully set up */}
       {/*

@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/authOptions';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 import type { AppDraftOrderInput, DraftOrderOutput, ShopifyDraftOrderGQLResponse, ShopifyMoney, DraftOrderAddressInput, DraftOrderLineItemInput } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
+import { customerAutoCreateService } from '@/services/customerAutoCreateService';
 
 function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): DraftOrderOutput {
   const getPrice = (moneySet?: { shopMoney: ShopifyMoney }): number | undefined => {
@@ -93,6 +94,53 @@ export async function POST(request: NextRequest) {
     }
     if (!body.shippingAddress) {
         return NextResponse.json({ error: 'Shipping address is required to calculate shipping rates.' }, { status: 400 });
+    }
+
+    // --- Auto-create customer in Shopify if enabled and customer info is provided ---
+    if (body.customer?.email && customerAutoCreateService.isAutoCreateEnabled()) {
+      try {
+        console.log(`[POST /api/draft-orders] Attempting to auto-create customer for quote`);
+        
+        // Extract ticket ID from tags if available
+        let ticketId: number | undefined;
+        const ticketTag = body.tags?.find(tag => tag.startsWith('TicketID-'));
+        if (ticketTag) {
+          ticketId = parseInt(ticketTag.replace('TicketID-', ''));
+        }
+
+        const customerResult = await customerAutoCreateService.createCustomerFromTicket({
+          email: body.customer.email,
+          firstName: body.customer.firstName,
+          lastName: body.customer.lastName,
+          phone: body.customer.phone,
+          company: body.customer.company,
+          ticketId,
+          source: 'quote_form'
+        });
+
+        if (customerResult.success) {
+          if (customerResult.alreadyExists) {
+            console.log(`[POST /api/draft-orders] Customer already exists in Shopify for quote: ${body.customer.email}`);
+          } else {
+            console.log(`[POST /api/draft-orders] Successfully created customer in Shopify for quote: ${body.customer.email} (ID: ${customerResult.customerId})`);
+          }
+          
+          // If we got a customer ID, use it in the draft order
+          if (customerResult.customerId && !body.shopifyCustomerId) {
+            body.shopifyCustomerId = customerResult.customerId;
+            console.log(`[POST /api/draft-orders] Using Shopify customer ID: ${customerResult.customerId}`);
+          }
+        } else if (customerResult.skipped) {
+          console.log(`[POST /api/draft-orders] Skipped customer creation for quote: ${customerResult.skipReason}`);
+        } else {
+          console.warn(`[POST /api/draft-orders] Failed to create customer in Shopify for quote: ${customerResult.error}`);
+        }
+      } catch (customerError) {
+        // Don't fail quote creation if customer creation fails
+        console.error(`[POST /api/draft-orders] Error during customer auto-creation:`, customerError);
+      }
+    } else if (body.customer?.email) {
+      console.log(`[POST /api/draft-orders] Customer auto-creation is disabled, skipping`);
     }
 
     // Ensure 'TicketSystemQuote' is present without duplicating if already there

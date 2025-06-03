@@ -90,7 +90,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
       setIsLoading(false);
       setIsApplyingFilters(false);
     }
-  }, [statusFilter, priorityFilter, assigneeFilter, searchTerm, sortBy, sortOrder, limit]);
+  }, [statusFilter, priorityFilter, assigneeFilter, searchTerm, sortBy, sortOrder, limit, isApplyingFilters]);
 
   useEffect(() => {
     let retryCount = 0;

@@ -3,13 +3,13 @@ import { db } from '@/db';
 import { ticketAttachments } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/authOptions';
 import fs from 'fs';
 import path from 'path';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Ensure the user is authenticated
@@ -18,7 +18,8 @@ export async function GET(
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const attachmentId = parseInt(params.id);
+    const { id } = await params;
+    const attachmentId = parseInt(id);
     if (isNaN(attachmentId)) {
       return new NextResponse('Invalid attachment ID', { status: 400 });
     }

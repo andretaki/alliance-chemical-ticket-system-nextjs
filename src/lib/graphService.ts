@@ -617,4 +617,119 @@ export async function checkSubscriptionHealth(subscriptionId: string) {
       subscriptionId
     };
   }
+}
+
+/**
+ * Send a simple email without threading headers (for new conversations like invoices)
+ * @param toEmailAddress Email address to send to
+ * @param subject Email subject
+ * @param messageContent HTML message content
+ * @param fromEmailAddress From email address (defaults to userEmail)
+ * @param attachments Optional file attachments
+ * @param userId Optional user ID for signature lookup
+ * @returns Promise<Message | null>
+ */
+export async function sendEmail(
+  toEmailAddress: string,
+  subject: string,
+  messageContent: string,
+  fromEmailAddress: string = userEmail,
+  attachments?: FileAttachment[],
+  userId?: string
+): Promise<Message | null> {
+  try {
+    // Get user's signature if userId is provided
+    let signature = '';
+    if (userId) {
+      const userSignature = await db.query.userSignatures.findFirst({
+        where: and(
+          eq(userSignatures.userId, userId),
+          eq(userSignatures.isDefault, true)
+        ),
+      });
+      if (userSignature) {
+        signature = userSignature.signature;
+      }
+    }
+
+    // Process signature if it exists
+    let dbSignatureHtml = '';
+    if (signature) {
+      // If signature is plain text, convert its newlines. If HTML, use as is.
+      if (!/<[a-z][\s\S]*>/i.test(signature)) { // Simple HTML check
+        dbSignatureHtml = signature.replace(/\n/g, '<br />');
+      } else {
+        dbSignatureHtml = signature;
+      }
+    }
+
+    // Use the provided messageContent as-is (assuming it's already HTML formatted)
+    const finalHtmlBody = `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; }
+    p { margin-bottom: 10px; }
+    a { color: #0078d4; text-decoration: none; }
+    strong { font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;">
+    ${messageContent}
+    ${dbSignatureHtml ? `<br /><div>${dbSignatureHtml}</div>` : ''}
+  </div>
+</body>
+</html>`;
+
+    // Create a simple message object to send (no threading headers)
+    const messageToSend: any = {
+      subject,
+      body: {
+        contentType: 'HTML',
+        content: finalHtmlBody,
+      },
+      toRecipients: [
+        {
+          emailAddress: {
+            address: toEmailAddress,
+          },
+        },
+      ],
+      // Add CC to sales mailbox
+      ccRecipients: [
+        {
+          emailAddress: {
+            address: 'sales@alliancechemical.com',
+          },
+        },
+      ],
+    };
+
+    // Add attachments if provided
+    if (attachments && attachments.length > 0) {
+      messageToSend.attachments = attachments.map(att => ({
+        '@odata.type': '#microsoft.graph.fileAttachment',
+        name: att.name,
+        contentType: att.contentType,
+        contentBytes: att.contentBytes
+      }));
+    }
+
+    // Send the email with retry logic
+    const response = await withRetry(
+      () => graphClient
+        .api(`/users/${fromEmailAddress}/sendMail`)
+        .post({
+          message: messageToSend,
+          saveToSentItems: true
+        }),
+      'sendEmail'
+    );
+
+    return response;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error; // Let the caller handle the error
+  }
 } 

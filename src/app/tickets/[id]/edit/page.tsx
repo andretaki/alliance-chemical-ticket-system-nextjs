@@ -8,13 +8,14 @@ export const metadata: Metadata = {
 };
 
 interface EditTicketPageProps {
-  params: {
+  params: Promise<{
     id: string; // Route parameters are always strings
-  };
+  }>;
 }
 
-export default function EditTicketPage({ params }: EditTicketPageProps) {
-  const ticketId = parseInt(params.id, 10);
+export default async function EditTicketPage({ params }: EditTicketPageProps) {
+  const { id } = await params;
+  const ticketId = parseInt(id, 10);
 
   // Basic validation: Check if the ID is a valid number
   if (isNaN(ticketId)) {

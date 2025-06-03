@@ -83,6 +83,26 @@ interface TicketViewClientProps {
 
 // --- Helper Functions ---
 
+// Helper function to extract just the first name for greetings
+const extractFirstName = (fullName: string | null | undefined): string => {
+  if (!fullName) {
+    return 'Customer';
+  }
+  
+  // Handle common name formats
+  if (fullName.includes(',')) {
+    // "Last, First" format - take the part after the comma
+    const parts = fullName.split(',');
+    if (parts.length > 1) {
+      return parts[1].trim();
+    }
+  }
+  
+  // Handle "First Last" format - take the first word
+  const words = fullName.trim().split(/\s+/);
+  return words[0];
+};
+
 const getStatusClass = (status: string | null): string => {
   switch (status?.toLowerCase()) {
     case 'new': return 'badge bg-info text-dark';
@@ -198,6 +218,14 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
   const [isLoadingLiveData, setIsLoadingLiveData] = useState(false);
   const [liveDataFetchedAt, setLiveDataFetchedAt] = useState<string | null>(null);
   const [liveDataError, setLiveDataError] = useState<string | null>(null);
+
+  // **NEW: Resend Invoice State**
+  const [isResendingInvoice, setIsResendingInvoice] = useState(false);
+  const [invoiceInfo, setInvoiceInfo] = useState<{
+    quoteName: string;
+    recipientEmail: string;
+    draftOrderId: string;
+  } | null>(null);
 
   // --- Helper to safely parse date strings ---
   const parseDate = (dateString: string | Date | null | undefined): Date | null => {
@@ -475,6 +503,98 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
     }
   }, [ticket?.orderNumber, fetchLiveShipStationData]);
 
+  // **NEW: Extract invoice information from comments**
+  useEffect(() => {
+    const extractInvoiceInfo = () => {
+      // Look for comments that indicate an invoice was sent
+      const invoiceComment = ticket.comments.find(comment => 
+        comment.commentText?.includes('Invoice email sent') && 
+        comment.commentText?.includes('for quote')
+      );
+      
+      if (invoiceComment && invoiceComment.commentText) {
+        // Extract email and quote name from comment text
+        const emailMatch = invoiceComment.commentText.match(/Invoice email sent to ([^\s]+)/);
+        const quoteMatch = invoiceComment.commentText.match(/for quote ([^\s]+)/);
+        
+        if (emailMatch && quoteMatch) {
+          const recipientEmail = emailMatch[1];
+          const quoteName = quoteMatch[1];
+          
+          // Extract numeric ID from quote name (e.g., "#D260" -> "1014170091562")
+          // We'll need to make an API call to get the draft order ID from the quote name
+          setInvoiceInfo({
+            quoteName,
+            recipientEmail,
+            draftOrderId: '', // Will be populated when needed
+          });
+        }
+      }
+    };
+    
+    extractInvoiceInfo();
+  }, [ticket.comments]);
+
+  // **NEW: Resend Invoice Function**
+  const handleResendInvoice = async () => {
+    if (!invoiceInfo) return;
+    
+    setIsResendingInvoice(true);
+    setError(null);
+    
+    try {
+      // First, we need to get the draft order ID from the quote name
+      // The quote name format is like "#D260", we need to find the corresponding draft order
+      const response = await axios.get(`/api/draft-orders/search?name=${encodeURIComponent(invoiceInfo.quoteName)}`);
+      const draftOrder = response.data;
+      
+      if (!draftOrder || !draftOrder.id) {
+        throw new Error('Could not find the draft order for this quote');
+      }
+      
+      // Now send the invoice
+      await axios.post('/api/email/send-invoice', {
+        draftOrderId: draftOrder.id,
+        recipientEmail: invoiceInfo.recipientEmail,
+        ticketId: ticket.id
+      });
+      
+      // Show success and refresh ticket to show new comment
+      const toastElement = document.createElement('div');
+      toastElement.className = 'toast-container position-fixed top-0 end-0 p-3';
+      toastElement.innerHTML = `
+        <div class="toast show" role="alert">
+          <div class="toast-header">
+            <i class="fas fa-check-circle text-success me-2"></i>
+            <strong class="me-auto">Invoice Resent</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+          </div>
+          <div class="toast-body">
+            Invoice successfully resent to ${invoiceInfo.recipientEmail}
+          </div>
+        </div>
+      `;
+      document.body.appendChild(toastElement);
+      
+      // Auto-remove toast after 5 seconds
+      setTimeout(() => {
+        document.body.removeChild(toastElement);
+      }, 5000);
+      
+      // Refresh ticket to show new comment
+      await refreshTicket();
+      
+    } catch (error) {
+      console.error('Error resending invoice:', error);
+      const errorMessage = axios.isAxiosError(error) 
+        ? error.response?.data?.error || 'Failed to resend invoice'
+        : 'Failed to resend invoice';
+      setError(errorMessage);
+    } finally {
+      setIsResendingInvoice(false);
+    }
+  };
+
   // --- Comment & Attachment Functions ---
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -617,7 +737,7 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
 
   const insertSuggestedResponse = useCallback(() => {
     setError(null);
-    const customerName = ticket.senderName || ticket.reporter?.name || 'Customer';
+    const customerName = extractFirstName(ticket.senderName || ticket.reporter?.name);
     const orderNum = ticket.orderNumber;
     if (!orderNum) { setError("Cannot generate reply: Ticket is missing the Order Number."); return; }
 
@@ -680,6 +800,9 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
         orderNumberForStatus={ticket.orderNumber}
         onGetOrderStatusDraft={handleGetOrderStatusDraft}
         isLoadingOrderStatusDraft={isLoadingOrderStatusDraft}
+        onResendInvoice={handleResendInvoice}
+        isResendingInvoice={isResendingInvoice}
+        hasInvoiceInfo={!!invoiceInfo}
       />
 
       {/* Main Content Area (Scrollable) */}

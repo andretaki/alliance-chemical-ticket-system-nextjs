@@ -5,11 +5,11 @@ import { authOptions } from '@/lib/authOptions';
 import { shopifyService } from '@/services/shopify/ShopifyService';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     if (!id) {
       return NextResponse.json({ error: 'Draft order ID is required' }, { status: 400 });
     }
@@ -18,7 +18,7 @@ export async function GET(
     const draftOrderGid = `gid://shopify/DraftOrder/${id}`;
     
     // Get the draft order from Shopify
-    const draftOrder = await shopifyService.getDraftOrder(draftOrderGid);
+    const draftOrder = await shopifyService.getDraftOrderById(draftOrderGid);
     
     if (!draftOrder) {
       return NextResponse.json({ error: 'Draft order not found' }, { status: 404 });

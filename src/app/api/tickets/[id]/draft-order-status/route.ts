@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/db';
 import { tickets as ticketsSchema } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -9,9 +9,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
 export async function GET(
-    request: Request,
-    { params }: { params: { id: string } }
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    let ticketId: number;
     try {
         // Authenticate the user (agent)
         const session = await getServerSession(authOptions);
@@ -19,7 +20,8 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const ticketId = parseInt(params.id);
+        const { id } = await params;
+        ticketId = parseInt(id);
         if (isNaN(ticketId)) {
             return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
         }
@@ -109,7 +111,7 @@ export async function GET(
         return NextResponse.json(response);
 
     } catch (error) {
-        console.error(`[OrderStatusAPI] Error in /api/tickets/${params.id}/draft-order-status:`, error);
+        console.error(`[OrderStatusAPI] Error in /api/tickets/${ticketId || 'unknown'}/draft-order-status:`, error);
         
         let errorMessage = 'Failed to generate order status draft.';
         if (error instanceof Error) {

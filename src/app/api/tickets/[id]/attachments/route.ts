@@ -19,7 +19,7 @@ const ensureUploadDirExists = (dir: string) => {
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Ensure the user is authenticated
@@ -28,7 +28,8 @@ export async function POST(
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
-    const ticketId = parseInt(params.id);
+    const { id } = await params;
+    const ticketId = parseInt(id);
     if (isNaN(ticketId)) {
       return new NextResponse('Invalid ticket ID', { status: 400 });
     }

@@ -2,6 +2,7 @@
 
 import React, { useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
 
 export default function Navbar() {
@@ -16,7 +17,7 @@ export default function Navbar() {
         <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom fixed-top" style={{ zIndex: 1030 }}>
             <div className="container-fluid px-4">
                 <Link href="/" className="navbar-brand d-flex align-items-center" style={{ maxWidth: '200px' }}>
-                    <img src="/assets/logo.png" alt="Logo" width="24" height="24" className="d-inline-block align-text-top me-2" />
+                    <Image src="/assets/logo.png" alt="Logo" width={24} height={24} className="d-inline-block align-text-top me-2" />
                     <span className="fw-bold" style={{ fontSize: '0.95rem' }}>Ticket System</span>
                 </Link>
 

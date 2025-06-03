@@ -1,18 +1,20 @@
-import React, { useState, ChangeEvent, KeyboardEvent, useEffect } from 'react';
+import React, { useState, ChangeEvent, KeyboardEvent, useEffect, useCallback } from 'react';
 import { RagFilters } from '@/services/ragQueryService';
 
 interface RagSearchInterfaceProps {
-    customerEmail?: string;
+    customerEmail?: string | null;
     orderNumber?: string | null;
     onResultSelect?: (result: any) => void;
     className?: string;
+    enableInitialSearch?: boolean;
 }
 
 export const RagSearchInterface: React.FC<RagSearchInterfaceProps> = ({
     customerEmail,
     orderNumber,
     onResultSelect,
-    className
+    className,
+    enableInitialSearch = false
 }) => {
     const [query, setQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -28,36 +30,27 @@ export const RagSearchInterface: React.FC<RagSearchInterfaceProps> = ({
         { value: 'coa', label: 'COA Documents' }
     ];
 
-    // Perform initial search when component mounts or when orderNumber/customerEmail changes
-    useEffect(() => {
-        if (orderNumber || customerEmail) {
-            const initialQuery = orderNumber ? `Order ${orderNumber}` : '';
-            setQuery(initialQuery);
-            performSearch(initialQuery);
-        }
-    }, [orderNumber, customerEmail]);
-
-    const performSearch = async (searchQuery: string) => {
+    const performSearch = useCallback(async (searchQuery: string) => {
         if (!searchQuery.trim()) return;
 
         setIsLoading(true);
         setError(null);
 
         try {
-            const filters: RagFilters = {};
+            const currentFilters: RagFilters = {};
             
             if (selectedSourceTypes.length > 0) {
-                filters.source_type_in = selectedSourceTypes;
+                currentFilters.source_type_in = selectedSourceTypes;
             }
             
             // Only include customer email if no order number is provided
             if (customerEmail && !orderNumber) {
-                filters.customer_email_exact = customerEmail;
+                currentFilters.customer_email_exact = customerEmail;
             }
 
             // Always include order number in filters if it exists
             if (orderNumber) {
-                filters.order_id_exact = orderNumber;
+                currentFilters.order_id_exact = orderNumber;
             }
 
             const response = await fetch('/api/rag/search', {
@@ -67,7 +60,7 @@ export const RagSearchInterface: React.FC<RagSearchInterfaceProps> = ({
                 },
                 body: JSON.stringify({
                     query: searchQuery,
-                    filters,
+                    filters: currentFilters,
                     customerContext: customerEmail ? { email: customerEmail } : undefined
                 }),
             });
@@ -77,14 +70,23 @@ export const RagSearchInterface: React.FC<RagSearchInterfaceProps> = ({
             }
 
             const data = await response.json();
-            setResults(data.supportingContexts || []);
+            setResults(data.results || []);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
             setResults([]);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [customerEmail, orderNumber, selectedSourceTypes]);
+
+    // Perform initial search when component mounts or when orderNumber/customerEmail changes
+    useEffect(() => {
+        if (enableInitialSearch && (orderNumber || customerEmail)) {
+            const initialQuery = orderNumber ? `Order ${orderNumber}` : (customerEmail ? `Info for ${customerEmail}`: '');
+            setQuery(initialQuery);
+            performSearch(initialQuery);
+        }
+    }, [orderNumber, customerEmail, enableInitialSearch, performSearch]);
 
     const handleSearch = () => {
         performSearch(query);

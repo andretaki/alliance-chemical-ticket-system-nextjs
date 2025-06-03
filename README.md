@@ -111,3 +111,154 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Next.js team for the framework
 - All open-source contributors whose libraries made this possible
 - The Alliance Chemical team for their feedback and requirements
+
+## Features
+
+### 🚀 **Customer Auto-Creation in Shopify**
+The system automatically creates customers in Shopify whenever they interact with your support system:
+
+- **Ticket Creation** - When customers create tickets or send emails
+- **Quote Requests** - When customers request quotes via any form
+- **Email Support** - When customers email your support address
+
+**Key Benefits:**
+- ✅ **No Duplicates** - Checks existing customers before creating
+- ✅ **Smart Tagging** - Tags customers with source and ticket information
+- ✅ **Detailed Notes** - Adds context about how customer was created
+- ✅ **Automatic** - Works in background without user intervention
+
+## Environment Variables
+
+```bash
+# Customer Auto-Creation
+SHOPIFY_AUTO_CREATE_CUSTOMERS=true    # Enable/disable auto-creation (default: true)
+
+# Shopify Integration
+SHOPIFY_STORE_URL=your-store.myshopify.com
+SHOPIFY_ADMIN_ACCESS_TOKEN=your-token
+SHOPIFY_API_KEY=your-api-key
+SHOPIFY_API_SECRET=your-secret
+
+# Required Shopify Scopes:
+# - read_customers
+# - write_customers
+# - read_products
+# - write_draft_orders
+# - read_draft_orders
+# - write_orders
+# - read_orders
+```
+
+## Customer Auto-Creation Details
+
+### **When Customers Are Created:**
+1. **Direct Ticket Creation** - When tickets are created via `/api/tickets`
+2. **Email-to-Ticket** - When emails are converted to tickets via webhook
+3. **Quote Creation** - When quotes/draft orders are created via `/api/draft-orders`
+4. **Quote Forms** - When customers submit quote requests
+
+### **Customer Data Captured:**
+- Email address (required)
+- First and last name (parsed automatically)
+- Phone number
+- Company information
+- Source tracking (ticket, email, quote_form)
+- Related ticket ID
+
+### **Shopify Customer Tags:**
+- `TicketSystem` - Identifies customers from ticket system
+- `Source:email` - Customer came via email
+- `Source:ticket` - Customer came via direct ticket
+- `Source:quote_form` - Customer came via quote form
+- `Ticket:123` - Links to specific ticket ID
+
+### **Admin Management:**
+Access customer auto-creation management via admin interface:
+- View current status and statistics
+- Batch process existing tickets
+- Preview what would be processed (dry run)
+- Monitor creation success/failure rates
+
+## Setup
+
+### **1. Verify Shopify App Permissions**
+Ensure your Shopify private app includes these scopes:
+- ✅ `read_customers`
+- ✅ `write_customers`
+- ✅ `read_products`
+- ✅ `write_draft_orders`
+- ✅ `read_draft_orders`
+- ✅ `write_orders`
+- ✅ `read_orders`
+
+### **2. Environment Configuration**
+```bash
+# Enable customer auto-creation (default: enabled)
+SHOPIFY_AUTO_CREATE_CUSTOMERS=true
+
+# Your Shopify store configuration
+SHOPIFY_STORE_URL=your-store.myshopify.com
+SHOPIFY_ADMIN_ACCESS_TOKEN=shpat_xxxxx
+```
+
+### **3. Test the System**
+1. Create a test ticket with customer email
+2. Check Shopify customers list for new customer
+3. Verify tags and notes are correctly applied
+
+### **4. Process Existing Data (Optional)**
+Use the admin interface to batch-create customers from existing tickets:
+1. Navigate to admin dashboard
+2. Access "Customer Auto-Creation Management"
+3. Configure date range and run preview
+4. Execute batch creation if satisfied with preview
+
+## API Endpoints
+
+### **Customer Auto-Creation Admin**
+- `GET /api/admin/customers/auto-create` - Get status and statistics
+- `POST /api/admin/customers/auto-create` - Batch process existing tickets
+
+**Example Admin Request:**
+```json
+{
+  "createFromExisting": true,
+  "limitToRecent": true,
+  "daysBack": 30,
+  "dryRun": false
+}
+```
+
+## Troubleshooting
+
+### **Customer Creation Not Working?**
+1. **Check Shopify permissions** - Ensure `write_customers` scope is enabled
+2. **Verify environment variables** - `SHOPIFY_AUTO_CREATE_CUSTOMERS` should be `true`
+3. **Check logs** - Look for `[CustomerAutoCreate]` entries in server logs
+4. **Test API connection** - Verify Shopify API credentials are working
+
+### **Duplicate Prevention**
+The system automatically checks for existing customers by email before creating new ones. If a customer already exists, it will:
+- Skip creation
+- Log the existing customer ID
+- Continue with ticket/quote processing normally
+
+### **Error Handling**
+Customer creation failures **never** block ticket or quote creation. The system:
+- Logs errors for debugging
+- Continues with normal ticket/quote processing
+- Allows manual customer creation later if needed
+
+## Monitoring
+
+### **Success Indicators:**
+- Look for `[CustomerAutoCreate] Customer created successfully` in logs
+- Check Shopify customers list for new entries with `TicketSystem` tag
+- Monitor admin dashboard statistics
+
+### **Common Log Messages:**
+```
+[CustomerAutoCreate] Customer already exists in Shopify: email@example.com (ID: 123)
+[CustomerAutoCreate] Customer created successfully in Shopify: email@example.com (ID: 456)
+[CustomerAutoCreate] Skipping customer creation - invalid email: invalid-email
+```

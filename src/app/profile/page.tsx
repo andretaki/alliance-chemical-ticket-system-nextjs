@@ -2,6 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useEffect } from 'react';
 import { SignatureManager } from '@/components/SignatureManager';
 
@@ -42,11 +43,12 @@ export default function ProfilePage() {
             <div className="row">
               <div className="col-md-3 text-center mb-4">
                 {session.user.image ? (
-                  <img 
+                  <Image
                     src={session.user.image} 
                     alt={session.user.name || 'User'} 
                     className="img-thumbnail rounded-circle" 
                     width="150"
+                    height="150"
                   />
                 ) : (
                   <div className="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" 

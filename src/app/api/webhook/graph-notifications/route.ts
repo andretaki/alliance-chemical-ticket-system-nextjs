@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm';
 import { analyzeEmailContent } from '@/lib/aiService';
 import { processSingleEmail } from '@/lib/emailProcessor';
 import { ticketEventEmitter } from '@/lib/eventEmitter';
+import { customerAutoCreateService } from '@/services/customerAutoCreateService';
 
 // Constants from your process-emails route (or a shared config)
 const PROCESSED_FOLDER_NAME = process.env.PROCESSED_FOLDER_NAME || "Processed";
@@ -107,6 +108,46 @@ async function createTicketFromEmail(email: any, reporterId: string) {
 
         const [newTicket] = await db.insert(tickets).values(ticketData).returning({ id: tickets.id });
         console.log(`Webhook: Created ticket ${newTicket.id} for email ${email.id}. AI Used: ${!!aiAnalysis}`);
+        
+        // --- Auto-create customer in Shopify if enabled and customer info is provided ---
+        if (ticketData.senderEmail && customerAutoCreateService.isAutoCreateEnabled()) {
+            try {
+                console.log(`[Webhook] Attempting to auto-create customer for ticket ${newTicket.id} from email`);
+                
+                // Parse sender name into first and last name
+                let firstName: string | undefined;
+                let lastName: string | undefined;
+                
+                if (ticketData.senderName) {
+                    const nameParts = ticketData.senderName.trim().split(' ');
+                    firstName = nameParts[0];
+                    lastName = nameParts.slice(1).join(' ') || undefined;
+                }
+
+                const customerResult = await customerAutoCreateService.createCustomerFromTicket({
+                    email: ticketData.senderEmail,
+                    firstName,
+                    lastName,
+                    ticketId: newTicket.id,
+                    source: 'email'
+                });
+
+                if (customerResult.success) {
+                    if (customerResult.alreadyExists) {
+                        console.log(`[Webhook] Customer already exists in Shopify for email ticket ${newTicket.id}: ${ticketData.senderEmail}`);
+                    } else {
+                        console.log(`[Webhook] Successfully created customer in Shopify for email ticket ${newTicket.id}: ${ticketData.senderEmail} (ID: ${customerResult.customerId})`);
+                    }
+                } else if (customerResult.skipped) {
+                    console.log(`[Webhook] Skipped customer creation for email ticket ${newTicket.id}: ${customerResult.skipReason}`);
+                } else {
+                    console.warn(`[Webhook] Failed to create customer in Shopify for email ticket ${newTicket.id}: ${customerResult.error}`);
+                }
+            } catch (customerError) {
+                // Don't fail ticket creation if customer creation fails
+                console.error(`[Webhook] Error during customer auto-creation for email ticket ${newTicket.id}:`, customerError);
+            }
+        }
         
         // Emit event for the new ticket
         ticketEventEmitter.emit({

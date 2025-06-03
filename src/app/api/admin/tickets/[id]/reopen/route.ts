@@ -11,7 +11,7 @@ import { ticketEventEmitter } from '@/lib/eventEmitter';
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication and permissions
@@ -21,7 +21,8 @@ export async function POST(
     }
     
     // Parse ticket ID
-    const ticketId = parseInt(params.id);
+    const { id } = await params;
+    const ticketId = parseInt(id);
     if (isNaN(ticketId)) {
       return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
     }

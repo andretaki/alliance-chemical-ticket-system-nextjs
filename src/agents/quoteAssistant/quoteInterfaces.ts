@@ -195,6 +195,7 @@ export interface DraftOrderOutput {
     value: number; // Assuming this is a numeric value after conversion
     valueType: string; // e.g., PERCENTAGE, FIXED_AMOUNT
   };
+  note?: string;
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;
@@ -254,6 +255,7 @@ export interface ShopifyDraftOrderGQLResponse {
     valueType: string;
     amountSet: { shopMoney: ShopifyMoney };
   };
+  note?: string;
   createdAt?: string;
   updatedAt?: string;
   completedAt?: string;

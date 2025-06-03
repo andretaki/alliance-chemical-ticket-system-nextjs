@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
+import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo, useCallback } from 'react';
 import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation'; // Keep if used, though not explicitly in this snippet
 import type { AppDraftOrderInput, DraftOrderLineItemInput, DraftOrderCustomerInput, DraftOrderAddressInput, ProductVariantData, ParentProductData, DraftOrderOutput } from '@/agents/quoteAssistant/quoteInterfaces';
@@ -155,7 +155,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
 
-  const customerSearchRef = useRef<HTMLDivElement | null>(null);
+  const customerSearchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (shippingAddress.country in provinces) {
@@ -165,7 +165,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
         setShippingAddress(prev => ({ ...prev, province: '' }));
       }
     }
-  }, [shippingAddress.country]);
+  }, [shippingAddress.country, shippingAddress.province]);
 
   useEffect(() => {
     // console.log('🔎 Search terms effect triggered:', searchTermsForEffect);
@@ -246,8 +246,8 @@ export const DirectQuoteCreationClient: React.FC = () => {
       timers.forEach(timerId => {
         if (timerId) clearTimeout(timerId);
       });
-    };
-  }, [searchTermsForEffect]); // Removed activeSearchDropdown from dependencies to avoid re-triggering on dropdown visibility change
+    }; // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTermsForEffect, activeSearchDropdown]); // Added activeSearchDropdown
 
   const handleLineItemChange = (index: number, field: keyof DraftOrderLineItemInput, value: string | number) => {
     const updatedLineItems = [...lineItems];
@@ -782,8 +782,8 @@ export const DirectQuoteCreationClient: React.FC = () => {
     }
   };
 
-  // Customer search functionality
-  const searchCustomer = async (term: string, searchType: string = 'auto') => {
+  // Customer search functionality - wrapped in useCallback
+  const searchCustomer = useCallback(async (term: string, searchType: string = 'auto') => {
     if (!term || term.trim().length < 3) {
       setCustomerSearchResults([]);
       setShowCustomerResults(false);
@@ -796,15 +796,15 @@ export const DirectQuoteCreationClient: React.FC = () => {
     setShowCustomerResults(true);
 
     try {
-      const response = await axios.get<{ 
-        customers: CustomerSearchResult[]; 
-        searchMethod: string; 
-        searchType: string; 
-        query: string; 
+      const response = await axios.get<{
+        customers: CustomerSearchResult[];
+        searchMethod: string;
+        searchType: string;
+        query: string;
       }>(
         `/api/customers/search?query=${encodeURIComponent(term.trim())}&type=${searchType}`
       );
-      
+
       if (response.data.customers.length > 0) {
         setCustomerSearchResults(response.data.customers);
         console.log(`Found customers using ${response.data.searchMethod} (${response.data.searchType})`);
@@ -820,20 +820,9 @@ export const DirectQuoteCreationClient: React.FC = () => {
     } finally {
       setIsSearchingCustomer(false);
     }
-  };
+  }, []); // Add dependencies if any from outer scope are used (none in this case)
 
-  // Helper function to get display text for search types
-  const getSearchTypeDisplayText = (searchType: string): string => {
-    switch (searchType) {
-      case 'order': return 'order number';
-      case 'phone': return 'phone number';
-      case 'email': return 'email address';
-      case 'name': return 'name';
-      default: return 'search term';
-    }
-  };
-
-  useEffect(() => {
+  useEffect(() => { // Debounce for customer search
     const timer = setTimeout(() => {
       if (customerSearchTerm && customerSearchTerm.trim().length >= 3) {
         searchCustomer(customerSearchTerm);
@@ -841,7 +830,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [customerSearchTerm]);
+  }, [customerSearchTerm, searchCustomer]); // Added searchCustomer
 
   const handleCustomerSelect = (customer: CustomerSearchResult) => {
     setSelectedCustomer(customer);
@@ -1099,6 +1088,9 @@ export const DirectQuoteCreationClient: React.FC = () => {
                       }
                     }}
                     aria-autocomplete="list"
+                    role="combobox"
+                    aria-expanded={activeSearchDropdown === null}
+                    aria-controls={`search-results-${activeSearchDropdown}`}
                   />
                   {customerSearchTerm && (
                     <button 
@@ -1276,6 +1268,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                           onFocus={() => handleInputFocus(index)}
                           onKeyDown={(e) => handleKeyDown(index, e)}
                           autoComplete="off"
+                          role="combobox"
                           aria-autocomplete="list"
                           aria-expanded={activeSearchDropdown === index}
                           aria-controls={`search-results-${index}`}

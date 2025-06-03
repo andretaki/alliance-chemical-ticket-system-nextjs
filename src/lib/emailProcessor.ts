@@ -250,6 +250,26 @@ interface ProcessEmailResult {
     automation_info?: OrderTrackingInfo | null;
 }
 
+// Helper function to extract just the first name for greetings
+function extractFirstName(senderName: string | null | undefined, senderEmail: string): string {
+  if (!senderName) {
+    return senderEmail.split('@')[0];
+  }
+  
+  // Handle common name formats
+  if (senderName.includes(',')) {
+    // "Last, First" format - take the part after the comma
+    const parts = senderName.split(',');
+    if (parts.length > 1) {
+      return parts[1].trim();
+    }
+  }
+  
+  // Handle "First Last" format - take the first word
+  const words = senderName.trim().split(/\s+/);
+  return words[0];
+}
+
 // --- Core Processing Function for a Single Email ---
 export async function processSingleEmail(emailMessage: Message): Promise<ProcessEmailResult> {
     const messageId = emailMessage.id;
@@ -762,7 +782,7 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
              !analysisResult.lotNumber) {
              console.log(`EmailProcessor: COA request (${messageId}) missing Lot Number. Drafting reply.`);
              automationAttempted = true; // Consider this an "automation" attempt
-             const customerName = senderName || senderEmail.split('@')[0];
+             const customerName = extractFirstName(senderName, senderEmail);
              const productName = analysisResult.summary.includes('for') ? analysisResult.summary.split('for')[1].trim() : "the product";
              draftReplyContent = `Hi ${customerName},\n\nTo provide the correct Certificate of Analysis (CoA), please reply with the Lot Number for ${productName}.\n\nOrder #: ${analysisResult.orderNumber || '(Not Found)'}\n\nBest regards,\nAlliance Chemical Support`.trim();
              ticketStatus = PENDING_CUSTOMER_STATUS; // Use the constant
@@ -772,7 +792,7 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
                     (analysisResult.documentType === 'SDS' && analysisResult.documentRequestConfidence !== 'low'))) {
              console.log(`EmailProcessor: SDS request (${messageId}). Drafting reply.`);
              automationAttempted = true;
-             const customerName = senderName || senderEmail.split('@')[0];
+             const customerName = extractFirstName(senderName, senderEmail);
              const productName = analysisResult.summary.includes('for') ? analysisResult.summary.split('for')[1].trim() : "the product";
              draftReplyContent = `Hi ${customerName},\n\nThank you for your request for the Safety Data Sheet (SDS) for ${productName}.\n\nI have attached the requested SDS document to this email. Please let me know if you need any additional information.\n\nBest regards,\nAlliance Chemical Support`.trim();
              ticketStatus = DEFAULT_STATUS;
@@ -782,7 +802,7 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
                     (analysisResult.documentType === 'COC' && analysisResult.documentRequestConfidence !== 'low'))) {
              console.log(`EmailProcessor: COC request (${messageId}). Drafting reply.`);
              automationAttempted = true;
-             const customerName = senderName || senderEmail.split('@')[0];
+             const customerName = extractFirstName(senderName, senderEmail);
              const productName = analysisResult.summary.includes('for') ? analysisResult.summary.split('for')[1].trim() : "the product";
              const orderRef = analysisResult.orderNumber ? `for order #${analysisResult.orderNumber}` : "";
              draftReplyContent = `Hi ${customerName},\n\nThank you for your request for the Certificate of Conformity (COC) for ${productName} ${orderRef}.\n\nTo provide the correct Certificate of Conformity, please confirm the following information:\n\n1. Order number (if not provided)\n2. Product name and grade\n3. Purchase date (approximate is fine)\n\nOnce we have this information, we'll locate and send the appropriate document.\n\nBest regards,\nAlliance Chemical Support`.trim();
@@ -792,7 +812,7 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
                   (analysisResult.documentType === 'OTHER' && analysisResult.documentRequestConfidence !== 'low')) {
              console.log(`EmailProcessor: Other documentation request (${messageId}): ${analysisResult.documentName}. Drafting reply.`);
              automationAttempted = true;
-             const customerName = senderName || senderEmail.split('@')[0];
+             const customerName = extractFirstName(senderName, senderEmail);
              const documentName = analysisResult.documentName || "requested document";
              const productName = analysisResult.summary.includes('for') ? analysisResult.summary.split('for')[1].trim() : "the product";
              const orderRef = analysisResult.orderNumber ? `for order #${analysisResult.orderNumber}` : "";
@@ -811,7 +831,7 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
                 // Try to generate an automated response for order status inquiries
                 if (automationInfo?.found) {
                     console.log(`EmailProcessor: Attempting to generate order status response for ${messageId}`);
-                    const customerName = senderName || senderEmail.split('@')[0];
+                    const customerName = extractFirstName(senderName, senderEmail);
                     const orderResponse = await checkOrderAndGenerateResponse(customerName, subject, fullBody);
                     
                     if (orderResponse.responseText) {

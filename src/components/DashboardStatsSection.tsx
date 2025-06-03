@@ -74,7 +74,7 @@ const DashboardStatsSection: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Removed dependencies that cause re-fetch on filter change from here
+  }, [activeStatuses, criticalPriorities]);
 
   useEffect(() => {
     fetchStats();

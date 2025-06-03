@@ -7,14 +7,14 @@ import TicketViewClient from '@/components/TicketViewClient';
 import { Metadata } from 'next';
 
 interface TicketViewPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
-export async function generateMetadata({ params }: TicketViewPageProps): Promise<Metadata> {
-    const resolvedParams = await params;
-    const ticketId = parseInt(resolvedParams.id, 10);
+export async function generateMetadata({ params: paramsPromise }: TicketViewPageProps): Promise<Metadata> {
+    const params = await paramsPromise;
+    const ticketId = parseInt(params.id, 10);
     if (isNaN(ticketId)) {
         return { title: 'Invalid Ticket - Issue Tracker' };
     }
@@ -30,9 +30,9 @@ export async function generateMetadata({ params }: TicketViewPageProps): Promise
     };
 }
 
-export default async function TicketViewPage({ params }: TicketViewPageProps) {
-  const resolvedParams = await params;
-  const ticketId = parseInt(resolvedParams.id, 10);
+export default async function TicketViewPage({ params: paramsPromise }: TicketViewPageProps) {
+  const params = await paramsPromise;
+  const ticketId = parseInt(params.id, 10);
 
   if (isNaN(ticketId)) {
     notFound();

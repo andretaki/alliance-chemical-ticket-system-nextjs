@@ -38,6 +38,32 @@ function initializeGeminiForOrderStatus(): GenerativeModel | null {
 
 geminiModel = initializeGeminiForOrderStatus();
 
+const SHIPSTATION_CONFIG = {
+  endpoint: process.env.SHIPSTATION_API_ENDPOINT || 'https://ssapi.shipstation.com',
+  key: process.env.SHIPSTATION_API_KEY || '',
+  secret: process.env.SHIPSTATION_API_SECRET || ''
+};
+
+// Helper function to extract just the first name for greetings
+function extractFirstName(customerName: string | null | undefined): string {
+  if (!customerName) {
+    return 'Customer';
+  }
+  
+  // Handle common name formats
+  if (customerName.includes(',')) {
+    // "Last, First" format - take the part after the comma
+    const parts = customerName.split(',');
+    if (parts.length > 1) {
+      return parts[1].trim();
+    }
+  }
+  
+  // Handle "First Last" format - take the first word
+  const words = customerName.trim().split(/\s+/);
+  return words[0];
+}
+
 export class AIOrderStatusService {
   constructor() {
     if (!geminiModel) {
@@ -263,9 +289,10 @@ export class AIOrderStatusService {
     orderContext: string, 
     analysisResults: any
   ): string {
+    const firstName = extractFirstName(customerName);
     return `You are a professional customer service representative for Alliance Chemical. Your task is to draft a helpful, informative, and appropriately toned email response about an order status inquiry.
 
-CUSTOMER NAME: ${customerName}
+CUSTOMER NAME: ${firstName}
 
 ORDER INFORMATION:
 ${orderContext}
@@ -277,7 +304,7 @@ ANALYSIS FLAGS:
 - Days Since Shipped: ${analysisResults.daysSinceShipped || 'N/A'}
 
 INSTRUCTIONS:
-1. Address the customer by name politely
+1. Address the customer by their first name only (${firstName}) politely
 2. Provide clear, accurate order status information
 3. Include tracking details if shipped (tracking number and direct tracking link)
 4. For LTL shipments: Explain that tracking updates may be less frequent and carrier will likely call to schedule delivery
@@ -299,13 +326,14 @@ Generate ONLY the draft message text - no additional formatting or explanations.
     customerQuery?: string, 
     errorMessage?: string
   ): Promise<string> {
-    const prompt = `You are a customer service representative for Alliance Chemical. A customer named ${customerName} is inquiring about an order, but we cannot find the order in our system.
+    const firstName = extractFirstName(customerName);
+    const prompt = `You are a customer service representative for Alliance Chemical. A customer named ${firstName} is inquiring about an order, but we cannot find the order in our system.
 
 ${customerQuery ? `Customer's inquiry context: ${customerQuery}` : ''}
 ${errorMessage ? `System error: ${errorMessage}` : ''}
 
 Draft a professional, helpful response that:
-1. Acknowledges their inquiry politely
+1. Acknowledges their inquiry politely using their first name (${firstName}) only
 2. Explains we're having trouble locating the order
 3. Asks them to verify the order number or provide additional details
 4. Offers alternative ways to help (phone number, email, order date, etc.)
@@ -321,9 +349,9 @@ Generate ONLY the draft message text.`;
       });
 
       return this.cleanupAIDraft(result.response.text() || 
-        `Hi ${customerName}, I'm having trouble locating the order you're asking about. Could you please verify the order number or provide additional details like the order date or email used for the purchase? I'm here to help get this resolved for you.`);
+        `Hi ${firstName}, I'm having trouble locating the order you're asking about. Could you please verify the order number or provide additional details like the order date or email used for the purchase? I'm here to help get this resolved for you.`);
     } catch (error) {
-      return `Hi ${customerName}, I'm having trouble locating the order you're asking about. Could you please verify the order number or provide additional details like the order date or email used for the purchase? I'm here to help get this resolved for you.`;
+      return `Hi ${firstName}, I'm having trouble locating the order you're asking about. Could you please verify the order number or provide additional details like the order date or email used for the purchase? I'm here to help get this resolved for you.`;
     }
   }
 
