@@ -82,11 +82,17 @@ export default function Sidebar() {
             
             {/* User Info */}
             <div className="user-profile text-center mb-4 px-3">
-                <div className="avatar-circle mx-auto mb-2">
-                    <span className="initials">{session?.user?.name?.charAt(0) || session?.user?.email?.charAt(0) || 'U'}</span>
-                </div>
-                <div className="user-name fw-bold">{session?.user?.name || session?.user?.email}</div>
-                <div className="user-role small text-muted">{session?.user?.role || 'User'}</div>
+                <Link href="/profile" className="text-decoration-none">
+                    <div className="avatar-circle mx-auto mb-2">
+                        <span className="initials">{session?.user?.name?.charAt(0) || session?.user?.email?.charAt(0) || 'U'}</span>
+                    </div>
+                    <div className="user-name fw-bold text-dark">{session?.user?.name || session?.user?.email}</div>
+                    <div className="user-role small text-muted">{session?.user?.role || 'User'}</div>
+                    <div className="small text-primary mt-1">
+                        <i className="fas fa-user-edit me-1"></i>
+                        Edit Profile
+                    </div>
+                </Link>
             </div>
             
             <div className="px-3 mb-4">

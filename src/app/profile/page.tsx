@@ -3,6 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { SignatureManager } from '@/components/SignatureManager';
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
@@ -33,7 +34,7 @@ export default function ProfilePage() {
   if (session?.user) {
     return (
       <div className="container mt-5">
-        <div className="card">
+        <div className="card mb-4">
           <div className="card-header">
             <h2 className="m-0">User Profile</h2>
           </div>
@@ -77,6 +78,16 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+        
+        {/* Email Signature Management */}
+        <div className="card mb-4">
+          <div className="card-header">
+            <h4 className="m-0">Email Signature Management</h4>
+          </div>
+          <div className="card-body">
+            <SignatureManager />
           </div>
         </div>
         

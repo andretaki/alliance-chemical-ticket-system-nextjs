@@ -1,10 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
 
 interface Signature {
   id: number;
@@ -33,13 +27,13 @@ export function SignatureManager() {
       setSignatures(data);
     } catch (error) {
       console.error('Error fetching signatures:', error);
-      toast.error('Failed to load signatures');
+      alert('Failed to load signatures');
     }
   };
 
   const handleCreateSignature = async () => {
     if (!newSignature.trim()) {
-      toast.error('Signature cannot be empty');
+      alert('Signature cannot be empty');
       return;
     }
 
@@ -59,10 +53,10 @@ export function SignatureManager() {
       await fetchSignatures();
       setNewSignature('');
       setIsDefault(false);
-      toast.success('Signature created successfully');
+      alert('Signature created successfully');
     } catch (error) {
       console.error('Error creating signature:', error);
-      toast.error('Failed to create signature');
+      alert('Failed to create signature');
     } finally {
       setIsLoading(false);
     }
@@ -83,10 +77,10 @@ export function SignatureManager() {
       if (!response.ok) throw new Error('Failed to update signature');
 
       await fetchSignatures();
-      toast.success('Signature updated successfully');
+      alert('Signature updated successfully');
     } catch (error) {
       console.error('Error updating signature:', error);
-      toast.error('Failed to update signature');
+      alert('Failed to update signature');
     } finally {
       setIsLoading(false);
     }
@@ -104,95 +98,108 @@ export function SignatureManager() {
       if (!response.ok) throw new Error('Failed to delete signature');
 
       await fetchSignatures();
-      toast.success('Signature deleted successfully');
+      alert('Signature deleted successfully');
     } catch (error) {
       console.error('Error deleting signature:', error);
-      toast.error('Failed to delete signature');
+      alert('Failed to delete signature');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Email Signatures</CardTitle>
-          <CardDescription>
+    <div className="space-y-4">
+      {/* Create New Signature Card */}
+      <div className="card">
+        <div className="card-header">
+          <h5 className="card-title mb-0">Email Signatures</h5>
+          <p className="text-muted small mb-0">
             Manage your email signatures. You can create multiple signatures and set one as default.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="newSignature">New Signature</Label>
-              <Textarea
-                id="newSignature"
-                value={newSignature}
-                onChange={(e) => setNewSignature(e.target.value)}
-                placeholder="Enter your signature here..."
-                className="min-h-[100px]"
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isDefault"
-                checked={isDefault}
-                onCheckedChange={setIsDefault}
-              />
-              <Label htmlFor="isDefault">Set as default signature</Label>
-            </div>
-            <Button
-              onClick={handleCreateSignature}
-              disabled={isLoading || !newSignature.trim()}
-            >
-              Create Signature
-            </Button>
+          </p>
+        </div>
+        <div className="card-body">
+          <div className="mb-3">
+            <label htmlFor="newSignature" className="form-label">New Signature</label>
+            <textarea
+              id="newSignature"
+              className="form-control"
+              value={newSignature}
+              onChange={(e) => setNewSignature(e.target.value)}
+              placeholder="Enter your signature here..."
+              rows={4}
+            />
           </div>
-        </CardContent>
-      </Card>
+          <div className="form-check mb-3">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              id="isDefault"
+              checked={isDefault}
+              onChange={(e) => setIsDefault(e.target.checked)}
+            />
+            <label className="form-check-label" htmlFor="isDefault">
+              Set as default signature
+            </label>
+          </div>
+          <button
+            onClick={handleCreateSignature}
+            disabled={isLoading || !newSignature.trim()}
+            className="btn btn-primary"
+          >
+            {isLoading ? 'Creating...' : 'Create Signature'}
+          </button>
+        </div>
+      </div>
 
-      <div className="space-y-4">
+      {/* Existing Signatures */}
+      <div className="mt-4">
         {signatures.map((sig) => (
-          <Card key={sig.id}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <CardTitle>Signature {sig.id}</CardTitle>
-                  {sig.isDefault && (
-                    <span className="text-sm text-muted-foreground">(Default)</span>
-                  )}
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDeleteSignature(sig.id)}
-                  disabled={isLoading}
-                >
-                  Delete
-                </Button>
+          <div key={sig.id} className="card mb-3">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <div className="d-flex align-items-center">
+                <h6 className="mb-0 me-2">Signature {sig.id}</h6>
+                {sig.isDefault && (
+                  <span className="badge bg-success">(Default)</span>
+                )}
               </div>
-            </CardHeader>
-            <CardContent>
-              <Textarea
+              <button
+                className="btn btn-danger btn-sm"
+                onClick={() => handleDeleteSignature(sig.id)}
+                disabled={isLoading}
+              >
+                Delete
+              </button>
+            </div>
+            <div className="card-body">
+              <textarea
+                className="form-control mb-3"
                 value={sig.signature}
                 onChange={(e) => handleUpdateSignature(sig.id, e.target.value, sig.isDefault)}
-                className="min-h-[100px]"
+                rows={4}
               />
-            </CardContent>
-            <CardFooter>
-              <div className="flex items-center space-x-2">
-                <Switch
+              <div className="form-check">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
                   checked={sig.isDefault}
-                  onCheckedChange={(checked) => handleUpdateSignature(sig.id, sig.signature, checked)}
+                  onChange={(e) => handleUpdateSignature(sig.id, sig.signature, e.target.checked)}
                   disabled={isLoading}
                 />
-                <Label>Set as default</Label>
+                <label className="form-check-label">
+                  Set as default
+                </label>
               </div>
-            </CardFooter>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
+
+      {signatures.length === 0 && (
+        <div className="alert alert-info">
+          <i className="fas fa-info-circle me-2"></i>
+          You haven't created any signatures yet. Create your first signature above.
+        </div>
+      )}
     </div>
   );
 } 
