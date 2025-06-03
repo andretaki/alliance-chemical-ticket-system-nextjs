@@ -61,26 +61,6 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
       }];
     }
 
-    // Simplified HTML structure
-    const containsGreeting = message.trim().toLowerCase().startsWith('hi ') || 
-                            message.trim().toLowerCase().startsWith('hello ') ||
-                            message.trim().toLowerCase().startsWith('dear ') ||
-                            message.trim().toLowerCase().includes('\nhi ') ||
-                            message.trim().toLowerCase().includes('\nhello ');
-    
-    const htmlBody = `
-      <div style="font-family: sans-serif; font-size: 14px;">
-        ${containsGreeting ? '' : `<p>Hello ${recipientName},</p>`}
-        ${message}
-        <br>
-        <p>Regards,<br>${senderName}</p>
-        <hr style="border: none; border-top: 1px solid #ccc;">
-        <p style="color: #666666; font-size: 12px;">
-          This is regarding ticket #${ticketId}. Please reply to this email to continue the conversation.
-        </p>
-      </div>
-    `;
-
     // Add attachments if provided
     let processedAttachments: { name: string; contentType: string; contentBytes: string; }[] = [];
     if (attachments && attachments.length > 0) {      
@@ -102,10 +82,11 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
     return await graphService.sendEmailReply(
       recipientEmail,
       subject,
-      htmlBody,
+      message, // Pass the raw AI message content for processing
       originalMessage,
       userEmail, // Pass the user's email as the sender
-      processedAttachments // Pass the processed attachments
+      processedAttachments, // Pass the processed attachments
+      session?.user?.id // Pass the user ID for signature retrieval
     );
   } catch (error) {
     console.error('Email Service: Error sending ticket reply email:', error);
@@ -157,7 +138,9 @@ export async function sendNotificationEmail(options: NotificationEmailOptions): 
       subject,
       formattedHtml,
       {}, // Empty object for no threading info
-      userEmail // Pass the user's email as the sender
+      userEmail, // Pass the user's email as the sender
+      [], // Pass an empty array for no attachments
+      session?.user?.id // Pass the user ID for signature retrieval
     );
 
     console.log(`NotificationService: Notification email sent successfully to ${recipientEmail}.`);

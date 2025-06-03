@@ -110,11 +110,13 @@ Classification Guidelines:
 - VENDOR_BUSINESS: Communications from suppliers, partners, vendors
 - UNCLEAR_NEEDS_REVIEW: Cannot determine classification confidently
 
+IMPORTANT: Keep your response concise. The "reasoning" field must be 20 words or less.
+
 Respond with ONLY this JSON format:
 {
   "classification": "category_name",
   "confidence": "high|medium|low", 
-  "reasoning": "brief explanation",
+  "reasoning": "brief explanation (max 20 words)",
   "isLikelyAutomated": true|false
 }`;
 
@@ -127,7 +129,7 @@ Respond with ONLY this JSON format:
         const generationConfigTriage: GenerationConfig = {
             responseMimeType: "application/json",
             temperature: 0.1, // Very low temperature for consistent classification
-            maxOutputTokens: 256, // Reduced for simpler response
+            maxOutputTokens: 2048, // Further increase to accommodate extensive thoughts + response
             topP: 0.9,
             topK: 10,
         };
@@ -233,6 +235,13 @@ export async function analyzeEmailContent(subject: string, body: string): Promis
             * Provide your confidence level in this determination as "documentRequestConfidence" (high, medium, low)
         11. Identify keywords or the user role best suited to handle this request (e.g., 'shipping', 'billing', 'coa_request', 'sds_request', 'technical_support', 'sales'). Return this as **suggestedRoleOrKeywords** (string or null).
         12. **NEW:** If the email is a customer inquiry that seems to require a direct response, generate a polite and helpful **suggestedReply** (string, up to 200 words). The reply should address the customer's query based *only* on the provided email content. Do not invent information or make promises. If no reply is needed (e.g., it's an FYI), or if it's too complex for a simple reply, return null for suggestedReply. Aim for a helpful, empathetic tone. Do not include a signature like "Best regards".
+
+        **IMPORTANT LENGTH CONSTRAINTS:**
+        - Keep all responses concise and focused
+        - Summary: max 60 characters
+        - AI Summary: max 150 characters  
+        - Suggested Reply: max 200 words
+        - SuggestedRoleOrKeywords: max 50 characters
 
         **Output Format:**
         Return **ONLY** a valid JSON object matching this structure:

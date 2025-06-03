@@ -207,6 +207,15 @@ export async function sendEmailReply(
   userId?: string
 ): Promise<Message | null> {
   try {
+    // Helper to check for greetings in message content
+    const containsGreeting = (text: string): boolean => {
+      const lowerText = text.toLowerCase().trim();
+      // Check for greetings at the start of content
+      return /^(hi|hello|dear)\s/i.test(lowerText) ||
+             lowerText.includes('\nhi ') || lowerText.includes('\nhello ') ||
+             lowerText.includes('\ndear ');
+    };
+
     // Get user's signature if userId is provided
     let signature = '';
     if (userId) {
@@ -249,44 +258,88 @@ export async function sendEmailReply(
       referencesIds = threadingInfo.referencesIds;
     }
     
-    // Process the message content to ensure proper HTML formatting
-    let formattedContent = messageContent;
+    // 1. Process the AI's messageContent (plain text with \n and markdown) into HTML
+    let aiMessageHtml = messageContent;
     
-    // Add signature if available
-    if (signature) {
-      formattedContent += `\n\n${signature}`;
-    }
+    // Convert multiple types of markdown bold formatting
+    // Handle triple asterisks ***text*** (priority - process first)
+    aiMessageHtml = aiMessageHtml.replace(/\*\*\*(.*?)\*\*\*/g, '<strong>$1</strong>');
+    // Handle double asterisks **text**
+    aiMessageHtml = aiMessageHtml.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     
-    // Only apply formatting if it doesn't already contain HTML tags
-    if (!formattedContent.includes('<html>') && !formattedContent.includes('<p>') && !formattedContent.includes('<div>')) {
-      // Replace plain line breaks with HTML paragraph tags
-      formattedContent = formattedContent
-        .split('\n\n')
-        .map(paragraph => `<p>${paragraph.replace(/\n/g, '<br>')}</p>`)
+    // Process paragraphs more intelligently
+    // First, normalize line endings and handle multiple consecutive newlines
+    aiMessageHtml = aiMessageHtml
+      .replace(/\r\n/g, '\n') // Normalize Windows line endings
+      .replace(/\r/g, '\n')   // Normalize old Mac line endings
+      .replace(/\n{3,}/g, '\n\n'); // Collapse multiple newlines to double newlines
+    
+    // Split into paragraphs by double newlines, but also handle single newlines as breaks
+    const paragraphs = aiMessageHtml.split(/\n\s*\n/);
+    
+    if (paragraphs.length > 1) {
+      // Multiple paragraphs found
+      aiMessageHtml = paragraphs
+        .map(paragraph => {
+          const trimmed = paragraph.trim();
+          if (!trimmed) return '';
+          // Convert single newlines within paragraphs to <br />
+          const withBreaks = trimmed.replace(/\n/g, '<br />');
+          return `<p>${withBreaks}</p>`;
+        })
+        .filter(paragraph => paragraph) // Remove empty paragraphs
         .join('');
-        
-      // Wrap in basic HTML structure
-      formattedContent = `<!DOCTYPE html>
+    } else {
+      // Single paragraph, but may contain line breaks
+      const trimmed = aiMessageHtml.trim();
+      if (trimmed) {
+        // Split by single newlines and join with <br /> tags, then wrap in <p>
+        const withBreaks = trimmed.replace(/\n/g, '<br />');
+        aiMessageHtml = `<p>${withBreaks}</p>`;
+      } else {
+        aiMessageHtml = '<p></p>';
+      }
+    }
+
+    // 2. Get user's DB signature (this might already be HTML)
+    let dbSignatureHtml = '';
+    if (signature) {
+      // If signature is plain text, convert its newlines. If HTML, use as is.
+      if (!/<[a-z][\s\S]*>/i.test(signature)) { // Simple HTML check
+        dbSignatureHtml = signature.replace(/\n/g, '<br />');
+      } else {
+        dbSignatureHtml = signature;
+      }
+    }
+
+    // 3. Construct the final HTML body
+    const greetingHtml = containsGreeting(messageContent) ? '' : `<p>Hello,</p>`;
+    
+    const finalHtmlBody = `<!DOCTYPE html>
 <html>
 <head>
   <style>
     body { font-family: Arial, sans-serif; line-height: 1.6; }
     p { margin-bottom: 10px; }
     a { color: #0078d4; text-decoration: none; }
+    strong { font-weight: bold; }
   </style>
 </head>
 <body>
-  ${formattedContent}
+  <div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6;">
+    ${greetingHtml}
+    ${aiMessageHtml}
+    ${dbSignatureHtml ? `<br /><div>${dbSignatureHtml}</div>` : `<br /><p>Best regards</p>`}
+  </div>
 </body>
 </html>`;
-    }
     
     // Create a message object to send
     const messageToSend: any = {
       subject,
       body: {
         contentType: 'HTML',
-        content: formattedContent,
+        content: finalHtmlBody,
       },
       toRecipients: [
         {
@@ -515,6 +568,25 @@ export async function flagEmail(messageId: string, flagColor: string = 'red'): P
       });
   } catch (error) {
     console.error(`Error flagging email ${messageId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Unflag an email (remove flag)
+ * @param messageId The ID of the email to unflag
+ */
+export async function unflagEmail(messageId: string): Promise<void> {
+  try {
+    await graphClient
+      .api(`/users/${userEmail}/messages/${messageId}`)
+      .update({
+        flag: {
+          flagStatus: 'notFlagged'
+        }
+      });
+  } catch (error) {
+    console.error(`Error unflagging email ${messageId}:`, error);
     throw error;
   }
 }

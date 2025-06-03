@@ -20,6 +20,31 @@ const MAX_CONCURRENT_PROCESSING = parseInt(process.env.WEBHOOK_MAX_CONCURRENT ||
 const PROCESSING_TIMEOUT = parseInt(process.env.WEBHOOK_PROCESSING_TIMEOUT || '10000'); // Configurable
 const ENABLE_QUICK_FILTERING = process.env.WEBHOOK_ENABLE_QUICK_FILTERING !== 'false'; // Default true
 
+// --- Webhook-level deduplication to prevent processing same message multiple times ---
+const recentlyProcessedMessages = new Map<string, number>();
+const DEDUP_WINDOW_MS = 60000; // 1 minute window for deduplication
+
+// Helper to check if message was recently processed
+function isRecentlyProcessed(messageId: string): boolean {
+    const now = Date.now();
+    const lastProcessed = recentlyProcessedMessages.get(messageId);
+    
+    // Clean up old entries
+    for (const [id, timestamp] of recentlyProcessedMessages.entries()) {
+        if (now - timestamp > DEDUP_WINDOW_MS) {
+            recentlyProcessedMessages.delete(id);
+        }
+    }
+    
+    if (lastProcessed && (now - lastProcessed) < DEDUP_WINDOW_MS) {
+        return true;
+    }
+    
+    // Mark as being processed
+    recentlyProcessedMessages.set(messageId, now);
+    return false;
+}
+
 // Helper function to find or create a user based on email
 async function findOrCreateUserWebhook(senderEmail: string, senderName?: string | null): Promise<string | null> {
     if (!senderEmail) return null;
@@ -148,6 +173,12 @@ async function processNotificationWithTimeout(messageId: string): Promise<void> 
 // NEW: Process a single notification
 async function processNotification(messageId: string): Promise<void> {
     try {
+        // Check for recent processing to prevent duplicates
+        if (isRecentlyProcessed(messageId)) {
+            console.log(`Webhook: Skipping recently processed email ${messageId} (within ${DEDUP_WINDOW_MS/1000}s window)`);
+            return;
+        }
+
         // Use quick pre-filter only if enabled
         if (ENABLE_QUICK_FILTERING) {
             const filterResult = await shouldProcessEmail(messageId);

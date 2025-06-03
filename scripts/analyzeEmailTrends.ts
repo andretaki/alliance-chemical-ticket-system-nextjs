@@ -15,6 +15,10 @@ import type { Message } from '@microsoft/microsoft-graph-types';
 // Microsoft Graph Service
 import * as graphService from '../src/lib/graphService.js';
 
+// Microsoft Graph Client - we need to create our own instance since it's not exported
+import { ClientSecretCredential } from '@azure/identity';
+import { Client } from '@microsoft/microsoft-graph-client';
+
 // Google Generative AI SDK
 import {
   GoogleGenerativeAI,
@@ -38,6 +42,29 @@ const DEEP_DISCOVERY_SAMPLE_SIZE: number = parseInt(process.env.DEEP_DISCOVERY_S
 const MAX_EXAMPLES_PER_DISCOVERED_TOPIC: number = 5;
 const GEMINI_MODEL_NAME: string = process.env.GEMINI_MODEL_NAME || "models/gemini-2.5-flash-preview-05-20"; // Explicitly using Flash
 const REPORTS_DIRECTORY = path.join(process.cwd(), 'reports', 'emailTrendsActionableData');
+
+// Load Microsoft Graph configuration
+const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
+const clientId = process.env.MICROSOFT_GRAPH_CLIENT_ID;
+const clientSecret = process.env.MICROSOFT_GRAPH_CLIENT_SECRET;
+const userEmailForAnalysis = process.env.SHARED_MAILBOX_ADDRESS || '';
+
+if (!tenantId || !clientId || !clientSecret || !userEmailForAnalysis) {
+  throw new Error('Microsoft Graph configuration is incomplete. Check your .env file.');
+}
+
+// Create credential and graph client for this script
+const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+const graphClient = Client.init({
+  authProvider: async (done) => {
+    try {
+      const token = await credential.getToken(['https://graph.microsoft.com/.default']);
+      done(null, token.token);
+    } catch (error) {
+      done(error, null);
+    }
+  }
+});
 
 // --- Interfaces (same as v1.3.0 - ensures detailed extraction) ---
 interface ExtractedEntityDetail {
@@ -343,7 +370,7 @@ async function analyzeEmailTrends(): Promise<void> {
   console.log(`Fetching up to ${MAX_TOTAL_EMAILS_TO_PROCESS} emails from ${formatISO(reportDateRange.startDate)} to ${formatISO(reportDateRange.endDate)}.`);
   let allFetchedEmails: Message[] = [];
   let graphApiNextLink: string | undefined;
-  const mailUserToQuery = SHARED_MAILBOX_TO_ANALYZE || graphService.userEmail;
+  const mailUserToQuery = SHARED_MAILBOX_TO_ANALYZE || userEmailForAnalysis;
   let fetchAttempts = 0;
   const MAX_FETCH_ATTEMPTS = 3;
 
@@ -355,7 +382,7 @@ async function analyzeEmailTrends(): Promise<void> {
       `&$select=id,receivedDateTime,subject,sender,body,bodyPreview,conversationId`;
 
     try {
-      const response: any = await graphService.graphClient.api(graphUrl).get();
+      const response: any = await graphClient.api(graphUrl).get();
       const batch: Message[] = response.value || [];
       graphApiNextLink = response['@odata.nextLink'];
       fetchAttempts = 0;

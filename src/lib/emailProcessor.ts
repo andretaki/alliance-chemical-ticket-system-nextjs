@@ -4,7 +4,7 @@ import * as graphService from '@/lib/graphService';
 import * as alertService from '@/lib/alertService';
 import { db } from '@/db';
 import { tickets, users, ticketComments, ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum, quarantinedEmails, ticketSentimentEnum } from '@/db/schema'; // Added sentiment enum
-import { eq, or, inArray, and } from 'drizzle-orm'; // Added and
+import { eq, or, inArray, and, sql } from 'drizzle-orm'; // Added sql for raw queries
 import { analyzeEmailContent, triageEmailWithAI, EmailAnalysisResult } from '@/lib/aiService'; // Import EmailAnalysisResult
 import { getOrderTrackingInfo, OrderTrackingInfo } from '@/lib/shipstationService'; // Import the new service
 import { checkOrderAndGenerateResponse } from '@/lib/orderResponseService'; // Import the new order response service
@@ -24,6 +24,97 @@ type HeaderRule = { type: 'header'; name: string; value: string };
 type SenderRule = { type: 'sender'; pattern: string };
 type SubjectRule = { type: 'subject'; pattern: string };
 type HardFilterRule = HeaderRule | SenderRule | SubjectRule;
+
+// --- In-memory processing lock to prevent concurrent processing of same email ---
+const processingLocks = new Map<string, Promise<ProcessEmailResult>>();
+
+// --- Processing state tracking ---
+interface EmailProcessingState {
+    messageId: string;
+    internetMessageId?: string;
+    startTime: number;
+    lockAcquired: boolean;
+}
+
+// Helper to acquire database lock for email processing
+async function acquireEmailProcessingLock(internetMessageId: string): Promise<boolean> {
+    try {
+        // Use advisory lock with a hash of the internetMessageId to prevent concurrent processing
+        const hashValue = Math.abs(internetMessageId.split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+        }, 0));
+        
+        // Use Drizzle's raw SQL execution with proper result handling
+        const result = await db.execute(sql`SELECT pg_try_advisory_lock(${hashValue}) as lock_acquired`);
+        
+        // Handle different possible result formats
+        if (Array.isArray(result)) {
+            return result[0]?.lock_acquired || false;
+        } else if (result.rows && Array.isArray(result.rows)) {
+            return result.rows[0]?.lock_acquired || false;
+        } else if (result.lock_acquired !== undefined) {
+            return result.lock_acquired;
+        } else {
+            console.warn('EmailProcessor: Unexpected result format from advisory lock query:', result);
+            return false; // Default to false for safety
+        }
+    } catch (error) {
+        console.error('EmailProcessor: Failed to acquire processing lock:', error);
+        return false;
+    }
+}
+
+// Helper to release database lock
+async function releaseEmailProcessingLock(internetMessageId: string): Promise<void> {
+    try {
+        const hashValue = Math.abs(internetMessageId.split('').reduce((a, b) => {
+            a = ((a << 5) - a) + b.charCodeAt(0);
+            return a & a;
+        }, 0));
+        
+        await db.execute(sql`SELECT pg_advisory_unlock(${hashValue})`);
+    } catch (error) {
+        console.error('EmailProcessor: Failed to release processing lock:', error);
+    }
+}
+
+// Enhanced duplicate check with atomic operation
+async function performAtomicDuplicateCheck(internetMessageId: string): Promise<{
+    isDuplicate: boolean;
+    ticketId?: number;
+    commentId?: number;
+    quarantineId?: number;
+    type?: 'ticket' | 'comment' | 'quarantine';
+}> {
+    // Check all possible locations in a single transaction
+    const [existingTicket, existingComment, existingQuarantine] = await Promise.all([
+        db.query.tickets.findFirst({ 
+            where: eq(tickets.externalMessageId, internetMessageId), 
+            columns: { id: true }
+        }),
+        db.query.ticketComments.findFirst({ 
+            where: eq(ticketComments.externalMessageId, internetMessageId), 
+            columns: { id: true, ticketId: true }
+        }),
+        db.query.quarantinedEmails.findFirst({
+            where: eq(quarantinedEmails.internetMessageId, internetMessageId),
+            columns: { id: true }
+        })
+    ]);
+
+    if (existingTicket) {
+        return { isDuplicate: true, ticketId: existingTicket.id, type: 'ticket' };
+    }
+    if (existingComment) {
+        return { isDuplicate: true, commentId: existingComment.id, ticketId: existingComment.ticketId, type: 'comment' };
+    }
+    if (existingQuarantine) {
+        return { isDuplicate: true, quarantineId: existingQuarantine.id, type: 'quarantine' };
+    }
+
+    return { isDuplicate: false };
+}
 
 // --- Helper: Find or Create User ---
 async function findOrCreateUser(senderEmail: string, senderName?: string | null): Promise<string | null> {
@@ -162,42 +253,121 @@ interface ProcessEmailResult {
 // --- Core Processing Function for a Single Email ---
 export async function processSingleEmail(emailMessage: Message): Promise<ProcessEmailResult> {
     const messageId = emailMessage.id;
-    const internetMessageId = emailMessage.internetMessageId; // Capture early
+    const internetMessageId = emailMessage.internetMessageId;
     const senderEmail = emailMessage.sender?.emailAddress?.address;
     const senderName = emailMessage.sender?.emailAddress?.name;
-    const subject = emailMessage.subject || "[No Subject]";
+    const subject = emailMessage.subject || "";
+    const bodyPreview = emailMessage.bodyPreview || "";
     const receivedAt = emailMessage.receivedDateTime ? new Date(emailMessage.receivedDateTime) : new Date();
     const conversationId = emailMessage.conversationId;
 
-    // Use bodyPreview for triage to save API cost/time, fetch full body later if needed
-    const bodyPreview = (emailMessage.bodyPreview || '').substring(0, 500); // Limit preview length
-
-    console.log(`EmailProcessor: Starting PHASES for Message ID: ${messageId} (Internet ID: ${internetMessageId})`);
+    // Track processing state
+    const processingState: EmailProcessingState = {
+        messageId: messageId || 'unknown',
+        internetMessageId,
+        startTime: Date.now(),
+        lockAcquired: false
+    };
 
     try {
-        // === Phase 1: Preprocessing & Basic Validation ===
+        // === Phase 0: Pre-processing Validation and Duplicate Prevention ===
         if (!messageId || !senderEmail) {
-            console.warn(`EmailProcessor (Phase 1): Skipping email - missing critical ID or Sender.`);
+            console.warn(`EmailProcessor (Phase 0): Skipping email - missing critical ID or Sender.`);
             if (messageId) { try { await graphService.markEmailAsRead(messageId); } catch (e) { } }
             return { success: false, message: "Missing essential info (ID or Sender)", skipped: true };
         }
-        const lowerSender = senderEmail.toLowerCase();
-        const lowerSubject = subject.toLowerCase();
 
-        // === NEW: Early Quarantine Check ===
+        // === Phase 0.1: In-Memory Lock Check ===
+        if (internetMessageId && processingLocks.has(internetMessageId)) {
+            console.log(`EmailProcessor (Phase 0.1): Email ${messageId} already being processed (internetMessageId: ${internetMessageId}). Waiting for completion...`);
+            return await processingLocks.get(internetMessageId)!;
+        }
+
+        // === Phase 0.2: Database Lock Acquisition ===
+        // NOTE: Temporarily disabled due to database compatibility issues
+        // The other 4 layers should be sufficient for duplicate prevention
+        /*
         if (internetMessageId) {
-            const alreadyQuarantined = await db.query.quarantinedEmails.findFirst({
-                where: eq(quarantinedEmails.internetMessageId, internetMessageId),
-                columns: { id: true }
-            });
-            if (alreadyQuarantined) {
-                console.log(`EmailProcessor: Email ${messageId} (Internet ID: ${internetMessageId}) is already in quarantine (ID: ${alreadyQuarantined.id}). Skipping full processing.`);
-                // It's good practice to ensure it's marked as read if it keeps re-appearing
+            const lockAcquired = await acquireEmailProcessingLock(internetMessageId);
+            if (!lockAcquired) {
+                console.log(`EmailProcessor (Phase 0.2): Failed to acquire processing lock for ${internetMessageId}. Another process is likely handling this email.`);
+                return { success: true, message: "Email being processed by another instance", skipped: true };
+            }
+            processingState.lockAcquired = true;
+            console.log(`EmailProcessor (Phase 0.2): Acquired processing lock for ${internetMessageId}`);
+        }
+        */
+
+        // === Phase 0.3: Enhanced Atomic Duplicate Check ===
+        if (internetMessageId) {
+            const duplicateCheck = await performAtomicDuplicateCheck(internetMessageId);
+            if (duplicateCheck.isDuplicate) {
+                console.log(`EmailProcessor (Phase 0.3): Email ${messageId} is duplicate - already exists as ${duplicateCheck.type} (ID: ${duplicateCheck.ticketId || duplicateCheck.commentId || duplicateCheck.quarantineId})`);
                 try { await graphService.markEmailAsRead(messageId); } catch(e){}
-                return { success: true, message: "Skipped, already in quarantine.", quarantined: true, skipped: true };
+                return { 
+                    success: true, 
+                    message: `Duplicate email, already processed as ${duplicateCheck.type} ${duplicateCheck.ticketId || duplicateCheck.commentId || duplicateCheck.quarantineId}`, 
+                    skipped: true,
+                    ticketId: duplicateCheck.ticketId,
+                    commentId: duplicateCheck.commentId
+                };
             }
         }
-        // === End Early Quarantine Check ===
+
+        // === Phase 0.4: Create Processing Promise and Store in Lock Map ===
+        const processingPromise = (async (): Promise<ProcessEmailResult> => {
+            try {
+                return await processSingleEmailInternal(emailMessage, processingState);
+            } finally {
+                // Clean up locks
+                if (internetMessageId) {
+                    // Database locks disabled - no cleanup needed
+                    /*
+                    if (processingState.lockAcquired) {
+                        await releaseEmailProcessingLock(internetMessageId);
+                    }
+                    */
+                    processingLocks.delete(internetMessageId);
+                }
+            }
+        })();
+
+        if (internetMessageId) {
+            processingLocks.set(internetMessageId, processingPromise);
+        }
+
+        return await processingPromise;
+
+    } catch (error: any) {
+        // Clean up on error
+        if (internetMessageId) {
+            // Database locks disabled - no cleanup needed
+            /*
+            if (processingState.lockAcquired) {
+                await releaseEmailProcessingLock(internetMessageId);
+            }
+            */
+            processingLocks.delete(internetMessageId);
+        }
+        throw error;
+    }
+}
+
+// Internal processing function (renamed from original processSingleEmail)
+async function processSingleEmailInternal(emailMessage: Message, processingState: EmailProcessingState): Promise<ProcessEmailResult> {
+    const messageId = emailMessage.id;
+    const internetMessageId = emailMessage.internetMessageId;
+    const senderEmail = emailMessage.sender?.emailAddress?.address;
+    const senderName = emailMessage.sender?.emailAddress?.name;
+    const subject = emailMessage.subject || "";
+    const bodyPreview = emailMessage.bodyPreview || "";
+    const receivedAt = emailMessage.receivedDateTime ? new Date(emailMessage.receivedDateTime) : new Date();
+    const conversationId = emailMessage.conversationId;
+
+    try {
+        // === Phase 1: Preprocessing & Basic Validation ===
+        const lowerSender = senderEmail!.toLowerCase();
+        const lowerSubject = subject.toLowerCase();
 
         // === Phase 2: Hard Rules Filter ===
         const hardFilterRules: HardFilterRule[] = [
@@ -320,11 +490,7 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
             aiAnalysis = await analyzeEmailContent(subject, bodyPreview);
             console.log(`EmailProcessor (Phase 3): AI Analysis for ${messageId}:`, aiAnalysis);
 
-            // Flag customer request emails
-            if (aiAnalysis && aiAnalysis.likelyCustomerRequest) {
-                console.log(`EmailProcessor: Flagging customer request email ${messageId}`);
-                await graphService.flagEmail(messageId, 'red'); // Flag as customer request
-            }
+            // NOTE: Removed automatic flagging here - we'll only flag if a ticket is created
         } catch (error) {
             console.error(`EmailProcessor (Phase 3): AI Analysis failed for ${messageId}:`, error);
             await alertService.trackErrorAndAlert(
@@ -701,9 +867,96 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
             ai_suggested_assignee_id: suggestedAssigneeId, // Store the suggested ID
         };
 
-        // Create Ticket and Note
-        const [newTicket] = await db.insert(tickets).values(ticketData).returning({ id: tickets.id });
-        console.log(`EmailProcessor (Phase 8): Created ticket ${newTicket.id} for email ${messageId}.`);
+        // Create Ticket with duplicate handling
+        let newTicket;
+        try {
+            [newTicket] = await db.insert(tickets).values(ticketData).returning({ id: tickets.id });
+            console.log(`EmailProcessor (Phase 8): Created ticket ${newTicket.id} for email ${messageId}.`);
+        } catch (insertError: any) {
+            // Handle duplicate key constraint violation
+            if (insertError.code === '23505' && insertError.constraint_name === 'tickets_external_message_id_unique') {
+                console.warn(`EmailProcessor (Phase 8): Duplicate ticket creation attempt for external_message_id: ${internetMessageId}. Checking for existing ticket...`);
+                
+                // Perform one final check to find the existing ticket
+                const existingTicket = await db.query.tickets.findFirst({ 
+                    where: eq(tickets.externalMessageId, internetMessageId), 
+                    columns: { id: true }
+                });
+                
+                if (existingTicket) {
+                    console.log(`EmailProcessor (Phase 8): Found existing ticket ${existingTicket.id} for email ${messageId}. Treating as successful duplicate handling.`);
+                    try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                    return { 
+                        success: true, 
+                        ticketId: existingTicket.id,
+                        message: `Email already processed as ticket ${existingTicket.id} (duplicate creation attempt handled)`, 
+                        skipped: true 
+                    };
+                } else {
+                    // This shouldn't happen, but if it does, we need to quarantine
+                    console.error(`EmailProcessor (Phase 8): Duplicate constraint violated but no existing ticket found for ${internetMessageId}. Quarantining for review.`);
+                    
+                    try {
+                        await db.insert(quarantinedEmails).values({
+                            originalGraphMessageId: messageId,
+                            internetMessageId: internetMessageId || `duplicate-error-${messageId}-${Date.now()}`,
+                            senderEmail: senderEmail,
+                            senderName: senderName,
+                            subject: subject,
+                            bodyPreview: bodyPreview,
+                            receivedAt: receivedAt,
+                            aiClassification: false,
+                            aiReason: `Duplicate constraint violation without existing record: ${insertError.message}`,
+                            status: 'pending_review',
+                            reviewerId: null
+                        });
+                        
+                        try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                        
+                        return { 
+                            success: false, 
+                            message: "Duplicate constraint violation, quarantined for review", 
+                            quarantined: true 
+                        };
+                    } catch (quarantineError: any) {
+                        // If we can't even quarantine, something is seriously wrong
+                        console.error(`EmailProcessor (Phase 8): Failed to quarantine after duplicate constraint violation:`, quarantineError);
+                        throw insertError; // Re-throw the original error
+                    }
+                }
+            } else {
+                // Re-throw other insertion errors
+                throw insertError;
+            }
+        }
+
+        // === INTELLIGENT FLAGGING: Flag ALL customer requests for human review ===
+        // Since we want human-in-the-loop for all customer requests, flag every ticket created
+        let shouldFlag = true; // Always flag customer requests
+        let flagReason = 'customer request requiring human review';
+
+        // Add specific reasons for high-priority or critical issues
+        if (ticketData.priority === 'high' || ticketData.priority === 'urgent') {
+            flagReason = `${ticketData.priority} priority customer request`;
+        } else if (analysisResult?.intent === 'return_request' || 
+                   analysisResult?.sentiment === 'negative' ||
+                   analysisResult?.ticketType === 'Return' ||
+                   analysisResult?.intent === 'order_issue') {
+            flagReason = `${analysisResult.intent || analysisResult.ticketType} requiring urgent attention`;
+        } else if (analysisResult?.intent === 'documentation_request') {
+            flagReason = 'documentation request requiring review';
+        } else if (analysisResult?.intent === 'order_status_inquiry' || analysisResult?.intent === 'tracking_request') {
+            flagReason = 'order inquiry requiring review';
+        }
+
+        if (shouldFlag) {
+            try {
+                await graphService.flagEmail(messageId, 'red');
+                console.log(`EmailProcessor: Flagged ticket ${newTicket.id} email (${flagReason})`);
+            } catch (flagError) {
+                console.warn(`EmailProcessor: Failed to flag email ${messageId} for ticket ${newTicket.id}:`, flagError);
+            }
+        }
         
         if (internalNoteForAISuggestion.trim()) {
              const noteTextToSave = internalNoteForAISuggestion.replace("(Ref: Ticket ID will be generated shortly)", `(Ref: Ticket #${newTicket.id})`);
