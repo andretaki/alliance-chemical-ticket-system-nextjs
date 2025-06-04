@@ -420,15 +420,13 @@ class PDFGenerator {
   }
 
   async generatePDF(): Promise<Uint8Array> {
-    if (!this.doc) {
-      throw new Error('PDF document not initialized');
-    }
+    if (!this.doc) throw new Error('PDF not initialized');
     return await this.doc.save();
   }
 }
 
-// Usage example for your invoice
-export async function generateImprovedPDF(draftOrder: any): Promise<Buffer> {
+// Remove export - this should be internal to the route
+async function generateImprovedPDF(draftOrder: any): Promise<Buffer> {
   const generator = new PDFGenerator();
   await generator.initialize();
 

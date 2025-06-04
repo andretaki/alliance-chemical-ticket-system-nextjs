@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import DashboardStatCard from './DashboardStatCard';
 import { ticketStatusEnum, ticketPriorityEnum } from '@/db/schema'; // Adjust path if necessary
@@ -19,17 +19,17 @@ const DashboardStatsSection: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const activeStatuses = [
+  const activeStatuses = useMemo(() => [
     ticketStatusEnum.enumValues[0], // new
     ticketStatusEnum.enumValues[1], // open
     ticketStatusEnum.enumValues[2], // in_progress
     ticketStatusEnum.enumValues[3], // pending_customer
-  ];
+  ], []);
 
-  const criticalPriorities = [
+  const criticalPriorities = useMemo(() => [
     ticketPriorityEnum.enumValues[2], // high
     ticketPriorityEnum.enumValues[3], // urgent
-  ];
+  ], []);
 
   // Sample data for change percentages - replace with actual data in a real implementation
   const stats = {

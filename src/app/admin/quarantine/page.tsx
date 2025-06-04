@@ -18,6 +18,8 @@ interface QuarantinedEmail {
   status: string;
 }
 
+type ModalAction = 'approve-ticket' | 'approve-comment' | 'reject-spam' | 'reject-vendor' | 'delete';
+
 export default function QuarantineReviewPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -26,7 +28,7 @@ export default function QuarantineReviewPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedEmail, setSelectedEmail] = useState<QuarantinedEmail | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalAction, setModalAction] = useState<'approve-ticket' | 'approve-comment' | 'reject-spam' | 'reject-vendor' | 'delete' | null>(null);
+  const [modalAction, setModalAction] = useState<ModalAction | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [targetTicketId, setTargetTicketId] = useState<string>('');
 
@@ -53,7 +55,7 @@ export default function QuarantineReviewPage() {
     }
   };
 
-  const handleAction = async (email: QuarantinedEmail, action: typeof modalAction) => {
+  const handleAction = async (email: QuarantinedEmail, action: ModalAction) => {
     setSelectedEmail(email);
     setModalAction(action);
     setShowModal(true);
@@ -261,7 +263,7 @@ function getStatusBadgeColor(status: string): string {
   }
 }
 
-function getModalTitle(action: typeof modalAction): string {
+function getModalTitle(action: ModalAction | null): string {
   switch (action) {
     case 'approve-ticket': return 'Approve as New Ticket';
     case 'approve-comment': return 'Approve as Comment';
@@ -272,7 +274,7 @@ function getModalTitle(action: typeof modalAction): string {
   }
 }
 
-function getActionButtonClass(action: typeof modalAction): string {
+function getActionButtonClass(action: ModalAction | null): string {
   switch (action) {
     case 'approve-ticket': return 'btn-primary';
     case 'approve-comment': return 'btn-info';
@@ -283,7 +285,7 @@ function getActionButtonClass(action: typeof modalAction): string {
   }
 }
 
-function getActionButtonText(action: typeof modalAction): string {
+function getActionButtonText(action: ModalAction | null): string {
   switch (action) {
     case 'approve-ticket': return 'Create Ticket';
     case 'approve-comment': return 'Add as Comment';

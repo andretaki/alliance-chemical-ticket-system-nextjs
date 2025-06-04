@@ -897,24 +897,8 @@ export const DirectQuoteCreationClient: React.FC = () => {
     toast.success(`Customer ${customer.firstName} ${customer.lastName} loaded`);
   };
 
-  // Automatically fetch ShipStation orders when customer is selected
-  useEffect(() => {
-    if (selectedCustomer?.email) {
-      fetchShipStationOrders(selectedCustomer.email);
-      setShowPreviousOrders(true);
-    }
-  }, [selectedCustomer]);
-
-  const clearCustomerSearch = () => {
-    setCustomerSearchTerm('');
-    setCustomerSearchResults([]);
-    setShowCustomerResults(false);
-    setSelectedCustomer(null);
-    setCustomerSearchError(null);
-  };
-
-  // Add ShipStation previous orders functions
-  const fetchShipStationOrders = async (customerEmail: string) => {
+  // Add ShipStation previous orders functions - moved up before useEffect
+  const fetchShipStationOrders = useCallback(async (customerEmail: string) => {
     if (!customerEmail) return;
     
     setIsLoadingOrders(true);
@@ -967,6 +951,22 @@ export const DirectQuoteCreationClient: React.FC = () => {
     } finally {
       setIsLoadingOrders(false);
     }
+  }, [selectedCustomer]);
+
+  // Automatically fetch ShipStation orders when customer is selected
+  useEffect(() => {
+    if (selectedCustomer?.email) {
+      fetchShipStationOrders(selectedCustomer.email);
+      setShowPreviousOrders(true);
+    }
+  }, [selectedCustomer, fetchShipStationOrders]);
+
+  const clearCustomerSearch = () => {
+    setCustomerSearchTerm('');
+    setCustomerSearchResults([]);
+    setShowCustomerResults(false);
+    setSelectedCustomer(null);
+    setCustomerSearchError(null);
   };
 
   const populateShippingFromOrder = (order: ShipStationOrderHistory) => {

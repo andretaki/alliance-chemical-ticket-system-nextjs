@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 
 interface OrderHistoryItem {
@@ -31,13 +31,7 @@ export default function CustomerOrderHistory({ customerEmail, className = '' }: 
   const [error, setError] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
 
-  useEffect(() => {
-    if (customerEmail && isExpanded) {
-      fetchOrderHistory();
-    }
-  }, [customerEmail, isExpanded]);
-
-  const fetchOrderHistory = async () => {
+  const fetchOrderHistory = useCallback(async () => {
     if (!customerEmail) return;
     
     setIsLoading(true);
@@ -58,7 +52,13 @@ export default function CustomerOrderHistory({ customerEmail, className = '' }: 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [customerEmail]);
+
+  useEffect(() => {
+    if (customerEmail && isExpanded) {
+      fetchOrderHistory();
+    }
+  }, [customerEmail, isExpanded, fetchOrderHistory]);
 
   const getStatusBadgeClass = (status?: string) => {
     if (!status) return 'bg-secondary';

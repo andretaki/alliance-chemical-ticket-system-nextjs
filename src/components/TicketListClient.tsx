@@ -92,6 +92,10 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
     }
   }, [statusFilter, priorityFilter, assigneeFilter, searchTerm, sortBy, sortOrder, limit, isApplyingFilters]);
 
+  // Use a ref to store the current fetchTickets function for stable EventSource handling
+  const fetchTicketsRef = useRef(fetchTickets);
+  fetchTicketsRef.current = fetchTickets;
+
   useEffect(() => {
     let retryCount = 0;
     const maxRetries = 3;
@@ -115,7 +119,8 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
           try {
             const data = JSON.parse(event.data);
             if (data.type === 'ticket_created' || data.type === 'ticket_updated' || data.type === 'ticket_deleted') {
-              fetchTickets();
+              // Use the ref to get the current fetchTickets function
+              fetchTicketsRef.current();
             }
           } catch (err) {
             console.warn('Failed to parse SSE event data:', err);
@@ -180,7 +185,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
         clearTimeout(retryTimeout);
       }
     };
-  }, [fetchTickets, limit]);
+  }, []); // Empty dependency array for stable EventSource connection
 
   useEffect(() => {
     fetchTickets();
