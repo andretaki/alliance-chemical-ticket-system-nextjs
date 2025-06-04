@@ -129,14 +129,14 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
 
         eventSource.onerror = (error) => {
           const readyState = eventSource.readyState;
-          const stateMap = {
+          const stateMap: { [key: number]: string } = {
             0: 'CONNECTING',
             1: 'OPEN',
             2: 'CLOSED'
           };
           
           console.error('EventSource error:', {
-            readyState: stateMap[readyState] || readyState,
+            readyState: stateMap[readyState] || String(readyState),
             timestamp: new Date().toISOString(),
             connectionAttempt: connectionAttempts,
             retryCount,

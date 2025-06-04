@@ -1,3 +1,36 @@
+// Minimal ShopifyOrder type definition (expand as needed)
+export interface ShopifyOrder {
+    id: number | string;
+    name: string;
+    order_number: string | number;
+    created_at: string;
+    processed_at?: string | null;
+    financial_status?: string | null;
+    fulfillment_status?: string | null;
+    currency: string;
+    current_total_price?: string | null;
+    subtotal_price?: string | null;
+    total_tax?: string | null;
+    total_discounts?: string | null;
+    total_shipping_price_set?: { shop_money?: { amount?: string } };
+    customer?: { id?: string | number; email?: string; phone?: string; }; // Made customer properties optional
+    email?: string | null; // Top-level email
+    phone?: string | null; // Top-level phone
+    shipping_address?: any; // Define more strictly if possible
+    billing_address?: any;  // Define more strictly if possible
+    line_items?: Array<{ // FIX: Explicitly type item and index
+        title?: string | null;
+        name?: string | null;
+        sku?: string | null;
+        quantity: number;
+        price: string;
+        total_discount?: string | null;
+        variant_title?: string | null;
+    }>;
+    note?: string | null;
+    tags?: string | null; // Shopify tags are a single string, comma-separated
+}
+
 export async function formatShopifyOrderForLLM(
     order: ShopifyOrder
 ): Promise<{ text: string; metadata: Record<string, any> }> {
@@ -23,9 +56,17 @@ export async function formatShopifyOrderForLLM(
     if (order.customer?.id) {
         text += `\n## Customer Information\n`;
         text += `Customer ID: ${order.customer.id}\n`;
+         // Use top-level email/phone if customer object doesn't have them or is missing
+        const emailToUse = order.email || order.customer?.email;
+        const phoneToUse = order.phone || order.customer?.phone;
+        if (emailToUse) text += `Email: ${emailToUse}\n`;
+        if (phoneToUse) text += `Phone: ${phoneToUse}\n`;
+    } else if (order.email || order.phone) { // If no customer object, but top-level info exists
+        text += `\n## Customer Information\n`;
         if (order.email) text += `Email: ${order.email}\n`;
         if (order.phone) text += `Phone: ${order.phone}\n`;
     }
+
 
     const formatAddress = (addr: any, type: string) => {
         if (!addr) return '';
@@ -53,7 +94,7 @@ export async function formatShopifyOrderForLLM(
 
     if (order.line_items && order.line_items.length > 0) {
         text += "\n## Line Items\n";
-        order.line_items.forEach((item, index) => {
+        order.line_items.forEach((item: any, index: number) => { // FIX: Add type for item and index
             text += `${index + 1}. ${item.title || item.name || 'Unnamed Item'}\n`;
             text += `   - SKU: ${item.sku || 'N/A'}\n`;
             text += `   - Quantity: ${item.quantity}\n`;
@@ -80,7 +121,7 @@ export async function formatShopifyOrderForLLM(
         totalPrice: order.current_total_price,
         currency: order.currency,
         createdAt: order.created_at,
-        updatedAt: order.updated_at,
+        updatedAt: (order as any).updated_at, // Add if present, cast to any if type is strict
         customerEmail: order.email,
         itemCount: order.line_items?.length ?? 0,
         tags: order.tags,

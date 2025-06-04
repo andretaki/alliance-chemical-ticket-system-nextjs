@@ -18,6 +18,7 @@ export const ticketTypeEcommerceEnum = ticketingProdSchema.enum('ticket_type_eco
     'International Shipping'
 ]);
 export const ticketSentimentEnum = ticketingProdSchema.enum('ticket_sentiment_enum', ['positive', 'neutral', 'negative']);
+export const userApprovalStatusEnum = ticketingProdSchema.enum('user_approval_status_enum', ['pending', 'approved', 'rejected']);
 
 // --- Canned Responses Table ---
 export const cannedResponses = ticketingProdSchema.table('canned_responses', {
@@ -40,6 +41,7 @@ export const users = ticketingProdSchema.table('users', {
   image: text('image'),
   createdAt: timestamp('created_at', { mode: 'date' }).defaultNow(),
   role: userRoleEnum('role').default('user').notNull(),
+  approvalStatus: userApprovalStatusEnum('approval_status').default('pending').notNull(),
   resetToken: varchar('reset_token', { length: 255 }),
   resetTokenExpiry: timestamp('reset_token_expiry', { mode: 'date' }),
   ticketingRole: ticketingRoleEnum('ticketing_role'),

@@ -28,6 +28,7 @@ interface CustomerSearchResult {
     company?: string;
     phone?: string;
   };
+  source?: string; // Added source field
 }
 
 // Add ShipStation order interface
@@ -101,7 +102,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
 
   // Customer data states
   const [lineItems, setLineItems] = useState<Array<DraftOrderLineItemInput & { productDisplay?: string; unitPrice?: number; currencyCode?: string }>>([{ numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
-  const [customer, setCustomer] = useState<DraftOrderCustomerInput & { shopifyCustomerId?: string }>({
+  const [customer, setCustomer] = useState<DraftOrderCustomerInput & { shopifyCustomerId?: string; source?: string }>({
     email: '',
     firstName: '',
     lastName: '',
@@ -662,8 +663,8 @@ export const DirectQuoteCreationClient: React.FC = () => {
       delete customerInput.shopifyCustomerId;
       
       // Prepare custom attributes for quote metadata
-      const customAttributes = [
-        { key: 'quoteType', value: quoteType },
+      const customAttributes: Array<{ key: string; value: string }> = [
+        { key: 'quoteType', value: quoteType as string },
       ];
       
       if (quoteType === 'material_only') {
@@ -685,6 +686,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
         quoteType,
         materialOnlyDisclaimer: quoteType === 'material_only' ? materialOnlyDisclaimer : undefined,
         deliveryTerms: quoteType === 'material_only' ? deliveryTerms : undefined,
+        customAttributes: customAttributes.length > 0 ? customAttributes : undefined,
       };
 
       const response = await axios.post<DraftOrderOutput>('/api/draft-orders', draftOrderInput);
@@ -1341,6 +1343,8 @@ export const DirectQuoteCreationClient: React.FC = () => {
                         No customers found.
                         <div className="mt-2">
                           💡 Try searching by order number, phone, or different spelling.
+                          <br/>
+                          🔄 The system also searches ShipStation if not found in Shopify.
                         </div>
                       </div>
                     )}
@@ -1355,34 +1359,53 @@ export const DirectQuoteCreationClient: React.FC = () => {
                         >
                           <div className="d-flex justify-content-between align-items-start">
                             <div className="flex-grow-1">
-                              <div className="fw-bold text-primary fs-6">
-                                <i className="fas fa-user-circle me-2"></i>
-                                {customer.firstName} {customer.lastName}
+                              <div className="d-flex align-items-center mb-1">
+                                <strong className="me-2">
+                                  {customer.firstName} {customer.lastName}
+                                </strong>
+                                {/* Source indicator badge */}
+                                {customer.source === 'shipstation' ? (
+                                  <span className="badge bg-info text-white small">
+                                    <i className="fas fa-ship me-1"></i>
+                                    ShipStation
+                                  </span>
+                                ) : (
+                                  <span className="badge bg-success text-white small">
+                                    <i className="fab fa-shopify me-1"></i>
+                                    Shopify
+                                  </span>
+                                )}
                               </div>
-                              <div className="text-muted small mt-1">
+                              <div className="text-muted small">
                                 <i className="fas fa-envelope me-1"></i>
                                 {customer.email}
-                                {customer.phone && (
-                                  <>
-                                    <span className="mx-2">•</span>
-                                    <i className="fas fa-phone me-1"></i>
-                                    {customer.phone}
-                                  </>
-                                )}
-                                {customer.company && (
-                                  <>
-                                    <span className="mx-2">•</span>
-                                    <i className="fas fa-building me-1"></i>
-                                    {customer.company}
-                                  </>
-                                )}
                               </div>
+                              {customer.phone && (
+                                <div className="text-muted small">
+                                  <i className="fas fa-phone me-1"></i>
+                                  {customer.phone}
+                                </div>
+                              )}
+                              {customer.company && (
+                                <div className="text-muted small">
+                                  <i className="fas fa-building me-1"></i>
+                                  {customer.company}
+                                </div>
+                              )}
                             </div>
+                            
                             <div className="text-end">
                               {customer.defaultAddress && (
                                 <span className="badge bg-success text-white small">
                                   <i className="fas fa-map-marker-alt me-1"></i>
                                   Has Address
+                                </span>
+                              )}
+                              {/* Additional info for ShipStation customers */}
+                              {customer.source === 'shipstation' && !customer.defaultAddress && (
+                                <span className="badge bg-warning text-dark small">
+                                  <i className="fas fa-exclamation-triangle me-1"></i>
+                                  Check Address
                                 </span>
                               )}
                               <div className="mt-1">
@@ -1408,6 +1431,9 @@ export const DirectQuoteCreationClient: React.FC = () => {
                   <br/>
                   <i className="fas fa-rocket me-1"></i>
                   The system automatically detects what type of search you&apos;re doing.
+                  <br/>
+                  <i className="fas fa-ship me-1"></i>
+                  <strong>Backup Search:</strong> If not found in Shopify, we also search ShipStation for customer details!
                 </small>
               </div>
             </div>

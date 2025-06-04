@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
 
+interface AppToken {
+  role?: string;
+  email?: string;
+  // Add other properties from your token as needed
+}
+
 // Simpler direct middleware implementation without withAuth wrapper
 export async function middleware(req: NextRequest) {
-  const token = await getToken({ req });
+  const token = await getToken({ req }) as AppToken | null; // Cast to AppToken
   const isAuthenticated = !!token;
   const pathname = req.nextUrl.pathname;
 
@@ -36,8 +42,7 @@ export async function middleware(req: NextRequest) {
   const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/manage-users');
 
   // Check admin access
-  if (isAdminRoute && isAuthenticated) {
-    // @ts-ignore - token.role might not be explicitly typed
+  if (isAdminRoute && isAuthenticated && token) { // Ensure token is not null
     if (token.role !== 'admin') {
       console.log(`RBAC: User '${token.email}' (role: '${token.role}') denied access to admin route '${pathname}'.`);
       const homeUrl = new URL('/', req.url);

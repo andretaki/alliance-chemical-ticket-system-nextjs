@@ -7,6 +7,11 @@ import { Shopify, ApiVersion, LATEST_API_VERSION, shopifyApi, LogSeverity } from
 import '@shopify/shopify-api/adapters/node';
 import { Config } from '@/config/appConfig';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
+import { 
+  searchShipStationCustomerByEmail, 
+  searchShipStationCustomerByName, 
+  convertShipStationToShopifyFormat 
+} from '@/lib/shipstationCustomerService';
 
 export async function GET(req: NextRequest) {
   try {
@@ -68,7 +73,7 @@ export async function GET(req: NextRequest) {
       customers = result.customers;
       searchMethod = result.method;
     } else {
-      // Default search by email/name
+      // Default search by email/name - now with ShipStation fallback
       const result = await searchByEmailOrName(query, graphqlClient);
       customers = result.customers;
       searchMethod = result.method;
@@ -314,8 +319,56 @@ async function searchByPhone(phoneQuery: string, graphqlClient: any) {
   return { customers, method };
 }
 
-// Original email/name search with enhancements
+// Enhanced email/name search with ShipStation fallback
 async function searchByEmailOrName(query: string, graphqlClient: any) {
+  let customers: any[] = [];
+  let method = 'email_name_not_found';
+
+  try {
+    // First try Shopify search
+    const shopifyResult = await searchShopifyByEmailOrName(query, graphqlClient);
+    customers = shopifyResult.customers;
+    method = shopifyResult.method;
+
+    // If no customers found in Shopify, try ShipStation as fallback
+    if (customers.length === 0) {
+      console.log(`Customer Search: No results in Shopify, trying ShipStation for query: ${query}`);
+      
+      const isEmail = query.includes('@');
+      
+      if (isEmail) {
+        // Search ShipStation by email
+        console.log(`Customer Search: Searching ShipStation by email: ${query}`);
+        const shipStationCustomer = await searchShipStationCustomerByEmail(query);
+        
+        if (shipStationCustomer) {
+          const convertedCustomer = convertShipStationToShopifyFormat(shipStationCustomer);
+          customers = [convertedCustomer];
+          method = 'shipstation_email_found';
+          console.log(`Customer Search: Found customer in ShipStation by email`);
+        }
+      } else {
+        // Search ShipStation by name
+        console.log(`Customer Search: Searching ShipStation by name: ${query}`);
+        const shipStationCustomers = await searchShipStationCustomerByName(query);
+        
+        if (shipStationCustomers.length > 0) {
+          customers = shipStationCustomers.map(convertShipStationToShopifyFormat);
+          method = 'shipstation_name_found';
+          console.log(`Customer Search: Found ${customers.length} customers in ShipStation by name`);
+        }
+      }
+    }
+
+  } catch (error) {
+    console.error('Error in email/name search:', error);
+  }
+
+  return { customers, method };
+}
+
+// Original Shopify-only email/name search with enhancements
+async function searchShopifyByEmailOrName(query: string, graphqlClient: any) {
   let customers: any[] = [];
   let method = 'email_name_not_found';
 
@@ -369,13 +422,13 @@ async function searchByEmailOrName(query: string, graphqlClient: any) {
 
       if (response?.data?.customers?.edges?.length > 0) {
         customers = response.data.customers.edges.map((edge: any) => processShopifyCustomer(edge.node));
-        method = `email_name_found_${searchVariation === query ? 'exact' : 'variation'}`;
-        console.log(`Customer Search: Found ${customers.length} customers via email/name search`);
+        method = `shopify_email_name_found_${searchVariation === query ? 'exact' : 'variation'}`;
+        console.log(`Customer Search: Found ${customers.length} customers via Shopify email/name search`);
         break; // Stop at first successful match
       }
     }
   } catch (error) {
-    console.error('Error in email/name search:', error);
+    console.error('Error in Shopify email/name search:', error);
   }
 
   return { customers, method };
@@ -423,6 +476,7 @@ function processShopifyCustomer(customer: any) {
     lastName: customer.lastName,
     phone: customer.phone,
     company: '',  // Shopify customer object doesn't have a company field at the top level
+    source: 'shopify', // Add source indicator
     defaultAddress: customer.defaultAddress ? {
       firstName: customer.defaultAddress.firstName,
       lastName: customer.defaultAddress.lastName,

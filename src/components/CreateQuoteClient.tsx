@@ -1,12 +1,13 @@
 // src/components/CreateQuoteClient.tsx
 'use client';
 
-import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo } from 'react';
+import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo, useCallback } from 'react';
 import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import type { AppDraftOrderInput, DraftOrderLineItemInput, DraftOrderCustomerInput, DraftOrderAddressInput, ProductVariantData, ParentProductData, DraftOrderOutput } from '@/agents/quoteAssistant/quoteInterfaces';
 import DOMPurify from 'dompurify';
 import Image from 'next/image'; // For Next.js optimized images
+import { toast } from 'react-hot-toast';
 
 // Updated SearchResult interface to match backend
 interface SearchResult {
@@ -43,14 +44,18 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   const [lineItems, setLineItems] = useState<Array<DraftOrderLineItemInput & { productDisplay?: string; unitPrice?: number; currencyCode?: string }>>([{ numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
   const [customer, setCustomer] = useState<DraftOrderCustomerInput>(initialCustomer);
   const [shippingAddress, setShippingAddress] = useState<DraftOrderAddressInput>({
-    firstName: initialCustomer.firstName,
-    lastName: initialCustomer.lastName,
-    address1: '', city: '', country: 'United States', zip: '', province: '', company: '', phone: '',
+    firstName: initialCustomer.firstName || '',
+    lastName: initialCustomer.lastName || '',
+    address1: '', city: '', country: 'United States', zip: '', province: '', 
+    company: initialCustomer.company || '', 
+    phone: initialCustomer.phone || '',
   });
   const [billingAddress, setBillingAddress] = useState<DraftOrderAddressInput>({
-    firstName: initialCustomer.firstName,
-    lastName: initialCustomer.lastName,
-    address1: '', city: '', country: 'United States', zip: '', province: '', company: '', phone: '',
+    firstName: initialCustomer.firstName || '',
+    lastName: initialCustomer.lastName || '',
+    address1: '', city: '', country: 'United States', zip: '', province: '', 
+    company: initialCustomer.company || '', 
+    phone: initialCustomer.phone || '',
   });
   const [useSameAddressForBilling, setUseSameAddressForBilling] = useState<boolean>(true);
   const [quoteType, setQuoteType] = useState<'material_only' | 'material_and_delivery'>('material_and_delivery');
@@ -79,54 +84,66 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   }, [lineItems.length]);
 
   useEffect(() => {
-    console.log('[Search Effect Hook] searchTermsForEffect changed:', searchTermsForEffect);
+    // console.log('[Search Effect Hook] searchTermsForEffect changed:', searchTermsForEffect);
     const timers: (NodeJS.Timeout | null)[] = lineItemSearchData.map((searchData, index) => {
       const { id: itemId, searchTerm, hasSelection } = searchData;
-      console.log(`[Search Effect Loop] Index: ${index}, Item ID: ${itemId}, Term: "${searchTerm}", HasSelection: ${hasSelection}, Search Term Length: ${searchTerm.trim().length}`);
+      // console.log(`[Search Effect Loop] Index: ${index}, Item ID: ${itemId}, Term: "${searchTerm}", HasSelection: ${hasSelection}, Search Term Length: ${searchTerm.trim().length}`);
 
       if (hasSelection || !searchTerm.trim() || searchTerm.length < 1) {
-        console.log(`[Search Effect Condition Met] Skipping API call for Item ID: ${itemId}. HasSelection: ${hasSelection}, Term: "${searchTerm}"`);
+        // console.log(`[Search Effect Condition Met] Skipping API call for Item ID: ${itemId}. HasSelection: ${hasSelection}, Term: "${searchTerm}"`);
         if (searchData.isSearching || searchData.searchResults.length > 0 || searchData.error) {
            setLineItemSearchData(prev => prev.map(item => 
             item.id === itemId ? { ...item, isSearching: false, searchResults: [], error: null } : item
           ));
         }
         if(activeSearchDropdown === index && (!searchTerm.trim() || searchTerm.length < 1)){
-            setActiveSearchDropdown(null);
+            setActiveSearchDropdown(null); // Close dropdown if search term is cleared
         }
         return null;
       }
 
-      console.log(`[Search Effect] Preparing to search for Item ID: ${itemId}, Term: "${searchTerm}"`);
-      setLineItemSearchData(prev => prev.map(item => 
-        item.id === itemId ? { ...item, isSearching: true, searchResults: [], error: null } : item
-      ));
-      setActiveSearchDropdown(index);
+      // console.log(`[Search Effect] Preparing to search for Item ID: ${itemId}, Term: "${searchTerm}"`);
+      // Only set isSearching to true if it's not already true to prevent infinite loops if lineItemSearchData is in deps
+      if (!searchData.isSearching) {
+        setLineItemSearchData(prev => prev.map(item => 
+          item.id === itemId ? { ...item, isSearching: true, searchResults: [], error: null } : item
+        ));
+      }
+      // Ensure dropdown is active when search starts
+      if (activeSearchDropdown !== index) { // Only set if not already active
+          setActiveSearchDropdown(index);
+      }
 
       const timerId = setTimeout(async () => {
-        let currentItemState: LineItemSearchData | undefined;
+        // console.log(`[Search Effect Timeout] Fired for Item ID: ${itemId}, Term: "${searchTerm}"`);
+        
+        // Re-fetch the current state of the item to ensure we're not acting on stale data
+        let currentItemForApiCall: LineItemSearchData | undefined;
         setLineItemSearchData(currentDynamicData => {
-            currentItemState = currentDynamicData.find(item => item.id === itemId);
+            currentItemForApiCall = currentDynamicData.find(item => item.id === itemId);
             return currentDynamicData;
         });
-
-        if (!currentItemState || currentItemState.searchTerm !== searchTerm || currentItemState.hasSelection) {
-          console.log(`[Search Effect Timeout] Aborting stale search for Item ID: ${itemId}, StaleTerm: "${searchTerm}", CurrentTerm: "${currentItemState?.searchTerm}"`);
+        
+        // Abort if the search term has changed since the timer was set, or if a selection was made
+        if (!currentItemForApiCall || currentItemForApiCall.searchTerm !== searchTerm || currentItemForApiCall.hasSelection) {
+          // console.log(`[Search Effect Timeout] Aborting stale search for Item ID: ${itemId}. StaleTerm: "${searchTerm}", CurrentTerm: "${currentItemForApiCall?.searchTerm}", HasSelection: ${currentItemForApiCall?.hasSelection}`);
+          // Ensure isSearching is false if we abort a search that was marked as searching
           setLineItemSearchData(prev => prev.map(item => 
-            (item.id === itemId && item.searchTerm === searchTerm && item.isSearching) ? { ...item, isSearching: false } : item
+            (item.id === itemId && item.isSearching && item.searchTerm === searchTerm) ? { ...item, isSearching: false } : item
           ));
           return;
         }
         
-        console.log(`[Search Effect API Call] Item ID: ${itemId}, Calling API for term: "${searchTerm}"`);
+        // console.log(`[Search Effect API Call] Item ID: ${itemId}, Calling API for term: "${searchTerm}"`);
         try {
           const response = await axios.get<{ results: SearchResult[] }>(
             `/api/products/search-variant?query=${encodeURIComponent(searchTerm.trim())}`
           );
-          console.log(`[Search Effect API Success] Item ID: ${itemId}, Results for "${searchTerm}":`, response.data.results);
+          // console.log(`[Search Effect API Success] Item ID: ${itemId}, Results for "${searchTerm}":`, response.data.results);
+          
           setLineItemSearchData(prev =>
             prev.map(item =>
-              item.id === itemId && item.searchTerm === searchTerm
+              item.id === itemId && item.searchTerm === searchTerm // Double check if still the relevant search
                 ? { ...item, searchResults: response.data.results || [], isSearching: false, error: response.data.results?.length === 0 ? 'No products found in Shopify.' : null }
                 : item
             )
@@ -135,7 +152,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
           console.error(`[Search API Error] Item ID: ${itemId}, Term: "${searchTerm}"`, e);
           setLineItemSearchData(prev =>
             prev.map(item =>
-              item.id === itemId && item.searchTerm === searchTerm
+              item.id === itemId && item.searchTerm === searchTerm // Double check
                 ? { ...item, searchResults: [], isSearching: false, error: 'Shopify search failed. Check console for details.' }
                 : item
             )
@@ -150,8 +167,9 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         if (timerId) clearTimeout(timerId);
       });
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTermsForEffect]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps 
+  }, [searchTermsForEffect, activeSearchDropdown]); // ADDED activeSearchDropdown here. lineItemSearchData is indirectly part of searchTermsForEffect.
+                                                  // Avoid adding lineItemSearchData directly if setLineItemSearchData is called within, to prevent loops.
 
   const handleLineItemChange = (index: number, field: keyof DraftOrderLineItemInput, value: string | number) => {
     const updatedLineItems = [...lineItems];
@@ -164,7 +182,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
   };
 
   const handleSearchTermChange = (index: number, value: string) => {
-    console.log(`[handleSearchTermChange] Index: ${index}, Value: "${value}"`);
     const currentItem = lineItemSearchData[index];
     setLineItemSearchData(prevData =>
       prevData.map((item, i) =>
@@ -205,7 +222,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
       numericVariantIdShopify: variant.numericVariantIdShopify,
       title: variant.displayName || variant.variantTitle,
       productDisplay: displayValue,
-      // Store price from search result for display, actual draft order will use Shopify's price
       unitPrice: variant.price, 
       currencyCode: variant.currency,
     };
@@ -216,7 +232,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         item.id === currentItemSearchId
           ? {
               ...item,
-              searchTerm: displayValue, // Set search term to the display value of selected product
+              searchTerm: displayValue,
               searchResults: [],
               isSearching: false,
               hasSelection: true,
@@ -310,7 +326,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
     const draftOrderInput: AppDraftOrderInput = {
       lineItems: lineItems
         .filter(item => item.numericVariantIdShopify && item.quantity > 0)
-        .map(({ productDisplay, unitPrice, currencyCode, ...rest }) => rest), // Exclude frontend-only fields
+        .map(({ productDisplay, unitPrice, currencyCode, ...rest }) => rest),
       customer,
       shippingAddress,
       billingAddress: useSameAddressForBilling ? shippingAddress : billingAddress,
@@ -318,7 +334,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
       email: sendShopifyInvoice ? customer.email : undefined,
       tags: ['TicketSystemQuote', `TicketID-${ticketId}`, 
              quoteType === 'material_only' ? 'MaterialOnly' : 
-             quoteType === 'consultation' ? 'Consultation' : 'FullService'],
+             quoteType === 'material_and_delivery' ? 'MaterialAndDelivery' : 'FullService'],
       quoteType,
       materialOnlyDisclaimer: quoteType === 'material_only' ? materialOnlyDisclaimer : undefined,
       deliveryTerms: quoteType === 'material_only' ? deliveryTerms : undefined,
@@ -341,9 +357,12 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
       const response = await axios.post<DraftOrderOutput>('/api/draft-orders', draftOrderInput);
       setSuccessMessage(`Draft order ${response.data.name} created! Status: ${response.data.status}. Shipping: ${response.data.shippingLine?.price !== undefined ? `${response.data.shippingLine.price.toFixed(2)} ${response.data.currencyCode}` : 'To be calculated or free'}.`);
       setCreatedDraftOrder(response.data);
+      toast.success(`Draft order ${response.data.name} created successfully!`);
     } catch (err) {
       const axiosError = err as AxiosError<{ error?: string }>;
-      setFormError(axiosError.response?.data?.error || 'Failed to create draft order. Check server logs for details.');
+      const errorMsg = axiosError.response?.data?.error || 'Failed to create draft order. Check server logs for details.';
+      setFormError(errorMsg);
+      toast.error(errorMsg);
       console.error("Draft order creation error:", err);
     } finally {
       setIsLoading(false);
@@ -357,20 +376,19 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
     setBillingAddress(prev => ({ ...prev, [name]: value }));
   };
 
-  // Sync billing address with shipping address when checkbox is checked
   useEffect(() => {
     if (useSameAddressForBilling) {
       setBillingAddress({
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
-        company: shippingAddress.company,
-        address1: shippingAddress.address1,
-        address2: shippingAddress.address2,
-        city: shippingAddress.city,
-        province: shippingAddress.province,
-        zip: shippingAddress.zip,
-        country: shippingAddress.country,
-        phone: shippingAddress.phone,
+        firstName: shippingAddress.firstName || '',
+        lastName: shippingAddress.lastName || '',
+        company: shippingAddress.company || '',
+        address1: shippingAddress.address1 || '',
+        address2: shippingAddress.address2 || '',
+        city: shippingAddress.city || '',
+        province: shippingAddress.province || '',
+        zip: shippingAddress.zip || '',
+        country: shippingAddress.country || 'United States',
+        phone: shippingAddress.phone || '',
       });
     }
   }, [useSameAddressForBilling, shippingAddress]);
@@ -386,19 +404,15 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
         {createdDraftOrder && (
           <div className="alert alert-info">
             <p className="mb-1"><strong>Draft Order Name:</strong> {createdDraftOrder.name}</p>
-            {/* ... (other details) ... */}
             {createdDraftOrder.invoiceUrl && (
               <p className="mb-1"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break">{createdDraftOrder.invoiceUrl}</a></p>
             )}
-            {/* ... */}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* Customer Information Fieldset - unchanged */}
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">Customer Information</legend>
-            {/* ... (customer fields as before) ... */}
              <div className="row g-3">
               <div className="col-md-6">
                 <label htmlFor="customerFirstName" className="form-label">First Name</label>
@@ -423,14 +437,12 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             </div>
           </fieldset>
 
-          {/* Line Items Fieldset - ENHANCED */}
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">Line Items</legend>
             {lineItems.map((itemData, index) => {
               const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData();
               return (
                 <div key={currentSearchState.id} className="row g-3 align-items-start mb-3 p-3 border-bottom position-relative">
-                  {/* Product Search Input */}
                   <div className="col-md-5">
                     <label htmlFor={`productSearch-${index}`} className="form-label">Product Search *</label>
                     <div 
@@ -461,7 +473,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                           </div>
                         </div>
                       )}
-                      {/* Search Results Dropdown - ENHANCED */}
                       {activeSearchDropdown === index && (
                         <div 
                           className="position-absolute w-100 mt-1 bg-white border rounded shadow-lg" 
@@ -475,7 +486,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                           )}
                           {currentSearchState.searchResults.map((result, resultIdx) => (
                             <div
-                              key={result.variant.id} // Use a stable key
+                              key={result.variant.id}
                               className={`p-2 border-bottom cursor-pointer d-flex align-items-center ${resultIdx === focusedResultIndex ? 'bg-primary text-white' : 'hover-bg-light'}`}
                               onClick={() => addProductToLineItems(result, index)}
                               onMouseEnter={() => setFocusedResultIndex(resultIdx)}
@@ -488,13 +499,13 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                                   alt={result.parentProduct.name} 
                                   width={40} height={40} 
                                   className="me-2 rounded object-fit-contain"
-                                  onError={(e) => (e.currentTarget.style.display = 'none')} // Hide if image fails
+                                  onError={(e) => (e.currentTarget.style.display = 'none')}
                                 />
                               )}
                               {!result.parentProduct.primaryImageUrl && (
                                 <div className="me-2 rounded bg-light d-flex align-items-center justify-content-center" style={{width: '40px', height: '40px'}}>
                                   <i className="fas fa-image text-muted"></i>
-                                _</div>
+                                </div>
                               )}
                               <div>
                                 <div className="fw-medium">{result.parentProduct.name}</div>
@@ -512,7 +523,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                     </div>
                   </div>
                   
-                  {/* Selected Product Display */}
                   <div className="col-md-4">
                     <label htmlFor={`itemTitle-${index}`} className="form-label">Selected Product</label>
                     <input 
@@ -530,7 +540,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                     )}
                   </div>
 
-                  {/* Quantity */}
                   <div className="col-md-2">
                     <label htmlFor={`itemQuantity-${index}`} className="form-label">Quantity *</label>
                     <input
@@ -541,11 +550,10 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                       onChange={(e) => handleLineItemChange(index, 'quantity', parseInt(e.target.value, 10))}
                       min="1"
                       required
-                      disabled={!currentSearchState.hasSelection} // Disable if no product selected
+                      disabled={!currentSearchState.hasSelection}
                     />
                   </div>
 
-                  {/* Remove Button */}
                   <div className="col-md-1 align-self-center mt-4 pt-2">
                     {lineItems.length > 1 && (
                       <button type="button" className="btn btn-danger btn-sm" onClick={() => removeLineItem(index)} title="Remove Item">
@@ -561,7 +569,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             </button>
           </fieldset>
           
-          {/* Quote Type and Options */}
           <fieldset className="border p-3 rounded mb-4">
             <legend className="h5 fw-normal mb-3">Quote Type & Options</legend>
             
@@ -613,7 +620,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             )}
           </fieldset>
 
-          {/* Billing Address Section */}
           <fieldset className="border p-3 rounded mb-4">
             <legend className="h5 fw-normal mb-3">Billing Address</legend>
             
@@ -686,7 +692,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             )}
           </fieldset>
           
-          {/* Shipping Address Fieldset - unchanged */}
           <fieldset className="mb-4 p-3 border rounded">
             <legend className="h5 fw-normal">
               {quoteType === 'material_only' ? 'Material Pickup/Delivery Address' : 'Shipping Address'}
@@ -717,7 +722,6 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
             </div>
           </fieldset>
 
-          {/* Notes and Submit - unchanged */}
           <div className="mb-3">
             <label htmlFor="quoteNote" className="form-label">Notes (visible to customer)</label>
             <textarea className="form-control" id="quoteNote" value={note} onChange={(e) => setNote(e.target.value)} rows={3}></textarea>
@@ -743,10 +747,9 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
           </div>
         </form>
       </div>
-       {/* Add some basic styling for hover effect if not using a UI library that handles it */}
       <style jsx>{`
         .hover-bg-light:hover {
-          background-color: #f8f9fa !important; /* Bootstrap's light color */
+          background-color: #f8f9fa !important;
         }
         .cursor-pointer {
           cursor: pointer;

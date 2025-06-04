@@ -22,7 +22,7 @@ export async function getTicketById(id: number) {
       customerFirstName: ticket.senderName?.split(' ')[0] || ticket.reporter?.name?.split(' ')[0] || '',
       customerLastName: ticket.senderName?.split(' ').slice(1).join(' ') || ticket.reporter?.name?.split(' ').slice(1).join(' ') || '',
       customerPhone: ticket.senderPhone || '',
-      customerCompany: ticket.senderCompany || '',
+      customerCompany: ticket.sendercompany || '',
     };
   } catch (error) {
     console.error('Error fetching ticket:', error);

@@ -32,12 +32,11 @@ export async function GET(request: Request) {
 
     for (const subscription of expiringSoon) {
       try {
-        console.log(`Renewing subscription ${subscription.subscriptionId}...`);
+        console.log(`CRON: Renewing subscription ${subscription.subscriptionId}...`);
         
+        // Renew using Graph API
         const renewedSubscription = await graphService.renewSubscription(
-          subscription.subscriptionId,
-          subscription.notificationUrl,
-          subscription.clientState
+          subscription.subscriptionId
         );
 
         if (renewedSubscription) {

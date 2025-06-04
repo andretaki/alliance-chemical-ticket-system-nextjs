@@ -25,11 +25,11 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) => {
             rel="noopener noreferrer"
             className="list-group-item list-group-item-action d-flex align-items-center"
           >
-            <i className={`fas ${getFileIcon(attachment.fileName)} me-2`}></i>
+            <i className={`fas ${getFileIcon(attachment.filename || attachment.originalFilename)} me-2`}></i>
             <div className="flex-grow-1">
               <div className="d-flex justify-content-between align-items-center">
                 <span className="text-truncate" style={{ maxWidth: '300px' }}>
-                  {attachment.fileName}
+                  {attachment.filename || attachment.originalFilename}
                 </span>
                 <small className="text-muted ms-2">
                   {formatFileSize(attachment.fileSize)}

@@ -41,12 +41,19 @@ export async function POST(
       case 'approve-ticket':
         // Process the email as a new ticket
         const result = await processSingleEmail({
-          messageId: email.originalGraphMessageId,
+          id: email.originalGraphMessageId,
           internetMessageId: email.internetMessageId,
           subject: email.subject,
-          body: email.bodyPreview, // Note: We might want to fetch the full body here
-          senderEmail: email.senderEmail,
-          senderName: email.senderName,
+          body: {
+            content: email.bodyPreview || '',
+            contentType: 'text'
+          },
+          sender: {
+            emailAddress: {
+              address: email.senderEmail,
+              name: email.senderName
+            }
+          }
         });
 
         if (!result.success) {

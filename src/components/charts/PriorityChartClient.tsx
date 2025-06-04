@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { Bar } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, TooltipModel, TooltipItem } from 'chart.js';
 import { ticketPriorityEnum } from '@/db/schema';
 
 // Register necessary Chart.js components
@@ -69,12 +69,16 @@ const options = {
     },
     tooltip: {
       callbacks: {
-        label: function(context: any) {
-          const label = context.dataset.label || '';
-          const value = context.parsed.y || 0;
-          const total = context.dataset.data.reduce((acc: number, data: number) => acc + data, 0);
-          const percentage = Math.round((value / total) * 100);
-          return `${label}: ${value} (${percentage}%)`;
+        label: function(this: TooltipModel<'bar'>, tooltipItem: TooltipItem<'bar'>) {
+          const datasetLabel = tooltipItem.dataset.label || 'Tickets';
+          const value = tooltipItem.parsed.y || 0;
+          const dataPoints = Array.isArray(tooltipItem.dataset.data) ? tooltipItem.dataset.data : [];
+          const total = dataPoints.reduce((acc: number, dataValue: any) => {
+            const numValue = Number(dataValue);
+            return acc + (isNaN(numValue) ? 0 : numValue);
+          }, 0);
+          const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+          return `${datasetLabel}: ${value} (${percentage}%)`;
         }
       }
     }

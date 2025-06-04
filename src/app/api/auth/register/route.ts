@@ -5,6 +5,26 @@ import { db } from '@/lib/db'; // Use the consolidated db instance
 import { users } from '@/db/schema';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { sendEmail } from '@/lib/graphService'; // Import sendEmail from graphService
+
+async function sendApprovalRequestEmail(userName: string, userEmail: string) {
+  const subject = 'New User Registration - Approval Required';
+  const htmlContent = `<p>A new user has registered and is awaiting approval.</p>
+                       <p><strong>Name:</strong> ${userName}</p>
+                       <p><strong>Email:</strong> ${userEmail}</p>
+                       <p>Please review and approve their account in the admin panel.</p>`;
+
+  try {
+    // The `sendEmail` function from graphService will use the SHARED_MAILBOX_ADDRESS as the sender by default.
+    // It also has a hardcoded CC to sales@alliancechemical.com
+    await sendEmail('Andre@alliancechemical.com', subject, htmlContent);
+    console.log('Approval request email sent successfully to Andre@alliancechemical.com using Graph API');
+  } catch (error) {
+    console.error('Error sending approval request email via Graph API:', error);
+    // Decide if this error should prevent user registration or just be logged
+    // For now, we'll just log it and let registration proceed.
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -54,15 +74,19 @@ export async function POST(request: Request) {
         password: hashedPassword,
         name,
         role: 'user', // Default role
+        // approvalStatus will default to 'pending' from schema
         // createdAt and updatedAt will use defaultNow() from schema
       });
       
-      console.log('User registered successfully:', userId);
+      console.log('User registered successfully (pending approval):', userId);
+
+      // Send notification email using Graph API
+      await sendApprovalRequestEmail(name, email.toLowerCase());
       
       // Return success response
       return NextResponse.json(
         { 
-          message: 'User registered successfully',
+          message: 'User registered successfully. Your account is pending approval.',
           userId
         },
         { status: 201 }

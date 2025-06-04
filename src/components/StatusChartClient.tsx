@@ -1,109 +1,121 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Pie } from 'react-chartjs-2';
+import { Doughnut } from 'react-chartjs-2';
+// Ensure TooltipModel and TooltipItem are imported
+import { Chart as ChartJS, ArcElement, Tooltip, Legend, TooltipModel, TooltipItem } from 'chart.js';
+import { ticketStatusEnum } from '@/db/schema';
 
-// Register Chart.js components
+// Register necessary Chart.js components
 ChartJS.register(ArcElement, Tooltip, Legend);
 
-// Chart colors
-const chartColors = [
-  'rgba(75, 192, 192, 0.6)',  // Open - Teal
-  'rgba(54, 162, 235, 0.6)',  // In Progress - Blue
-  'rgba(153, 102, 255, 0.6)', // Resolved - Purple
-  'rgba(201, 203, 207, 0.6)'  // Closed - Gray
-];
-
-interface Ticket {
+// Define the ticket structure expected from the API
+interface TicketSummary {
   status: string;
 }
 
-interface ChartContext {
-  label: string;
-  parsed: number;
-  dataset: {
-    label: string;
-    data: number[];
-  };
-}
+// Get status labels from our enum and capitalize them for display
+const statusValues = ticketStatusEnum.enumValues;
+const labels = statusValues.map(status => 
+  status.replace('_', ' ').split(' ').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ')
+);
 
-const StatusChartClient: React.FC = () => {
-  const [chartData, setChartData] = useState<{
-    labels: string[];
-    datasets: {
-      label: string;
-      data: number[];
-      backgroundColor: string[];
-      borderColor: string[];
-      borderWidth: number;
-    }[];
-  }>({
-    labels: [],
-    datasets: [
-      {
-        label: 'Tickets by Status',
-        data: [],
-        backgroundColor: chartColors,
-        borderColor: chartColors.map(color => color.replace('0.6', '1')),
-        borderWidth: 1
+// Chart colors for different statuses
+const backgroundColor = [
+  'rgba(75, 192, 192, 0.7)',  // Open - Teal
+  'rgba(54, 162, 235, 0.7)',  // In Progress - Blue
+  'rgba(153, 102, 255, 0.7)', // Resolved - Purple
+  'rgba(201, 203, 207, 0.7)',  // Closed - Gray
+  'rgba(255, 205, 86, 0.7)', // Pending Customer - Yellow (added for completeness)
+];
+
+const options = {
+  maintainAspectRatio: false,
+  responsive: true,
+  plugins: {
+    legend: {
+      position: 'right' as const,
+    },
+    tooltip: {
+      callbacks: {
+        // CORRECTED TYPE: Use TooltipItem<'doughnut'> for Doughnut/Pie charts
+        label: function(this: TooltipModel<'doughnut'>, tooltipItem: TooltipItem<'doughnut'>) { 
+          const label = tooltipItem.label || ''; // tooltipItem.label for Pie/Doughnut
+          const value = tooltipItem.parsed || 0; // tooltipItem.parsed directly for Pie/Doughnut
+          
+          // Ensure tooltipItem.dataset.data exists and is an array before reducing
+          const dataPoints = Array.isArray(tooltipItem.dataset.data) ? tooltipItem.dataset.data : [];
+          const total = dataPoints.reduce((acc: number, dataValue: any) => {
+            const numValue = Number(dataValue);
+            return acc + (isNaN(numValue) ? 0 : numValue);
+          }, 0);
+
+          const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+          return `${label}: ${value} (${percentage}%)`;
+        }
       }
-    ]
-  });
+    }
+  }
+};
 
+export default function StatusChartClient() {
+  const [chartData, setChartData] = useState({
+    labels: labels,
+    datasets: [{
+      // label: 'Tickets by Status', // Pie/Doughnut charts often don't need a dataset label
+      data: Array(statusValues.length).fill(0), 
+      backgroundColor: backgroundColor.slice(0, statusValues.length),
+      borderWidth: 1,
+      hoverOffset: 4,
+    }],
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchTickets = async () => {
-      try {
-        setIsLoading(true);
-        const response = await axios.get('/api/tickets');
-        const tickets: Ticket[] = response.data;
+  const fetchTicketData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get<TicketSummary[]>('/api/tickets');
+      const tickets = res.data;
 
-        // Count tickets by status
-        const statusCounts: { [key: string]: number } = {};
-        
-        tickets.forEach(ticket => {
-          const status = ticket.status;
-          statusCounts[status] = (statusCounts[status] || 0) + 1;
-        });
+      const counts: Record<string, number> = {};
+      statusValues.forEach(status => {
+        counts[status] = 0;
+      });
 
-        // Prepare chart data
-        const statuses = Object.keys(statusCounts);
-        const counts = statuses.map(status => statusCounts[status]);
+      tickets.forEach(ticket => {
+        const status = ticket.status;
+        counts[status] = (counts[status] || 0) + 1;
+      });
 
-        setChartData({
-          labels: statuses,
-          datasets: [
-            {
-              label: 'Tickets by Status',
-              data: counts,
-              backgroundColor: chartColors.slice(0, statuses.length),
-              borderColor: chartColors.slice(0, statuses.length).map(color => color.replace('0.6', '1')),
-              borderWidth: 1
-            }
-          ]
-        });
-      } catch (err) {
-        console.error('Error fetching tickets for chart:', err);
-        setError('Failed to load chart data');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      setChartData(prevData => ({
+        ...prevData,
+        datasets: [{
+          ...prevData.datasets[0],
+          data: statusValues.map(status => counts[status] || 0)
+        }]
+      }));
 
-    fetchTickets();
+    } catch (err) {
+      console.error('Error fetching status chart data:', err);
+      setError('Could not load status chart data.');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  if (isLoading) {
-    return <div>Loading chart data...</div>;
-  }
+  useEffect(() => {
+    fetchTicketData();
+  }, [fetchTicketData]);
 
-  if (error) {
-    return <div className="alert alert-danger">{error}</div>;
-  }
+  if (isLoading) return <div className="card-body text-center py-5">Loading Status Chart...</div>;
+  if (error) return <div className="card-body alert alert-warning">{error}</div>;
+
+  const hasData = chartData.datasets[0].data.some(count => count > 0);
 
   return (
     <div className="card">
@@ -111,35 +123,14 @@ const StatusChartClient: React.FC = () => {
         <h5>Tickets by Status</h5>
       </div>
       <div className="card-body">
-        <div style={{ height: '300px', width: '100%' }}>
-          <Pie
-            data={chartData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: {
-                  position: 'right'
-                },
-                tooltip: {
-                  callbacks: {
-                    label: function(context: ChartContext) {
-                      const label = context.label || '';
-                      const value = context.parsed || 0;
-                      const dataset = context.dataset;
-                      const total = dataset.data.reduce((acc: number, data: number) => acc + data, 0);
-                      const percentage = Math.round((value / total) * 100);
-                      return `${label}: ${value} (${percentage}%)`;
-                    }
-                  }
-                }
-              }
-            }}
-          />
+        <div style={{ height: '300px', position: 'relative' }}>
+          {hasData ? (
+            <Doughnut data={chartData} options={options} />
+          ) : (
+            <p className="text-center">No ticket data available for status chart.</p>
+          )}
         </div>
       </div>
     </div>
   );
-};
-
-export default StatusChartClient; 
+} 

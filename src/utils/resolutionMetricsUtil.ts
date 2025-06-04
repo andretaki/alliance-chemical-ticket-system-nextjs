@@ -3,7 +3,7 @@
  */
 import { db } from '@/db';
 import { tickets, ticketComments } from '@/db/schema';
-import { eq, and, sql, gte, desc, count } from 'drizzle-orm';
+import { eq, and, sql, gte, desc, count, lte } from 'drizzle-orm';
 import { kv } from '@vercel/kv';
 
 // KV storage keys
@@ -96,38 +96,29 @@ export async function calculateReopenRate(
   autoCloseCount: number 
 }> {
   try {
-    // Get auto-closed tickets in period
     const autoClosedResult = await db
       .select({ count: count() })
       .from(ticketComments)
       .where(and(
         sql`${ticketComments.commentText} LIKE '%Ticket Auto-Closed%'`,
         gte(ticketComments.createdAt, startDate),
-        gte(endDate, ticketComments.createdAt)
+        lte(ticketComments.createdAt, endDate)
       ));
     
     const autoCloseCount = autoClosedResult[0]?.count || 0;
     
-    // Get reopened tickets in period
     const reopenedResult = await db
       .select({ count: count() })
       .from(ticketComments)
       .where(and(
         sql`${ticketComments.commentText} LIKE '%Ticket Reopened by Customer%'`,
         gte(ticketComments.createdAt, startDate),
-        gte(endDate, ticketComments.createdAt)
+        lte(ticketComments.createdAt, endDate)
       ));
     
     const reopenCount = reopenedResult[0]?.count || 0;
-    
-    // Calculate reopen rate
     const reopenRate = autoCloseCount > 0 ? (reopenCount / autoCloseCount) * 100 : 0;
-    
-    return {
-      reopenRate,
-      reopenCount,
-      autoCloseCount
-    };
+    return { reopenRate, reopenCount, autoCloseCount };
   } catch (error) {
     console.error('Error calculating reopen rate:', error);
     throw error;

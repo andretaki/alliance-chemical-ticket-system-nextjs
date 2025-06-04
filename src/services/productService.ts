@@ -59,14 +59,14 @@ export class ProductService {
           variant: agentProductVariants,
         })
         .from(agentProductVariants)
-        .innerJoin(agentProducts, eq(agentProductVariants.agentProductId, agentProducts.id))
+        .innerJoin(agentProducts, eq(agentProductVariants.agent_product_id, agentProducts.id))
         .where(
           and(
-            eq(agentProducts.isActive, true),
-            eq(agentProductVariants.isActive, true),
+            eq(agentProducts.is_active, true),
+            eq(agentProductVariants.is_active, true),
             or(
               ilike(agentProducts.name, searchTerm),
-              ilike(agentProductVariants.variantTitle, searchTerm),
+              ilike(agentProductVariants.variant_title, searchTerm),
               ilike(agentProductVariants.sku, searchTerm),
               sql`${/^[0-9]{3,}$/.test(query) ? eq(agentProductVariants.variant_id_shopify, BigInt(query)) : sql`FALSE`}`
             )
@@ -75,7 +75,7 @@ export class ProductService {
         .orderBy(
           desc(sql`CASE WHEN ${agentProductVariants.sku} = ${exactSkuTerm} THEN 1 ELSE 0 END`),
           asc(agentProducts.name),
-          asc(agentProductVariants.variantTitle)
+          asc(agentProductVariants.variant_title)
         )
         .limit(limit);
 

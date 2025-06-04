@@ -1,5 +1,5 @@
 // src/lib/emailProcessor.ts
-import { Message, InternetMessageHeader } from '@microsoft/microsoft-graph-types';
+import { Message, InternetMessageHeader, NullableOption } from '@microsoft/microsoft-graph-types';
 import * as graphService from '@/lib/graphService';
 import * as alertService from '@/lib/alertService';
 import { db } from '@/db';
@@ -9,6 +9,11 @@ import { analyzeEmailContent, triageEmailWithAI, EmailAnalysisResult } from '@/l
 import { getOrderTrackingInfo, OrderTrackingInfo } from '@/lib/shipstationService'; // Import the new service
 import { checkOrderAndGenerateResponse } from '@/lib/orderResponseService'; // Import the new order response service
 import { ticketEventEmitter } from '@/lib/eventEmitter'; // Import event emitter
+
+// Helper to convert NullableOption<string> to string | undefined
+function nullableToOptional(value: NullableOption<string> | undefined): string | undefined {
+    return value === null || value === undefined ? undefined : value;
+}
 
 // --- Constants ---
 const INTERNAL_DOMAIN = process.env.INTERNAL_EMAIL_DOMAIN || "alliancechemical.com";
@@ -45,20 +50,18 @@ async function acquireEmailProcessingLock(internetMessageId: string): Promise<bo
             return a & a;
         }, 0));
         
-        // Use Drizzle's raw SQL execution with proper result handling
+        // Use Drizzle's raw SQL execution with simpler result handling
         const result = await db.execute(sql`SELECT pg_try_advisory_lock(${hashValue}) as lock_acquired`);
         
-        // Handle different possible result formats
+        // Handle different possible result formats from Drizzle
         if (Array.isArray(result)) {
-            return result[0]?.lock_acquired || false;
-        } else if (result.rows && Array.isArray(result.rows)) {
-            return result.rows[0]?.lock_acquired || false;
-        } else if (result.lock_acquired !== undefined) {
-            return result.lock_acquired;
-        } else {
-            console.warn('EmailProcessor: Unexpected result format from advisory lock query:', result);
-            return false; // Default to false for safety
+            return (result[0] as any)?.lock_acquired || false;
+        } else if (result && typeof result === 'object' && 'rows' in result && Array.isArray((result as any).rows)) {
+            return (result as any).rows[0]?.lock_acquired || false;
+        } else if (result && typeof result === 'object' && 'lock_acquired' in result) {
+            return (result as any).lock_acquired || false;
         }
+        return false;
     } catch (error) {
         console.error('EmailProcessor: Failed to acquire processing lock:', error);
         return false;
@@ -273,7 +276,7 @@ function extractFirstName(senderName: string | null | undefined, senderEmail: st
 // --- Core Processing Function for a Single Email ---
 export async function processSingleEmail(emailMessage: Message): Promise<ProcessEmailResult> {
     const messageId = emailMessage.id;
-    const internetMessageId = emailMessage.internetMessageId;
+    const internetMessageId = nullableToOptional(emailMessage.internetMessageId);
     const senderEmail = emailMessage.sender?.emailAddress?.address;
     const senderName = emailMessage.sender?.emailAddress?.name;
     const subject = emailMessage.subject || "";
@@ -375,14 +378,22 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
 
 // Internal processing function (renamed from original processSingleEmail)
 async function processSingleEmailInternal(emailMessage: Message, processingState: EmailProcessingState): Promise<ProcessEmailResult> {
-    const messageId = emailMessage.id;
-    const internetMessageId = emailMessage.internetMessageId;
-    const senderEmail = emailMessage.sender?.emailAddress?.address;
+    // FIX: Ensure messageId and senderEmail are non-null or handle cases where they might be.
+    // The initial check in processSingleEmail should catch if messageId or senderEmail is null.
+    // For TypeScript, we'll use non-null assertion or provide fallbacks where appropriate.
+    const messageId = emailMessage.id!; // Asserting it's non-null based on earlier checks
+    const internetMessageId = nullableToOptional(emailMessage.internetMessageId); // Can be null
+    const senderEmail = emailMessage.sender?.emailAddress?.address!; // Asserting based on earlier checks
     const senderName = emailMessage.sender?.emailAddress?.name;
     const subject = emailMessage.subject || "";
     const bodyPreview = emailMessage.bodyPreview || "";
     const receivedAt = emailMessage.receivedDateTime ? new Date(emailMessage.receivedDateTime) : new Date();
     const conversationId = emailMessage.conversationId;
+
+    // Update processingState's internetMessageId if it's not undefined and not null
+    if (internetMessageId !== undefined && internetMessageId !== null) {
+        processingState.internetMessageId = internetMessageId;
+    }
 
     try {
         // === Phase 1: Preprocessing & Basic Validation ===
@@ -433,8 +444,7 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
 
             if (match) {
                 console.log(`EmailProcessor (Phase 2): Discarding email ${messageId} based on hard rule: ${ruleIdentifier}`);
-                try { await graphService.markEmailAsRead(messageId); } catch (e) { }
-                // Optionally move to an "Ignored-Rules" folder
+                if (messageId) { try { await graphService.markEmailAsRead(messageId); } catch (e) { } }
                 return { success: true, message: `Discarded by rule (${ruleIdentifier})`, discarded: true };
             }
         }
@@ -446,14 +456,14 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
             const existingTicket = await db.query.tickets.findFirst({ where: eq(tickets.externalMessageId, internetMessageId), columns: { id: true }});
             if (existingTicket) {
                 console.log(`EmailProcessor (Phase 3): Skipping duplicate email (Ticket ${existingTicket.id}) for internetMessageId: ${internetMessageId}`);
-                try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                if (messageId) { try { await graphService.markEmailAsRead(messageId); } catch(e){} }
                 return { success: true, message: `Duplicate email, already processed as ticket ${existingTicket.id}`, skipped: true };
             }
             // Check comments table
             const existingComment = await db.query.ticketComments.findFirst({ where: eq(ticketComments.externalMessageId, internetMessageId), columns: { id: true, ticketId: true }});
              if (existingComment) {
                 console.log(`EmailProcessor (Phase 3): Skipping duplicate email (Comment ${existingComment.id} for Ticket ${existingComment.ticketId}) for internetMessageId: ${internetMessageId}`);
-                try { await graphService.markEmailAsRead(messageId); } catch(e){}
+                if (messageId) { try { await graphService.markEmailAsRead(messageId); } catch(e){} }
                 return { success: true, message: `Duplicate email, already processed as comment ${existingComment.id}`, skipped: true };
             }
         } else {
@@ -926,10 +936,10 @@ async function processSingleEmailInternal(emailMessage: Message, processingState
                 console.warn(`EmailProcessor (Phase 8): Duplicate ticket creation attempt for external_message_id: ${internetMessageId}. Checking for existing ticket...`);
                 
                 // Perform one final check to find the existing ticket
-                const existingTicket = await db.query.tickets.findFirst({ 
+                const existingTicket = internetMessageId ? await db.query.tickets.findFirst({ 
                     where: eq(tickets.externalMessageId, internetMessageId), 
                     columns: { id: true }
-                });
+                }) : null;
                 
                 if (existingTicket) {
                     console.log(`EmailProcessor (Phase 8): Found existing ticket ${existingTicket.id} for email ${messageId}. Treating as successful duplicate handling.`);

@@ -4,14 +4,30 @@ import React, { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation'; // Added for programmatic navigation after logout
 
 export default function Navbar() {
     const { data: session, status } = useSession();
     const isAuthenticated = status === 'authenticated';
+    const router = useRouter(); // Added for programmatic navigation
 
     useEffect(() => {
-        console.log('Navbar Session State:', { status, session });
+        // console.log('Navbar Session State:', { status, session }); // Keep for debugging if needed
     }, [status, session]);
+
+    const handleLogout = async () => {
+        try {
+            // console.log('Logout clicked'); // Keep for debugging if needed
+            await signOut({ 
+                redirect: false, // Handle redirect manually to ensure it works in all environments
+                // callbackUrl: '/' // Can be set, but manual redirect offers more control
+            });
+            // console.log('Sign out successful, redirecting to /'); // Keep for debugging
+            router.push('/'); // Redirect to home page after logout
+        } catch (error) {
+            console.error('Error during logout:', error);
+        }
+    };
 
     return (
         <nav className="navbar navbar-expand-lg navbar-light bg-white border-bottom fixed-top" style={{ zIndex: 1030 }}>
@@ -37,10 +53,7 @@ export default function Navbar() {
                                 </li>
                                 <li className="nav-item">
                                     <button 
-                                        onClick={() => {
-                                            console.log('Logout clicked');
-                                            signOut({ callbackUrl: '/' });
-                                        }} 
+                                        onClick={handleLogout} // Use the new handler
                                         className="btn btn-danger"
                                         style={{ minWidth: '120px' }}
                                     >

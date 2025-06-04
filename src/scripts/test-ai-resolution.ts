@@ -55,10 +55,10 @@ async function testAIResolutionSystem() {
     console.log(`✅ Batch Processing Results:`);
     console.log(`   Processed: ${batchResults.processed} tickets`);
     console.log(`   AI Analysis Used: ${batchResults.aiAnalysisUsed} tickets`);
-    console.log(`   Resolved: ${batchResults.resolved} tickets`);
-    console.log(`   Auto-closed: ${batchResults.autoClosed} tickets`);
-    console.log(`   Follow-up recommended: ${batchResults.followUp} tickets`);
-    console.log(`   Errors: ${batchResults.error} tickets`);
+    console.log(`   Resolved: ${batchResults.resolvedByAI} tickets`);
+    console.log(`   Auto-closed: ${batchResults.autoClosedByAI} tickets`);
+    console.log(`   Follow-up recommended: ${batchResults.followUpRecommendedByAI} tickets`);
+    console.log(`   Errors: ${batchResults.errors} tickets`);
     
     if (batchResults.reopened !== undefined) {
       console.log(`   Recently reopened: ${batchResults.reopened} tickets`);
@@ -66,14 +66,16 @@ async function testAIResolutionSystem() {
     
     // Calculate success metrics
     const successRate = batchResults.processed > 0 ? 
-      ((batchResults.resolved + batchResults.followUp) / batchResults.processed) * 100 : 0;
+      ((batchResults.resolvedByAI + batchResults.followUpRecommendedByAI) / batchResults.processed) * 100 : 0;
     
     console.log(`\n📊 Performance Metrics:`);
     console.log(`   AI Success Rate: ${successRate.toFixed(1)}%`);
     console.log(`   AI Utilization: ${batchResults.processed > 0 ? ((batchResults.aiAnalysisUsed / batchResults.processed) * 100).toFixed(1) : 0}%`);
     
-    if (batchResults.autoClosed > 0) {
-      console.log(`   Auto-closure Rate: ${((batchResults.autoClosed / batchResults.resolved) * 100).toFixed(1)}%`);
+    if (batchResults.autoClosedByAI > 0 && batchResults.resolvedByAI > 0) {
+      console.log(`   Auto-closure Rate: ${((batchResults.autoClosedByAI / batchResults.resolvedByAI) * 100).toFixed(1)}%`);
+    } else if (batchResults.autoClosedByAI > 0) {
+      console.log(`   Auto-closure Rate: N/A (Auto-closed but no other resolutions by AI)`);
     }
     
     console.log('\n🎉 Enhanced AI Resolution System Test Complete!');

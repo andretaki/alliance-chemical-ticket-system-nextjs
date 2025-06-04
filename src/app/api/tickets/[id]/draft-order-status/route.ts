@@ -12,7 +12,9 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
 ) {
-    let ticketId: number;
+    let ticketIdString: string | undefined; // For logging raw ID from path
+    let ticketId: number = NaN; // Initialize numeric ticketId to prevent 'used before assigned'
+
     try {
         // Authenticate the user (agent)
         const session = await getServerSession(authOptions);
@@ -21,6 +23,7 @@ export async function GET(
         }
 
         const { id } = await params;
+        ticketIdString = id; // Assign raw string ID for logging
         ticketId = parseInt(id);
         if (isNaN(ticketId)) {
             return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
@@ -111,7 +114,7 @@ export async function GET(
         return NextResponse.json(response);
 
     } catch (error) {
-        console.error(`[OrderStatusAPI] Error in /api/tickets/${ticketId || 'unknown'}/draft-order-status:`, error);
+        console.error(`[OrderStatusAPI] Error in /api/tickets/${ticketIdString || 'unknown'}/draft-order-status:`, error);
         
         let errorMessage = 'Failed to generate order status draft.';
         if (error instanceof Error) {

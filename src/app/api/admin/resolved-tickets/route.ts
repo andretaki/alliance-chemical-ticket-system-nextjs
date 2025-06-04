@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
     const formattedTickets = resolvedTickets.map(ticket => {
       // Extract resolution summary from comment text
       let resolutionSummary = '';
-      const commentText = ticket.comment_text;
+      const commentText = String(ticket.comment_text || '');
       
       if (commentText) {
         // Try to extract the resolution summary
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     });
     
     // Calculate total pages
-    const totalCount = resolvedTickets.length > 0 ? parseInt(resolvedTickets[0].total_count) : 0;
+    const totalCount = resolvedTickets.length > 0 ? parseInt(resolvedTickets[0].total_count as string, 10) : 0;
     const totalPages = Math.ceil(totalCount / limit);
     
     return NextResponse.json({
