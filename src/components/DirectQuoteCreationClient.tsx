@@ -30,6 +30,32 @@ interface CustomerSearchResult {
   };
 }
 
+// Add ShipStation order interface
+interface ShipStationOrderHistory {
+  orderNumber: string;
+  orderDate: string;
+  orderStatus: string;
+  customerEmail?: string;
+  shippingAddress?: {
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    address1?: string;
+    address2?: string;
+    city?: string;
+    province?: string;
+    country?: string;
+    zip?: string;
+    phone?: string;
+  };
+  items?: Array<{
+    sku: string;
+    name: string;
+    quantity: number;
+  }>;
+  trackingNumbers?: string[];
+}
+
 // Updated SearchResult interface to match backend
 interface SearchResult {
   parentProduct: ParentProductData;
@@ -154,6 +180,12 @@ export const DirectQuoteCreationClient: React.FC = () => {
   const [showCustomerResults, setShowCustomerResults] = useState<boolean>(false);
   const [customerSearchError, setCustomerSearchError] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null);
+
+  // Add ShipStation previous orders state
+  const [shipStationOrders, setShipStationOrders] = useState<ShipStationOrderHistory[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState<boolean>(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [showPreviousOrders, setShowPreviousOrders] = useState<boolean>(false);
 
   const customerSearchRef = useRef<HTMLDivElement>(null);
 
@@ -865,6 +897,14 @@ export const DirectQuoteCreationClient: React.FC = () => {
     toast.success(`Customer ${customer.firstName} ${customer.lastName} loaded`);
   };
 
+  // Automatically fetch ShipStation orders when customer is selected
+  useEffect(() => {
+    if (selectedCustomer?.email) {
+      fetchShipStationOrders(selectedCustomer.email);
+      setShowPreviousOrders(true);
+    }
+  }, [selectedCustomer]);
+
   const clearCustomerSearch = () => {
     setCustomerSearchTerm('');
     setCustomerSearchResults([]);
@@ -873,10 +913,155 @@ export const DirectQuoteCreationClient: React.FC = () => {
     setCustomerSearchError(null);
   };
 
+  // Add ShipStation previous orders functions
+  const fetchShipStationOrders = async (customerEmail: string) => {
+    if (!customerEmail) return;
+    
+    setIsLoadingOrders(true);
+    setOrdersError(null);
+    
+    try {
+      console.log(`Fetching ShipStation orders for: ${customerEmail}`);
+      
+      // Get customer name from selectedCustomer for better search
+      const customerName = selectedCustomer 
+        ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`.trim() 
+        : '';
+      
+      console.log(`Customer name for search: ${customerName}`);
+      
+      // Build API URL with both email and name
+      let apiUrl = `/api/shipstation/customer-orders?email=${encodeURIComponent(customerEmail)}`;
+      if (customerName) {
+        apiUrl += `&name=${encodeURIComponent(customerName)}`;
+      }
+      
+      const response = await axios.get(apiUrl);
+      
+      if (response.data.orders) {
+        setShipStationOrders(response.data.orders);
+        console.log(`Found ${response.data.orders.length} ShipStation orders for ${customerEmail}`);
+        
+        // Show limitation message if no orders found
+        if (response.data.orders.length === 0) {
+          if (response.data.limitation) {
+            setOrdersError(response.data.limitation);
+          } else if (response.data.suggestion) {
+            setOrdersError(response.data.suggestion);
+          } else {
+            setOrdersError('No previous orders found in ShipStation for this customer');
+          }
+        }
+      } else {
+        setShipStationOrders([]);
+        setOrdersError(response.data.limitation || 'No orders found in ShipStation');
+      }
+    } catch (error: any) {
+      console.error('Error fetching ShipStation orders:', error);
+      const errorMessage = error.response?.data?.limitation || 
+                          error.response?.data?.suggestion || 
+                          error.response?.data?.error || 
+                          'Failed to load order history from ShipStation';
+      setOrdersError(errorMessage);
+      setShipStationOrders([]);
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+
+  const populateShippingFromOrder = (order: ShipStationOrderHistory) => {
+    if (!order.shippingAddress) {
+      toast.error('No shipping address found for this order');
+      return;
+    }
+
+    const addr = order.shippingAddress;
+    setShippingAddress({
+      firstName: addr.firstName || '',
+      lastName: addr.lastName || '',
+      company: addr.company || '',
+      address1: addr.address1 || '',
+      address2: addr.address2 || '',
+      city: addr.city || '',
+      province: addr.province || '',
+      country: addr.country || 'United States',
+      zip: addr.zip || '',
+      phone: addr.phone || '',
+    });
+
+    toast.success(`Shipping address populated from order #${order.orderNumber}`);
+  };
+
+  // Fetch detailed order information for a specific order
+  const fetchOrderDetails = async (orderNumber: string) => {
+    try {
+      console.log(`🔍 [Frontend] Starting fetchOrderDetails for: ${orderNumber}`);
+      toast.loading(`Looking up address details for order #${orderNumber}...`);
+      
+      const apiUrl = `/api/shipstation/order-details?orderNumber=${encodeURIComponent(orderNumber)}`;
+      console.log(`🔍 [Frontend] Making API call to: ${apiUrl}`);
+      
+      const response = await axios.get(apiUrl);
+      console.log(`🔍 [Frontend] API response:`, response.data);
+      
+      if (response.data.order?.shippingAddress) {
+        const addr = response.data.order.shippingAddress;
+        console.log(`🔍 [Frontend] Got shipping address:`, addr);
+        
+        setShippingAddress({
+          firstName: addr.firstName || '',
+          lastName: addr.lastName || '',
+          company: addr.company || '',
+          address1: addr.address1 || '',
+          address2: addr.address2 || '',
+          city: addr.city || '',
+          province: addr.province || '',
+          country: addr.country || 'United States',
+          zip: addr.zip || '',
+          phone: addr.phone || '',
+        });
+        
+        toast.success(`Address populated from order #${orderNumber}!`);
+        
+        // Update the orders list to include the shipping address
+        setShipStationOrders(prevOrders => 
+          prevOrders.map(order => 
+            order.orderNumber === orderNumber 
+              ? { ...order, shippingAddress: addr }
+              : order
+          )
+        );
+      } else {
+        console.log(`🔍 [Frontend] No shipping address in response`);
+        toast.error(`Order #${orderNumber} found but no shipping address available`);
+      }
+    } catch (error: any) {
+      console.error('🔍 [Frontend] Error fetching order details:', error);
+      const errorMessage = error.response?.data?.error || error.message || `Failed to fetch details for order #${orderNumber}`;
+      console.error('🔍 [Frontend] Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data
+      });
+      toast.error(errorMessage);
+    }
+  };
+
   // Quick search functions for phone conversations
   const handleQuickSearch = (searchType: string) => {
     if (customerSearchTerm && customerSearchTerm.trim().length >= 3) {
       searchCustomer(customerSearchTerm, searchType);
+    }
+  };
+
+  // Helper function for search type display text
+  const getSearchTypeDisplayText = (searchType: string): string => {
+    switch (searchType) {
+      case 'email': return 'email address';
+      case 'phone': return 'phone number';
+      case 'order': return 'order number';
+      case 'name': return 'name';
+      default: return 'search criteria';
     }
   };
 
@@ -947,7 +1132,10 @@ export const DirectQuoteCreationClient: React.FC = () => {
         </button>
       </div>
       <div className="card-body">
-        
+        <div className="row">
+          {/* Main form column */}
+          <div className={`${showPreviousOrders && shipStationOrders.length > 0 ? 'col-lg-8' : 'col-12'}`}>
+            
         {formError && !successMessage && (
           <div className="alert alert-danger alert-dismissible fade show" role="alert">
             <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formError) }}></div>
@@ -1743,6 +1931,143 @@ export const DirectQuoteCreationClient: React.FC = () => {
             </button>
           </div>
         </form>
+
+        </div>
+        
+        {/* Previous Orders Sidebar */}
+        {showPreviousOrders && shipStationOrders.length > 0 && (
+          <div className="col-lg-4">
+            <div className="card h-100 border-start-0 border-top-0 border-bottom-0 border-end border-primary">
+              <div className="card-header bg-light d-flex justify-content-between align-items-center">
+                <h6 className="mb-0">
+                  <i className="fas fa-history me-2 text-primary"></i>
+                  Previous Orders
+                </h6>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => setShowPreviousOrders(false)}
+                  title="Hide previous orders"
+                >
+                  <i className="fas fa-times"></i>
+                </button>
+              </div>
+              <div className="card-body p-0" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                {isLoadingOrders && (
+                  <div className="text-center py-3">
+                    <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    Loading order history...
+                  </div>
+                )}
+                
+                {ordersError && (
+                  <div className="alert alert-warning m-3 py-2 mb-0">
+                    <i className="fas fa-exclamation-triangle me-2"></i>
+                    <small>{ordersError}</small>
+                  </div>
+                )}
+                
+                {!isLoadingOrders && !ordersError && shipStationOrders.length === 0 && (
+                  <div className="text-center py-3 text-muted">
+                    <i className="fas fa-inbox fa-2x mb-2 d-block text-muted opacity-50"></i>
+                    <small>No previous orders found</small>
+                  </div>
+                )}
+                
+                {!isLoadingOrders && shipStationOrders.length > 0 && (
+                  <div className="list-group list-group-flush">
+                    {shipStationOrders.slice(0, 10).map((order, index) => (
+                      <div key={`${order.orderNumber}-${index}`} className="list-group-item p-3 border-0">
+                        <div className="d-flex justify-content-between align-items-start mb-2">
+                          <div>
+                            <h6 className="mb-1 fw-bold text-primary">
+                              #{order.orderNumber}
+                            </h6>
+                            <small className="text-muted">
+                              {new Date(order.orderDate).toLocaleDateString()} • 
+                              <span className={`badge ms-1 ${
+                                order.orderStatus === 'shipped' ? 'bg-success' :
+                                order.orderStatus === 'awaiting_shipment' ? 'bg-warning' :
+                                order.orderStatus === 'cancelled' ? 'bg-danger' : 'bg-secondary'
+                              }`}>
+                                {order.orderStatus.replace('_', ' ')}
+                              </span>
+                            </small>
+                          </div>
+                        </div>
+                        
+                        {order.items && order.items.length > 0 && (
+                          <div className="small text-muted mb-2">
+                            <i className="fas fa-shopping-cart me-1"></i>
+                            {order.items.slice(0, 2).map(item => `${item.name} x${item.quantity}`).join(', ')}
+                            {order.items.length > 2 && ` +${order.items.length - 2} more`}
+                          </div>
+                        )}
+                        
+                        {order.trackingNumbers && order.trackingNumbers.length > 0 && (
+                          <div className="small mb-2">
+                            <i className="fas fa-truck me-1 text-secondary"></i>
+                            <span className="badge bg-light text-dark border font-monospace">
+                              {order.trackingNumbers[0]}
+                            </span>
+                            {order.trackingNumbers.length > 1 && (
+                              <span className="text-muted ms-1">+{order.trackingNumbers.length - 1} more</span>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Always show address button with different states */}
+                        <div className="mt-2">
+                          {order.shippingAddress ? (
+                            <>
+                              <button
+                                className="btn btn-sm btn-outline-primary w-100"
+                                onClick={() => populateShippingFromOrder(order)}
+                                title="Use this shipping address for the quote"
+                              >
+                                <i className="fas fa-copy me-1"></i>
+                                Use Shipping Address
+                              </button>
+                              <div className="small text-muted mt-1">
+                                {order.shippingAddress.address1}, {order.shippingAddress.city} {order.shippingAddress.zip}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                className="btn btn-sm btn-outline-secondary w-100"
+                                onClick={() => fetchOrderDetails(order.orderNumber)}
+                                title="Fetch full address details for this order"
+                              >
+                                <i className="fas fa-search me-1"></i>
+                                Get Address Details
+                              </button>
+                              <div className="small text-warning mt-1">
+                                <i className="fas fa-exclamation-triangle me-1"></i>
+                                Address not loaded - click to fetch
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {shipStationOrders.length > 10 && (
+                      <div className="list-group-item text-center py-2 border-0 bg-light">
+                        <small className="text-muted">
+                          Showing 10 of {shipStationOrders.length} orders
+                        </small>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        
+        </div>
       </div>
 
       {/* Shipping Rates Modal */}
