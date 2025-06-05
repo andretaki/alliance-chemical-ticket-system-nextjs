@@ -18,7 +18,7 @@ export const ticketTypeEcommerceEnum = ticketingProdSchema.enum('ticket_type_eco
     'International Shipping'
 ]);
 export const ticketSentimentEnum = ticketingProdSchema.enum('ticket_sentiment_enum', ['positive', 'neutral', 'negative']);
-export const userApprovalStatusEnum = ticketingProdSchema.enum('user_approval_status_enum', ['pending', 'approved', 'rejected']);
+export const userApprovalStatusEnum = ticketingProdSchema.enum('user_approval_status', ['pending', 'approved', 'rejected']);
 
 // --- Canned Responses Table ---
 export const cannedResponses = ticketingProdSchema.table('canned_responses', {

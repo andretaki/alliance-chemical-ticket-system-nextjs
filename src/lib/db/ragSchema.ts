@@ -25,11 +25,8 @@ export const ragDocuments = ragSystemSchema.table('documents', {
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// Forward declare the chunks table
-let ragChunks: ReturnType<typeof ragSystemSchema.table>;
-
 // Create the chunks table with self-reference
-ragChunks = ragSystemSchema.table('chunks', {
+export const ragChunks = ragSystemSchema.table('chunks', {
     id: serial('id').primaryKey(),
     documentId: integer('document_id').notNull().references(() => ragDocuments.id, { onDelete: 'cascade' }),
     content: text('content').notNull(),
@@ -45,8 +42,6 @@ ragChunks = ragSystemSchema.table('chunks', {
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     contentEmbedding: vector('content_embedding', { dimensions: 1536 }).notNull(),
 });
-
-export { ragChunks };
 
 export const shopifySyncProductsInRagSchema = ragSystemSchema.table('shopify_sync_products', {
     id: serial('id').primaryKey(),

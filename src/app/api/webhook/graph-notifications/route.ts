@@ -273,7 +273,6 @@ export async function POST(request: NextRequest) {
     if (validationToken) {
         console.log('Webhook: Received validation token:', validationToken);
         // Return the validation token exactly as received, with plain text content type
-        // Important: No JSON, just the plain token text
         return new Response(validationToken, {
             status: 200,
             headers: {

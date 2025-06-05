@@ -2,7 +2,7 @@
 
 import { signIn, getProviders } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 
 // Fix provider types
@@ -11,7 +11,8 @@ type Provider = {
   name: string;
 };
 
-export default function SignInPage() {
+// Create a separate component for the sign-in form that uses useSearchParams
+function SignInForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams?.get('callbackUrl') || '/dashboard';
@@ -137,5 +138,35 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function SignInLoading() {
+  return (
+    <div className="container mt-5">
+      <div className="row justify-content-center">
+        <div className="col-md-6 col-lg-4">
+          <div className="card">
+            <div className="card-header">
+              <h3 className="text-center">Sign In</h3>
+            </div>
+            <div className="card-body text-center">
+              <div className="spinner-border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<SignInLoading />}>
+      <SignInForm />
+    </Suspense>
   );
 } 
