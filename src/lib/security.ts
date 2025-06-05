@@ -4,6 +4,10 @@ import { z } from 'zod';
 // Input validation schemas
 export const securitySchemas = {
   email: z.string().email().max(255),
+  allianceEmail: z.string().email().max(255).refine(
+    (email) => email.toLowerCase().endsWith('@alliancechemical.com'),
+    { message: 'Only @alliancechemical.com email addresses are allowed' }
+  ),
   password: z.string().min(8).max(128).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/),
   name: z.string().min(1).max(100).regex(/^[a-zA-Z\s'-]+$/),
   id: z.string().uuid(),
@@ -238,6 +242,13 @@ export class SecurityValidator {
    */
   static validateApiKey(apiKey: string): boolean {
     return /^[A-Za-z0-9_-]{32,}$/.test(apiKey);
+  }
+
+  /**
+   * Validate Alliance Chemical email domain
+   */
+  static validateAllianceEmail(email: string): boolean {
+    return email.toLowerCase().endsWith('@alliancechemical.com');
   }
 
   /**

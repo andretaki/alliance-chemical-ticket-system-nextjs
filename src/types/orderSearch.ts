@@ -18,6 +18,7 @@ export interface OrderSearchResult {
     shipStationUrl?: string; // Direct link to ShipStation order page
     shipStationStatus?: string; // e.g., "shipped", "awaiting_shipment"
     trackingNumbers?: string[]; // Array of tracking numbers if available
+    source?: 'shopify' | 'shipstation'; // Data source for this order
 }
 
 export interface ShopifyOrderNode {

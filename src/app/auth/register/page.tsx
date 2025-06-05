@@ -31,6 +31,13 @@ export default function RegisterPage() {
       return;
     }
     
+    // Domain validation - only allow @alliancechemical.com emails
+    const emailDomain = email.toLowerCase().split('@')[1];
+    if (emailDomain !== 'alliancechemical.com') {
+      setError("Registration is restricted to @alliancechemical.com email addresses only");
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -77,7 +84,10 @@ export default function RegisterPage() {
         <div className="col-md-6 col-lg-4">
           <div className="card">
             <div className="card-header">
-              <h3 className="text-center">Create Account</h3>
+              <h3 className="text-center">Create Employee Account</h3>
+              <p className="text-center mb-0">
+                <small className="text-muted">Alliance Chemical Employee Registration</small>
+              </p>
             </div>
             <div className="card-body">
               {error && (
@@ -115,8 +125,13 @@ export default function RegisterPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    placeholder="you@example.com"
+                    placeholder="your.name@alliancechemical.com"
                   />
+                  <div className="form-text">
+                    <small className="text-muted">
+                      <i className="bi bi-info-circle"></i> Only @alliancechemical.com email addresses are allowed
+                    </small>
+                  </div>
                 </div>
                 
                 <div className="mb-3">

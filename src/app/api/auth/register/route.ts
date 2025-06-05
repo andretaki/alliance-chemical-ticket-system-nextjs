@@ -6,6 +6,8 @@ import { users } from '@/db/schema';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { sendEmail } from '@/lib/graphService'; // Import sendEmail from graphService
+import { SecurityValidator, securitySchemas } from '@/lib/security';
+import { rateLimiters } from '@/lib/rateLimiting';
 
 async function sendApprovalRequestEmail(userName: string, userEmail: string) {
   const subject = 'New User Registration - Approval Required';
@@ -27,6 +29,12 @@ async function sendApprovalRequestEmail(userName: string, userEmail: string) {
 }
 
 export async function POST(request: Request) {
+  // Apply rate limiting
+  const rateLimitResponse = await rateLimiters.auth.middleware(request);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
   try {
     // Parse request body
     const { name, email, password } = await request.json();
@@ -38,6 +46,27 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { message: 'Name, email, and password are required' },
         { status: 400 }
+      );
+    }
+    
+    // Validate input using security schemas
+    try {
+      securitySchemas.allianceEmail.parse(email);
+      securitySchemas.name.parse(name);
+      securitySchemas.password.parse(password);
+    } catch (validationError: any) {
+      const errorMessage = validationError.errors?.[0]?.message || 'Invalid input';
+      return NextResponse.json(
+        { message: errorMessage },
+        { status: 400 }
+      );
+    }
+
+    // Additional security checks
+    if (!SecurityValidator.validateAllianceEmail(email)) {
+      return NextResponse.json(
+        { message: 'Registration is restricted to @alliancechemical.com email addresses only' },
+        { status: 403 }
       );
     }
     

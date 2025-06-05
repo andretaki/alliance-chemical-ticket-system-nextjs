@@ -29,12 +29,13 @@ export default function SimpleOrderSearch() {
             setSearchResults(response.data.orders || []);
             if (response.data.orders.length === 0) {
                 console.log(`[OrderSearch] No orders found. Search method: ${response.data.searchMethod}, Search type: ${response.data.searchType}`);
-                setError(`No orders found for "${searchQuery}". Search method: ${response.data.searchMethod}. Try checking if the order number exists in Shopify, or try searching by customer email/name instead.`);
+                setError(`No orders found for "${searchQuery}". Try checking if the order number exists, or try searching by customer email/name instead.`);
             } else {
                 console.log(`[OrderSearch] Found ${response.data.orders.length} orders using ${response.data.searchMethod}`);
                 // Debug tracking data for each order
                 response.data.orders.forEach((order: OrderSearchResult, index: number) => {
                     console.log(`[OrderSearch] Order ${index + 1} (${order.shopifyOrderName}):`, {
+                        source: order.source, // Log the source
                         shipStationStatus: order.shipStationStatus,
                         trackingNumbers: order.trackingNumbers,
                         shipStationUrl: order.shipStationUrl
@@ -58,7 +59,7 @@ export default function SimpleOrderSearch() {
     };
 
     const getFinancialStatusBadgeClass = (status?: string) => {
-        if (!status) return 'bg-secondary';
+        if (!status || status === 'N/A') return 'bg-secondary'; // Handle N/A from ShipStation
         switch (status.toLowerCase()) {
             case 'paid': return 'bg-success';
             case 'pending': return 'bg-warning';
@@ -135,9 +136,20 @@ export default function SimpleOrderSearch() {
                             <div key={order.shopifyOrderGID} className="list-group-item list-group-item-action flex-column align-items-start mb-2 p-3 border rounded shadow-sm">
                                 <div className="d-flex w-100 justify-content-between">
                                     <h6 className="mb-1">
-                                        <a href={order.shopifyAdminUrl} target="_blank" rel="noopener noreferrer" className="text-primary fw-bold text-decoration-none">
-                                            Order {order.shopifyOrderName} <i className="fas fa-external-link-alt fa-xs ms-1"></i>
-                                        </a>
+                                        {order.source === 'shopify' ? (
+                                            <a href={order.shopifyAdminUrl} target="_blank" rel="noopener noreferrer" className="text-primary fw-bold text-decoration-none">
+                                                Order {order.shopifyOrderName} <i className="fas fa-external-link-alt fa-xs ms-1"></i>
+                                            </a>
+                                        ) : (
+                                            <span className="text-dark fw-bold">
+                                                Order {order.shopifyOrderName}
+                                            </span>
+                                        )}
+                                        {order.source === 'shopify' ? (
+                                            <span className="badge bg-success ms-2">Shopify</span>
+                                        ) : (
+                                            <span className="badge bg-info text-dark ms-2">ShipStation</span>
+                                        )}
                                     </h6>
                                     <small className="text-muted">{new Date(order.createdAt).toLocaleDateString()}</small>
                                 </div>
