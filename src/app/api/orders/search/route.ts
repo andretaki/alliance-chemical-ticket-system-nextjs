@@ -11,6 +11,158 @@ import { eq } from 'drizzle-orm';
 import { getOrderTrackingInfo, constructShipStationUrl } from '@/lib/shipstationService';
 // Import ShipStation customer service to potentially get customer's orders
 import { searchShipStationCustomerByEmail, searchShipStationCustomerByName } from '@/lib/shipstationCustomerService';
+import Fuse from 'fuse.js';
+
+// Enhanced search interface with advanced features
+interface AdvancedSearchQuery {
+  originalQuery: string;
+  terms: string[];
+  orderNumbers: string[];
+  emails: string[];
+  customerNames: string[];
+  searchType: 'simple' | 'advanced' | 'batch' | 'fuzzy';
+  confidence: number;
+}
+
+// Enhanced query parser with fuzzy matching and multi-term support
+function parseAdvancedQuery(query: string): AdvancedSearchQuery {
+  const originalQuery = query.trim();
+  const terms = originalQuery.split(/\s+/).filter(term => term.length > 0);
+  
+  const orderNumbers: string[] = [];
+  const emails: string[] = [];
+  const customerNames: string[] = [];
+  let confidence = 0;
+  
+  // Enhanced order number patterns
+  const ORDER_PATTERNS = [
+    /^\s*#?(\d{4,})\s*$/i,           // #1234 or 1234
+    /order\s*#?\s*(\d+)/i,          // order #1234
+    /inv(?:oice)?\s*#?\s*(\d+)/i,   // invoice #1234
+    /po\s*#?\s*(\d+)/i,             // PO #1234
+    /ref(?:erence)?\s*#?\s*(\d+)/i, // reference #1234
+    /ticket\s*#?\s*(\d+)/i,         // ticket #1234
+    /[\s,;]+(\d{4,})[\s,;]+/g,      // Multiple numbers separated by spaces/commas
+  ];
+  
+  let remainingQuery = originalQuery;
+  
+  // Extract order numbers with fuzzy variants
+  for (const pattern of ORDER_PATTERNS) {
+    const matches = remainingQuery.match(pattern);
+    if (matches) {
+      const orderNum = matches[1];
+      orderNumbers.push(orderNum);
+      // Add fuzzy variants
+      orderNumbers.push(`#${orderNum}`);
+      orderNumbers.push(orderNum.padStart(4, '0'));
+      orderNumbers.push(orderNum.padStart(5, '0'));
+      confidence += 0.8;
+      remainingQuery = remainingQuery.replace(pattern, '').trim();
+    }
+  }
+  
+  // Enhanced email detection
+  const emailPattern = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
+  const emailMatches = [...remainingQuery.matchAll(emailPattern)];
+  emailMatches.forEach(match => {
+    emails.push(match[0]);
+    confidence += 0.9;
+    remainingQuery = remainingQuery.replace(match[0], '').trim();
+  });
+  
+  // Multiple order numbers batch detection
+  const multipleOrdersPattern = /(?:\d{4,}[\s,;]*){2,}/;
+  if (multipleOrdersPattern.test(originalQuery)) {
+    const batchNumbers = originalQuery.match(/\d{4,}/g) || [];
+    orderNumbers.push(...batchNumbers);
+    confidence += 0.7;
+  }
+  
+  // Clean up customer names with fuzzy variants
+  if (remainingQuery) {
+    customerNames.push(remainingQuery);
+    // Add fuzzy variants for common business terms
+    const fuzzyVariants = generateFuzzyVariants(remainingQuery);
+    customerNames.push(...fuzzyVariants);
+    confidence += 0.6;
+  }
+  
+  // Determine search type
+  let searchType: 'simple' | 'advanced' | 'batch' | 'fuzzy' = 'simple';
+  if (orderNumbers.length > 3) {
+    searchType = 'batch';
+  } else if (terms.length > 1 || (orderNumbers.length + emails.length + customerNames.length > 1)) {
+    searchType = 'advanced';
+  } else if (confidence < 0.7 && customerNames.length > 0) {
+    searchType = 'fuzzy';
+  }
+  
+  return {
+    originalQuery,
+    terms,
+    orderNumbers: [...new Set(orderNumbers)], // Remove duplicates
+    emails: [...new Set(emails)],
+    customerNames: [...new Set(customerNames)],
+    searchType,
+    confidence: Math.min(confidence, 1)
+  };
+}
+
+// Generate fuzzy variants for customer names
+function generateFuzzyVariants(term: string): string[] {
+  const variants = [];
+  const lower = term.toLowerCase();
+  
+  // Common business term replacements
+  const replacements = [
+    ['&', 'and'], ['and', '&'],
+    ['co', 'company'], ['company', 'co'],
+    ['corp', 'corporation'], ['corporation', 'corp'],
+    ['inc', 'incorporated'], ['incorporated', 'inc'],
+    ['llc', 'limited liability company'],
+    ['ltd', 'limited'], ['limited', 'ltd'],
+    [' ', ''], ['', ' '], // With/without spaces
+  ];
+  
+  for (const [from, to] of replacements) {
+    if (lower.includes(from)) {
+      variants.push(lower.replace(new RegExp(from, 'gi'), to));
+    }
+  }
+  
+  // Handle partial matches and typos
+  if (term.length >= 4) {
+    // Add partial matches
+    variants.push(term.substring(0, Math.floor(term.length * 0.8)));
+    variants.push(term.substring(Math.floor(term.length * 0.2)));
+  }
+  
+  return [...new Set(variants)].filter(v => v.length >= 2);
+}
+
+// Fuzzy search with Fuse.js
+function performFuzzySearch<T extends { customerFullName?: string; customerEmail?: string }>(
+  data: T[],
+  query: string,
+  threshold: number = 0.4
+): T[] {
+  if (!query || data.length === 0) return [];
+  
+  const fuse = new Fuse(data, {
+    keys: ['customerFullName', 'customerEmail'],
+    threshold,
+    distance: 100,
+    minMatchCharLength: 2,
+    shouldSort: true,
+    includeScore: true,
+    includeMatches: true,
+    findAllMatches: true,
+  });
+  
+  const results = fuse.search(query);
+  return results.map(result => result.item);
+}
 
 // Helper function to map ShipStation order data to OrderSearchResult
 function mapShipStationToOrderSearchResult(
@@ -18,18 +170,19 @@ function mapShipStationToOrderSearchResult(
   customerEmail?: string,
   customerName?: string
 ): OrderSearchResult | null {
-  if (!shipStationInfo.found || !shipStationInfo.orderNumber) {
+  if (!shipStationInfo.found || !shipStationInfo.shipStationOrderId) {
     return null;
   }
 
-  // Create a synthetic Shopify GID and Admin URL for ShipStation-only orders
-  const syntheticShopifyId = `shipstation-order-${shipStationInfo.orderNumber}`;
-  const customerEmailToUse = customerEmail || shipStationInfo.customerEmail;
-  const customerFullNameToUse = customerName || shipStationInfo.customerName || customerEmailToUse || undefined;
+  // Use the order number passed as parameter since it's not in shipStationInfo
+  const orderNumber = shipStationInfo.shipStationOrderId?.toString() || 'unknown';
+  const syntheticShopifyId = `shipstation-order-${orderNumber}`;
+  const customerEmailToUse = customerEmail;
+  const customerFullNameToUse = customerName || customerEmailToUse || undefined;
 
   return {
     shopifyOrderGID: `gid://shipstation/Order/${syntheticShopifyId}`, // Synthetic GID
-    shopifyOrderName: shipStationInfo.orderNumber,
+    shopifyOrderName: orderNumber,
     legacyResourceId: shipStationInfo.shipStationOrderId ? String(shipStationInfo.shipStationOrderId) : syntheticShopifyId, // Use SS ID or synthetic
     customerFullName: customerFullNameToUse,
     customerEmail: customerEmailToUse,
@@ -38,12 +191,12 @@ function mapShipStationToOrderSearchResult(
     fulfillmentStatus: shipStationInfo.orderStatus, // Use ShipStation status as fulfillment
     totalPrice: shipStationInfo.items?.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0).toFixed(2) || '0.00',
     currencyCode: 'USD', // Assume USD for ShipStation orders
-    shopifyAdminUrl: constructShipStationUrl(shipStationInfo.shipStationOrderId!, shipStationInfo.orderNumber) || '#', // Link to SS if possible
+    shopifyAdminUrl: '#', // ShipStation-only orders don't have Shopify admin URLs
     relatedTicketId: undefined, // Not known for ShipStation-only orders
     relatedTicketUrl: undefined,
     itemSummary: shipStationInfo.items?.map(item => `${item.name} x ${item.quantity}`).join(', ') || undefined,
     shipStationOrderId: shipStationInfo.shipStationOrderId,
-    shipStationUrl: constructShipStationUrl(shipStationInfo.shipStationOrderId!, shipStationInfo.orderNumber) || undefined,
+    shipStationUrl: shipStationInfo.shipStationOrderId ? constructShipStationUrl(shipStationInfo.shipStationOrderId, orderNumber) || undefined : undefined,
     shipStationStatus: shipStationInfo.orderStatus,
     trackingNumbers: shipStationInfo.shipments?.map(s => s.trackingNumber!).filter(tn => tn && tn.trim() !== '') || [],
     source: 'shipstation', // Mark as coming from ShipStation
