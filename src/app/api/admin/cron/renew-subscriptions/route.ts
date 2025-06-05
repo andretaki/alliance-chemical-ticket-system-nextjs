@@ -7,9 +7,15 @@ import { eq, and, lt, gt } from 'drizzle-orm';
 // This route should be called by a cron job service (like Vercel Cron Jobs)
 // Configure it to run daily to check for expiring subscriptions
 
-export async function GET() {
-  // Check for valid API key or other authentication
-  // This is a minimal example - add proper auth in production
+export async function GET(request: Request) {
+  // Verify the request is from Vercel Cron
+  const authHeader = request.headers.get('authorization');
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json(
+      { success: false, message: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
   
   console.log('CRON: Starting subscription renewal process...');
   
