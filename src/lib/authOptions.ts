@@ -81,13 +81,21 @@ export const authOptions: AuthOptions = {
 
         if (!userFromDb || !userFromDb.password) return null;
         
-        if (userFromDb.approvalStatus !== 'approved') {
-          console.log(`Login attempt for user ${userFromDb.email} with status ${userFromDb.approvalStatus}. Access denied.`);
-          return null;
-        }
-        
         const isValidPassword = await bcrypt.compare(credentials.password, userFromDb.password);
         if (!isValidPassword) return null;
+
+        // Check approval status and provide specific error handling
+        if (userFromDb.approvalStatus !== 'approved') {
+          console.log(`Login attempt for user ${userFromDb.email} with status ${userFromDb.approvalStatus}. Access denied.`);
+          
+          // Throw a specific error that we can catch in the UI
+          if (userFromDb.approvalStatus === 'pending') {
+            throw new Error('ACCOUNT_PENDING_APPROVAL');
+          } else if (userFromDb.approvalStatus === 'rejected') {
+            throw new Error('ACCOUNT_REJECTED');
+          }
+          return null;
+        }
 
         return {
           id: userFromDb.id,

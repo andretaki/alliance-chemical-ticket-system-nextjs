@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import type { Metadata } from 'next';
 import { authOptions } from '@/lib/authOptions';
 import Link from 'next/link';
+import WebhookStatus from '@/components/admin/WebhookStatus';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard - Alliance Chemical Support',
@@ -27,6 +28,18 @@ export default async function AdminPage() {
         <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4">
           <div className="pt-3 pb-2 mb-3 border-bottom">
             <h1 className="h2 fw-bold">Admin Dashboard</h1>
+          </div>
+
+          {/* Webhook Status Card */}
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className="card">
+                <div className="card-body">
+                  <h5 className="card-title">System Status</h5>
+                  <WebhookStatus />
+                </div>
+              </div>
+            </div>
           </div>
           
           <div className="row g-4">

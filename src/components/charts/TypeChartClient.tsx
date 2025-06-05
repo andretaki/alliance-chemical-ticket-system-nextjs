@@ -54,7 +54,7 @@ const options = {
           const label = context.label || '';
           const value = context.raw || 0;
           const total = context.dataset.data.reduce((acc: number, data: number) => acc + data, 0);
-          const percentage = Math.round((value / total) * 100);
+          const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
           return `${label}: ${value} (${percentage}%)`;
         }
       }
@@ -79,11 +79,11 @@ export default function TypeChartClient() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await axios.get<TicketSummary[]>('/api/tickets');
-      const tickets = res.data;
+      const res = await axios.get<{ data: TicketSummary[] }>('/api/tickets');
+      const tickets = res.data.data;
 
       // Process data
-      const counts: Record<typeof ticketTypeEcommerceEnum.enumValues[number], number> = {} as Record<typeof ticketTypeEcommerceEnum.enumValues[number], number>;
+      const counts: Record<string, number> = {};
       
       // Initialize all possible types with 0
       typeValues.forEach(type => {
@@ -92,11 +92,9 @@ export default function TypeChartClient() {
 
       // Count tickets by type
       tickets.forEach(ticket => {
-        if (ticket.type && typeValues.includes(ticket.type)) {
-          counts[ticket.type]++;
-        } else {
-          // If ticket has no type or unrecognized type, count it as "General Inquiry"
-          counts['General Inquiry']++;
+        const type = ticket.type || 'General Inquiry';
+        if (counts.hasOwnProperty(type)) {
+          counts[type]++;
         }
       });
 
@@ -133,11 +131,11 @@ export default function TypeChartClient() {
         <h5>Tickets by Type</h5>
       </div>
       <div className="card-body">
-        <div style={{ height: '300px', position: 'relative' }}>
+        <div style={{ height: '250px', position: 'relative' }}>
           {hasData ? (
             <Pie data={chartData} options={options} />
           ) : (
-            <p className="text-center">No ticket data available for type chart.</p>
+            <p className="text-center text-muted mt-5">No ticket data available.</p>
           )}
         </div>
       </div>

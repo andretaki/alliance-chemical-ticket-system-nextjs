@@ -1,22 +1,10 @@
 import NextAuth from 'next-auth';
-import { authOptions } from '@/lib/authOptions'; // Correct path to your options
-import { rateLimiters } from '@/lib/rateLimiting';
+import { authOptions } from '@/lib/authOptions';
 
+// This is the handler directly returned by NextAuth configured with your options.
+// In the App Router, Next.js expects to be able to use this handler for GET and POST.
 const handler = NextAuth(authOptions);
 
-// Add rate limiting to auth endpoints
-async function withRateLimit(request: Request, handler: () => Promise<Response>) {
-  const rateLimitResponse = await rateLimiters.auth.middleware(request);
-  if (rateLimitResponse) {
-    return rateLimitResponse;
-  }
-  return handler();
-}
-
-export async function GET(request: Request) {
-  return withRateLimit(request, () => handler(request));
-}
-
-export async function POST(request: Request) {
-  return withRateLimit(request, () => handler(request));
-} 
+// Directly export the handler for GET and POST requests.
+// This is the standard pattern for NextAuth.js v4 in the App Router.
+export { handler as GET, handler as POST }; 

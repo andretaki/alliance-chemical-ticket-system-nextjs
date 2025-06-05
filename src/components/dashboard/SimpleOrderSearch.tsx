@@ -136,17 +136,6 @@ export default function SimpleOrderSearch({
     setSuggestions(newSuggestions.slice(0, 8));
   }, [query, searchHistory]);
 
-  // Perform search with debounced query
-  useEffect(() => {
-    if (debouncedQuery.length >= 3) {
-      performSearch(debouncedQuery);
-    } else {
-      setResults([]);
-      setSearchStats(null);
-      if (onResults) onResults([]);
-    }
-  }, [debouncedQuery, onResults]);
-
   const performSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery || searchQuery.length < 3) {
       setResults([]);
@@ -220,6 +209,17 @@ export default function SimpleOrderSearch({
       setIsSearching(false);
     }
   }, [onResults]);
+
+  // Perform search with debounced query
+  useEffect(() => {
+    if (debouncedQuery.length >= 3) {
+      performSearch(debouncedQuery);
+    } else {
+      setResults([]);
+      setSearchStats(null);
+      if (onResults) onResults([]);
+    }
+  }, [debouncedQuery, onResults, performSearch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;

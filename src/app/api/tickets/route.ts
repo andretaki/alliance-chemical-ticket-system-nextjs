@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/db';
 import { tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum, ticketTypeEcommerceEnum } from '@/db/schema';
-import { eq, desc, asc, and, or, ilike, sql, isNull } from 'drizzle-orm';
+import { eq, desc, asc, and, or, ilike, sql, isNull, inArray, count, SQL, AnyColumn } from 'drizzle-orm';
 import { z } from 'zod';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/lib/authOptions';
@@ -32,80 +32,101 @@ const createTicketSchema = z.object({
 // --- GET: Fetch tickets with filtering and sorting ---
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+    // Extract query parameters with pagination
+    const url = new URL(request.url);
+    const statusFilter = url.searchParams.get('status') || '';
+    const priorityFilter = url.searchParams.get('priority') || '';
+    const assigneeIdFilter = url.searchParams.get('assigneeId') || '';
+    const searchTerm = url.searchParams.get('search') || '';
+    const sortBy = url.searchParams.get('sortBy') || 'createdAt';
+    const sortOrder = url.searchParams.get('sortOrder') || 'desc';
 
-    // --- Extract Filters ---
-    const statusFilter = searchParams.get('status');
-    const priorityFilter = searchParams.get('priority');
-    const assigneeIdFilter = searchParams.get('assigneeId'); // Filter by assignee ID (string UUID)
-    const searchTerm = searchParams.get('search');
+    // Pagination parameters with serverless-friendly defaults
+    const page = Math.max(1, parseInt(url.searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get('limit') || '50'))); // Max 100 for serverless
+    const offset = (page - 1) * limit;
 
-    // --- Extract Sorting ---
-    const sortBy = searchParams.get('sortBy') || 'createdAt'; // Default sort
-    const sortOrder = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc'; // Default desc
+    console.log('API [GET /api/tickets]: Filters applied:', {
+      statusFilter,
+      priorityFilter, 
+      assigneeIdFilter,
+      searchTerm,
+      sortBy,
+      sortOrder,
+      page,
+      limit
+    });
 
-    // --- Build Where Clause Dynamically ---
-    const conditions = [];
-    if (statusFilter && ticketStatusEnum.enumValues.includes(statusFilter as any)) {
-      conditions.push(eq(tickets.status, statusFilter as typeof ticketStatusEnum.enumValues[number]));
-    }
-    if (priorityFilter && ticketPriorityEnum.enumValues.includes(priorityFilter as any)) {
-      conditions.push(eq(tickets.priority, priorityFilter as typeof ticketPriorityEnum.enumValues[number]));
-    }
-    if (assigneeIdFilter) {
-      if (assigneeIdFilter === 'unassigned') {
-        conditions.push(isNull(tickets.assigneeId));
-      } else {
-        // Assuming assigneeIdFilter is the UUID string if not 'unassigned'
-        conditions.push(eq(tickets.assigneeId, assigneeIdFilter));
+    // --- Build WHERE clause ---
+    const whereConditions: SQL[] = [];
+
+    if (statusFilter) {
+      const statuses = statusFilter
+        .split(',')
+        .map(s => s.trim())
+        .filter(s => ticketStatusEnum.enumValues.includes(s as any));
+      
+      if (statuses.length > 0) {
+        whereConditions.push(inArray(tickets.status, statuses as typeof ticketStatusEnum.enumValues));
       }
     }
+
+    if (priorityFilter) {
+      const priorities = priorityFilter
+        .split(',')
+        .map(p => p.trim())
+        .filter(p => ticketPriorityEnum.enumValues.includes(p as any));
+      
+      if (priorities.length > 0) {
+        whereConditions.push(inArray(tickets.priority, priorities as typeof ticketPriorityEnum.enumValues));
+      }
+    }
+
+    if (assigneeIdFilter) {
+      if (assigneeIdFilter === 'unassigned') {
+        whereConditions.push(isNull(tickets.assigneeId));
+      } else {
+        whereConditions.push(eq(tickets.assigneeId, assigneeIdFilter));
+      }
+    }
+
     if (searchTerm) {
-      const term = `%${searchTerm}%`;
-      conditions.push(
-        or(
-          ilike(tickets.title, term),
-          ilike(sql`COALESCE(${tickets.description}, '')`, term),
-          ilike(sql`COALESCE(${tickets.senderEmail}, '')`, term),
-          ilike(sql`COALESCE(${tickets.orderNumber}, '')`, term)
-        )
+      const searchPattern = `%${searchTerm.toLowerCase()}%`;
+      const searchConditions = or(
+        sql`LOWER(${tickets.title}) LIKE ${searchPattern}`,
+        sql`LOWER(${tickets.description}) LIKE ${searchPattern}`,
+        sql`LOWER(${tickets.senderEmail}) LIKE ${searchPattern}`,
+        sql`LOWER(${tickets.senderName}) LIKE ${searchPattern}`,
+        sql`LOWER(${tickets.orderNumber}) LIKE ${searchPattern}`,
+        sql`LOWER(${tickets.trackingNumber}) LIKE ${searchPattern}`
       );
+
+      if (searchConditions) {
+        whereConditions.push(searchConditions);
+      }
     }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const whereClause = whereConditions.length > 0 ? and(...whereConditions) : undefined;
 
-    // --- Build OrderBy Clause ---
-    let orderByClause;
-    const orderDirection = sortOrder === 'asc' ? asc : desc;
+    // --- Build ORDER BY clause ---
+    const sortableColumns: Record<string, AnyColumn> = {
+      createdAt: tickets.createdAt,
+      updatedAt: tickets.updatedAt,
+      title: tickets.title,
+      status: tickets.status,
+      priority: tickets.priority,
+    };
+    
+    const columnToSort = sortableColumns[sortBy] ?? tickets.createdAt;
+    const safeSortOrder = sortOrder.toLowerCase() === 'asc' ? asc : desc;
+    const orderByClause = safeSortOrder(columnToSort);
 
-    switch (sortBy) {
-      case 'title':
-        orderByClause = [orderDirection(tickets.title)];
-        break;
-      case 'status':
-        orderByClause = [orderDirection(tickets.status)];
-        break;
-      case 'priority':
-        orderByClause = [orderDirection(tickets.priority)];
-        break;
-      case 'assignee':
-        // Sorting by assignee name requires a join or subquery, which is more complex.
-        // Sorting by assigneeId (UUID string) might not be ideal for user display.
-        // We'll sort by assignee ID for now, acknowledging it might not be alphabetical.
-        orderByClause = [orderDirection(tickets.assigneeId)];
-        break;
-      case 'updatedAt':
-        orderByClause = [orderDirection(tickets.updatedAt)];
-        break;
-      case 'createdAt':
-      default:
-        orderByClause = [desc(tickets.createdAt)]; // Default sort by newest created
-    }
-
-    // --- Fetch Data ---
+    // --- Fetch Data with Pagination ---
     const filteredTickets = await db.query.tickets.findMany({
       where: whereClause,
       orderBy: orderByClause,
+      limit,
+      offset,
       columns: {
         id: true,
         title: true,
@@ -116,57 +137,87 @@ export async function GET(request: NextRequest) {
         senderEmail: true,
         senderName: true,
         externalMessageId: true,
-        description: true, // Include description for search
-        orderNumber: true, // Include order number for search
+        description: true,
+        orderNumber: true,
         trackingNumber: true,
-        assigneeId: true, // Needed for filtering and relation
-        reporterId: true, // Needed for relation
-        type: true, // Include ticket type
-        sentiment: true, // Include sentiment
-        ai_summary: true, // Include AI summary
-        ai_suggested_assignee_id: true, // Include AI suggested assignee
+        assigneeId: true,
+        reporterId: true,
+        type: true,
+        sentiment: true,
+        ai_summary: true,
+        ai_suggested_assignee_id: true,
       },
       with: {
-        assignee: { columns: { id: true, name: true, email: true } }, // Ensure User ID is fetched
-        reporter: { columns: { id: true, name: true, email: true } }, // Ensure User ID is fetched
-        aiSuggestedAssignee: { columns: { id: true, name: true, email: true } } // Include AI suggested assignee
+        assignee: { columns: { id: true, name: true, email: true } },
+        reporter: { columns: { id: true, name: true, email: true } },
+        aiSuggestedAssignee: { columns: { id: true, name: true, email: true } }
       },
     });
 
+    console.log(`API [GET /api/tickets]: Found ${filteredTickets.length} tickets with current filters.`);
+
+    // Get total count for pagination (only if needed)
+    let totalCount = 0;
+    if (filteredTickets.length === limit) {
+      // Only count if we might have more pages
+      const countResult = await db.select({ count: count() })
+        .from(tickets)
+        .where(whereClause);
+      totalCount = countResult[0]?.count || 0;
+    } else {
+      totalCount = offset + filteredTickets.length;
+    }
+
     // --- Format Response ---
-    // Map data to ensure consistent shape and convert dates
     const responseData = filteredTickets.map(t => ({
       id: t.id,
       title: t.title,
       status: t.status,
       priority: t.priority,
       type: t.type,
-      createdAt: t.createdAt.toISOString(), // Send as ISO string
+      createdAt: t.createdAt.toISOString(),
       updatedAt: t.updatedAt.toISOString(),
       assigneeName: t.assignee?.name ?? 'Unassigned',
-      assigneeId: t.assignee?.id ?? null, // Explicitly null if no assignee
+      assigneeId: t.assignee?.id ?? null,
       assigneeEmail: t.assignee?.email ?? null,
       reporterName: t.reporter?.name ?? 'Unknown',
-      reporterId: t.reporter?.id ?? null, // Explicitly null if no reporter (shouldn't happen based on schema)
+      reporterId: t.reporter?.id ?? null,
       reporterEmail: t.reporter?.email ?? null,
       senderEmail: t.senderEmail,
       senderName: t.senderName,
-      description: t.description,
+      // Truncate description for list view to reduce payload size
+      description: t.description ? (t.description.length > 200 ? t.description.substring(0, 200) + '...' : t.description) : null,
       isFromEmail: Boolean(t.externalMessageId),
       orderNumber: t.orderNumber,
       trackingNumber: t.trackingNumber,
-      // Include new AI fields
       sentiment: t.sentiment,
-      ai_summary: t.ai_summary,
+      // Truncate AI summary for list view
+      ai_summary: t.ai_summary ? (t.ai_summary.length > 150 ? t.ai_summary.substring(0, 150) + '...' : t.ai_summary) : null,
       ai_suggested_assignee_id: t.ai_suggested_assignee_id,
       aiSuggestedAssigneeName: t.aiSuggestedAssignee?.name ?? null,
       aiSuggestedAssigneeEmail: t.aiSuggestedAssignee?.email ?? null,
     }));
 
-    return NextResponse.json(responseData);
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return NextResponse.json({
+      data: responseData,
+      pagination: {
+        page,
+        limit,
+        totalCount,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1
+      }
+    });
   } catch (error) {
     console.error('API Error [GET /api/tickets]:', error);
-    return NextResponse.json({ error: 'Failed to fetch tickets' }, { status: 500 });
+    // Ensure the full error is logged on the server
+    if (error instanceof Error) {
+      console.error(`Error name: ${error.name}, Message: ${error.message}, Stack: ${error.stack}`);
+    }
+    return NextResponse.json({ error: 'Failed to fetch tickets', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 

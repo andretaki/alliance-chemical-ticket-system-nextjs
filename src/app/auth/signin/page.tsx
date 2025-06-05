@@ -34,6 +34,35 @@ function SignInForm() {
     fetchProviders();
   }, []);
 
+  const getErrorMessage = (errorType: string) => {
+    switch (errorType) {
+      case 'ACCOUNT_PENDING_APPROVAL':
+        return {
+          type: 'warning',
+          title: 'Account Pending Approval',
+          message: 'Your account has been created successfully but is waiting for administrator approval. You will receive an email notification once your account is approved.'
+        };
+      case 'ACCOUNT_REJECTED':
+        return {
+          type: 'danger',
+          title: 'Account Access Denied',
+          message: 'Your account access has been denied. Please contact andre@alliancechemical.com for assistance.'
+        };
+      case 'CredentialsSignin':
+        return {
+          type: 'danger',
+          title: 'Invalid Credentials',
+          message: 'Invalid email or password. Please check your credentials and try again.'
+        };
+      default:
+        return {
+          type: 'danger',
+          title: 'Sign In Error',
+          message: 'An unexpected error occurred. Please try again.'
+        };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -49,7 +78,7 @@ function SignInForm() {
     setLoading(false);
 
     if (result?.error) {
-      setSignInError(result.error === "CredentialsSignin" ? "Invalid email or password." : "An unknown error occurred.");
+      setSignInError(result.error);
       console.error("Sign-in error:", result.error);
     } else if (result?.ok && result.url) {
       // Successfully signed in
@@ -59,26 +88,36 @@ function SignInForm() {
     }
   };
 
+  const errorInfo = signInError ? getErrorMessage(signInError) : null;
+
   return (
     <div className="container mt-5">
       <div className="row justify-content-center">
-        <div className="col-md-6 col-lg-4">
-          <div className="card">
-            <div className="card-header">
-              <h3 className="text-center">Sign In</h3>
+        <div className="col-md-6 col-lg-5">
+          <div className="card shadow-sm">
+            <div className="card-header bg-white text-center py-4">
+              <h3 className="mb-0 fw-bold text-primary">Sign In</h3>
+              <p className="text-muted mb-0">Access your Alliance Chemical account</p>
             </div>
-            <div className="card-body">
-              {signInError && (
-                <div className="alert alert-danger" role="alert">
-                  {signInError}
+            <div className="card-body p-4">
+              {errorInfo && (
+                <div className={`alert alert-${errorInfo.type} border-0 shadow-sm`} role="alert">
+                  <div className="d-flex align-items-start">
+                    <i className={`fas ${errorInfo.type === 'warning' ? 'fa-clock' : 'fa-exclamation-triangle'} me-3 mt-1`}></i>
+                    <div>
+                      <h6 className="alert-heading mb-1">{errorInfo.title}</h6>
+                      <p className="mb-0 small">{errorInfo.message}</p>
+                    </div>
+                  </div>
                 </div>
               )}
+              
               <form onSubmit={handleSubmit}>
                 <div className="mb-3">
-                  <label htmlFor="emailInput" className="form-label">Email address</label>
+                  <label htmlFor="emailInput" className="form-label fw-semibold">Email address</label>
                   <input
                     type="email"
-                    className="form-control"
+                    className="form-control form-control-lg"
                     id="emailInput"
                     value={email}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
@@ -86,52 +125,52 @@ function SignInForm() {
                     placeholder="you@example.com"
                   />
                 </div>
-                <div className="mb-3">
-                  <label htmlFor="passwordInput" className="form-label">Password</label>
+                <div className="mb-4">
+                  <label htmlFor="passwordInput" className="form-label fw-semibold">Password</label>
                   <input
                     type="password"
-                    className="form-control"
+                    className="form-control form-control-lg"
                     id="passwordInput"
                     value={password}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
                     required
-                    placeholder="Password"
+                    placeholder="Enter your password"
                   />
                 </div>
                 <div className="d-grid">
-                  <button type="submit" className="btn btn-primary" disabled={loading}>
+                  <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
                     {loading ? (
                       <>
-                        <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                         Signing In...
                       </>
                     ) : (
-                      'Sign In'
+                      <>
+                        <i className="fas fa-sign-in-alt me-2"></i>
+                        Sign In
+                      </>
                     )}
                   </button>
                 </div>
               </form>
-              <hr />
-              {/* This section is for OAuth providers, can be uncommented if you add them */}
-              {/* {providers &&
-                Object.values(providers).map((provider) => {
-                  if (provider.id === 'credentials') return null; // Don't show button for credentials
-                  return (
-                    <div key={provider.name} className="mt-2 d-grid">
-                      <button onClick={() => signIn(provider.id, { callbackUrl })} className="btn btn-outline-secondary">
-                        Sign in with {provider.name}
-                      </button>
-                    </div>
-                  );
-              })} */}
               
-              <div className="mt-3 text-center">
-                <p>
+              <hr className="my-4" />
+              
+              <div className="text-center">
+                <p className="mb-0">
                   Don&apos;t have an account?{' '}
-                  <Link href="/auth/register" className="text-decoration-none">
+                  <Link href="/auth/register" className="text-decoration-none fw-semibold">
                     Register here
                   </Link>
                 </p>
+                <div className="mt-3">
+                  <small className="text-muted">
+                    Need help? Contact{' '}
+                    <a href="mailto:andre@alliancechemical.com" className="text-decoration-none">
+                      andre@alliancechemical.com
+                    </a>
+                  </small>
+                </div>
               </div>
             </div>
           </div>

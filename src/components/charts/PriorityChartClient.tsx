@@ -26,7 +26,7 @@ interface TicketSummary {
 const priorityValues = ticketPriorityEnum.enumValues;
 
 // Define the standard priority order we want to display
-const standardPriorities = ['low', 'medium', 'high'] as const;
+const standardPriorities = ['low', 'medium', 'high', 'urgent'] as const;
 type StandardPriority = typeof standardPriorities[number];
 
 // Sort priorities in order of importance (low, medium, high)
@@ -56,8 +56,7 @@ const backgroundColor = [
   'rgba(75, 192, 192, 0.7)',  // Low - Teal
   'rgba(255, 205, 86, 0.7)',  // Medium - Yellow
   'rgba(255, 99, 132, 0.7)',  // High - Red
-  'rgba(153, 102, 255, 0.7)',  // Additional color if needed
-  'rgba(54, 162, 235, 0.7)',   // Additional color if needed
+  'rgba(153, 102, 255, 0.7)',  // Urgent
 ];
 
 const options = {
@@ -110,8 +109,8 @@ export default function PriorityChartClient() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await axios.get<TicketSummary[]>('/api/tickets');
-      const tickets = res.data;
+      const res = await axios.get<{ data: TicketSummary[] }>('/api/tickets');
+      const tickets = res.data.data;
 
       // Process data - count tickets by priority
       const counts: Record<string, number> = {};

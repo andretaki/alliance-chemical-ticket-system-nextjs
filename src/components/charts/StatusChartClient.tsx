@@ -27,7 +27,8 @@ const labels = statusValues.map(status =>
 const backgroundColor = [
   'rgba(75, 192, 192, 0.7)',  // Open - Teal
   'rgba(54, 162, 235, 0.7)',  // In Progress - Blue
-  'rgba(153, 102, 255, 0.7)', // Resolved - Purple
+  'rgba(255, 206, 86, 0.7)',  // Pending Customer - Yellow
+  'rgba(255, 159, 64, 0.7)',  // Resolved - Orange
   'rgba(201, 203, 207, 0.7)'  // Closed - Gray
 ];
 
@@ -44,7 +45,7 @@ const options = {
           const label = context.label || '';
           const value = context.raw || 0;
           const total = context.dataset.data.reduce((acc: number, data: number) => acc + data, 0);
-          const percentage = Math.round((value / total) * 100);
+          const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
           return `${label}: ${value} (${percentage}%)`;
         }
       }
@@ -69,8 +70,8 @@ export default function StatusChartClient() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await axios.get<TicketSummary[]>('/api/tickets');
-      const tickets = res.data;
+      const res = await axios.get<{ data: TicketSummary[] }>('/api/tickets');
+      const tickets = res.data.data;
 
       // Process data
       const counts: Record<string, number> = {};
@@ -119,11 +120,11 @@ export default function StatusChartClient() {
         <h5>Tickets by Status</h5>
       </div>
       <div className="card-body">
-        <div style={{ height: '300px', position: 'relative' }}>
+        <div style={{ height: '250px', position: 'relative' }}>
           {hasData ? (
             <Doughnut data={chartData} options={options} />
           ) : (
-            <p className="text-center">No ticket data available for status chart.</p>
+            <p className="text-center text-muted mt-5">No ticket data available.</p>
           )}
         </div>
       </div>

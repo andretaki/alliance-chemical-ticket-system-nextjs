@@ -24,6 +24,18 @@
   "functions": {
     "src/app/api/**/*": {
       "maxDuration": 30
+    },
+    "src/app/api/webhook/graph-notifications/route.ts": {
+      "maxDuration": 25
+    },
+    "src/app/api/process-emails/route.ts": {
+      "maxDuration": 25
+    },
+    "src/app/api/tickets/[id]/attachments/route.ts": {
+      "maxDuration": 20
+    },
+    "src/app/api/admin/actions/process-emails/route.ts": {
+      "maxDuration": 25
     }
   },
   "regions": ["iad1"],

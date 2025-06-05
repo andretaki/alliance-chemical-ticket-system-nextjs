@@ -46,6 +46,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   const [isApplyingFilters, setIsApplyingFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const [realtimeStatus, setRealtimeStatus] = useState<'polling' | 'sse' | 'disabled'>('polling');
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState('');
@@ -76,8 +77,8 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
 
-      const res = await axios.get<TicketListEntry[]>(`/api/tickets?${params.toString()}`);
-      let fetchedTickets = res.data;
+      const response = await axios.get<{ data: TicketListEntry[] }>(`/api/tickets?${params.toString()}`);
+      let fetchedTickets = response.data.data;
 
       if (limit && limit > 0 && !statusFilter && !priorityFilter && !assigneeFilter && !searchTerm.trim()) {
         fetchedTickets = fetchedTickets.slice(0, limit);
@@ -97,95 +98,25 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   fetchTicketsRef.current = fetchTickets;
 
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 3;
-    let retryTimeout: NodeJS.Timeout;
-    let connectionAttempts = 0;
+    let pollInterval: NodeJS.Timeout;
 
-    const connectEventSource = () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-
-      connectionAttempts++;
-      console.log(`Attempting to connect to SSE (Attempt ${connectionAttempts})...`);
-      
-      try {
-        const eventSource = new EventSource('/api/tickets/events', { withCredentials: true });
-        eventSourceRef.current = eventSource;
-
-        eventSource.onmessage = (event) => {
-          console.log('SSE Event Received:', event.data);
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'ticket_created' || data.type === 'ticket_updated' || data.type === 'ticket_deleted') {
-              // Use the ref to get the current fetchTickets function
-              fetchTicketsRef.current();
-            }
-          } catch (err) {
-            console.warn('Failed to parse SSE event data:', err);
-          }
-        };
-
-        eventSource.onerror = (error) => {
-          const readyState = eventSource.readyState;
-          const stateMap: { [key: number]: string } = {
-            0: 'CONNECTING',
-            1: 'OPEN',
-            2: 'CLOSED'
-          };
-          
-          console.error('EventSource error:', {
-            readyState: stateMap[readyState] || String(readyState),
-            timestamp: new Date().toISOString(),
-            connectionAttempt: connectionAttempts,
-            retryCount,
-            error: error instanceof Error ? error.message : 'Unknown error'
-          });
-
-          eventSource.close();
-          
-          if (retryCount < maxRetries) {
-            retryCount++;
-            const delay = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff with 10s max
-            console.log(`Retrying connection (${retryCount}/${maxRetries}) in ${delay/1000}s...`);
-            retryTimeout = setTimeout(connectEventSource, delay);
-          } else {
-            console.error('Max retries reached for EventSource connection');
-            setError('Lost connection to real-time updates. Please refresh the page.');
-          }
-        };
-
-        eventSource.onopen = () => {
-          console.log('EventSource connection established', {
-            timestamp: new Date().toISOString(),
-            connectionAttempt: connectionAttempts
-          });
-          retryCount = 0;
-          setError(null);
-        };
-      } catch (error) {
-        console.error('Failed to create EventSource:', error);
-        if (retryCount < maxRetries) {
-          retryCount++;
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 10000);
-          retryTimeout = setTimeout(connectEventSource, delay);
-        }
-      }
-    };
-
-    connectEventSource();
+    // Use polling for updates
+    console.log('Using polling for ticket updates (30s interval).');
+    setRealtimeStatus('polling');
+    
+    // Poll for updates every 30 seconds
+    pollInterval = setInterval(() => {
+      console.log('Polling for ticket updates...');
+      fetchTicketsRef.current();
+    }, 30000);
 
     return () => {
-      console.log('Cleaning up EventSource connection...');
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
+      console.log('Cleaning up polling interval...');
+      if (pollInterval) {
+        clearInterval(pollInterval);
       }
     };
-  }, []); // Empty dependency array for stable EventSource connection
+  }, []); // Empty dependency array ensures this runs once on mount
 
   useEffect(() => {
     fetchTickets();
@@ -432,6 +363,18 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Real-time Status Indicator */}
+        {realtimeStatus !== 'disabled' && (
+          <div className="d-flex justify-content-end mb-2">
+            <small className="text-muted d-flex align-items-center">
+              <span className={`badge ${realtimeStatus === 'sse' ? 'bg-success' : 'bg-info'} me-2`}>
+                {realtimeStatus === 'sse' ? '⚡' : '🔄'}
+              </span>
+              Real-time updates: {realtimeStatus === 'sse' ? 'Live (SSE)' : 'Polling (30s)'}
+            </small>
           </div>
         )}
 

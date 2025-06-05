@@ -41,10 +41,24 @@ export async function middleware(req: NextRequest) {
   // Define admin routes
   const isAdminRoute = pathname.startsWith('/admin') || pathname.startsWith('/manage-users');
 
+  // Define quote creator routes
+  const isQuoteCreatorRoute = pathname.startsWith('/quotes/create');
+
   // Check admin access
   if (isAdminRoute && isAuthenticated && token) { // Ensure token is not null
     if (token.role !== 'admin') {
       console.log(`RBAC: User '${token.email}' (role: '${token.role}') denied access to admin route '${pathname}'.`);
+      const homeUrl = new URL('/', req.url);
+      homeUrl.searchParams.set('error', 'AccessDenied');
+      return NextResponse.redirect(homeUrl);
+    }
+  }
+
+  // Check quote creator access
+  if (isQuoteCreatorRoute && isAuthenticated && token) {
+    const allowedRoles = ['admin', 'user'];
+    if (!token.role || !allowedRoles.includes(token.role)) {
+      console.log(`RBAC: User '${token.email}' (role: '${token.role}') denied access to quote creator route '${pathname}'.`);
       const homeUrl = new URL('/', req.url);
       homeUrl.searchParams.set('error', 'AccessDenied');
       return NextResponse.redirect(homeUrl);

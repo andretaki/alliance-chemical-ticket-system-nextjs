@@ -9,13 +9,14 @@ interface TicketSummary {
   id: number;
   status: string;
   priority: string;
+  createdAt: string;
 }
 
 const DashboardStatsSection: React.FC = () => {
   const [activeTicketsCount, setActiveTicketsCount] = useState<number | string>('-');
   const [criticalTicketsCount, setCriticalTicketsCount] = useState<number | string>('-');
-  const [newTodayCount, setNewTodayCount] = useState<number | string>('-'); // Placeholder
-  const [closedTodayCount, setClosedTodayCount] = useState<number | string>('-'); // Placeholder
+  const [newTodayCount, setNewTodayCount] = useState<number | string>('-');
+  const [closedTodayCount, setClosedTodayCount] = useState<number | string>('-');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,12 +44,9 @@ const DashboardStatsSection: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // NOTE: For a real-world dashboard with many tickets,
-      // create a dedicated API endpoint like /api/dashboard/stats
-      // that performs these aggregations on the server/database side.
-      // Fetching all tickets to filter client-side is inefficient at scale.
-      const res = await axios.get<TicketSummary[]>('/api/tickets');
-      const tickets = res.data;
+      // FIX: The API returns an object { data: [...] }, so we need to access the 'data' property.
+      const res = await axios.get<{ data: TicketSummary[] }>('/api/tickets');
+      const tickets = res.data.data; // Corrected data access
 
       const active = tickets.filter(t => activeStatuses.includes(t.status as any)).length;
       setActiveTicketsCount(active);
@@ -59,10 +57,12 @@ const DashboardStatsSection: React.FC = () => {
       ).length;
       setCriticalTicketsCount(critical);
       
-      // Placeholder: Implement logic for "New Today" & "Closed Today" if your API supports date filtering
-      // For now, we'll leave them as N/A or 0
-      setNewTodayCount(0); // Replace with actual count if API supports
-      setClosedTodayCount(0); // Replace with actual count if API supports
+      const today = new Date().toISOString().split('T')[0];
+      const newToday = tickets.filter(t => t.createdAt.startsWith(today)).length;
+      setNewTodayCount(newToday);
+      
+      // Placeholder for closed today - requires closedAt field on ticket schema
+      setClosedTodayCount(0);
 
     } catch (err) {
       console.error("Error fetching dashboard stats:", err);
