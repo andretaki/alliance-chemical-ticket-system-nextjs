@@ -1,4 +1,4 @@
-import Fuse from 'fuse.js';
+import Fuse, { IFuseOptions } from 'fuse.js';
 
 export interface SearchQuery {
   originalQuery: string;
@@ -221,7 +221,7 @@ export class AdvancedSearchProcessor {
   /**
    * Create Fuse.js configuration for fuzzy searching
    */
-  static createFuseConfig<T>(keys: string[], threshold: number = 0.3): Fuse.IFuseOptions<T> {
+  static createFuseConfig<T>(keys: string[], threshold: number = 0.3): IFuseOptions<T> {
     return {
       keys,
       threshold,
