@@ -4,8 +4,6 @@ import { ticketAttachments } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import fs from 'fs';
-import path from 'path';
 
 export async function GET(
   request: NextRequest,
@@ -29,30 +27,14 @@ export async function GET(
       where: eq(ticketAttachments.id, attachmentId),
     });
 
-    if (!attachment) {
-      return new NextResponse('Attachment not found', { status: 404 });
+    if (!attachment || !attachment.storagePath) {
+      return new NextResponse('Attachment not found or has no valid storage path', { status: 404 });
     }
 
-    // For this example, we'll assume files are stored in a local 'uploads' directory
-    // In production, you'd likely use a storage service like S3, GCS, etc.
-    const filePath = path.resolve(process.cwd(), attachment.storagePath);
-    
-    // Check if the file exists
-    if (!fs.existsSync(filePath)) {
-      return new NextResponse('File not found on server', { status: 404 });
-    }
-
-    // Read the file
-    const fileBuffer = fs.readFileSync(filePath);
-    
-    // Return the file with appropriate headers
-    return new NextResponse(fileBuffer, {
-      headers: {
-        'Content-Type': attachment.mimeType,
-        'Content-Disposition': `attachment; filename="${attachment.originalFilename}"`,
-        'Content-Length': fileBuffer.length.toString(),
-      },
-    });
+    // --- VERCEL BLOB INTEGRATION ---
+    // The storagePath now holds the public URL to the file in Vercel Blob.
+    // We simply redirect the user to this URL. The browser will handle the download.
+    return NextResponse.redirect(attachment.storagePath);
   } catch (error) {
     console.error('Error downloading attachment:', error);
     return new NextResponse('Internal Server Error', { status: 500 });

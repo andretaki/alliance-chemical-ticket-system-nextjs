@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/process-queued-emails",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/admin/cron/renew-subscriptions",
       "schedule": "0 0 * * *"
     },
@@ -9,79 +13,12 @@
       "schedule": "0 2 * * *"
     },
     {
-      "path": "/api/cron/update-metrics",
-      "schedule": "0 */6 * * *"
-    },
-    {
       "path": "/api/cron/process-resolutions",
-      "schedule": "0 */4 * * *"
+      "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/renew-subscriptions",
-      "schedule": "0 1 * * *"
-    }
-  ],
-  "functions": {
-    "src/app/api/**/*": {
-      "maxDuration": 30
-    },
-    "src/app/api/webhook/graph-notifications/route.ts": {
-      "maxDuration": 25
-    },
-    "src/app/api/process-emails/route.ts": {
-      "maxDuration": 25
-    },
-    "src/app/api/tickets/[id]/attachments/route.ts": {
-      "maxDuration": 20
-    },
-    "src/app/api/admin/actions/process-emails/route.ts": {
-      "maxDuration": 25
-    }
-  },
-  "regions": ["iad1"],
-  "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "installCommand": "npm ci",
-  "devCommand": "npm run dev",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate"
-        }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/.well-known/security.txt",
-      "destination": "/api/security-txt"
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/admin.php",
-      "destination": "/404",
-      "permanent": false
-    },
-    {
-      "source": "/wp-admin/(.*)",
-      "destination": "/404", 
-      "permanent": false
-    },
-    {
-      "source": "/phpmyadmin/(.*)",
-      "destination": "/404",
-      "permanent": false
+      "path": "/api/cron/update-metrics",
+      "schedule": "0 4 * * *"
     }
   ]
-} 
+}

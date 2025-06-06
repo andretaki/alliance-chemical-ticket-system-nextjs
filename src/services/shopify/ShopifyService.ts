@@ -248,33 +248,77 @@ export class ShopifyService {
         );
 
         if (response.errors) {
-          console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
-          throw new Error('GraphQL query failed');
+          console.error('[ShopifyService] GraphQL errors when fetching products:', response.errors);
+          throw new Error('Failed to fetch products from Shopify.');
         }
 
         const productEdges = response.data?.products?.edges || [];
-        if (productEdges.length === 0 && !response.data?.products?.pageInfo?.hasNextPage) {
-          hasNextPage = false;
-          console.log('[ShopifyService] No more products on this page and no next page.');
-          break;
-        }
-
         products.push(...productEdges.map((edge: any) => edge.node));
+        
+        hasNextPage = response.data?.products?.pageInfo?.hasNextPage || false;
+        cursor = response.data?.products?.pageInfo?.endCursor;
 
-        const pageInfo: any = response.data?.products?.pageInfo;
-        hasNextPage = pageInfo?.hasNextPage || false;
-        cursor = pageInfo?.endCursor;
-
-        if (hasNextPage) {
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limiting delay
-        }
-      } catch (error: any) {
-        console.error('[ShopifyService] Error during product fetch:', error.message);
+      } catch (error) {
+        console.error(`[ShopifyService] Error fetching products:`, error);
         throw error;
       }
     }
-
     return products;
+  }
+
+  public async getDraftOrdersByQuery(query: string, limit: number = 1): Promise<ShopifyDraftOrderGQLResponse[]> {
+    const gqlQuery = `
+      query GetDraftOrders($query: String!, $first: Int!) {
+        draftOrders(query: $query, first: $first, sortKey: UPDATED_AT, reverse: true) {
+          edges {
+            node {
+              id
+              legacyResourceId
+              name
+              status
+              invoiceUrl
+              createdAt
+              updatedAt
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              customer {
+                id
+                displayName
+                email
+              }
+              tags
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      console.log(`[ShopifyService] Searching for draft orders with query: ${query}`);
+      const response: any = await this.graphqlClient.request(
+        gqlQuery,
+        {
+          variables: { query: query, first: limit },
+          retries: 2
+        }
+      );
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL errors when searching draft orders:', response.errors);
+        throw new Error('Failed to search draft orders in Shopify.');
+      }
+
+      const draftOrders = response.data?.draftOrders?.edges?.map((edge: any) => edge.node) || [];
+      console.log(`[ShopifyService] Found ${draftOrders.length} draft orders.`);
+      return draftOrders;
+    } catch (error) {
+      console.error(`[ShopifyService] Error searching draft orders by query "${query}":`, error);
+      throw error;
+    }
   }
 
   // New method to directly search Shopify products
@@ -1417,11 +1461,8 @@ export class ShopifyService {
       }
 
     } catch (error: any) {
-      console.error('[ShopifyService] Error in createCustomerIfNotExists:', error);
-      return {
-        success: false,
-        error: error.message || 'Unknown error occurred'
-      };
+      console.error(`[ShopifyService] Error in createCustomerIfNotExists for email ${customerData.email}:`, error);
+      return { success: false, error: error instanceof Error ? error.message : 'An unknown error occurred' };
     }
   }
 }

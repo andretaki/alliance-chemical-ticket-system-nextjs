@@ -7,8 +7,8 @@ import { eq } from 'drizzle-orm';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import path from 'path';
-import fs from 'fs/promises';
 import crypto from 'crypto';
+import { put } from '@vercel/blob';
 
 // Vercel serverless limits
 const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (Vercel payload limit)
@@ -97,57 +97,39 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Create upload directory (use /tmp for serverless)
-    const uploadsDir = path.join('/tmp', 'tickets', ticketId.toString());
-    await fs.mkdir(uploadsDir, { recursive: true });
-
     const savedAttachments = [];
 
-    // Process files sequentially to avoid memory issues
     for (const file of files) {
       try {
-        // Stream file processing to reduce memory usage
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        
-        // Generate unique filename
-        const fileExt = path.extname(file.name);
-        const uniqueFilename = `${crypto.randomUUID()}${fileExt}`;
-        const tempFilePath = path.join(uploadsDir, uniqueFilename);
-        
-        // Write file to temp directory
-        await fs.writeFile(tempFilePath, buffer);
-        
-        // Create database record
-        const relativeStoragePath = path.join('uploads', 'tickets', ticketId.toString(), uniqueFilename);
-        
+        const uniqueFilename = `${crypto.randomUUID()}-${file.name}`;
+
+        // --- VERCEL BLOB INTEGRATION ---
+        // Upload the file directly to Vercel Blob
+        const blob = await put(uniqueFilename, file, {
+          access: 'public',
+        });
+
+        // The `blob.url` is the public, persistent URL for the file
+        const storagePath = blob.url;
+
         const [newAttachment] = await db.insert(ticketAttachments)
           .values({
-            filename: uniqueFilename,
+            filename: uniqueFilename, // Can still be useful for reference
             originalFilename: file.name,
             fileSize: file.size,
             mimeType: file.type || 'application/octet-stream',
-            storagePath: relativeStoragePath,
+            storagePath: storagePath, // Save the public Vercel Blob URL
             ticketId,
             uploaderId: session.user.id,
           })
           .returning();
-        
-        savedAttachments.push(newAttachment);
 
-        // Clean up temp file immediately to free memory
-        try {
-          await fs.unlink(tempFilePath);
-        } catch (cleanupError) {
-          console.warn(`Failed to cleanup temp file ${tempFilePath}:`, cleanupError);
-        }
+        savedAttachments.push(newAttachment);
 
       } catch (fileError) {
         console.error(`Error processing file ${file.name}:`, fileError);
-        return NextResponse.json({ 
-          error: `Failed to process file: ${file.name}`,
-          details: fileError instanceof Error ? fileError.message : 'Unknown error'
-        }, { status: 500 });
+        // Add specific error handling for Vercel Blob if needed
+        return NextResponse.json({ error: `Failed to process file: ${file.name}`, details: fileError instanceof Error ? fileError.message : 'Unknown error' }, { status: 500 });
       }
     }
 

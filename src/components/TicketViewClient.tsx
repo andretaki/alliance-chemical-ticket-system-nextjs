@@ -15,6 +15,7 @@ import CommunicationHistory from './ticket-view/CommunicationHistory';
 import ReplyForm from './ticket-view/ReplyForm';
 import TicketDetailsSidebar from './ticket-view/TicketDetailsSidebar';
 import ShippingInfoSidebar from './ticket-view/ShippingInfoSidebar';
+import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
 
 // --- Type Definitions ---
 
@@ -79,6 +80,7 @@ interface TicketData {
 
 interface TicketViewClientProps {
   initialTicket: TicketData;
+  relatedQuote?: ShopifyDraftOrderGQLResponse | null;
 }
 
 // --- Helper Functions ---
@@ -174,7 +176,7 @@ const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: 
 };
 
 // --- Main Component ---
-export default function TicketViewClient({ initialTicket }: TicketViewClientProps) {
+export default function TicketViewClient({ initialTicket, relatedQuote }: TicketViewClientProps) {
   const [ticket, setTicket] = useState<TicketData>(initialTicket);
   const [users, setUsers] = useState<BaseUser[]>([]);
   const [isLoading, setIsLoading] = useState(false); // Combined loading state for simplicity
@@ -851,6 +853,44 @@ export default function TicketViewClient({ initialTicket }: TicketViewClientProp
             ticket={ticket} 
           />
 
+          {/* Related Quote */}
+          {relatedQuote && (
+            <div className="card shadow-sm mb-4 border-primary">
+              <div className="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
+                <h6 className="mb-0 d-flex align-items-center">
+                  <i className="fas fa-file-invoice-dollar me-2 text-primary"></i>
+                  Related Quote
+                </h6>
+                <a 
+                  href={`/admin/draft_orders/${relatedQuote.legacyResourceId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-sm btn-outline-primary"
+                >
+                  View in Shopify <i className="fas fa-external-link-alt ms-1"></i>
+                </a>
+              </div>
+              <div className="card-body p-3">
+                <div className="d-flex flex-column gap-2">
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Quote #</span>
+                    <span className="fw-medium">{relatedQuote.name}</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Status</span>
+                    <span className="fw-medium text-capitalize">{relatedQuote.status.replace('_', ' ')}</span>
+                  </div>
+                  <div className="d-flex justify-content-between">
+                    <span className="text-muted">Total</span>
+                    <span className="fw-medium">
+                      ${parseFloat(relatedQuote.totalPriceSet.shopMoney.amount).toFixed(2)} {relatedQuote.totalPriceSet.shopMoney.currencyCode}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* **NEW: Live ShipStation Data Section** */}
           {ticket.orderNumber && (
             <div className={`card shadow-sm mb-4 ${liveShipStationData ? 'border-success' : 'border-warning'} border-opacity-50`}>
