@@ -29,12 +29,12 @@ const parseTicketIdString = (idString: string): number => {
 // --- GET: Fetch a single ticket with detailed information ---
 export async function GET(
   request: Request,
-  { params: paramsPromise }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let ticketIdStr: string = 'unknown_id_in_GET_handler';
   try {
-    const params = await paramsPromise; // Await the promise to get { id: string }
-    ticketIdStr = params.id; // Now params.id is safe to access
+    const { id } = await params;
+    ticketIdStr = id;
 
     const ticketId = parseTicketIdString(ticketIdStr);
 

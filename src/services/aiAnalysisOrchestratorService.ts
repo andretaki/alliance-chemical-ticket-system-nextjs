@@ -1,7 +1,8 @@
 import { EmailAnalysisData } from '@/types/emailAnalysis';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig, type GenerativeModel } from '@google/generative-ai';
 import { NotificationService } from './notificationService';
-import { RagQueryService } from '@/services/ragQueryService';
+import { OpenAI } from 'openai';
+import { db, tickets, ticketComments } from '@/lib/db';
 
 // Define the FORM_URL
 const FORM_URL = process.env.CREDIT_APPLICATION_URL || "https://alliance-form.vercel.app/";

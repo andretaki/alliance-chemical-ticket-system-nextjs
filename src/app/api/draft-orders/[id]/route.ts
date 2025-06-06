@@ -64,11 +64,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let draftOrderId = 'unknown';
+  let numericId = 'unknown';
   try {
     const { id } = await params;
-    draftOrderId = id;
-    const numericId = id;
+    numericId = id;
     if (!numericId) {
       return NextResponse.json({ error: 'Draft order ID is required' }, { status: 400 });
     }
@@ -86,7 +85,7 @@ export async function GET(
     return NextResponse.json(output);
 
   } catch (error: any) {
-    console.error(`[API /api/draft-orders/${draftOrderId}] Error:`, error);
+    console.error(`[API /api/draft-orders/${numericId}] Error:`, error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 } 

@@ -5,7 +5,6 @@ import { db } from '@/lib/db';
 import { tickets, ticketComments } from '@/db/schema';
 import { count, eq, and, sql, desc, gte, lt, between } from 'drizzle-orm';
 import { authOptions } from '@/lib/authOptions';
-import { getResolutionMetrics } from '@/utils/resolutionMetricsUtil';
 
 // KV storage key for last run time
 const LAST_RESOLUTION_RUN_KEY = 'ticket:resolution:last_run';

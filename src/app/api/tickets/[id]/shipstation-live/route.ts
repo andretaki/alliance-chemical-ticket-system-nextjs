@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const resolvedParams = await params;
-    const ticketId = parseInt(resolvedParams.id, 10);
+    const { id } = await params;
+    const ticketId = parseInt(id, 10);
 
     if (isNaN(ticketId)) {
       return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });

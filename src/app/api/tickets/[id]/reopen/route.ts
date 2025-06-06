@@ -2,20 +2,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, tickets, ticketComments, ticketStatusEnum } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 import { ticketEventEmitter } from '@/lib/eventEmitter';
 
 export async function POST(
-  request: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const { id } = await params;
     const ticketId = parseInt(id);
     if (isNaN(ticketId)) {
       return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
     }
     
-    const body = await request.json();
+    const body = await req.json();
     const { reason, customerEmail } = body;
     
     // Verify the ticket exists and is closed

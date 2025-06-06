@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
 import { db, tickets, users } from '@/lib/db';
-import { and, isNotNull, gte, eq, sql } from 'drizzle-orm';
+import { and, isNotNull, gte, eq, sql, count } from 'drizzle-orm';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
 
 // POST: Batch create customers from existing tickets
@@ -136,19 +136,20 @@ export async function GET(request: NextRequest) {
     const isEnabled = customerAutoCreateService.isAutoCreateEnabled();
     
     // Get some stats about tickets with customer emails
-    const totalTicketsWithEmails = await db.$count(tickets, isNotNull(tickets.senderEmail));
+    const totalTicketsWithEmailsResult = await db.select({ count: count() }).from(tickets).where(isNotNull(tickets.senderEmail));
+    const totalTicketsWithEmails = totalTicketsWithEmailsResult[0]?.count || 0;
     
     // Get recent tickets (last 30 days) with emails
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    const recentTicketsWithEmails = await db.$count(
-      tickets, 
+    const recentTicketsWithEmailsResult = await db.select({ count: count() }).from(tickets).where(
       and(
         isNotNull(tickets.senderEmail),
         gte(tickets.createdAt, thirtyDaysAgo)
       )
     );
+    const recentTicketsWithEmails = recentTicketsWithEmailsResult[0]?.count || 0;
 
     return NextResponse.json({
       autoCreateEnabled: isEnabled,

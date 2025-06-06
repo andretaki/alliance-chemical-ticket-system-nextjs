@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; action: string }> }
+  { params }: { params: Promise<{ id: string; action: string; }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,12 +17,13 @@ export async function POST(
       return new NextResponse('Unauthorized', { status: 401 });
     }
 
+    // Await the params since it's now a Promise
     const { id, action } = await params;
     const { reviewNotes, targetTicketId } = await request.json();
 
     // Fetch the quarantined email
     const email = await db.query.quarantinedEmails.findFirst({
-      where: eq(quarantinedEmails.id, parseInt(id)),
+      where: eq(quarantinedEmails.id, parseInt(id, 10)),
     });
 
     if (!email) {
@@ -62,7 +63,7 @@ export async function POST(
 
         await db.update(quarantinedEmails)
           .set(updateData)
-          .where(eq(quarantinedEmails.id, parseInt(id)));
+          .where(eq(quarantinedEmails.id, parseInt(id, 10)));
 
         return NextResponse.json({ success: true, message: 'Ticket created successfully' });
 
@@ -73,7 +74,7 @@ export async function POST(
 
         // Verify the target ticket exists
         const ticket = await db.query.tickets.findFirst({
-          where: eq(tickets.id, parseInt(targetTicketId)),
+          where: eq(tickets.id, parseInt(targetTicketId, 10)),
         });
 
         if (!ticket) {
@@ -82,7 +83,7 @@ export async function POST(
 
         // Add the email as a comment
         await db.insert(ticketComments).values({
-          ticketId: parseInt(targetTicketId),
+          ticketId: parseInt(targetTicketId, 10),
           commentText: email.bodyPreview,
           commenterId: session.user.id,
           isFromCustomer: true,
@@ -92,7 +93,7 @@ export async function POST(
 
         await db.update(quarantinedEmails)
           .set(updateData)
-          .where(eq(quarantinedEmails.id, parseInt(id)));
+          .where(eq(quarantinedEmails.id, parseInt(id, 10)));
 
         return NextResponse.json({ success: true, message: 'Comment added successfully' });
 
@@ -101,7 +102,7 @@ export async function POST(
       case 'delete':
         await db.update(quarantinedEmails)
           .set(updateData)
-          .where(eq(quarantinedEmails.id, parseInt(id)));
+          .where(eq(quarantinedEmails.id, parseInt(id, 10)));
 
         return NextResponse.json({ success: true, message: 'Email status updated successfully' });
 
@@ -112,4 +113,4 @@ export async function POST(
     console.error('Error processing quarantine action:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
-} 
+}

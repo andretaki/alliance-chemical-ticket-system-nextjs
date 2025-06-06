@@ -15,19 +15,18 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user?.role !== 'admin') {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'manager')) {
+      return new NextResponse('Unauthorized', { status: 401 });
     }
 
     const { userId } = await params;
-    if (!userId) {
-      return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
+    const { status } = await request.json();
+
+    if (!userId || !status) {
+      return NextResponse.json({ message: 'User ID and status are required' }, { status: 400 });
     }
 
-    const body = await request.json() as StatusUpdateRequestBody;
-    const newStatus = body.status;
-
-    if (!newStatus || !userApprovalStatusEnum.enumValues.includes(newStatus)) {
+    if (!userApprovalStatusEnum.enumValues.includes(status)) {
       return NextResponse.json({ message: 'Invalid status provided' }, { status: 400 });
     }
 
@@ -41,14 +40,14 @@ export async function POST(
     }
 
     await db.update(users)
-      .set({ approvalStatus: newStatus, updatedAt: new Date() })
+      .set({ approvalStatus: status, updatedAt: new Date() })
       .where(eq(users.id, userId));
 
     // Optionally, send an email to the user upon approval/rejection here
-    // For example, if newStatus === 'approved':
+    // For example, if approvalStatus === 'approved':
     // await sendEmail(userExists.email, 'Account Approved', '<p>Your account has been approved.</p>');
 
-    return NextResponse.json({ message: `User status updated to ${newStatus}` });
+    return NextResponse.json({ message: `User status updated to ${status}` });
 
   } catch (error) {
     console.error('Error updating user status:', error);

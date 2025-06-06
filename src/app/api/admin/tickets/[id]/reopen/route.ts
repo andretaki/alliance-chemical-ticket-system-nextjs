@@ -9,21 +9,21 @@ import { ticketEventEmitter } from '@/lib/eventEmitter';
  * POST handler to reopen a closed ticket
  */
 export async function POST(
-  req: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication and permissions
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!session || !session.user || session.user.role !== 'admin') {
+      return new NextResponse('Unauthorized', { status: 401 });
     }
     
-    // Parse ticket ID
+    // Parse ticket ID - await params since it's now a Promise
     const { id } = await params;
-    const ticketId = parseInt(id);
+    const ticketId = parseInt(id, 10);
     if (isNaN(ticketId)) {
-      return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
+      return new NextResponse('Invalid ticket ID', { status: 400 });
     }
     
     // Check if ticket exists and is closed
@@ -83,4 +83,4 @@ export async function POST(
     console.error(`Error reopening ticket:`, error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-} 
+}

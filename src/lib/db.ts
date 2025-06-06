@@ -1,9 +1,8 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
-// Import all schemas that need to be available through the 'db' instance
+// Import the main schema tables
 import * as ticketingProdSchemaTables from '@/db/schema';
-import * as ragSystemSchemaTables from '@/lib/db/ragSchema';
 
 // Check for required environment variables
 if (!process.env.DATABASE_URL) {
@@ -22,15 +21,9 @@ const client = postgres(connectionString, {
   prepare: false, // Disable prepared statements for better serverless performance
 });
 
-// Combine all schema tables into one schema object for Drizzle
-const combinedSchema = {
-  ...ticketingProdSchemaTables,
-  ...ragSystemSchemaTables,
-};
-
 // Create the single, exported database instance
 export const db = drizzle(client, {
-  schema: combinedSchema,
+  schema: ticketingProdSchemaTables,
   logger: process.env.NODE_ENV === 'development' && process.env.DEBUG_SQL === 'true'
 });
 

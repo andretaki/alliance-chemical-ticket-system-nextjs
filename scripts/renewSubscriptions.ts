@@ -1,8 +1,8 @@
 // scripts/renewSubscriptions.ts
 import 'dotenv/config';
-import * as graphService from '../src/lib/graphService';
-import { db } from '../src/db';
-import { subscriptions } from '../src/db/schema';
+import * as graphService from '../src/lib/graphService.js';
+import { db } from '../src/lib/db.js';
+import { subscriptions } from '../src/db/schema.js';
 import { eq, and, lt, gt } from 'drizzle-orm';
 
 // Function to renew subscriptions that are about to expire

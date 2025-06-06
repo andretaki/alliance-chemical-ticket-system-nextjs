@@ -34,7 +34,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const ticketId = parseInt(id);
+    const ticketId = parseInt(id, 10);
     if (isNaN(ticketId)) {
       return new NextResponse('Invalid ticket ID', { status: 400 });
     }

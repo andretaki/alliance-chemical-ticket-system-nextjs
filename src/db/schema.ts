@@ -174,7 +174,7 @@ export const subscriptions = ticketingProdSchema.table('subscriptions', {
   notificationUrl: text('notification_url').notNull(),
   expirationDateTime: timestamp('expiration_datetime', { withTimezone: true }).notNull(),
   clientState: text('client_state'),
-  creatorId: text('creator_id').notNull(), // Changed from integer to text if creator can be system/UUID
+  creatorId: text('creator_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   isActive: boolean('is_active').default(true).notNull(),
   renewalCount: integer('renewal_count').default(0).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
@@ -228,6 +228,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   sessions: many(sessions),
   reviewedQuarantinedEmails: many(quarantinedEmails),
   signatures: many(userSignatures),
+  subscriptions: many(subscriptions),
 }));
 
 export const ticketsRelations = relations(tickets, ({ one, many }) => ({
@@ -411,3 +412,10 @@ export const creditApplications = ticketingProdSchema.table('credit_applications
     submittedAtIndex: index('idx_credit_applications_submitted_at').on(table.submittedAt),
   };
 });
+
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  creator: one(users, {
+    fields: [subscriptions.creatorId],
+    references: [users.id],
+  }),
+}));

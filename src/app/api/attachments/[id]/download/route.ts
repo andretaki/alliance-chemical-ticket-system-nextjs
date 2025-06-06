@@ -3,23 +3,21 @@ import { db, ticketAttachments } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { auth } from '@/auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Ensure the user is authenticated
     const session = await getServerSession(authOptions);
-    if (!session) {
-      return new NextResponse('Unauthorized', { status: 401 });
+    if (!session || !session.user) {
+      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
     }
 
     const { id } = await params;
-    const attachmentId = parseInt(id);
+    const attachmentId = parseInt(id, 10);
     if (isNaN(attachmentId)) {
-      return new NextResponse('Invalid attachment ID', { status: 400 });
+      return new NextResponse(JSON.stringify({ error: 'Invalid attachment ID' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     // Get the attachment record

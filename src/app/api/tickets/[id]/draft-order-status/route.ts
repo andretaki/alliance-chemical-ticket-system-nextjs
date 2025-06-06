@@ -1,4 +1,4 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db, tickets } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
@@ -17,15 +17,15 @@ export async function GET(
     try {
         // Authenticate the user (agent)
         const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        if (!session?.user) {
+            return new NextResponse('Unauthorized', { status: 401 });
         }
 
         const { id } = await params;
         ticketIdString = id; // Assign raw string ID for logging
-        ticketId = parseInt(id);
+        ticketId = parseInt(id, 10);
         if (isNaN(ticketId)) {
-            return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
+            return new NextResponse('Invalid ticket ID', { status: 400 });
         }
 
         // Fetch ticket details from database
