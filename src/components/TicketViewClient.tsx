@@ -618,7 +618,14 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     } catch (error) {
       console.error('Error resending Shopify invoice:', error);
       toast.dismiss();
-      const errorMessage = error.response?.data?.error || 'Failed to resend Shopify invoice.';
+
+      let errorMessage = 'Failed to resend Shopify invoice.';
+      if (axios.isAxiosError(error)) {
+        errorMessage = error.response?.data?.error || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast.error(errorMessage);
     } finally {
       setIsResendingShopifyInvoice(false);
@@ -643,7 +650,14 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     } catch (error) {
         console.error('Error resending PDF invoice:', error);
         toast.dismiss();
-        const errorMessage = error.response?.data?.error || 'Failed to resend PDF invoice.';
+
+        let errorMessage = 'Failed to resend PDF invoice.';
+        if (axios.isAxiosError(error)) {
+            errorMessage = error.response?.data?.error || errorMessage;
+        } else if (error instanceof Error) {
+            errorMessage = error.message;
+        }
+        
         toast.error(errorMessage);
     } finally {
         setIsResendingPdf(false);

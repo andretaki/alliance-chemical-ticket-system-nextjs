@@ -1,4 +1,4 @@
-import type { ExtractedEntityDetail } from '@/types/emailAnalysis';
+import type { ExtractedEntityDetail } from '@/types/emailAnalysis.d.ts';
 
 export interface CustomerContact {
   name?: string;
