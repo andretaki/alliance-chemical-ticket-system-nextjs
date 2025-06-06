@@ -1,7 +1,7 @@
 // src/lib/ticketResolutionAgent.ts
 import { GoogleGenerativeAI, GenerationConfig } from "@google/generative-ai";
-import { db } from '@/db';
-import { tickets, ticketComments, ticketStatusEnum } from '@/db/schema';
+import { Groq } from 'groq-sdk';
+import { db, tickets, ticketComments, ticketStatusEnum } from '@/lib/db';
 import { eq, and, not, gte, lte, sql } from 'drizzle-orm';
 import { ticketEventEmitter } from '@/lib/eventEmitter';
 import { kv } from '@vercel/kv';
@@ -424,47 +424,47 @@ export async function checkTicketsForResolution(
         not(eq(tickets.status, 'closed')),
         lte(tickets.updatedAt, cutoffDate) // Ticket hasn't been updated recently
       ),
-      orderBy: (t) => [sql`RANDOM()`], // Process in random order to vary AI inputs
-      limit: maxTicketsToProcess,
-      with: { comments: { orderBy: (c, { asc }) => [asc(c.createdAt)], columns: { isFromCustomer: true } } }
-    });
-    
-    console.log(`Resolution Agent: Found ${eligibleTickets.length} eligible tickets.`);
-    
-    for (const ticket of eligibleTickets) {
-      processed++;
-      try {
-        const analysis = await analyzeTicketResolution(ticket.id);
-        if (!analysis) { errors++; continue; }
-        aiAnalysisUsed++;
-        
-        const applied = await applyResolutionAnalysis(ticket.id, analysis, autoCloseConfidentResults);
-        if (applied) {
-          if (analysis.isResolved) resolvedByAI++;
-          if (analysis.shouldAutoClose && autoCloseConfidentResults) autoClosedByAI++;
-          if (analysis.recommendedAction === 'follow_up') followUpRecommendedByAI++;
-        }
-      } catch (ticketError) {
-        console.error(`Resolution Agent: Error processing ticket ${ticket.id}:`, ticketError);
-        errors++;
-      }
-      await new Promise(resolve => setTimeout(resolve, 1200)); // Increased delay
-    }
-    
-    // This part is for metrics, not directly part of the AI decision loop for THIS run
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const reopenedResult = await db.select({ count: sql<number>`count(*)` }).from(ticketComments)
-      .where(and(sql`${ticketComments.commentText} LIKE '%Ticket Reopened by Customer%'`, gte(ticketComments.createdAt, thirtyDaysAgo)));
-    reopened = reopenedResult[0]?.count || 0;
-    
-    await updateLastRunTime();
-    
-    console.log(`Resolution Agent: Batch complete. Processed: ${processed}, AI Analyzed: ${aiAnalysisUsed}, Resolved by AI: ${resolvedByAI}, Auto-Closed by AI: ${autoClosedByAI}, Follow-up by AI: ${followUpRecommendedByAI}, Errors: ${errors}, Reopened (last 30d): ${reopened}`);
-    
-    return { processed, resolvedByAI, autoClosedByAI, followUpRecommendedByAI, errors, reopened, aiAnalysisUsed };
-  } catch (batchError) {
-    console.error(`Resolution Agent: Error during batch processing:`, batchError);
-    return { processed: 0, resolvedByAI: 0, autoClosedByAI: 0, followUpRecommendedByAI: 0, errors: 1, aiAnalysisUsed: 0 };
-  }
+       orderBy: (t) => [sql`RANDOM()`], // Process in random order to vary AI inputs
+       limit: maxTicketsToProcess,
+       with: { comments: { orderBy: (c, { asc }) => [asc(c.createdAt)], columns: { isFromCustomer: true } } }
+     });
+     
+     console.log(`Resolution Agent: Found ${eligibleTickets.length} eligible tickets.`);
+     
+     for (const ticket of eligibleTickets) {
+       processed++;
+       try {
+         const analysis = await analyzeTicketResolution(ticket.id);
+         if (!analysis) { errors++; continue; }
+         aiAnalysisUsed++;
+         
+         const applied = await applyResolutionAnalysis(ticket.id, analysis, autoCloseConfidentResults);
+         if (applied) {
+           if (analysis.isResolved) resolvedByAI++;
+           if (analysis.shouldAutoClose && autoCloseConfidentResults) autoClosedByAI++;
+           if (analysis.recommendedAction === 'follow_up') followUpRecommendedByAI++;
+         }
+       } catch (ticketError) {
+         console.error(`Resolution Agent: Error processing ticket ${ticket.id}:`, ticketError);
+         errors++;
+       }
+       await new Promise(resolve => setTimeout(resolve, 1200)); // Increased delay
+     }
+     
+     // This part is for metrics, not directly part of the AI decision loop for THIS run
+     const thirtyDaysAgo = new Date();
+     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+     const reopenedResult = await db.select({ count: sql<number>`count(*)` }).from(ticketComments)
+       .where(and(sql`comment_text LIKE '%Ticket Reopened by Customer%'`, gte(ticketComments.createdAt, thirtyDaysAgo)));
+     reopened = reopenedResult[0]?.count || 0;
+     
+     await updateLastRunTime();
+     
+     console.log(`Resolution Agent: Batch complete. Processed: ${processed}, AI Analyzed: ${aiAnalysisUsed}, Resolved by AI: ${resolvedByAI}, Auto-Closed by AI: ${autoClosedByAI}, Follow-up by AI: ${followUpRecommendedByAI}, Errors: ${errors}, Reopened (last 30d): ${reopened}`);
+     
+     return { processed, resolvedByAI, autoClosedByAI, followUpRecommendedByAI, errors, reopened, aiAnalysisUsed };
+   } catch (batchError) {
+     console.error(`Resolution Agent: Error during batch processing:`, batchError);
+     return { processed: 0, resolvedByAI: 0, autoClosedByAI: 0, followUpRecommendedByAI: 0, errors: 1, aiAnalysisUsed: 0 };
+   }
 }

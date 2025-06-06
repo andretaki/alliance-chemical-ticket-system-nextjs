@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { ClientSecretCredential } from '@azure/identity';
 import { Client } from '@microsoft/microsoft-graph-client';
 import { Message, MailFolder, InternetMessageHeader } from '@microsoft/microsoft-graph-types';
-import { db } from '@/db';
+import { db } from '@/lib/db';
 import { subscriptions, userSignatures } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 

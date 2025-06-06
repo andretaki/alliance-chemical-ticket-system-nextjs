@@ -45,7 +45,7 @@ export async function middleware(req: NextRequest) {
   const isQuoteCreatorRoute = pathname.startsWith('/quotes/create');
 
   // Check admin access
-  if (isAdminRoute && isAuthenticated && token) { // Ensure token is not null
+  if (isAdminRoute && isAuthenticated && token) {
     if (token.role !== 'admin') {
       console.log(`RBAC: User '${token.email}' (role: '${token.role}') denied access to admin route '${pathname}'.`);
       const homeUrl = new URL('/', req.url);

@@ -1,9 +1,10 @@
 import { EmailAnalysisData } from '@/types/emailAnalysis';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig, type GenerativeModel } from '@google/generative-ai';
 import { NotificationService } from './notificationService';
+import { RagQueryService } from '@/services/ragQueryService';
 
 // Define the FORM_URL
-const FORM_URL = "https://alliance-form.vercel.app/";
+const FORM_URL = process.env.CREDIT_APPLICATION_URL || "https://alliance-form.vercel.app/";
 
 // Minimal representation of a raw email for analysis
 interface RawEmailInput {

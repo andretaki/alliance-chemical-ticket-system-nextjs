@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { db } from '@/db';
-import { quarantinedEmails, tickets, ticketComments } from '@/db/schema';
+import { db, quarantinedEmails, tickets, ticketComments } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { processSingleEmail } from '@/lib/emailProcessor';
+import { revalidatePath } from 'next/cache';
 
 export async function POST(
   request: NextRequest,

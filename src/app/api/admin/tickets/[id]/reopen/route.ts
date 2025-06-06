@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { db } from '@/db';
-import { tickets, ticketComments } from '@/db/schema';
+import { db, tickets, ticketComments } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { authOptions } from '@/lib/authOptions';
 import { ticketEventEmitter } from '@/lib/eventEmitter';

@@ -2,8 +2,7 @@
 import { Message, InternetMessageHeader, NullableOption } from '@microsoft/microsoft-graph-types';
 import * as graphService from '@/lib/graphService';
 import * as alertService from '@/lib/alertService';
-import { db } from '@/db';
-import { tickets, users, ticketComments, ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum, quarantinedEmails, ticketSentimentEnum } from '@/db/schema'; // Added sentiment enum
+import { db, tickets, users, ticketComments, ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum, quarantinedEmails, ticketSentimentEnum } from '@/lib/db'; // Added sentiment enum
 import { eq, or, inArray, and, sql } from 'drizzle-orm'; // Added sql for raw queries
 import { analyzeEmailContent, triageEmailWithAI, EmailAnalysisResult } from '@/lib/aiService'; // Import EmailAnalysisResult
 import { getOrderTrackingInfo, OrderTrackingInfo } from '@/lib/shipstationService'; // Import the new service

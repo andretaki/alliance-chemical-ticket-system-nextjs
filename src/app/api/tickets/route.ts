@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { db } from '@/db';
-import { tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum, ticketTypeEcommerceEnum } from '@/db/schema';
+import { db, tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum, ticketTypeEcommerceEnum } from '@/lib/db';
 import { eq, desc, asc, and, or, ilike, sql, isNull, inArray, count, SQL, AnyColumn } from 'drizzle-orm';
 import { z } from 'zod';
 import { getServerSession } from "next-auth/next";

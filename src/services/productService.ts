@@ -1,8 +1,9 @@
-import { db } from '@/db';
-import { agentProducts, agentProductVariants } from '@/db/schema';
+import { db, products, agentProducts, agentProductVariants } from '@/lib/db';
 import { eq, or, ilike, sql, asc, desc, and } from 'drizzle-orm';
 import type { ParentProductData, ProductVariantData } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
+
+const BATCH_SIZE = 1000;
 
 // Helper interface for search results
 interface ProductVariantSearchResult {

@@ -1,8 +1,7 @@
 /**
  * Utility functions for tracking resolution metrics
  */
-import { db } from '@/db';
-import { tickets, ticketComments } from '@/db/schema';
+import { db, tickets, ticketComments } from '@/lib/db';
 import { eq, and, sql, gte, desc, count, lte } from 'drizzle-orm';
 import { kv } from '@vercel/kv';
 

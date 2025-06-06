@@ -1,4 +1,4 @@
-import { db } from '@/db';
+import { db } from '@/lib/db';
 import { tickets as ticketsSchema } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 

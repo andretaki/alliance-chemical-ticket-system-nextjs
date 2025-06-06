@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { userSignatures } from '@/db/schema';
+import { db, userSignatures, users } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from '@/lib/authOptions';

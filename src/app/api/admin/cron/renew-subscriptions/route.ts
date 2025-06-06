@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as graphService from '@/lib/graphService';
-import { db } from '@/db';
-import { subscriptions } from '@/db/schema';
+import { db, subscriptions } from '@/lib/db';
 import { eq, and, lt, gt } from 'drizzle-orm';
 
 // This route should be called by a cron job service (like Vercel Cron Jobs)

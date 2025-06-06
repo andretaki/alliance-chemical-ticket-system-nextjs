@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { tickets, ticketComments, ticketStatusEnum } from '@/db/schema';
+import { db, tickets, ticketComments, ticketStatusEnum } from '@/lib/db';
 import { eq } from 'drizzle-orm';
+import { getServerSession } from 'next-auth';
 import { ticketEventEmitter } from '@/lib/eventEmitter';
 
 export async function POST(

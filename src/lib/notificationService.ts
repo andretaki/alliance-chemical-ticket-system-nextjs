@@ -1,6 +1,5 @@
 import * as graphService from '@/lib/graphService';
-import { db } from '@/db';
-import { tickets } from '@/db/schema';
+import { db, tickets } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
 interface ClosureNotificationParams {

@@ -6,10 +6,10 @@ import axios from 'axios';
 import { ClientSecretCredential } from '@azure/identity';
 import { Client } from '@microsoft/microsoft-graph-client';
 import 'isomorphic-fetch';
-import { db } from '@/db';
-import { ticketComments } from '@/db/schema';
+import { db, ticketComments, users } from '@/lib/db';
 import { headers } from 'next/headers';
 import * as graphService from '@/lib/graphService';
+import { eq } from 'drizzle-orm';
 
 interface Margins {
   top: number;

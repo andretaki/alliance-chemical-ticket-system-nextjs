@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { db } from '@/db';
-import { tickets as ticketsSchema } from '@/db/schema';
+import { db } from '@/lib/db';
+import { tickets as ticketsSchema, users as usersSchema, products as productsSchema } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import CreateQuoteClient from '@/components/CreateQuoteClient';
 

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { tickets } from '@/db/schema';
+import { db, tickets } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
 

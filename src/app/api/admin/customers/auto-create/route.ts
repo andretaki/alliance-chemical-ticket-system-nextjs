@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/authOptions';
-import { db } from '@/db';
-import { tickets } from '@/db/schema';
-import { and, isNotNull, gte } from 'drizzle-orm';
+import { db, tickets, users } from '@/lib/db';
+import { and, isNotNull, gte, eq, sql } from 'drizzle-orm';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
 
 // POST: Batch create customers from existing tickets

@@ -7,6 +7,7 @@ import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { ticketPriorityEnum, ticketStatusEnum, users as usersSchema } from '@/db/schema'; // Import enums and user schema
 import { InferSelectModel } from 'drizzle-orm'; // If using Drizzle types elsewhere
+import toast from 'react-hot-toast';
 
 // Import our new components
 import TicketHeaderBar from './ticket-view/TicketHeaderBar';
@@ -81,6 +82,7 @@ interface TicketData {
 interface TicketViewClientProps {
   initialTicket: TicketData;
   relatedQuote?: ShopifyDraftOrderGQLResponse | null;
+  quoteAdminUrl?: string | null;
 }
 
 // --- Helper Functions ---
@@ -176,7 +178,7 @@ const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: 
 };
 
 // --- Main Component ---
-export default function TicketViewClient({ initialTicket, relatedQuote }: TicketViewClientProps) {
+export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdminUrl }: TicketViewClientProps) {
   const [ticket, setTicket] = useState<TicketData>(initialTicket);
   const [users, setUsers] = useState<BaseUser[]>([]);
   const [isLoading, setIsLoading] = useState(false); // Combined loading state for simplicity
@@ -228,6 +230,8 @@ export default function TicketViewClient({ initialTicket, relatedQuote }: Ticket
     recipientEmail: string;
     draftOrderId: string;
   } | null>(null);
+  const [isResendingShopifyInvoice, setIsResendingShopifyInvoice] = useState(false);
+  const [isResendingPdf, setIsResendingPdf] = useState(false);
 
   // --- Helper to safely parse date strings ---
   const parseDate = (dateString: string | Date | null | undefined): Date | null => {
@@ -597,6 +601,55 @@ export default function TicketViewClient({ initialTicket, relatedQuote }: Ticket
     }
   };
 
+  const handleResendShopifyInvoice = async () => {
+    if (!relatedQuote?.id) {
+      toast.error('No related quote found to resend invoice.');
+      return;
+    }
+    setIsResendingShopifyInvoice(true);
+    toast.loading('Resending Shopify invoice...');
+
+    try {
+      await axios.post('/api/draft-orders/send-invoice', {
+        draftOrderId: relatedQuote.id,
+      });
+      toast.dismiss();
+      toast.success('Shopify invoice has been resent.');
+    } catch (error) {
+      console.error('Error resending Shopify invoice:', error);
+      toast.dismiss();
+      const errorMessage = error.response?.data?.error || 'Failed to resend Shopify invoice.';
+      toast.error(errorMessage);
+    } finally {
+      setIsResendingShopifyInvoice(false);
+    }
+  };
+
+  const handleResendPdfInvoice = async () => {
+    if (!relatedQuote?.legacyResourceId || !relatedQuote.customer?.email) {
+        toast.error('Quote details or customer email are missing.');
+        return;
+    }
+    setIsResendingPdf(true);
+    toast.loading('Resending PDF invoice via email...');
+
+    try {
+        await axios.post('/api/email/send-invoice', {
+            draftOrderId: relatedQuote.legacyResourceId,
+            recipientEmail: relatedQuote.customer.email
+        });
+        toast.dismiss();
+        toast.success('PDF invoice has been resent via email.');
+    } catch (error) {
+        console.error('Error resending PDF invoice:', error);
+        toast.dismiss();
+        const errorMessage = error.response?.data?.error || 'Failed to resend PDF invoice.';
+        toast.error(errorMessage);
+    } finally {
+        setIsResendingPdf(false);
+    }
+  };
+
   // --- Comment & Attachment Functions ---
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -862,7 +915,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote }: Ticket
                   Related Quote
                 </h6>
                 <a 
-                  href={`/admin/draft_orders/${relatedQuote.legacyResourceId}`}
+                  href={quoteAdminUrl || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-sm btn-outline-primary"
@@ -886,6 +939,32 @@ export default function TicketViewClient({ initialTicket, relatedQuote }: Ticket
                       ${parseFloat(relatedQuote.totalPriceSet.shopMoney.amount).toFixed(2)} {relatedQuote.totalPriceSet.shopMoney.currencyCode}
                     </span>
                   </div>
+                </div>
+              </div>
+              <div className="card-footer bg-light p-2">
+                <div className="d-flex justify-content-end gap-2">
+                   <button 
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={handleResendShopifyInvoice}
+                    disabled={isResendingShopifyInvoice || !relatedQuote?.id}
+                  >
+                    {isResendingShopifyInvoice ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : (
+                      <><i className="fas fa-file-invoice me-1"></i> Resend Shopify Invoice</>
+                    )}
+                  </button>
+                  <button 
+                    className="btn btn-sm btn-outline-secondary"
+                    onClick={handleResendPdfInvoice}
+                    disabled={isResendingPdf || !relatedQuote?.legacyResourceId}
+                  >
+                    {isResendingPdf ? (
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    ) : (
+                      <><i className="fas fa-file-pdf me-1"></i> Resend PDF via Email</>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

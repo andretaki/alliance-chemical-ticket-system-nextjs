@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { db } from '@/db';
-import { tickets as ticketsSchema } from '@/db/schema';
+import { db, tickets } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
 import { AIOrderStatusService } from '@/services/aiOrderStatusService';
@@ -31,7 +30,7 @@ export async function GET(
 
         // Fetch ticket details from database
         const ticket = await db.query.tickets.findFirst({
-            where: eq(ticketsSchema.id, ticketId),
+            where: eq(tickets.id, ticketId),
             columns: {
                 orderNumber: true,
                 senderName: true,

@@ -2,14 +2,13 @@ export const runtime = 'nodejs';
 
 import { NextResponse, NextRequest } from 'next/server';
 import * as graphService from '@/lib/graphService';
-import { db } from '@/db';
+import { db } from '@/lib/db';
 import { users, tickets, ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { Message } from '@microsoft/microsoft-graph-types';
 import { analyzeEmailContent } from '@/lib/aiService'; // Import the AI service
 import { getServerSession } from "next-auth/next"; // Add this
 import { authOptions } from '@/lib/authOptions';   // Add this
-import { processUnreadEmails } from '@/lib/emailProcessor';
 
 // Configuration (Consider moving to a config file or ENV vars)
 const PROCESSED_FOLDER_NAME = process.env.PROCESSED_FOLDER_NAME || "Processed";

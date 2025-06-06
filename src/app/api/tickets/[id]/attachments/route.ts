@@ -1,9 +1,8 @@
 export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { ticketAttachments, tickets, users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { db, ticketAttachments, tickets, users } from '@/lib/db';
+import { eq, and } from 'drizzle-orm';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import path from 'path';

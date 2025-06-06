@@ -1,7 +1,6 @@
-import { NextResponse } from 'next/server';
-import { db } from '@/db';
-import { tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum } from '@/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { NextResponse, NextRequest } from 'next/server';
+import { db, tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum, ticketDetails } from '@/lib/db';
+import { eq, and, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { sendTicketReplyEmail, sendNotificationEmail } from '@/lib/email';
 

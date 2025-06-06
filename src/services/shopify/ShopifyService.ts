@@ -321,6 +321,10 @@ export class ShopifyService {
     }
   }
 
+  public getDraftOrderAdminUrl(legacyResourceId: string): string {
+    return `https://${this.shopifyStoreDomain}/admin/draft_orders/${legacyResourceId}`;
+  }
+
   // New method to directly search Shopify products
   public async searchProducts(query: string): Promise<ShopifyProductNode[]> {
     const searchQuery = `

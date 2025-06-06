@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as graphService from '@/lib/graphService';
-import { db } from '@/db';
-import { subscriptions } from '@/db/schema';
+import { db, subscriptions } from '@/lib/db';
 import { and, eq, lt, gt } from 'drizzle-orm';
 
 // Verify the request is from Vercel Cron
