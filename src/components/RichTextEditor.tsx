@@ -111,7 +111,7 @@ export default function RichTextEditor({
         .rich-text-editor {
           border: 1px solid #dee2e6;
           border-radius: 0.375rem;
-          background-color: #fff;
+          background-color: #fff !important;
         }
         .rich-text-editor .toolbar {
           padding: 0.5rem;
@@ -145,6 +145,7 @@ export default function RichTextEditor({
           padding: 1rem;
           min-height: ${minHeight};
           outline: none;
+          background-color: #fff !important;
         }
         .rich-text-editor .ProseMirror p {
           margin: 0;
