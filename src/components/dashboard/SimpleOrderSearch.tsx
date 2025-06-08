@@ -22,6 +22,8 @@ interface AdvancedSearchStats {
 
 interface SimpleOrderSearchProps {
   onResults?: (results: OrderSearchResult[]) => void;
+  onSearching?: (isSearching: boolean) => void;
+  onDebouncedQueryChange?: (query: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
 }
@@ -47,13 +49,14 @@ const addToSearchHistory = (query: string): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
 };
 
-export default function SimpleOrderSearch({ 
-  onResults, 
-  placeholder = "Search orders by number, email, or customer name...",
-  autoFocus = false 
+export default function SimpleOrderSearch({
+  onResults,
+  onSearching,
+  onDebouncedQueryChange,
+  placeholder = 'Search orders by number, email, or customer name...',
+  autoFocus = false,
 }: SimpleOrderSearchProps) {
   const [query, setQuery] = useState('');
-  const [debouncedQuery] = useDebounce(query, 500);
   const [results, setResults] = useState<OrderSearchResult[]>([]);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -66,6 +69,8 @@ export default function SimpleOrderSearch({
   
   const inputRef = useRef<HTMLInputElement>(null);
   const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  const [debouncedQuery] = useDebounce(query, 500);
 
   // Load search history on mount
   useEffect(() => {
@@ -136,90 +141,89 @@ export default function SimpleOrderSearch({
     setSuggestions(newSuggestions.slice(0, 8));
   }, [query, searchHistory]);
 
-  const performSearch = useCallback(async (searchQuery: string) => {
-    if (!searchQuery || searchQuery.length < 3) {
-      setResults([]);
-      setSearchStats(null);
-      if (onResults) onResults([]);
-      return;
-    }
-
-    setIsSearching(true);
-    setError(null);
-    const startTime = Date.now();
-
-    try {
-      const response = await fetch(`/api/orders/search?query=${encodeURIComponent(searchQuery)}`);
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Search failed');
-      }
-
-      const data = await response.json();
-      const searchResults: OrderSearchResult[] = data.orders || [];
-      const processingTime = Date.now() - startTime;
-
-      // Determine search type based on query analysis
-      let searchType: 'simple' | 'advanced' | 'batch' | 'fuzzy' = 'simple';
-      let confidence = 0.8;
-
-      // Enhanced query analysis
-      const orderNumbers = searchQuery.match(/\d{4,}/g) || [];
-      const hasEmail = /@/.test(searchQuery);
-      const hasMultipleTerms = searchQuery.split(/\s+/).length > 1;
-      const isBatch = orderNumbers.length > 1 || searchQuery.includes(',');
-
-      if (isBatch) {
-        searchType = 'batch';
-        confidence = 0.9;
-      } else if (hasEmail || hasMultipleTerms) {
-        searchType = 'advanced';
-        confidence = 0.8;
-      } else if (orderNumbers.length === 0 && searchQuery.length >= 4) {
-        searchType = 'fuzzy';
-        confidence = 0.6;
-      }
-
-      setSearchStats({
-        searchType,
-        confidence,
-        searchMethod: data.searchMethod || 'unknown',
-        processingTime
-      });
-
-      setResults(searchResults);
-      
-      // Add to search history if results found
-      if (searchResults.length > 0) {
-        addToSearchHistory(searchQuery);
-        setSearchHistory(getSearchHistory());
-      }
-
-      if (onResults) {
-        onResults(searchResults);
-      }
-    } catch (error: any) {
-      console.error('Search error:', error);
-      setError(error.message || 'Search failed');
-      setResults([]);
-      setSearchStats(null);
-      if (onResults) onResults([]);
-    } finally {
-      setIsSearching(false);
-    }
-  }, [onResults]);
-
-  // Perform search with debounced query
+  // Effect to perform search when debounced query changes
   useEffect(() => {
-    if (debouncedQuery.length >= 3) {
-      performSearch(debouncedQuery);
-    } else {
-      setResults([]);
-      setSearchStats(null);
-      if (onResults) onResults([]);
+    if (onDebouncedQueryChange) {
+      onDebouncedQueryChange(debouncedQuery);
     }
-  }, [debouncedQuery, onResults, performSearch]);
+
+    const performSearch = async () => {
+      if (debouncedQuery.length < 3) {
+        setResults([]);
+        if (onResults) onResults([]);
+        return;
+      }
+
+      setIsSearching(true);
+      if (onSearching) onSearching(true);
+      setError(null);
+      const startTime = Date.now();
+
+      try {
+        const response = await fetch(`/api/orders/search?query=${encodeURIComponent(debouncedQuery)}`);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Search failed');
+        }
+
+        const data = await response.json();
+        const searchResults: OrderSearchResult[] = data.orders || [];
+        const processingTime = Date.now() - startTime;
+
+        // Determine search type based on query analysis
+        let searchType: 'simple' | 'advanced' | 'batch' | 'fuzzy' = 'simple';
+        let confidence = 0.8;
+
+        // Enhanced query analysis
+        const orderNumbers = debouncedQuery.match(/\d{4,}/g) || [];
+        const hasEmail = /@/.test(debouncedQuery);
+        const hasMultipleTerms = debouncedQuery.split(/\s+/).length > 1;
+        const isBatch = orderNumbers.length > 1 || debouncedQuery.includes(',');
+
+        if (isBatch) {
+          searchType = 'batch';
+          confidence = 0.9;
+        } else if (hasEmail || hasMultipleTerms) {
+          searchType = 'advanced';
+          confidence = 0.8;
+        } else if (orderNumbers.length === 0 && debouncedQuery.length >= 4) {
+          searchType = 'fuzzy';
+          confidence = 0.6;
+        }
+
+        setSearchStats({
+          searchType,
+          confidence,
+          searchMethod: data.searchMethod || 'unknown',
+          processingTime
+        });
+
+        setResults(searchResults);
+        
+        // Add to search history if results found
+        if (searchResults.length > 0) {
+          addToSearchHistory(debouncedQuery);
+          setSearchHistory(getSearchHistory());
+        }
+
+        if (onResults) {
+          onResults(searchResults);
+        }
+
+        console.log(`[SimpleOrderSearch] Search completed in ${processingTime}ms`);
+      } catch (err) {
+        console.error('[SimpleOrderSearch] Search failed:', err);
+        setError('Failed to fetch orders. Please try again.');
+        if (onResults) onResults([]);
+      } finally {
+        setIsSearching(false);
+        if (onSearching) onSearching(false);
+      }
+    };
+
+    performSearch();
+  }, [debouncedQuery, onResults, onSearching, onDebouncedQueryChange]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -235,7 +239,6 @@ export default function SimpleOrderSearch({
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
     setQuery(suggestion.text);
     setShowSuggestions(false);
-    performSearch(suggestion.text);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -258,7 +261,6 @@ export default function SimpleOrderSearch({
           handleSuggestionClick(suggestions[selectedSuggestion]);
         } else {
           setShowSuggestions(false);
-          performSearch(query);
         }
         break;
       case 'Escape':
@@ -467,7 +469,6 @@ export default function SimpleOrderSearch({
                 key={index}
                 onClick={() => {
                   setQuery(historyItem);
-                  performSearch(historyItem);
                 }}
                 className="px-2 py-1 text-xs bg-white border border-gray-200 rounded-md hover:bg-gray-50 text-gray-700"
               >

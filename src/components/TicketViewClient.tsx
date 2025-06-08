@@ -391,58 +391,22 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     if (!ticket?.id) return;
 
     setIsLoadingOrderStatusDraft(true);
-    setOrderStatusDraft(null);
+    setOrderStatusDraft('');
     setOrderStatusDraftError(null);
-    setFetchedOrderStatusUIDetails(null);
-
     try {
-      const response = await axios.get(`/api/tickets/${ticket.id}/draft-order-status`);
-      
-      if (response.data && response.data.draftMessage) {
-        setOrderStatusDraft(response.data.draftMessage);
-        setNewComment(response.data.draftMessage); // Populate the reply form
-        setSendAsEmail(true); // Default to sending as email for status updates
-        setIsInternalNote(false); // Ensure it's not an internal note
-
-        // Store additional details for UI display
-        setFetchedOrderStatusUIDetails({
-          carrier: response.data.detectedCarrier,
-          trackingNumber: response.data.trackingNumber,
-          trackingLink: response.data.trackingLink,
-          isStalled: response.data.isStalledTracking,
-          isException: response.data.isDeliveryException,
-          exceptionDetails: response.data.exceptionDetails,
-          confidence: response.data.confidence,
-          orderNumber: response.data.orderNumber,
-        });
-
-        // Show success notification
-        const toastElement = document.createElement('div');
-        toastElement.className = 'toast-container position-fixed top-0 end-0 p-3';
-        toastElement.innerHTML = `
-          <div class="toast show" role="alert">
-            <div class="toast-header">
-              <i class="fas fa-check-circle text-success me-2"></i>
-              <strong class="me-auto">Order Status Draft Ready</strong>
-              <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-            </div>
-            <div class="toast-body">
-              AI generated response ready for review. Confidence: ${response.data.confidence || 'medium'}
-            </div>
-          </div>
-        `;
-        document.body.appendChild(toastElement);
-        setTimeout(() => document.body.removeChild(toastElement), 5000);
+      const response = await axios.post(`/api/tickets/${ticket.id}/draft-order-status-reply`);
+      if (response.data && response.data.draft) {
+        setOrderStatusDraft(response.data.draft);
+        toast.success("AI-drafted reply for order status is ready!");
       } else {
-        const errorMsg = response.data.error || "Couldn't generate a status update draft.";
+        const errorMsg = "Couldn't generate a draft. The order might not exist or there was an issue.";
         setOrderStatusDraftError(errorMsg);
         setError(errorMsg);
       }
-
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || "Failed to get order status draft.";
       setOrderStatusDraftError(errorMsg);
-      setError(errorMsg);
+      toast.error(errorMsg);
       console.error("Order Status Draft Error:", err);
     } finally {
       setIsLoadingOrderStatusDraft(false);

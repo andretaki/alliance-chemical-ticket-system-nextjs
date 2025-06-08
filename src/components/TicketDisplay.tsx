@@ -17,6 +17,7 @@ interface TicketDisplayProps {
     updatedAt: Date;
     assigneeName: string | null;
     assigneeId: string | null;
+    sentiment?: 'positive' | 'neutral' | 'negative' | null;
     description?: string | null;
     isFromEmail?: boolean;
     orderNumber?: string | null;
@@ -133,6 +134,19 @@ export default function TicketDisplay({ ticket, deleteTicket, refreshTickets }: 
     alert('Quick assign functionality to be implemented');
   };
 
+  const getSentimentIcon = (sentiment: string | null | undefined) => {
+    switch (sentiment) {
+      case 'positive':
+        return <i className="fa-solid fa-face-smile text-success me-2" title="Positive Sentiment"></i>;
+      case 'negative':
+        return <i className="fa-solid fa-face-frown text-danger me-2" title="Negative Sentiment"></i>;
+      case 'neutral':
+        return <i className="fa-solid fa-face-meh text-muted me-2" title="Neutral Sentiment"></i>;
+      default:
+        return null;
+    }
+  };
+
   return (
     <tr className={`align-middle ${ticket.hasUnreadUpdates ? 'bg-primary-subtle' : ''}`} 
         onMouseEnter={handleMouseEnter} 
@@ -151,6 +165,7 @@ export default function TicketDisplay({ ticket, deleteTicket, refreshTickets }: 
       </td>
       <td className="position-relative">
         <Link href={`/tickets/${ticket.id}`} className="text-decoration-none fw-medium text-primary">
+          {getSentimentIcon(ticket.sentiment)}
           {ticket.title}
           {ticket.isMentioningCurrentUser && (
             <span className="badge bg-danger ms-2 rounded-pill" title="You were mentioned">
