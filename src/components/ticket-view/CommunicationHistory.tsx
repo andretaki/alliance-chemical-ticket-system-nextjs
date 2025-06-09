@@ -48,16 +48,16 @@ interface CommunicationHistoryProps {
   isSubmittingComment?: boolean;
 }
 
-// --- Helper Functions ---
+// Helper Functions
 const getFileIconClass = (mimeType?: string | null): string => {
   if (!mimeType) return 'fa-file';
   const mt = mimeType.toLowerCase();
   if (mt.startsWith('image/')) return 'fa-file-image';
   if (mt === 'application/pdf') return 'fa-file-pdf';
-  if (mt.includes('word') || mt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'fa-file-word';
-  if (mt.includes('excel') || mt === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'fa-file-excel';
-  if (mt.includes('powerpoint') || mt === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'fa-file-powerpoint';
-  if (mt.includes('zip') || mt.includes('compressed') || mt.includes('archive')) return 'fa-file-archive';
+  if (mt.includes('word')) return 'fa-file-word';
+  if (mt.includes('excel')) return 'fa-file-excel';
+  if (mt.includes('powerpoint')) return 'fa-file-powerpoint';
+  if (mt.includes('zip') || mt.includes('compressed')) return 'fa-file-archive';
   if (mt.startsWith('text/')) return 'fa-file-alt';
   return 'fa-file';
 };
@@ -70,27 +70,47 @@ const formatFileSize = (bytes?: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-// Attachment List Component
-const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: string }> = ({ attachments, title }) => {
+// Enhanced Attachment List Component
+const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: string }> = ({ 
+  attachments, 
+  title 
+}) => {
   if (!attachments || attachments.length === 0) return null;
+  
   return (
-    <div className="attachment-list">
-      {title && <div className="attachment-header mb-2 text-muted small"><i className="fas fa-paperclip me-1"></i>{title} ({attachments.length})</div>}
-      <div className="list-group list-group-flush">
+    <div className="attachment-section mt-3">
+      {title && (
+        <div className="attachment-header mb-2">
+          <small className="text-muted fw-medium">
+            <i className="fas fa-paperclip me-1 text-primary"></i>
+            {title} ({attachments.length})
+          </small>
+        </div>
+      )}
+      <div className="attachment-grid">
         {attachments.map(att => (
           <a
             key={att.id}
             href={`/api/attachments/${att.id}/download`}
             target="_blank"
             rel="noopener noreferrer"
-            className="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1 px-0 border-0 bg-transparent"
+            className="attachment-item d-flex align-items-center p-2 border rounded bg-light text-decoration-none hover-bg-primary-subtle transition-all"
             title={`Download ${att.originalFilename}`}
           >
-            <div className="d-flex align-items-center text-truncate me-2">
-              <i className={`fas ${getFileIconClass(att.mimeType)} me-2 text-primary fa-fw`}></i>
-              <span className="text-truncate small">{att.originalFilename}</span>
+            <div className="attachment-icon me-2">
+              <i className={`fas ${getFileIconClass(att.mimeType)} text-primary fa-lg`}></i>
             </div>
-            <span className="badge bg-light text-dark ms-2">{formatFileSize(att.fileSize)}</span>
+            <div className="attachment-info flex-grow-1 min-w-0">
+              <div className="attachment-name text-truncate fw-medium text-dark">
+                {att.originalFilename}
+              </div>
+              <div className="attachment-size small text-muted">
+                {formatFileSize(att.fileSize)}
+              </div>
+            </div>
+            <div className="attachment-download">
+              <i className="fas fa-download text-muted"></i>
+            </div>
           </a>
         ))}
       </div>
@@ -98,18 +118,17 @@ const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: 
   );
 };
 
-// --- NEW: Helper functions to identify and process AI suggestions ---
+// AI Suggestion Detection
 const AI_SUGGESTION_MARKERS = [
-    "**AI Suggested Reply:**",
-    "**Order Status Found - Suggested Reply:**", // Existing
-    "**Suggested Reply (Request for Lot #):**", // Specific example
-    "**Order Status Reply:**",
-    "**Suggested Reply (SDS Document):**",
-    "**Suggested Reply (COC Information):**",
-    "**Suggested Reply (Document Request):**",
-    "**AI Order Status Reply:**",
-    "**AI COA Reply:**"
-    // Add more specific markers as needed
+  "**AI Suggested Reply:**",
+  "**Order Status Found - Suggested Reply:**",
+  "**Suggested Reply (Request for Lot #):**",
+  "**Order Status Reply:**",
+  "**Suggested Reply (SDS Document):**",
+  "**Suggested Reply (COC Information):**",
+  "**Suggested Reply (Document Request):**",
+  "**AI Order Status Reply:**",
+  "**AI COA Reply:**"
 ];
 
 const isAISuggestionNote = (commentText: string | null): boolean => {
@@ -120,48 +139,24 @@ const extractAISuggestionContent = (commentText: string | null): string => {
   if (!commentText) return '';
   for (const marker of AI_SUGGESTION_MARKERS) {
     if (commentText.startsWith(marker)) {
-      // Find the first newline after the marker to get the actual content
       const markerEndIndex = commentText.indexOf('\n', marker.length);
       if (markerEndIndex !== -1) {
         return commentText.substring(markerEndIndex + 1).trim();
       }
-      // If no newline, might be a very short suggestion on the same line (less common)
-      return commentText.substring(marker.length).trim(); 
+      return commentText.substring(marker.length).trim();
     }
   }
-  // Fallback for older/generic marker if necessary, though covered by AI_SUGGESTION_MARKERS
-  const genericMarkerEnd = commentText.indexOf('**\n');
-  if (genericMarkerEnd !== -1 && commentText.startsWith("**") && commentText.includes("Suggested Reply")) {
-    return commentText.substring(genericMarkerEnd + 3).trim();
-  }
-  return ''; // Should not happen if isAISuggestionNote is true
+  return '';
 };
 
 const getAISuggestionTitle = (commentText: string | null): string => {
-    if (!commentText) return "AI Suggestion";
-    if (commentText.startsWith("**Order Status Found - Suggested Reply:**") || commentText.startsWith("**Order Status Reply:**")) return "AI Order Status Reply";
-    if (commentText.startsWith("**Suggested Reply (Request for Lot #):**") || commentText.startsWith("**AI COA Reply:**")) return "AI COA/Lot# Reply";
-    if (commentText.startsWith("**Suggested Reply (SDS Document):**")) return "AI SDS Reply";
-    if (commentText.startsWith("**Suggested Reply (COC Information):**")) return "AI COC Reply";
-    if (commentText.startsWith("**AI Suggested Reply:**")) return "AI General Reply";
-    // Fallback for any other recognized AI note
-    if (AI_SUGGESTION_MARKERS.some(marker => commentText.startsWith(marker))) return "AI Suggested Action";
-    return "AI Suggestion"; // Default
-}
-
-// Draft Reply Extraction (keeping for backward compatibility)
-const isDraftReplyNote = (commentText: string | null): boolean => {
-  return !!commentText && commentText.includes('**Suggested Reply');
-};
-
-const checkIsOrderStatusDraft = (commentText: string | null): boolean => {
-  return !!commentText && commentText.includes('**Order Status Found - Suggested Reply');
-};
-
-const extractDraftContent = (commentText: string | null): string => {
-  if (!commentText) return '';
-  const markerEnd = commentText.indexOf('**\n');
-  return markerEnd !== -1 ? commentText.substring(markerEnd + 3).trim() : '';
+  if (!commentText) return "AI Suggestion";
+  if (commentText.startsWith("**Order Status Found - Suggested Reply:**")) return "AI Order Status Reply";
+  if (commentText.startsWith("**Suggested Reply (Request for Lot #):**")) return "AI COA/Lot# Reply";
+  if (commentText.startsWith("**Suggested Reply (SDS Document):**")) return "AI SDS Reply";
+  if (commentText.startsWith("**Suggested Reply (COC Information):**")) return "AI COC Reply";
+  if (commentText.startsWith("**AI Suggested Reply:**")) return "AI General Reply";
+  return "AI Suggestion";
 };
 
 const parseDate = (dateString: string | null): Date | null => {
@@ -183,9 +178,12 @@ export default function CommunicationHistory({
   if (comments.length === 0) {
     return (
       <div className="communication-empty text-center py-5">
-        <div className="text-muted">
-          <i className="fas fa-comments fa-3x mb-3 opacity-25"></i>
-          <p>No messages in this conversation yet.</p>
+        <div className="empty-state">
+          <div className="empty-icon mb-3">
+            <i className="fas fa-comments fa-3x text-muted opacity-25"></i>
+          </div>
+          <h5 className="text-muted">No messages yet</h5>
+          <p className="text-muted mb-0">This conversation will appear here once messages are added.</p>
         </div>
       </div>
     );
@@ -198,171 +196,178 @@ export default function CommunicationHistory({
 
   return (
     <div className="communication-history">
-      {sortedComments.map((comment) => {
-        // Determine message styling and icons based on type
-        let messageClasses = 'message-item mb-4';
-        let headerClasses = 'message-header d-flex justify-content-between align-items-start mb-2 px-3 py-2';
-        let contentClasses = 'message-content px-3 pb-3';
-        let avatarClassNames = 'avatar-icon rounded-circle d-flex align-items-center justify-content-center me-2';
-        let iconClass = 'fas fa-comment';
-        let badge: React.ReactNode = null;
-        let avatarColor = 'bg-secondary';
-        
-        const isAIResponse = isAISuggestionNote(comment.commentText);
-        const aiSuggestionContent = isAIResponse ? extractAISuggestionContent(comment.commentText) : '';
-        const aiSuggestionTitle = isAIResponse ? getAISuggestionTitle(comment.commentText) : '';
+      <div className="messages-container">
+        {sortedComments.map((comment, index) => {
+          const isAIResponse = isAISuggestionNote(comment.commentText);
+          const aiSuggestionContent = isAIResponse ? extractAISuggestionContent(comment.commentText) : '';
+          const aiSuggestionTitle = isAIResponse ? getAISuggestionTitle(comment.commentText) : '';
+          const commentDate = parseDate(comment.createdAt);
+          const senderDisplayName = isAIResponse ? "AI Assistant" : 
+                                    comment.commenter?.name || 
+                                    (comment.isFromCustomer ? (ticket.senderName || ticket.senderEmail || 'Customer') : 'System/Agent');
 
-        if (isAIResponse) {
-            messageClasses += ' border border-primary rounded bg-primary-subtle';
-            headerClasses += ' bg-primary-subtle border-bottom border-primary';
-            iconClass = 'fas fa-robot text-primary';
-            badge = <span className="badge bg-primary ms-2">AI Suggestion</span>;
-            avatarColor = 'bg-primary text-white';
-        } else if (comment.isInternalNote) {
-          messageClasses += ' border border-warning rounded bg-warning-subtle';
-          headerClasses += ' bg-warning-subtle border-bottom border-warning';
-          iconClass = 'fas fa-lock text-warning';
-          badge = <span className="badge bg-warning text-dark ms-2">Internal Note</span>;
-          avatarColor = 'bg-warning text-dark';
-        } else if (comment.isOutgoingReply) {
-          messageClasses += ' border border-info rounded bg-info-subtle';
-          headerClasses += ' bg-info-subtle border-bottom border-info';
-          iconClass = 'fas fa-paper-plane text-info';
-          badge = <span className="badge bg-info text-dark ms-2" title="Sent as email">Sent</span>;
-          avatarColor = 'bg-info text-white';
-        } else if (comment.isFromCustomer) {
-          messageClasses += ' border border-success rounded bg-success-subtle';
-          headerClasses += ' bg-success-subtle border-bottom border-success';
-          iconClass = 'fas fa-envelope text-success';
-          badge = <span className="badge bg-success ms-2" title="Received via Email">Received</span>;
-          avatarColor = 'bg-success text-white';
-        } else {
-          messageClasses += ' border rounded bg-light'; 
-          headerClasses += ' bg-light border-bottom';
-          iconClass = 'fas fa-user-edit text-secondary';
-          avatarColor = 'bg-secondary text-white';
-        }
+          // Message styling based on type
+          let messageClasses = 'message-bubble mb-4';
+          let avatarColor = '';
+          let iconClass = '';
+          let messageType = '';
+          let badgeContent: React.ReactNode = null;
 
-        // Handle draft replies (backward compatibility)
-        const isDraft = isDraftReplyNote(comment.commentText);
-        const hasOrderStatus = checkIsOrderStatusDraft(comment.commentText);
-        const draftContent = isDraft ? extractDraftContent(comment.commentText) : '';
-        const commentDate = parseDate(comment.createdAt);
-        
-        const senderDisplayName = isAIResponse ? "AI Assistant" : 
-                                  comment.commenter?.name || 
-                                  (comment.isFromCustomer ? (ticket.senderName || ticket.senderEmail || 'Customer') : 'System/Agent');
+          if (isAIResponse) {
+            messageClasses += ' ai-message';
+            avatarColor = 'bg-gradient-primary-to-info text-white';
+            iconClass = 'fas fa-robot';
+            messageType = 'AI Suggestion';
+            badgeContent = (
+              <span className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">
+                <i className="fas fa-robot me-1"></i>AI Suggestion
+              </span>
+            );
+          } else if (comment.isInternalNote) {
+            messageClasses += ' internal-message';
+            avatarColor = 'bg-gradient-warning-to-amber text-dark';
+            iconClass = 'fas fa-lock';
+            messageType = 'Internal Note';
+            badgeContent = (
+              <span className="badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">
+                <i className="fas fa-lock me-1"></i>Internal Note
+              </span>
+            );
+          } else if (comment.isOutgoingReply) {
+            messageClasses += ' outgoing-message';
+            avatarColor = 'bg-gradient-info-to-cyan text-white';
+            iconClass = 'fas fa-paper-plane';
+            messageType = 'Sent';
+            badgeContent = (
+              <span className="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                <i className="fas fa-paper-plane me-1"></i>Sent
+              </span>
+            );
+          } else if (comment.isFromCustomer) {
+            messageClasses += ' incoming-message';
+            avatarColor = 'bg-gradient-success-to-teal text-white';
+            iconClass = 'fas fa-envelope';
+            messageType = 'Received';
+            badgeContent = (
+              <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                <i className="fas fa-envelope me-1"></i>Received
+              </span>
+            );
+          } else {
+            messageClasses += ' system-message';
+            avatarColor = 'bg-gradient-secondary-to-gray text-white';
+            iconClass = 'fas fa-user-edit';
+            messageType = 'System';
+          }
 
-        return (
-          <div key={comment.id} className={messageClasses}>
-            <div className={headerClasses}>
-              <div className="sender-info d-flex align-items-center">
-                {/* Avatar/Icon Circle */}
-                <div className={`${avatarColor} ${avatarClassNames}`} style={{ width: '32px', height: '32px' }}>
-                  <i className={iconClass}></i>
+          return (
+            <div key={comment.id} className={messageClasses}>
+              <div className="message-container d-flex">
+                {/* Avatar */}
+                <div className="message-avatar me-3 flex-shrink-0">
+                  <div 
+                    className={`avatar-circle d-flex align-items-center justify-content-center ${avatarColor}`}
+                    style={{ width: '40px', height: '40px' }}
+                  >
+                    <i className={`${iconClass} fa-sm`}></i>
+                  </div>
                 </div>
-                
-                {/* Sender Name */}
-                <div className="sender-details">
-                  <div className="d-flex align-items-center">
-                    <strong className="me-2">{senderDisplayName}</strong>
-                    {badge}
+
+                {/* Message Content */}
+                <div className="message-content flex-grow-1 min-w-0">
+                  {/* Message Header */}
+                  <div className="message-header d-flex align-items-center justify-content-between mb-2">
+                    <div className="sender-info d-flex align-items-center flex-wrap gap-2">
+                      <span className="sender-name fw-semibold text-dark">{senderDisplayName}</span>
+                      {badgeContent}
+                    </div>
+                    <div className="message-timestamp">
+                      <small className="text-muted">
+                        {commentDate ? format(commentDate, 'MMM d, h:mm a') : 'Unknown time'}
+                      </small>
+                    </div>
+                  </div>
+
+                  {/* Message Body */}
+                  <div className="message-body">
+                    {isAIResponse ? (
+                      <div className="ai-suggestion-card border border-primary border-opacity-25 rounded bg-primary bg-opacity-5 p-3">
+                        <div className="ai-suggestion-header mb-3">
+                          <h6 className="text-primary fw-bold mb-1 d-flex align-items-center">
+                            <i className="fas fa-lightbulb me-2"></i>
+                            {aiSuggestionTitle}
+                          </h6>
+                          <small className="text-muted">AI has analyzed this ticket and suggests the following response:</small>
+                        </div>
+                        
+                        <div className="ai-suggestion-content mb-3">
+                          <div 
+                            className="suggested-text p-3 bg-white rounded border border-primary border-opacity-10"
+                            style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+                          >
+                            {aiSuggestionContent}
+                          </div>
+                        </div>
+                        
+                        <div className="ai-suggestion-actions d-flex gap-2 flex-wrap">
+                          <button 
+                            className="btn btn-sm btn-outline-primary" 
+                            onClick={() => navigator.clipboard.writeText(aiSuggestionContent)} 
+                            disabled={isSubmittingComment}
+                          >
+                            <i className="fas fa-copy me-1"></i>Copy Text
+                          </button>
+                          <button 
+                            className="btn btn-sm btn-primary" 
+                            onClick={() => handleApproveAndSendDraft(aiSuggestionContent)} 
+                            disabled={isSubmittingComment}
+                          >
+                            {isSubmittingComment ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm me-1"></span>
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-paper-plane me-1"></i>
+                                Approve & Send
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="message-text">
+                        <div 
+                          className="text-content"
+                          style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
+                          dangerouslySetInnerHTML={{ 
+                            __html: comment.commentText ? 
+                              DOMPurify.sanitize(comment.commentText) : 
+                              '<span class="text-muted fst-italic">(No content)</span>' 
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Attachments */}
+                    {comment.attachments && comment.attachments.length > 0 && (
+                      <AttachmentListDisplay attachments={comment.attachments} />
+                    )}
                   </div>
                 </div>
               </div>
               
-              {/* Date */}
-              <div className="message-date text-muted small">
-                {commentDate ? format(commentDate, 'PPp') : 'Unknown date'}
-              </div>
-            </div>
-            
-            {/* Message Content */}
-            <div className={contentClasses}>
-              {isAIResponse ? (
-                <div className="ai-suggestion-section mt-2">
-                  <h6 className="text-primary fw-bold d-flex align-items-center">
-                    <i className="fas fa-lightbulb me-2"></i> {aiSuggestionTitle}
-                  </h6>
-                  <div className="comment-text pt-1 mb-3" style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-                    {aiSuggestionContent}
-                  </div>
-                  <div className="d-flex gap-2">
-                    <button 
-                      className="btn btn-sm btn-outline-secondary" 
-                      onClick={() => navigator.clipboard.writeText(aiSuggestionContent)} 
-                      title="Copy reply text"
-                      disabled={isSubmittingComment}
-                    >
-                      <i className="fas fa-copy"></i> Copy
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-primary" 
-                      onClick={() => handleApproveAndSendDraft(aiSuggestionContent)} 
-                      disabled={isSubmittingComment} 
-                      title="Use this reply and send as email"
-                    >
-                      <i className="fas fa-paper-plane me-1"></i> Approve & Send Email
-                    </button>
-                  </div>
-                </div>
-              ) : (isDraft || hasOrderStatus) ? (
-                <div className="draft-reply-section mt-2 p-3 border border-primary rounded bg-primary-subtle">
-                  <h6 className="text-primary fw-bold d-flex align-items-center">
-                    <i className={`fas ${hasOrderStatus ? 'fa-shipping-fast' : 'fa-robot'} me-2`}></i> 
-                    {hasOrderStatus ? 'Order Status Response' : 'AI Suggested Reply'}
-                  </h6>
-                  <div className="comment-text pt-1 mb-3" style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}>
-                    {hasOrderStatus 
-                      ? extractDraftContent(comment.commentText) 
-                      : draftContent}
-                  </div>
-                  <div className="d-flex gap-2">
-                    <button 
-                      className="btn btn-sm btn-outline-secondary" 
-                      onClick={() => navigator.clipboard.writeText(hasOrderStatus 
-                        ? extractDraftContent(comment.commentText) 
-                        : draftContent)} 
-                      title="Copy reply text"
-                      disabled={isSubmittingComment}
-                    >
-                      <i className="fas fa-copy"></i> Copy
-                    </button>
-                    <button 
-                      className="btn btn-sm btn-primary" 
-                      onClick={() => handleApproveAndSendDraft(hasOrderStatus 
-                        ? extractDraftContent(comment.commentText) 
-                        : draftContent)} 
-                      disabled={isSubmittingComment} 
-                      title="Send this reply as an email"
-                    >
-                      <i className="fas fa-paper-plane me-1"></i> 
-                      {hasOrderStatus ? 'Send Order Status' : 'Approve & Send Email'}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div 
-                  className="comment-text pt-1" 
-                  style={{ whiteSpace: 'pre-wrap', wordWrap: 'break-word' }}
-                  dangerouslySetInnerHTML={{ 
-                    __html: comment.commentText ? 
-                      DOMPurify.sanitize(comment.commentText) : 
-                      '<span class="text-muted fst-italic">(No text content)</span>' 
-                  }}
-                />
-              )}
-              
-              {/* Attachments */}
-              {comment.attachments && comment.attachments.length > 0 && (
-                <div className="mt-3 pt-3 border-top">
-                  <AttachmentListDisplay attachments={comment.attachments} />
+              {/* Message separator line */}
+              {index < sortedComments.length - 1 && (
+                <div className="message-separator mt-3">
+                  <hr className="border-0 bg-light" style={{ height: '1px' }} />
                 </div>
               )}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
-} 
+}

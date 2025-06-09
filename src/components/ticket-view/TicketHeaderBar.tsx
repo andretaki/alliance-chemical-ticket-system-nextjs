@@ -7,7 +7,7 @@ import { ticketStatusEnum } from '@/db/schema';
 
 // Type definitions
 type BaseUser = {
-  id: string; // UUID
+  id: string;
   name: string | null;
   email: string | null;
 };
@@ -31,41 +31,71 @@ interface TicketHeaderBarProps {
   showAiSuggestionIndicator?: boolean;
   onReopenTicket: () => Promise<void>;
   copyTicketLink?: () => void;
-  // Order status draft props
   orderNumberForStatus?: string | null;
   onGetOrderStatusDraft: () => void;
   isLoadingOrderStatusDraft: boolean;
-  // Resend invoice props
   onResendInvoice?: () => void;
   isResendingInvoice?: boolean;
   hasInvoiceInfo?: boolean;
 }
 
-const getStatusClass = (status: string | null): string => {
+const getStatusConfig = (status: string | null) => {
   switch (status?.toLowerCase()) {
-    case 'new': return 'badge bg-info text-dark';
-    case 'open': return 'badge bg-success';
-    case 'in_progress': return 'badge bg-primary';
-    case 'pending_customer': return 'badge bg-warning text-dark';
-    case 'closed': return 'badge bg-secondary';
-    default: return 'badge bg-light text-dark border';
+    case 'new':
+      return { 
+        class: 'bg-info bg-opacity-10 text-info border border-info border-opacity-25', 
+        icon: 'fas fa-star',
+        label: 'New'
+      };
+    case 'open':
+      return { 
+        class: 'bg-success bg-opacity-10 text-success border border-success border-opacity-25', 
+        icon: 'fas fa-folder-open',
+        label: 'Open'
+      };
+    case 'in_progress':
+      return { 
+        class: 'bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25', 
+        icon: 'fas fa-cog fa-spin',
+        label: 'In Progress'
+      };
+    case 'pending_customer':
+      return { 
+        class: 'bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25', 
+        icon: 'fas fa-clock',
+        label: 'Pending Customer'
+      };
+    case 'closed':
+      return { 
+        class: 'bg-secondary bg-opacity-10 text-secondary border border-secondary border-opacity-25', 
+        icon: 'fas fa-check-circle',
+        label: 'Closed'
+      };
+    default:
+      return { 
+        class: 'bg-light text-dark border', 
+        icon: 'fas fa-question-circle',
+        label: status || 'Unknown'
+      };
   }
 };
 
-// Determine who needs to take action
+// Get action indicator with enhanced styling
 const getActionIndicator = (status: string, lastCommenterIsCustomer?: boolean) => {
   if (status === 'pending_customer') {
     return (
-      <span className="badge bg-warning text-dark ms-2" title="Waiting for customer response">
-        <i className="fas fa-user-clock me-1"></i> Awaiting Customer
+      <span className="action-badge badge bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">
+        <i className="fas fa-user-clock me-1"></i>
+        Awaiting Customer
       </span>
     );
   }
   
   if ((status === 'open' || status === 'in_progress') && lastCommenterIsCustomer) {
     return (
-      <span className="badge bg-info ms-2" title="Customer has replied, awaiting agent response">
-        <i className="fas fa-user-tie me-1"></i> Needs Agent Reply
+      <span className="action-badge badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+        <i className="fas fa-user-tie me-1"></i>
+        Needs Reply
       </span>
     );
   }
@@ -83,16 +113,15 @@ export default function TicketHeaderBar({
   showAiSuggestionIndicator,
   onReopenTicket,
   copyTicketLink,
-  // Order status draft props
   orderNumberForStatus,
   onGetOrderStatusDraft,
   isLoadingOrderStatusDraft,
-  // Resend invoice props
   onResendInvoice,
   isResendingInvoice,
   hasInvoiceInfo
 }: TicketHeaderBarProps) {
-  // Function to copy ticket link to clipboard
+  const statusConfig = getStatusConfig(ticket.status);
+  
   const handleCopyLink = () => {
     if (copyTicketLink) {
       copyTicketLink();
@@ -100,8 +129,8 @@ export default function TicketHeaderBar({
       const url = `${window.location.origin}/tickets/${ticket.id}`;
       navigator.clipboard.writeText(url)
         .then(() => {
-          // You could add a toast notification here
-          alert('Ticket link copied to clipboard');
+          // Could add toast notification here
+          console.log('Link copied');
         })
         .catch(err => {
           console.error('Failed to copy: ', err);
@@ -110,89 +139,140 @@ export default function TicketHeaderBar({
   };
 
   return (
-    <div className="ticket-header-bar bg-light border-bottom p-2 sticky-top">
-      <div className="container-fluid">
-        <div className="row g-2 align-items-center">
-          <div className="col-md-6">
-            <div className="d-flex align-items-center">
-              <h1 className="h5 mb-0 me-2 text-truncate">
-                <span className="text-muted me-2">#{ticket.id}</span>
-                {ticket.title}
-                {showAiSuggestionIndicator && (
-                  <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill ms-2" title="AI suggestion available in reply form">
-                    <i className="fas fa-robot me-1"></i> AI Help
-                  </span>
-                )}
-                {getActionIndicator(ticket.status, ticket.lastCommenterIsCustomer)}
-              </h1>
+    <div className="ticket-header-wrapper sticky-top shadow-sm">
+      <div className="ticket-header-bar bg-white border-bottom">
+        <div className="container-fluid py-3">
+          {/* Main Header Content */}
+          <div className="row align-items-center g-3">
+            {/* Title Section */}
+            <div className="col-lg-7">
+              <div className="ticket-title-section">
+                <div className="d-flex align-items-start gap-3">
+                  {/* Ticket Icon */}
+                  <div className="ticket-icon-wrapper">
+                    <div className="ticket-icon bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center">
+                      <i className="fas fa-ticket-alt text-primary"></i>
+                    </div>
+                  </div>
+                  
+                  {/* Title and Status */}
+                  <div className="ticket-title-content flex-grow-1 min-w-0">
+                    <div className="d-flex align-items-center flex-wrap gap-2 mb-1">
+                      <h1 className="ticket-title h5 mb-0 text-dark fw-bold">
+                        <span className="ticket-id text-muted me-2">#{ticket.id}</span>
+                        <span className="title-text">{ticket.title}</span>
+                      </h1>
+                    </div>
+                    
+                    {/* Status and Action Indicators */}
+                    <div className="ticket-indicators d-flex align-items-center flex-wrap gap-2">
+                      <span className={`status-badge badge ${statusConfig.class}`}>
+                        <i className={`${statusConfig.icon} me-1`}></i>
+                        {statusConfig.label}
+                      </span>
+                      
+                      {showAiSuggestionIndicator && (
+                        <span className="ai-indicator badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">
+                          <i className="fas fa-robot me-1"></i>
+                          AI Suggestion Available
+                        </span>
+                      )}
+                      
+                      {getActionIndicator(ticket.status, ticket.lastCommenterIsCustomer)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Controls Section */}
+            <div className="col-lg-5">
+              <div className="ticket-controls d-flex align-items-center justify-content-lg-end gap-2 flex-wrap">
+                {/* Status Control */}
+                <div className="control-group d-flex align-items-center">
+                  <label htmlFor="statusSelect" className="control-label text-muted small fw-medium me-2">
+                    Status:
+                  </label>
+                  <div className="select-wrapper position-relative">
+                    <select 
+                      id="statusSelect" 
+                      className="form-select form-select-sm border-0 bg-light" 
+                      value={ticket.status} 
+                      onChange={handleStatusSelectChange} 
+                      disabled={isUpdatingStatus}
+                      style={{ minWidth: '130px' }}
+                    >
+                      {ticketStatusEnum.enumValues.map(s => (
+                        <option key={s} value={s}>
+                          {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </option>
+                      ))}
+                    </select>
+                    {isUpdatingStatus && (
+                      <div className="position-absolute top-50 end-0 translate-middle-y me-2">
+                        <div className="spinner-border spinner-border-sm text-primary"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Assignee Control */}
+                <div className="control-group d-flex align-items-center">
+                  <label htmlFor="assigneeSelect" className="control-label text-muted small fw-medium me-2">
+                    Assignee:
+                  </label>
+                  <div className="select-wrapper position-relative">
+                    <select 
+                      id="assigneeSelect" 
+                      className="form-select form-select-sm border-0 bg-light" 
+                      value={ticket.assignee?.id || ''} 
+                      onChange={handleAssigneeChange} 
+                      disabled={isUpdatingAssignee}
+                      style={{ minWidth: '130px' }}
+                    >
+                      <option value="">Unassigned</option>
+                      {users.map(user => (
+                        <option key={user.id} value={user.id}>
+                          {user.name || user.email}
+                        </option>
+                      ))}
+                    </select>
+                    {isUpdatingAssignee && (
+                      <div className="position-absolute top-50 end-0 translate-middle-y me-2">
+                        <div className="spinner-border spinner-border-sm text-primary"></div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-          
-          <div className="col-md-6">
-            <div className="d-flex align-items-center justify-content-md-end gap-2 flex-wrap">
-              {/* Status Dropdown - Compact Form */}
-              <div className="d-flex align-items-center me-2">
-                <label htmlFor="statusSelect" className="form-label mb-0 me-2 small">Status:</label>
-                <div className="d-flex align-items-center">
-                  <select 
-                    id="statusSelect" 
-                    className="form-select form-select-sm" 
-                    value={ticket.status} 
-                    onChange={handleStatusSelectChange} 
-                    disabled={isUpdatingStatus}
-                    style={{ width: '140px' }}
-                  >
-                    {ticketStatusEnum.enumValues.map(s => (
-                      <option key={s} value={s}>
-                        {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </option>
-                    ))}
-                  </select>
-                  {isUpdatingStatus && <div className="spinner-border spinner-border-sm text-muted ms-2" role="status"><span className="visually-hidden">...</span></div>}
-                </div>
-              </div>
-              
-              {/* Assignee Dropdown - Compact Form */}
-              <div className="d-flex align-items-center me-2">
-                <label htmlFor="assigneeSelect" className="form-label mb-0 me-2 small">Assign:</label>
-                <div className="d-flex align-items-center">
-                  <select 
-                    id="assigneeSelect" 
-                    className="form-select form-select-sm" 
-                    value={ticket.assignee?.id || ''} 
-                    onChange={handleAssigneeChange} 
-                    disabled={isUpdatingAssignee}
-                    style={{ width: '140px' }}
-                  >
-                    <option value="">-- Unassigned --</option>
-                    {users.map(user => (
-                      <option key={user.id} value={user.id}>
-                        {user.name || user.email}
-                      </option>
-                    ))}
-                  </select>
-                  {isUpdatingAssignee && <div className="spinner-border spinner-border-sm text-muted ms-2" role="status"><span className="visually-hidden">...</span></div>}
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
+        </div>
+      </div>
+
+      {/* Action Bar */}
+      <div className="action-bar bg-light border-bottom">
+        <div className="container-fluid py-2">
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            {/* Left Actions */}
+            <div className="action-group d-flex align-items-center gap-2 flex-wrap">
+              {/* Order Status Button */}
               {orderNumberForStatus && (
                 <button
                   type="button"
-                  className="btn btn-outline-info btn-sm"
+                  className="btn btn-sm btn-outline-info border-0 bg-info bg-opacity-10 text-info"
                   onClick={onGetOrderStatusDraft}
                   disabled={isLoadingOrderStatusDraft}
-                  title="Get latest order status and draft a reply"
                 >
                   {isLoadingOrderStatusDraft ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-1"></span> 
-                      Fetching...
+                      <span className="spinner-border spinner-border-sm me-1"></span>
+                      Fetching Status...
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-truck-loading me-1"></i> 
-                      Status & Draft
+                      <i className="fas fa-truck me-1"></i>
+                      Get Order Status
                     </>
                   )}
                 </button>
@@ -202,50 +282,69 @@ export default function TicketHeaderBar({
               {hasInvoiceInfo && onResendInvoice && (
                 <button
                   type="button"
-                  className="btn btn-outline-warning btn-sm"
+                  className="btn btn-sm btn-outline-warning border-0 bg-warning bg-opacity-10 text-warning"
                   onClick={onResendInvoice}
                   disabled={isResendingInvoice}
-                  title="Resend the invoice email for this quote"
                 >
                   {isResendingInvoice ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-1"></span> 
+                      <span className="spinner-border spinner-border-sm me-1"></span>
                       Sending...
                     </>
                   ) : (
                     <>
-                      <i className="fas fa-envelope-open-text me-1"></i> 
+                      <i className="fas fa-envelope me-1"></i>
                       Resend Invoice
                     </>
                   )}
                 </button>
               )}
 
-              {/* Reopen Ticket Button */}
+              {/* Reopen Button */}
               {ticket.status === 'closed' && (
-                <button onClick={onReopenTicket} className="btn btn-warning btn-sm">
-                  <i className="fas fa-folder-open me-1"></i>Reopen Ticket
+                <button 
+                  onClick={onReopenTicket} 
+                  className="btn btn-sm btn-warning border-0 bg-warning bg-opacity-10 text-warning"
+                >
+                  <i className="fas fa-folder-open me-1"></i>
+                  Reopen Ticket
                 </button>
               )}
+            </div>
 
-              <Link href={`/tickets/${ticket.id}/create-quote`} className="btn btn-success btn-sm">
-                <i className="fas fa-file-invoice-dollar me-1"></i>Create Quote
+            {/* Right Actions */}
+            <div className="action-group d-flex align-items-center gap-2 flex-wrap">
+              <Link 
+                href={`/tickets/${ticket.id}/create-quote`} 
+                className="btn btn-sm btn-success border-0 bg-success bg-opacity-10 text-success"
+              >
+                <i className="fas fa-file-invoice-dollar me-1"></i>
+                Create Quote
               </Link>
 
               <button 
-                className="btn btn-outline-secondary btn-sm" 
+                className="btn btn-sm btn-outline-secondary border-0 bg-secondary bg-opacity-10 text-secondary" 
                 onClick={handleCopyLink}
-                title="Copy ticket link to clipboard"
+                title="Copy ticket link"
               >
-                <i className="fas fa-link me-1"></i> Copy Link
+                <i className="fas fa-link me-1"></i>
+                Copy Link
               </button>
 
-              <Link href={`/tickets/${ticket.id}/edit`} className="btn btn-outline-secondary btn-sm">
-                <i className="fas fa-edit me-1"></i> Edit
+              <Link 
+                href={`/tickets/${ticket.id}/edit`} 
+                className="btn btn-sm btn-outline-secondary border-0 bg-secondary bg-opacity-10 text-secondary"
+              >
+                <i className="fas fa-edit me-1"></i>
+                Edit
               </Link>
               
-              <Link href="/tickets" className="btn btn-outline-secondary btn-sm">
-                <i className="fas fa-list me-1"></i> Back
+              <Link 
+                href="/tickets" 
+                className="btn btn-sm btn-outline-secondary border-0 bg-secondary bg-opacity-10 text-secondary"
+              >
+                <i className="fas fa-arrow-left me-1"></i>
+                Back to List
               </Link>
             </div>
           </div>
@@ -253,4 +352,4 @@ export default function TicketHeaderBar({
       </div>
     </div>
   );
-} 
+}

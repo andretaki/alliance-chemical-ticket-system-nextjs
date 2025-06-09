@@ -32,7 +32,7 @@ interface ReplyFormProps {
   insertSuggestedResponse?: () => void;
 }
 
-// Helper function for formatting file size
+// Helper functions
 const formatFileSize = (bytes?: number): string => {
   if (bytes === undefined || bytes === null || bytes < 0) return '';
   if (bytes === 0) return '0 B';
@@ -41,16 +41,15 @@ const formatFileSize = (bytes?: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-// Helper function for determining file icon
 const getFileIconClass = (mimeType?: string | null): string => {
   if (!mimeType) return 'fa-file';
   const mt = mimeType.toLowerCase();
   if (mt.startsWith('image/')) return 'fa-file-image';
   if (mt === 'application/pdf') return 'fa-file-pdf';
-  if (mt.includes('word') || mt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'fa-file-word';
-  if (mt.includes('excel') || mt === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'fa-file-excel';
-  if (mt.includes('powerpoint') || mt === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'fa-file-powerpoint';
-  if (mt.includes('zip') || mt.includes('compressed') || mt.includes('archive')) return 'fa-file-archive';
+  if (mt.includes('word')) return 'fa-file-word';
+  if (mt.includes('excel')) return 'fa-file-excel';
+  if (mt.includes('powerpoint')) return 'fa-file-powerpoint';
+  if (mt.includes('zip') || mt.includes('compressed')) return 'fa-file-archive';
   if (mt.startsWith('text/')) return 'fa-file-alt';
   return 'fa-file';
 };
@@ -73,8 +72,10 @@ export default function ReplyForm({
   insertSuggestedResponse
 }: ReplyFormProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [cannedResponsesList, setCannedResponsesList] = useState<CannedResponse[]>([]);
   const [isLoadingCanned, setIsLoadingCanned] = useState(true);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Fetch canned responses
   useEffect(() => {
@@ -85,7 +86,6 @@ export default function ReplyForm({
         setCannedResponsesList(res.data);
       } catch (err) {
         console.error("Failed to fetch canned responses:", err);
-        // Don't block the whole UI, just log error
       } finally {
         setIsLoadingCanned(false);
       }
@@ -93,16 +93,21 @@ export default function ReplyForm({
     fetchCannedResponses();
   }, []);
 
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [newComment]);
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      // Append new files, consider limits
       const currentFiles = files.length;
       const newFiles = Array.from(e.target.files);
       
-      // Basic limit check example
       if (currentFiles + newFiles.length > 5) {
-        // This would normally set an error state that's displayed elsewhere
-        if (fileInputRef.current) fileInputRef.current.value = ''; // Clear input
+        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
       
@@ -112,179 +117,293 @@ export default function ReplyForm({
 
   const removeFile = (indexToRemove: number) => {
     setFiles((prevFiles: File[]) => prevFiles.filter((_, index) => index !== indexToRemove));
-    if (files.length === 1 && fileInputRef.current) { // Clear input value if removing the last file
+    if (files.length === 1 && fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Handle canned response selection
   const handleCannedResponseSelect = (e: ChangeEvent<HTMLSelectElement>) => {
     const selectedContent = e.target.value;
     if (selectedContent) {
-      // Append to existing comment or replace, depending on preference
       setNewComment((prev: string) => prev ? `${prev}\n\n${selectedContent}` : selectedContent);
-      // Reset the dropdown visually
       e.target.value = "";
     }
   };
 
-  // Determine button text based on state
-  const getButtonText = () => {
-    if (isSubmittingComment) return (
-      <><span className="spinner-border spinner-border-sm me-2"></span>Submitting...</>
-    );
-    if (isInternalNote) return (
-      <><i className="fas fa-lock me-1"></i> Save Note</>
-    );
-    if (sendAsEmail) return (
-      <><i className="fas fa-paper-plane me-1"></i> Send Email</>
-    );
-    return (
-      <><i className="fas fa-reply me-1"></i> Reply</>
-    );
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
   };
 
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (files.length + droppedFiles.length <= 5) {
+      setFiles((prevFiles: File[]) => [...prevFiles, ...droppedFiles]);
+    }
+  };
+
+  const getReplyModeConfig = () => {
+    if (isInternalNote) {
+      return {
+        icon: 'fas fa-lock',
+        label: 'Internal Note',
+        description: 'Only visible to your team',
+        buttonText: 'Save Note',
+        buttonClass: 'btn-warning'
+      };
+    }
+    if (sendAsEmail) {
+      return {
+        icon: 'fas fa-paper-plane',
+        label: 'Email Reply',
+        description: 'Will be sent to customer via email',
+        buttonText: 'Send Email',
+        buttonClass: 'btn-primary'
+      };
+    }
+    return {
+      icon: 'fas fa-comment',
+      label: 'Comment',
+      description: 'Internal comment - not sent to customer',
+      buttonText: 'Add Comment',
+      buttonClass: 'btn-secondary'
+    };
+  };
+
+  const replyMode = getReplyModeConfig();
+
   return (
-    <div className="reply-form-container border rounded mb-4">
-      <div className="reply-form-header d-flex justify-content-between align-items-center p-2 bg-light border-bottom">
-        <div className="reply-title">
-          <strong><i className="fas fa-reply me-1"></i> Reply</strong>
-        </div>
-        
-        <div className="reply-actions d-flex gap-2">
-          {/* Canned Responses Dropdown */}
-          <div className="d-flex align-items-center">
-            <select
-              id="cannedResponseSelect"
-              className="form-select form-select-sm"
-              onChange={handleCannedResponseSelect}
-              value=""
-              disabled={isLoadingCanned || isSubmittingComment}
-            >
-              <option value="" disabled={isLoadingCanned}>
-                {isLoadingCanned ? 'Loading responses...' : '-- Insert template --'}
-              </option>
-              {cannedResponsesList.map(resp => (
-                <option key={resp.id} value={resp.content}>
-                  {resp.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          
-          {/* Status Reply Button (if available) */}
-          {orderNumber && extractedStatus && ['shipped', 'awaiting_shipment', 'processing'].includes(extractedStatus) && insertSuggestedResponse && (
-            <button 
-              type="button" 
-              className="btn btn-sm btn-outline-info" 
-              onClick={insertSuggestedResponse} 
-              title="Insert suggested reply" 
-              disabled={isSubmittingComment}
-            >
-              <i className="fas fa-magic me-1"></i> Insert Status Reply
-            </button>
-          )}
-        </div>
-      </div>
-      
-      <form onSubmit={handleCommentSubmit}>
-        <div className="p-3">
-          {/* Text Area for Reply */}
-          <div className="mb-3">
-            <textarea
-              className="form-control"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Type your reply here..."
-              rows={6}
-              readOnly={isSubmittingComment}
-              style={{ minHeight: '150px', resize: 'vertical' }} 
-            />
-          </div>
-          
-          {/* File Upload Section */}
-          <div className="mb-3">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              className="form-control form-control-sm"
-              multiple
-              disabled={isSubmittingComment}
-            />
-            
-            {/* Selected Files List */}
-            {files.length > 0 && (
-              <div className="selected-files mt-2">
-                {files.map((file, index) => (
-                  <div key={index} className="selected-file d-flex align-items-center p-2 border rounded mb-1">
-                    <i className={`fas ${getFileIconClass(file.type)} me-2 text-secondary`}></i>
-                    <span className="file-name text-truncate flex-grow-1">{file.name}</span>
-                    <span className="file-size text-muted small me-2">{formatFileSize(file.size)}</span>
-                    <button 
-                      type="button" 
-                      className="btn btn-sm btn-link text-danger p-0" 
-                      onClick={() => removeFile(index)}
-                      disabled={isSubmittingComment}
-                    >
-                      <i className="fas fa-times"></i>
-                    </button>
-                  </div>
-                ))}
+    <div className="reply-form-wrapper">
+      <div className="reply-form-container card border-0 shadow-sm">
+        {/* Header */}
+        <div className="reply-header bg-light border-bottom">
+          <div className="d-flex align-items-center justify-content-between p-3">
+            <div className="reply-title d-flex align-items-center">
+              <div className="reply-icon me-2">
+                <i className={`${replyMode.icon} text-primary`}></i>
               </div>
-            )}
-          </div>
-          
-          {/* Options and Submit Button */}
-          <div className="d-flex justify-content-between align-items-center">
-            <div className="reply-options d-flex gap-2">
-              <div className="form-check form-switch me-3">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id="internalNoteSwitch"
-                  checked={isInternalNote}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setIsInternalNote(checked);
-                    if (checked) setSendAsEmail(false);
-                  }}
-                  disabled={isSubmittingComment}
-                />
-                <label className="form-check-label" htmlFor="internalNoteSwitch">
-                  <i className="fas fa-lock me-1"></i> Internal Note
-                </label>
-              </div>
-              
-              <div className="form-check form-switch">
-                <input
-                  type="checkbox"
-                  className="form-check-input"
-                  id="sendEmailSwitch"
-                  checked={sendAsEmail}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setSendAsEmail(checked);
-                    if (checked) setIsInternalNote(false);
-                  }}
-                  disabled={isInternalNote || !senderEmail || isSubmittingComment}
-                />
-                <label className="form-check-label" htmlFor="sendEmailSwitch">
-                  <i className="fas fa-paper-plane me-1"></i> Send as Email
-                </label>
+              <div>
+                <h6 className="mb-0 fw-semibold">{replyMode.label}</h6>
+                <small className="text-muted">{replyMode.description}</small>
               </div>
             </div>
             
-            <button 
-              type="submit" 
-              className="btn btn-primary"
-              disabled={(!newComment || newComment.trim() === '') && files.length === 0 || isSubmittingComment}
-            >
-              {getButtonText()}
-            </button>
+            <div className="reply-tools d-flex align-items-center gap-2">
+              {/* Template Selector */}
+              <div className="template-selector">
+                <select
+                  className="form-select form-select-sm border-0 bg-white"
+                  onChange={handleCannedResponseSelect}
+                  value=""
+                  disabled={isLoadingCanned || isSubmittingComment}
+                  style={{ minWidth: '160px' }}
+                >
+                  <option value="" disabled>
+                    {isLoadingCanned ? 'Loading templates...' : 'Insert template'}
+                  </option>
+                  {cannedResponsesList.map(resp => (
+                    <option key={resp.id} value={resp.content}>
+                      {resp.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Status Reply Button */}
+              {orderNumber && extractedStatus && ['shipped', 'awaiting_shipment', 'processing'].includes(extractedStatus) && insertSuggestedResponse && (
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-outline-info border-0 bg-info bg-opacity-10 text-info" 
+                  onClick={insertSuggestedResponse} 
+                  disabled={isSubmittingComment}
+                >
+                  <i className="fas fa-magic me-1"></i>
+                  AI Suggestion
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </form>
+        
+        <form onSubmit={handleCommentSubmit} className="reply-form">
+          <div className="reply-body p-3">
+            {/* Text Editor Area */}
+            <div className="editor-container mb-3">
+              <div 
+                className={`editor-wrapper border rounded ${isDragOver ? 'border-primary bg-primary bg-opacity-5' : 'border-light'}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
+                <textarea
+                  ref={textareaRef}
+                  className="form-control border-0 resize-none"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder={`Type your ${replyMode.label.toLowerCase()} here...`}
+                  rows={4}
+                  readOnly={isSubmittingComment}
+                  style={{ 
+                    minHeight: '120px',
+                    maxHeight: '300px',
+                    overflow: 'auto'
+                  }}
+                />
+                
+                {isDragOver && (
+                  <div className="drag-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-primary bg-opacity-10 rounded">
+                    <div className="text-center">
+                      <i className="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i>
+                      <div className="fw-medium text-primary">Drop files here to attach</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* File Upload Section */}
+            <div className="file-section mb-3">
+              <div className="file-input-wrapper">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="d-none"
+                  multiple
+                  disabled={isSubmittingComment}
+                  id="fileInput"
+                />
+                <label 
+                  htmlFor="fileInput" 
+                  className="file-input-label btn btn-sm btn-outline-secondary border-0 bg-light"
+                  style={{ cursor: isSubmittingComment ? 'not-allowed' : 'pointer' }}
+                >
+                  <i className="fas fa-paperclip me-1"></i>
+                  Attach Files
+                </label>
+                <small className="text-muted ms-2">
+                  Drop files anywhere or click to browse (max 5 files)
+                </small>
+              </div>
+              
+              {/* Selected Files */}
+              {files.length > 0 && (
+                <div className="selected-files mt-3">
+                  <div className="files-header mb-2">
+                    <small className="text-muted fw-medium">
+                      <i className="fas fa-paperclip me-1"></i>
+                      Attached Files ({files.length})
+                    </small>
+                  </div>
+                  <div className="files-grid">
+                    {files.map((file, index) => (
+                      <div key={index} className="file-item d-flex align-items-center p-2 bg-light rounded border">
+                        <div className="file-icon me-2">
+                          <i className={`fas ${getFileIconClass(file.type)} text-primary`}></i>
+                        </div>
+                        <div className="file-info flex-grow-1 min-w-0">
+                          <div className="file-name text-truncate fw-medium">{file.name}</div>
+                          <div className="file-size small text-muted">{formatFileSize(file.size)}</div>
+                        </div>
+                        <button 
+                          type="button" 
+                          className="btn btn-sm btn-link text-danger p-1" 
+                          onClick={() => removeFile(index)}
+                          disabled={isSubmittingComment}
+                          title="Remove file"
+                        >
+                          <i className="fas fa-times"></i>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          {/* Footer with options and submit */}
+          <div className="reply-footer bg-light border-top p-3">
+            <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
+              {/* Reply Options */}
+              <div className="reply-options d-flex align-items-center gap-3">
+                <div className="form-check form-switch">
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
+                    id="internalNoteSwitch"
+                    checked={isInternalNote}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      setIsInternalNote(checked);
+                      if (checked) setSendAsEmail(false);
+                    }}
+                    disabled={isSubmittingComment}
+                  />
+                  <label className="form-check-label d-flex align-items-center" htmlFor="internalNoteSwitch">
+                    <i className="fas fa-lock me-2 text-warning"></i>
+                    <span>Internal Note</span>
+                  </label>
+                </div>
+                
+                <div className="form-check form-switch">
+                  <input
+                    type="checkbox"
+                    className="form-check-input"
+                    id="sendEmailSwitch"
+                    checked={sendAsEmail}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      setSendAsEmail(checked);
+                      if (checked) setIsInternalNote(false);
+                    }}
+                    disabled={isInternalNote || !senderEmail || isSubmittingComment}
+                  />
+                  <label className="form-check-label d-flex align-items-center" htmlFor="sendEmailSwitch">
+                    <i className="fas fa-paper-plane me-2 text-primary"></i>
+                    <span>Send as Email</span>
+                  </label>
+                </div>
+                
+                {!senderEmail && (
+                  <small className="text-muted">
+                    <i className="fas fa-info-circle me-1"></i>
+                    Email option disabled - no customer email
+                  </small>
+                )}
+              </div>
+              
+              {/* Submit Button */}
+              <button 
+                type="submit" 
+                className={`btn ${replyMode.buttonClass} px-4`}
+                disabled={(!newComment?.trim() && files.length === 0) || isSubmittingComment}
+              >
+                {isSubmittingComment ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2"></span>
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <i className={`${replyMode.icon} me-2`}></i>
+                    {replyMode.buttonText}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
     </div>
   );
-} 
+}
