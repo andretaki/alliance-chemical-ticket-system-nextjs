@@ -22,23 +22,6 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --primary: #3b82f6;
-    --primary-hover: #60a5fa;
-    --background: #0f172a;
-    --foreground: #f1f5f9;
-    --sidebar-bg: #1e293b;
-    --sidebar-hover: #334155;
-    --sidebar-active: #475569;
-    --sidebar-text: #94a3b8;
-    --sidebar-active-text: #f8fafc;
-    --card-bg: #1e293b;
-    --card-border: #334155;
-    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
@@ -313,22 +296,7 @@ td {
 }
 
 .border-success {
-  border-color: #34d399 !important;
-}
-
-@media (prefers-color-scheme: dark) {
-  .bg-light-subtle {
-    background-color: #1e293b !important;
-  }
-  .bg-warning-subtle {
-    background-color: #422006 !important;
-  }
-  .bg-info-subtle {
-    background-color: #172554 !important;
-  }
-  .bg-success-subtle {
-    background-color: #064e3b !important;
-  }
+  border-color: #166534 !important;
 }
 
 /* ---------------------------------------------------
@@ -336,6 +304,8 @@ td {
 ----------------------------------------------------- */
 
 .ticket-view-outlook {
+  display: grid;
+  grid-template-columns: 1fr 350px;
   height: 100vh;
   overflow: hidden;
   background-color: var(--card-bg);
