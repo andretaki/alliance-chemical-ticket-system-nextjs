@@ -29,6 +29,7 @@ interface TicketHeaderBarProps {
   handleAssigneeChange: (e: React.ChangeEvent<HTMLSelectElement>) => Promise<void>;
   handleStatusSelectChange: (e: React.ChangeEvent<HTMLSelectElement>) => Promise<void>;
   showAiSuggestionIndicator?: boolean;
+  onReopenTicket: () => Promise<void>;
   copyTicketLink?: () => void;
   // Order status draft props
   orderNumberForStatus?: string | null;
@@ -80,6 +81,7 @@ export default function TicketHeaderBar({
   handleAssigneeChange,
   handleStatusSelectChange,
   showAiSuggestionIndicator,
+  onReopenTicket,
   copyTicketLink,
   // Order status draft props
   orderNumberForStatus,
@@ -216,6 +218,13 @@ export default function TicketHeaderBar({
                       Resend Invoice
                     </>
                   )}
+                </button>
+              )}
+
+              {/* Reopen Ticket Button */}
+              {ticket.status === 'closed' && (
+                <button onClick={onReopenTicket} className="btn btn-warning btn-sm">
+                  <i className="fas fa-folder-open me-1"></i>Reopen Ticket
                 </button>
               )}
 

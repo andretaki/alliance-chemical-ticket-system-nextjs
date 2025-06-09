@@ -6,6 +6,11 @@ import axios from 'axios';
 import Link from 'next/link';
 import { OrderSearchResult } from '@/types/orderSearch';
 
+interface UnifiedSearchResult {
+  type: 'order' | 'customer' | 'ticket';
+  data: any; // Can be OrderSearchResult, CustomerSearchResult, etc.
+}
+
 interface SearchSuggestion {
   text: string;
   type: 'history' | 'filter' | 'order' | 'batch';
@@ -53,11 +58,12 @@ export default function SimpleOrderSearch({
   onResults,
   onSearching,
   onDebouncedQueryChange,
-  placeholder = 'Search orders by number, email, or customer name...',
+  placeholder = "Search orders, customers, tickets...",
   autoFocus = false,
 }: SimpleOrderSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<OrderSearchResult[]>([]);
+  const [unifiedResults, setUnifiedResults] = useState<UnifiedSearchResult[]>([]);
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
@@ -141,89 +147,100 @@ export default function SimpleOrderSearch({
     setSuggestions(newSuggestions.slice(0, 8));
   }, [query, searchHistory]);
 
-  // Effect to perform search when debounced query changes
-  useEffect(() => {
-    if (onDebouncedQueryChange) {
-      onDebouncedQueryChange(debouncedQuery);
+  const performSearch = useCallback(async (searchQuery: string) => {
+    if (!searchQuery || searchQuery.length < 3) {
+      setResults([]);
+      setSearchStats(null);
+      setUnifiedResults([]);
+      if (onResults) onResults([]);
+      return;
     }
 
-    const performSearch = async () => {
-      if (debouncedQuery.length < 3) {
-        setResults([]);
-        if (onResults) onResults([]);
-        return;
+    setIsSearching(true);
+    if (onSearching) onSearching(true);
+    setError(null);
+    const startTime = Date.now();
+
+    try {
+      // Perform parallel searches
+      const [orderRes, customerRes] = await Promise.all([
+        fetch(`/api/orders/search?query=${encodeURIComponent(searchQuery)}`).then(res => res.json()),
+        fetch(`/api/customers/search?query=${encodeURIComponent(searchQuery)}`).then(res => res.json())
+      ]);
+
+      const orderResults: UnifiedSearchResult[] = (orderRes.orders || []).map((o: any) => ({ type: 'order', data: o }));
+      const customerResults: UnifiedSearchResult[] = (customerRes.customers || []).map((c: any) => ({ type: 'customer', data: c }));
+
+      // Combine and set unified results
+      const combinedResults = [...orderResults, ...customerResults];
+      setUnifiedResults(combinedResults);
+
+      // For backward compatibility with onResults prop
+      const searchResults: OrderSearchResult[] = orderRes.orders || [];
+      setResults(searchResults);
+      const processingTime = Date.now() - startTime;
+
+      // Determine search type based on query analysis
+      let searchType: 'simple' | 'advanced' | 'batch' | 'fuzzy' = 'simple';
+      let confidence = 0.8;
+
+      // Enhanced query analysis
+      const orderNumbers = searchQuery.match(/\d{4,}/g) || [];
+      const hasEmail = /@/.test(searchQuery);
+      const hasMultipleTerms = searchQuery.split(/\s+/).length > 1;
+      const isBatch = orderNumbers.length > 1 || searchQuery.includes(',');
+
+      if (isBatch) {
+        searchType = 'batch';
+        confidence = 0.9;
+      } else if (hasEmail || hasMultipleTerms) {
+        searchType = 'advanced';
+        confidence = 0.8;
+      } else if (orderNumbers.length === 0 && searchQuery.length >= 4) {
+        searchType = 'fuzzy';
+        confidence = 0.6;
       }
 
-      setIsSearching(true);
-      if (onSearching) onSearching(true);
-      setError(null);
-      const startTime = Date.now();
+      setSearchStats({
+        searchType,
+        confidence,
+        searchMethod: orderRes.searchMethod || 'unknown',
+        processingTime
+      });
 
-      try {
-        const response = await fetch(`/api/orders/search?query=${encodeURIComponent(debouncedQuery)}`);
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Search failed');
-        }
-
-        const data = await response.json();
-        const searchResults: OrderSearchResult[] = data.orders || [];
-        const processingTime = Date.now() - startTime;
-
-        // Determine search type based on query analysis
-        let searchType: 'simple' | 'advanced' | 'batch' | 'fuzzy' = 'simple';
-        let confidence = 0.8;
-
-        // Enhanced query analysis
-        const orderNumbers = debouncedQuery.match(/\d{4,}/g) || [];
-        const hasEmail = /@/.test(debouncedQuery);
-        const hasMultipleTerms = debouncedQuery.split(/\s+/).length > 1;
-        const isBatch = orderNumbers.length > 1 || debouncedQuery.includes(',');
-
-        if (isBatch) {
-          searchType = 'batch';
-          confidence = 0.9;
-        } else if (hasEmail || hasMultipleTerms) {
-          searchType = 'advanced';
-          confidence = 0.8;
-        } else if (orderNumbers.length === 0 && debouncedQuery.length >= 4) {
-          searchType = 'fuzzy';
-          confidence = 0.6;
-        }
-
-        setSearchStats({
-          searchType,
-          confidence,
-          searchMethod: data.searchMethod || 'unknown',
-          processingTime
-        });
-
-        setResults(searchResults);
-        
-        // Add to search history if results found
-        if (searchResults.length > 0) {
-          addToSearchHistory(debouncedQuery);
-          setSearchHistory(getSearchHistory());
-        }
-
-        if (onResults) {
-          onResults(searchResults);
-        }
-
-        console.log(`[SimpleOrderSearch] Search completed in ${processingTime}ms`);
-      } catch (err) {
-        console.error('[SimpleOrderSearch] Search failed:', err);
-        setError('Failed to fetch orders. Please try again.');
-        if (onResults) onResults([]);
-      } finally {
-        setIsSearching(false);
-        if (onSearching) onSearching(false);
+      // Add to search history if results found
+      if (searchResults.length > 0) {
+        addToSearchHistory(searchQuery);
+        setSearchHistory(getSearchHistory());
       }
-    };
 
-    performSearch();
-  }, [debouncedQuery, onResults, onSearching, onDebouncedQueryChange]);
+      if (onResults) {
+        onResults(searchResults);
+      }
+    } catch (error: any) {
+      console.error('Search error:', error);
+      setError(error.message || 'Search failed');
+      setResults([]);
+      setSearchStats(null);
+      setUnifiedResults([]);
+      if (onResults) onResults([]);
+    } finally {
+      setIsSearching(false);
+      if (onSearching) onSearching(false);
+    }
+  }, [onResults, onSearching]);
+
+  // Perform search with debounced query
+  useEffect(() => {
+    if (debouncedQuery.length >= 3) {
+      performSearch(debouncedQuery);
+    } else {
+      setResults([]);
+      setSearchStats(null);
+      setUnifiedResults([]);
+      if (onResults) onResults([]);
+    }
+  }, [debouncedQuery, performSearch, onResults]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -273,6 +290,7 @@ export default function SimpleOrderSearch({
   const clearSearch = () => {
     setQuery('');
     setResults([]);
+    setUnifiedResults([]);
     setSearchStats(null);
     setError(null);
     setShowSuggestions(false);
@@ -479,128 +497,60 @@ export default function SimpleOrderSearch({
         </div>
       )}
 
-      {/* Results Display */}
-      {results.length > 0 && (
+      {/* Unified Results Display */}
+      {unifiedResults.length > 0 && (
         <div className="mt-4 space-y-3">
-          {results.map((order, index) => (
-            <div key={index} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div>
-                    <div className="flex items-center space-x-2">
+          {unifiedResults.map((result, index) => {
+            if (result.type === 'order') {
+              const order = result.data as OrderSearchResult;
+              return (
+                <div key={order.shopifyOrderGID} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xl text-gray-400"><i className="fas fa-receipt"></i></span>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Order {order.shopifyOrderName}
+                        </h3>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {order.customerFullName && (
+                            <span className="mr-4">👤 {order.customerFullName}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <a href={order.shopifyAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary">View Order</a>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            if (result.type === 'customer') {
+              const customer = result.data;
+              return (
+                <div key={customer.id} className="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-xl text-gray-400"><i className="fas fa-user-circle"></i></span>
+                    <div>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {order.shopifyOrderName}
+                        Customer: {customer.firstName} {customer.lastName}
                       </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        order.source === 'shopify' 
-                          ? 'bg-green-100 text-green-600' 
-                          : 'bg-blue-100 text-blue-600'
-                      }`}>
-                        {order.source === 'shopify' ? '🛍️ Shopify' : '🚢 ShipStation'}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      {order.customerFullName && (
-                        <span className="mr-4">👤 {order.customerFullName}</span>
-                      )}
-                      {order.customerEmail && (
-                        <span>📧 {order.customerEmail}</span>
-                      )}
+                      <div className="text-sm text-gray-600 mt-1">
+                        {customer.email}
+                      </div>
                     </div>
                   </div>
                 </div>
-                
-                <div className="text-right">
-                  {order.totalPrice && (
-                    <div className="text-lg font-semibold text-gray-900">
-                      {order.currencyCode || '$'}{order.totalPrice}
-                    </div>
-                  )}
-                  <div className="text-sm text-gray-500">
-                    {new Date(order.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Order Status */}
-              <div className="mt-3 flex items-center space-x-4 text-sm">
-                {order.financialStatus && (
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    order.financialStatus.toLowerCase().includes('paid') 
-                      ? 'bg-green-100 text-green-600'
-                      : 'bg-yellow-100 text-yellow-600'
-                  }`}>
-                    💳 {order.financialStatus}
-                  </span>
-                )}
-                {order.fulfillmentStatus && (
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    order.fulfillmentStatus.toLowerCase().includes('shipped') 
-                      ? 'bg-green-100 text-green-600'
-                      : 'bg-orange-100 text-orange-600'
-                  }`}>
-                    📦 {order.fulfillmentStatus}
-                  </span>
-                )}
-              </div>
-
-              {/* Tracking Information */}
-              {order.trackingNumbers && order.trackingNumbers.length > 0 && (
-                <div className="mt-3 p-2 bg-blue-50 rounded-md">
-                  <div className="text-sm font-medium text-blue-800 mb-1">
-                    📍 Tracking Numbers:
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {order.trackingNumbers.map((tracking, idx) => (
-                      <span 
-                        key={idx}
-                        className="px-2 py-1 bg-white border border-blue-200 rounded text-xs font-mono"
-                      >
-                        {tracking}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="mt-4 flex space-x-2">
-                {order.shopifyAdminUrl && order.shopifyAdminUrl !== '#' && (
-                  <a
-                    href={order.shopifyAdminUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700"
-                  >
-                    View in Shopify
-                  </a>
-                )}
-                {order.shipStationUrl && (
-                  <a
-                    href={order.shipStationUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    View in ShipStation
-                  </a>
-                )}
-                {order.relatedTicketUrl && (
-                  <a
-                    href={order.relatedTicketUrl}
-                    className="px-3 py-1 text-xs bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                  >
-                    View Ticket
-                  </a>
-                )}
-              </div>
-            </div>
-          ))}
+              );
+            }
+            return null;
+          })}
         </div>
       )}
 
       {/* No Results */}
-      {query.length >= 3 && !isSearching && results.length === 0 && !error && (
+      {query.length >= 3 && !isSearching && unifiedResults.length === 0 && !error && (
         <div className="mt-4 text-center py-8">
           <div className="text-gray-400 mb-2">
             <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">

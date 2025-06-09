@@ -1204,240 +1204,46 @@ export const DirectQuoteCreationClient: React.FC = () => {
             <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Customer Information</legend>
             
             {/* Customer Search Field */}
-            <div className="mb-4 pb-3 border-bottom">
-              <label htmlFor="customerSearch" className="form-label fw-medium">
-                <i className="fas fa-search me-2 text-primary"></i>
-                Find Existing Customer
-                <small className="text-muted ms-2">(Perfect for phone calls!)</small>
-              </label>
-              
-              {/* Search Type Quick Buttons */}
-              <div className="mb-3">
-                <small className="text-muted d-block mb-2">
-                  <i className="fas fa-lightbulb me-1"></i>
-                  Try these elegant search methods:
-                </small>
-                <div className="btn-group btn-group-sm" role="group" aria-label="Search type options">
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-success" 
-                    onClick={() => handleQuickSearch('order')}
-                    disabled={isSearchingCustomer || customerSearchTerm.trim().length < 3}
-                    title="Search by order number - great when customer says 'I have order #1234'"
-                  >
-                    <i className="fas fa-receipt me-1"></i>Order #
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-info" 
-                    onClick={() => handleQuickSearch('phone')}
-                    disabled={isSearchingCustomer || customerSearchTerm.trim().length < 3}
-                    title="Search by phone number - perfect when they give you their number"
-                  >
-                    <i className="fas fa-phone me-1"></i>Phone
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-warning" 
-                    onClick={() => handleQuickSearch('email')}
-                    disabled={isSearchingCustomer || customerSearchTerm.trim().length < 3}
-                    title="Search by email address"
-                  >
-                    <i className="fas fa-envelope me-1"></i>Email
-                  </button>
-                  <button 
-                    type="button" 
-                    className="btn btn-outline-secondary" 
-                    onClick={() => handleQuickSearch('name')}
-                    disabled={isSearchingCustomer || customerSearchTerm.trim().length < 3}
-                    title="Search by first or last name"
-                  >
-                    <i className="fas fa-user me-1"></i>Name
-                  </button>
-                </div>
+            <div className="mb-4 position-relative" ref={customerSearchRef}>
+              <label htmlFor="customerSearch" className="form-label fw-medium">Find Existing Customer</label>
+              <div className="input-group">
+                <span className="input-group-text"><i className="fas fa-search"></i></span>
+                <input
+                  type="text"
+                  id="customerSearch"
+                  className="form-control"
+                  placeholder="Search by name, email, or phone..."
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  onFocus={() => { if (customerSearchTerm.trim()) setShowCustomerResults(true); }}
+                />
               </div>
-
-              <div className="position-relative" ref={customerSearchRef}>
-                <div className="input-group">
-                  <input
-                    type="text"
-                    className="form-control form-control-lg"
-                    id="customerSearch"
-                    placeholder="Type anything: order 1234, phone 5551234567, email, or name..."
-                    value={customerSearchTerm}
-                    onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                    onFocus={() => {
-                      if (customerSearchTerm.trim().length >= 3) {
-                        setShowCustomerResults(true);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        searchCustomer(customerSearchTerm);
-                      }
-                    }}
-                    aria-autocomplete="list"
-                    role="combobox"
-                    aria-expanded={activeSearchDropdown === null}
-                    aria-controls={`search-results-${activeSearchDropdown}`}
-                  />
-                  {customerSearchTerm && (
-                    <button 
-                      className="btn btn-outline-secondary" 
+              {showCustomerResults && (
+                <div className="dropdown-menu d-block position-absolute w-100 mt-1 shadow-lg" style={{ zIndex: 1051 }}>
+                  {isSearchingCustomer && <div className="dropdown-item">Searching...</div>}
+                  {customerSearchError && <div className="dropdown-item text-danger">{customerSearchError}</div>}
+                  {!isSearchingCustomer && customerSearchResults.length > 0 && customerSearchResults.map(cust => (
+                    <button
                       type="button"
-                      onClick={clearCustomerSearch}
-                      title="Clear search"
+                      key={cust.id}
+                      className="dropdown-item"
+                      onClick={() => handleCustomerSelect(cust)}
                     >
-                      <i className="fas fa-times"></i>
+                      <div><strong>{cust.firstName} {cust.lastName}</strong> ({cust.company})</div>
+                      <small className="text-muted">{cust.email}</small>
                     </button>
-                  )}
-                  <button 
-                    className="btn btn-primary btn-lg" 
-                    type="button"
-                    onClick={() => searchCustomer(customerSearchTerm)}
-                    disabled={isSearchingCustomer || customerSearchTerm.trim().length < 3}
-                    title="Search automatically detects what you&apos;re looking for"
-                  >
-                    {isSearchingCustomer ? (
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    ) : (
-                      <>
-                        <i className="fas fa-magic me-1"></i>Smart Search
-                      </>
-                    )}
-                  </button>
+                  ))}
                 </div>
-                
-                {showCustomerResults && (
-                  <div className="dropdown-menu d-block position-absolute start-0 w-100 mt-1 shadow-lg border-2" style={{zIndex: 1051}}>
-                    <div className="px-3 py-2 bg-primary text-white small d-flex justify-content-between align-items-center">
-                      {isSearchingCustomer ? (
-                        <span><i className="fas fa-spinner fa-spin me-1"></i>Searching customers...</span>
-                      ) : (
-                        <span>
-                          <i className="fas fa-users me-1"></i>
-                          {customerSearchResults.length} customer(s) found
-                        </span>
-                      )}
-                      {!isSearchingCustomer && customerSearchResults.length > 0 && (
-                        <span className="badge bg-light text-dark">
-                          <i className="fas fa-check-circle me-1"></i>Ready to select
-                        </span>
-                      )}
-                    </div>
-                    
-                    {customerSearchError && !isSearchingCustomer && (
-                      <div className="p-3 text-danger small border-bottom">
-                        <i className="fas fa-exclamation-triangle me-2"></i>
-                        {customerSearchError}
-                        <div className="mt-2 text-muted">
-                          💡 Try a different search method using the buttons above, or check spelling.
-                        </div>
-                      </div>
-                    )}
-                    
-                    {!customerSearchError && customerSearchResults.length === 0 && !isSearchingCustomer && customerSearchTerm.trim() !== "" && (
-                      <div className="p-3 text-muted small">
-                        <i className="fas fa-search me-2"></i>
-                        No customers found.
-                        <div className="mt-2">
-                          💡 Try searching by order number, phone, or different spelling.
-                          <br/>
-                          🔄 The system also searches ShipStation if not found in Shopify.
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="list-group list-group-flush" style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                      {customerSearchResults.map((customer) => (
-                        <button
-                          type="button"
-                          key={customer.id}
-                          className="list-group-item list-group-item-action py-3 px-3 text-start border-0"
-                          onClick={() => handleCustomerSelect(customer)}
-                        >
-                          <div className="d-flex justify-content-between align-items-start">
-                            <div className="flex-grow-1">
-                              <div className="d-flex align-items-center mb-1">
-                                <strong className="me-2">
-                                  {customer.firstName} {customer.lastName}
-                                </strong>
-                                {/* Source indicator badge */}
-                                {customer.source === 'shipstation' ? (
-                                  <span className="badge bg-info text-white small">
-                                    <i className="fas fa-ship me-1"></i>
-                                    ShipStation
-                                  </span>
-                                ) : (
-                                  <span className="badge bg-success text-white small">
-                                    <i className="fab fa-shopify me-1"></i>
-                                    Shopify
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-muted small">
-                                <i className="fas fa-envelope me-1"></i>
-                                {customer.email}
-                              </div>
-                              {customer.phone && (
-                                <div className="text-muted small">
-                                  <i className="fas fa-phone me-1"></i>
-                                  {customer.phone}
-                                </div>
-                              )}
-                              {customer.company && (
-                                <div className="text-muted small">
-                                  <i className="fas fa-building me-1"></i>
-                                  {customer.company}
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="text-end">
-                              {customer.defaultAddress && (
-                                <span className="badge bg-success text-white small">
-                                  <i className="fas fa-map-marker-alt me-1"></i>
-                                  Has Address
-                                </span>
-                              )}
-                              {/* Additional info for ShipStation customers */}
-                              {customer.source === 'shipstation' && !customer.defaultAddress && (
-                                <span className="badge bg-warning text-dark small">
-                                  <i className="fas fa-exclamation-triangle me-1"></i>
-                                  Check Address
-                                </span>
-                              )}
-                              <div className="mt-1">
-                                <span className="badge bg-primary">
-                                  <i className="fas fa-mouse-pointer me-1"></i>
-                                  Click to Load
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="mt-2">
-                <small className="text-muted">
-                  <i className="fas fa-info-circle me-1"></i>
-                  <strong>Phone Call Tips:</strong> 
-                  Ask for their order number first (fastest!), then phone number, email, or name.
-                  <br/>
-                  <i className="fas fa-rocket me-1"></i>
-                  The system automatically detects what type of search you&apos;re doing.
-                  <br/>
-                  <i className="fas fa-ship me-1"></i>
-                  <strong>Backup Search:</strong> If not found in Shopify, we also search ShipStation for customer details!
-                </small>
-              </div>
+              )}
             </div>
-            
+
+            {/* Horizontal rule to separate search from manual entry */}
+            <div className="d-flex align-items-center my-3">
+              <hr className="flex-grow-1" />
+              <span className="mx-2 text-muted small">OR ENTER MANUALLY</span>
+              <hr className="flex-grow-1" />
+            </div>
+
             <div className="row g-3">
               <div className="col-md-4">
                 <label htmlFor="firstName" className="form-label">First Name</label>

@@ -326,7 +326,7 @@ async function searchShopifyOrdersAndEnrich(
       return {
         shopifyOrderGID: order.id,
         shopifyOrderName: order.name || '',
-        legacyResourceId: order.legacyResourceId || '',
+        legacyResourceId: String(order.legacyResourceId || ''),
         customerFullName: buildCustomerFullName(order.customer),
         customerEmail: order.customer?.email || order.email || undefined,
         createdAt: order.createdAt,
@@ -334,7 +334,7 @@ async function searchShopifyOrdersAndEnrich(
         fulfillmentStatus: order.displayFulfillmentStatus || undefined,
         totalPrice: order.totalPriceSet?.shopMoney?.amount || undefined,
         currencyCode: order.totalPriceSet?.shopMoney?.currencyCode || undefined,
-        shopifyAdminUrl: shopifyService.getOrderAdminUrl(order.legacyResourceId || ''),
+        shopifyAdminUrl: shopifyService.getOrderAdminUrl(String(order.legacyResourceId || '')),
         relatedTicketId,
         relatedTicketUrl,
         itemSummary: generateItemSummary(order.lineItems),

@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 
 interface QuarantinedEmail {
   id: number;
@@ -13,12 +14,12 @@ interface QuarantinedEmail {
   subject: string;
   bodyPreview: string;
   receivedAt: string;
-  aiClassification: boolean;
+  aiClassification: boolean | null; // Can be null if triage failed
   aiReason: string | null;
   status: string;
 }
 
-type ModalAction = 'approve-ticket' | 'approve-comment' | 'reject-spam' | 'reject-vendor' | 'delete';
+type ModalAction = 'approve-ticket' | 'approve-comment' | 'reject-spam' | 'delete';
 
 export default function QuarantineReviewPage() {
   const { data: session, status } = useSession();
@@ -31,215 +32,163 @@ export default function QuarantineReviewPage() {
   const [modalAction, setModalAction] = useState<ModalAction | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [targetTicketId, setTargetTicketId] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/auth/signin');
+      router.push('/auth/signin?callbackUrl=/admin/quarantine');
     } else if (status === 'authenticated' && session?.user?.role !== 'admin') {
-      router.push('/'); // Redirect non-admins
+      router.push('/?error=AccessDenied');
     }
   }, [status, session, router]);
 
-  useEffect(() => {
-    fetchQuarantinedEmails();
-  }, []);
-
   const fetchQuarantinedEmails = async () => {
+    setLoading(true);
     try {
       const response = await axios.get('/api/admin/quarantine');
       setEmails(response.data);
-      setLoading(false);
+      setError(null);
     } catch (err) {
-      setError('Failed to load quarantined emails');
+      setError('Failed to load quarantined emails.');
+      console.error(err);
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleAction = async (email: QuarantinedEmail, action: ModalAction) => {
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'admin') {
+      fetchQuarantinedEmails();
+    }
+  }, [status, session]);
+
+  const openModal = (email: QuarantinedEmail, action: ModalAction) => {
     setSelectedEmail(email);
     setModalAction(action);
+    setReviewNotes('');
+    setTargetTicketId('');
     setShowModal(true);
   };
 
   const handleModalSubmit = async () => {
     if (!selectedEmail || !modalAction) return;
 
+    setIsSubmitting(true);
+    const toastId = toast.loading(`Processing action: ${modalAction}...`);
+
     try {
       const endpoint = `/api/admin/quarantine/${selectedEmail.id}/${modalAction}`;
       const payload = {
         reviewNotes,
-        targetTicketId: modalAction === 'approve-comment' ? targetTicketId : undefined
+        targetTicketId: modalAction === 'approve-comment' ? targetTicketId : undefined,
       };
 
       await axios.post(endpoint, payload);
+      toast.success('Action completed successfully!', { id: toastId });
       await fetchQuarantinedEmails(); // Refresh the list
       setShowModal(false);
-      setReviewNotes('');
-      setTargetTicketId('');
-    } catch (err) {
-      setError('Failed to process the action');
+    } catch (err: any) {
+      const errorMessage = err.response?.data?.message || 'Failed to process the action.';
+      toast.error(errorMessage, { id: toastId });
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  if (loading) {
+  if (status === 'loading' || loading) {
     return (
-      <div className="container mt-4">
-        <div className="d-flex justify-content-center">
-          <div className="spinner-border" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
+      <div className="d-flex justify-content-center align-items-center" style={{ height: '80vh' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="container mt-4">
-      <h1 className="mb-4">Quarantine Review</h1>
-      
-      {error && (
-        <div className="alert alert-danger" role="alert">
-          {error}
-        </div>
-      )}
+  const modalTitles = {
+    'approve-ticket': 'Approve as New Ticket',
+    'approve-comment': 'Approve as Comment',
+    'reject-spam': 'Reject as Spam',
+    'delete': 'Delete Permanently',
+  };
 
-      <div className="table-responsive">
-        <table className="table table-hover">
-          <thead>
-            <tr>
-              <th>Received</th>
-              <th>From</th>
-              <th>Subject</th>
-              <th>AI Classification</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {emails.map((email) => (
-              <tr key={email.id}>
-                <td>{format(new Date(email.receivedAt), 'MMM d, yyyy HH:mm')}</td>
-                <td>
-                  {email.senderName ? `${email.senderName} <${email.senderEmail}>` : email.senderEmail}
-                </td>
-                <td>{email.subject}</td>
-                <td>
-                  <span className={`badge ${email.aiClassification ? 'bg-success' : 'bg-danger'}`}>
-                    {email.aiClassification ? 'Legitimate' : 'Non-Customer'}
-                  </span>
-                  {email.aiReason && (
-                    <small className="d-block text-muted">{email.aiReason}</small>
-                  )}
-                </td>
-                <td>
-                  <span className={`badge bg-${getStatusBadgeColor(email.status)}`}>
-                    {email.status.replace('_', ' ')}
-                  </span>
-                </td>
-                <td>
-                  <div className="btn-group">
-                    <button
-                      className="btn btn-sm btn-outline-primary"
-                      onClick={() => handleAction(email, 'approve-ticket')}
-                    >
-                      Approve as Ticket
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={() => handleAction(email, 'approve-comment')}
-                    >
-                      Approve as Comment
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => handleAction(email, 'reject-spam')}
-                    >
-                      Reject (Spam)
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-warning"
-                      onClick={() => handleAction(email, 'reject-vendor')}
-                    >
-                      Reject (Vendor)
-                    </button>
-                    <button
-                      className="btn btn-sm btn-outline-dark"
-                      onClick={() => handleAction(email, 'delete')}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+  return (
+    <div className="container py-4">
+      <h1 className="mb-4">Quarantine Review</h1>
+      {error && <div className="alert alert-danger">{error}</div>}
+
+      <div className="card shadow-sm">
+        <div className="card-body">
+          <div className="table-responsive">
+            <table className="table table-hover">
+              <thead>
+                <tr>
+                  <th>Received</th>
+                  <th>From</th>
+                  <th>Subject</th>
+                  <th>AI Reason</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emails.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center text-muted py-4">The quarantine is empty. Good job!</td></tr>
+                ) : (
+                  emails.map((email) => (
+                    <tr key={email.id}>
+                      <td className="text-nowrap">{format(new Date(email.receivedAt), 'MMM d, h:mm a')}</td>
+                      <td>{email.senderName ? `${email.senderName} <${email.senderEmail}>` : email.senderEmail}</td>
+                      <td>{email.subject}</td>
+                      <td><small className="text-muted">{email.aiReason || 'N/A'}</small></td>
+                      <td>
+                        <div className="btn-group btn-group-sm">
+                          <button className="btn btn-outline-success" onClick={() => openModal(email, 'approve-ticket')} title="Approve as Ticket"><i className="fas fa-check"></i></button>
+                          <button className="btn btn-outline-info" onClick={() => openModal(email, 'approve-comment')} title="Approve as Comment"><i className="fas fa-comment-dots"></i></button>
+                          <button className="btn btn-outline-warning" onClick={() => openModal(email, 'reject-spam')} title="Reject as Spam"><i className="fas fa-ban"></i></button>
+                          <button className="btn btn-outline-danger" onClick={() => openModal(email, 'delete')} title="Delete Permanently"><i className="fas fa-trash"></i></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       {/* Modal */}
       {showModal && selectedEmail && (
-        <div className="modal show d-block" tabIndex={-1}>
-          <div className="modal-dialog">
+        <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">
-                  {getModalTitle(modalAction)}
-                </h5>
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => setShowModal(false)}
-                ></button>
+                <h5 className="modal-title">{modalTitles[modalAction!]}</h5>
+                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
               </div>
               <div className="modal-body">
-                <div className="mb-3">
-                  <strong>From:</strong> {selectedEmail.senderEmail}
-                  <br />
-                  <strong>Subject:</strong> {selectedEmail.subject}
-                  <br />
-                  <strong>Received:</strong> {format(new Date(selectedEmail.receivedAt), 'PPpp')}
+                <div className="mb-3 p-2 bg-light rounded">
+                  <p className="mb-1"><strong>From:</strong> {selectedEmail.senderEmail}</p>
+                  <p className="mb-0"><strong>Subject:</strong> {selectedEmail.subject}</p>
                 </div>
 
                 {modalAction === 'approve-comment' && (
                   <div className="mb-3">
-                    <label htmlFor="targetTicketId" className="form-label">Target Ticket ID</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="targetTicketId"
-                      value={targetTicketId}
-                      onChange={(e) => setTargetTicketId(e.target.value)}
-                      placeholder="Enter ticket ID"
-                    />
+                    <label htmlFor="targetTicketId" className="form-label">Target Ticket ID *</label>
+                    <input type="text" className="form-control" id="targetTicketId" value={targetTicketId} onChange={(e) => setTargetTicketId(e.target.value)} placeholder="Enter the ticket ID to add this as a comment"/>
                   </div>
                 )}
 
                 <div className="mb-3">
-                  <label htmlFor="reviewNotes" className="form-label">Review Notes</label>
-                  <textarea
-                    className="form-control"
-                    id="reviewNotes"
-                    value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
-                    rows={3}
-                    placeholder="Add any notes about this decision..."
-                  ></textarea>
+                  <label htmlFor="reviewNotes" className="form-label">Review Notes (Optional)</label>
+                  <textarea className="form-control" id="reviewNotes" value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} rows={2} placeholder="Add any notes about this decision..."></textarea>
                 </div>
               </div>
               <div className="modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className={`btn ${getActionButtonClass(modalAction)}`}
-                  onClick={handleModalSubmit}
-                >
-                  {getActionButtonText(modalAction)}
+                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)} disabled={isSubmitting}>Cancel</button>
+                <button type="button" className={`btn btn-primary`} onClick={handleModalSubmit} disabled={isSubmitting || (modalAction === 'approve-comment' && !targetTicketId)}>
+                  {isSubmitting ? <span className="spinner-border spinner-border-sm"></span> : 'Confirm Action'}
                 </button>
               </div>
             </div>
@@ -248,50 +197,4 @@ export default function QuarantineReviewPage() {
       )}
     </div>
   );
-}
-
-// Helper functions
-function getStatusBadgeColor(status: string): string {
-  switch (status) {
-    case 'pending_review': return 'warning';
-    case 'approved_ticket': return 'success';
-    case 'approved_comment': return 'info';
-    case 'rejected_spam': return 'danger';
-    case 'rejected_vendor': return 'warning';
-    case 'deleted': return 'secondary';
-    default: return 'secondary';
-  }
-}
-
-function getModalTitle(action: ModalAction | null): string {
-  switch (action) {
-    case 'approve-ticket': return 'Approve as New Ticket';
-    case 'approve-comment': return 'Approve as Comment';
-    case 'reject-spam': return 'Reject as Spam';
-    case 'reject-vendor': return 'Reject as Vendor';
-    case 'delete': return 'Delete Email';
-    default: return 'Review Email';
-  }
-}
-
-function getActionButtonClass(action: ModalAction | null): string {
-  switch (action) {
-    case 'approve-ticket': return 'btn-primary';
-    case 'approve-comment': return 'btn-info';
-    case 'reject-spam': return 'btn-danger';
-    case 'reject-vendor': return 'btn-warning';
-    case 'delete': return 'btn-dark';
-    default: return 'btn-secondary';
-  }
-}
-
-function getActionButtonText(action: ModalAction | null): string {
-  switch (action) {
-    case 'approve-ticket': return 'Create Ticket';
-    case 'approve-comment': return 'Add as Comment';
-    case 'reject-spam': return 'Confirm Spam';
-    case 'reject-vendor': return 'Confirm Vendor';
-    case 'delete': return 'Delete';
-    default: return 'Submit';
-  }
 } 

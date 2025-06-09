@@ -628,6 +628,23 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     }
   };
 
+  // Reopen ticket handler
+  const handleReopenTicket = async () => {
+    if (ticket.status !== 'closed') return;
+    const toastId = toast.loading('Reopening ticket...');
+    try {
+      await axios.post(`/api/admin/tickets/${ticket.id}/reopen`);
+      await refreshTicket(); // Refresh to get the new status and comments
+      toast.success('Ticket has been reopened!', { id: toastId });
+    } catch (err) {
+      console.error('Error reopening ticket:', err);
+      const errorMessage = axios.isAxiosError(err)
+        ? err.response?.data?.error || 'Failed to reopen ticket.'
+        : 'Failed to reopen ticket.';
+      toast.error(errorMessage, { id: toastId });
+    }
+  };
+
   // --- Comment & Attachment Functions ---
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -829,6 +846,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         isUpdatingStatus={isUpdatingStatus} 
         handleAssigneeChange={handleAssigneeChange} 
         handleStatusSelectChange={handleStatusSelectChange}
+        onReopenTicket={handleReopenTicket}
         showAiSuggestionIndicator={ticket.comments.some(c => isAISuggestionNote(c.commentText))}
         orderNumberForStatus={ticket.orderNumber}
         onGetOrderStatusDraft={handleGetOrderStatusDraft}

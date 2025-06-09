@@ -5,7 +5,7 @@
       "schedule": "* * * * *"
     },
     {
-      "path": "/api/admin/cron/renew-subscriptions",
+      "path": "/api/cron/renew-subscriptions",
       "schedule": "0 0 * * *"
     },
     {

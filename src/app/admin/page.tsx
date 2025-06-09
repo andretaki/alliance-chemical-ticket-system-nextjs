@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { authOptions } from '@/lib/authOptions';
 import Link from 'next/link';
 import WebhookStatus from '@/components/admin/WebhookStatus';
+import SubscriptionManager from '@/components/admin/SubscriptionManager';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard - Alliance Chemical Support',
@@ -34,10 +35,20 @@ export default async function AdminPage() {
           <div className="row mb-4">
             <div className="col-12">
               <div className="card">
-                <div className="card-body">
-                  <h5 className="card-title">System Status</h5>
+                <div className="card-header"><h5 className="card-title mb-0">System Status</h5></div>
+                <div className="card-body py-2">
                   <WebhookStatus />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Subscription Manager Card */}
+          <div className="row mb-4">
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header"><h5 className="card-title mb-0">Email Subscription Manager</h5></div>
+                <div className="card-body"><SubscriptionManager /></div>
               </div>
             </div>
           </div>

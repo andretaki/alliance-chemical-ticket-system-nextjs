@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { ticketPriorityEnum } from '@/db/schema';
 import { RagSearchInterface } from '@/components/RagSearchInterface';
 import CustomerOrderHistory from './CustomerOrderHistory';
 
@@ -177,18 +176,18 @@ export default function TicketDetailsSidebar({ ticket }: TicketDetailsSidebarPro
       </div>
 
       {/* Customer Order History */}
-      <CustomerOrderHistory 
+      <CustomerOrderHistory
         customerEmail={ticket.senderEmail || ticket.reporter?.email || undefined}
       />
 
-      {/* RAG Search Interface - Temporarily commented out as it's not fully set up */}
-      {/*
-      <div className="card shadow-sm mb-4">
-        <div className="card-header bg-light">
-          <h3 className="h6 mb-0">Related Information</h3>
+      {/* RAG Search Interface - Proactive Knowledge Base */}
+      <div className="card shadow-sm">
+        <div className="card-header bg-light d-flex align-items-center">
+          <i className="fas fa-brain me-2 text-info"></i>
+          <h3 className="h6 mb-0">AI Knowledge Search</h3>
         </div>
         <div className="card-body p-0">
-          <RagSearchInterface 
+          <RagSearchInterface
             customerEmail={ticket.senderEmail || ticket.reporter?.email || undefined}
             orderNumber={ticket.orderNumber}
             onResultSelect={(result) => {
@@ -198,7 +197,6 @@ export default function TicketDetailsSidebar({ ticket }: TicketDetailsSidebarPro
           />
         </div>
       </div>
-      */}
     </div>
   );
 } 
