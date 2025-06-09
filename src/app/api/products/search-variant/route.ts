@@ -40,7 +40,18 @@ export async function GET(request: NextRequest) {
 
     // Transform the results to match the expected ProductVariantSearchResult format
     const results: ProductVariantSearchResult[] = shopifyProducts.flatMap(product => {
+      // Add null safety checks for variants and edges
+      if (!product.variants || !product.variants.edges || !Array.isArray(product.variants.edges)) {
+        console.warn(`[API /api/products/search-variant] Product ${product.title} has no variants or invalid variants structure`);
+        return [];
+      }
+
       return product.variants.edges.map(variantEdge => {
+        if (!variantEdge || !variantEdge.node) {
+          console.warn(`[API /api/products/search-variant] Invalid variant edge structure for product ${product.title}`);
+          return null;
+        }
+
         const variant = variantEdge.node;
         // Ensure numericVariantIdShopify (legacyResourceId) is present
         if (!variant.legacyResourceId) {
