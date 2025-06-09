@@ -1,11 +1,13 @@
 // src/lib/graphService.ts
 import 'dotenv/config';
 import { ClientSecretCredential } from '@azure/identity';
-import { Client } from '@microsoft/microsoft-graph-client';
+import { Client, GraphRequest } from '@microsoft/microsoft-graph-client';
 import { Message, MailFolder, InternetMessageHeader } from '@microsoft/microsoft-graph-types';
 import { db } from '@/lib/db';
 import { subscriptions, userSignatures } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
+import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
+import 'isomorphic-fetch'; // Required for the Graph client
 
 // Load environment variables
 const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
@@ -52,24 +54,19 @@ async function withRetry<T>(operation: () => Promise<T>, operationName: string):
 // Create credential and authentication provider
 const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
 
-// Initialize the Graph client
-export const graphClient = Client.init({
-  authProvider: async (done) => {
-    try {
-      const token = await credential.getToken(['https://graph.microsoft.com/.default']);
-      done(null, token.token);
-    } catch (error) {
-      done(error, null);
-    }
-  }
+const authProvider = new TokenCredentialAuthenticationProvider(credential, {
+  scopes: ['https://graph.microsoft.com/.default'],
 });
+
+// Initialize the Graph client
+export const graphClient = Client.initWithMiddleware({ authProvider });
 
 /**
  * Get unread emails from the inbox
  * @param limit Maximum number of emails to fetch
  * @returns Array of unread Message objects
  */
-export async function getUnreadEmails(limit = 20): Promise<Message[]> {
+export async function getUnreadEmails(limit = 50): Promise<Message[]> {
   try {
     const response = await graphClient
       .api(`/users/${userEmail}/mailFolders/inbox/messages`)
@@ -414,11 +411,28 @@ export async function sendEmailReply(
  */
 export async function getMessageById(messageId: string): Promise<Message | null> {
   try {
-    return await graphClient
-      .api(`/users/${userEmail}/messages/${messageId}`)
+    // This new API call searches ALL folders for the message ID.
+    const response = await graphClient
+      .api(`/users/${userEmail}/messages`)
+      .filter(`id eq '${messageId}'`)
       .get();
-  } catch (error) {
-    console.error(`Error getting message ${messageId}:`, error);
+
+    // The response will be a collection (even if it's just one item).
+    // We need to return the first item from the 'value' array.
+    if (response && response.value && response.value.length > 0) {
+      return response.value[0];
+    }
+
+    // If no message was found, return null.
+    console.warn(`Could not find message with ID ${messageId} in any folder.`);
+    return null;
+    
+  } catch (error: any) {
+    console.error(`Error getting message ${messageId} by filter:`, error);
+    // Add specific logging for 404, although a filter shouldn't 404, just return empty.
+    if (error.statusCode === 404) {
+      console.error(`Received a 404, which is unexpected for a filter query. Mailbox: ${userEmail}`);
+    }
     return null;
   }
 }
