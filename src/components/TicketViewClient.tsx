@@ -829,37 +829,38 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   const updatedAtDate = parseDate(ticket.updatedAt);
 
   return (
-    <div className="ticket-view-outlook container-fluid p-0">
+    <div className="ticket-view-outlook">
       {/* Error display (centralized, can be moved to header) */}
       {error && (
-        <div className="alert alert-danger alert-dismissible fade show m-2" role="alert">
+        <div className="alert alert-danger alert-dismissible fade show m-2" style={{ gridColumn: '1 / -1' }} role="alert">
           {error}
           <button type="button" className="btn-close" onClick={() => setError(null)} aria-label="Close"></button>
         </div>
       )}
       
       {/* Ticket Header Bar (Actions, Status, Assignee) */}
-      <TicketHeaderBar 
-        ticket={ticket} 
-        users={users} 
-        isUpdatingAssignee={isUpdatingAssignee} 
-        isUpdatingStatus={isUpdatingStatus} 
-        handleAssigneeChange={handleAssigneeChange} 
-        handleStatusSelectChange={handleStatusSelectChange}
-        onReopenTicket={handleReopenTicket}
-        showAiSuggestionIndicator={ticket.comments.some(c => isAISuggestionNote(c.commentText))}
-        orderNumberForStatus={ticket.orderNumber}
-        onGetOrderStatusDraft={handleGetOrderStatusDraft}
-        isLoadingOrderStatusDraft={isLoadingOrderStatusDraft}
-        onResendInvoice={handleResendInvoice}
-        isResendingInvoice={isResendingInvoice}
-        hasInvoiceInfo={!!invoiceInfo}
-      />
+      <div style={{ gridColumn: '1 / -1' }}>
+        <TicketHeaderBar 
+          ticket={ticket} 
+          users={users} 
+          isUpdatingAssignee={isUpdatingAssignee} 
+          isUpdatingStatus={isUpdatingStatus} 
+          handleAssigneeChange={handleAssigneeChange} 
+          handleStatusSelectChange={handleStatusSelectChange}
+          onReopenTicket={handleReopenTicket}
+          showAiSuggestionIndicator={ticket.comments.some(c => isAISuggestionNote(c.commentText))}
+          orderNumberForStatus={ticket.orderNumber}
+          onGetOrderStatusDraft={handleGetOrderStatusDraft}
+          isLoadingOrderStatusDraft={isLoadingOrderStatusDraft}
+          onResendInvoice={handleResendInvoice}
+          isResendingInvoice={isResendingInvoice}
+          hasInvoiceInfo={!!invoiceInfo}
+        />
+      </div>
 
       {/* Main Content Area (Scrollable) */}
       <div className="row g-0 flex-grow-1">
-        {/* Communication Pane (Left Side) */}
-        <div className="col-lg-8 p-3">
+        <div className="col-12 col-md-8">
           {/* Description */}
           <TicketDescription ticket={ticket} />
           
@@ -896,7 +897,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         </div>
 
         {/* Details Sidebar (Right Side) */}
-        <div className="col-lg-4 p-3 border-start">
+        <div className="col-12 col-md-4">
           {/* Ticket Details */}
           <TicketDetailsSidebar 
             ticket={ticket} 
@@ -998,186 +999,60 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
                   </div>
                 )}
                 
-                {liveDataError && (
-                  <div className="alert alert-warning py-2 mb-0">
+                {liveDataError && !isLoadingLiveData && (
+                  <div className="alert alert-danger mb-0">
                     <i className="fas fa-exclamation-triangle me-2"></i>
-                    <small>{liveDataError}</small>
+                    {liveDataError}
                   </div>
                 )}
                 
-                {!isLoadingLiveData && liveShipStationData && (
-                  <div className="d-flex flex-column gap-2">
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted"><i className="fas fa-hashtag me-2"></i> Order:</span>
-                      <span className="fw-medium">#{ticket.orderNumber}</span>
+                {!isLoadingLiveData && !liveDataError && !liveShipStationData && (
+                   <div className="text-center text-muted py-3">
+                    <p className="mb-1"><i className="fas fa-search-location fa-2x mb-2"></i></p>
+                    No live data found for order <strong>{ticket.orderNumber}</strong>. This is normal for older orders or if the order number is incorrect.
+                  </div>
+                )}
+
+                {liveShipStationData && (
+                  <div>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Status</span>
+                      <span className="fw-medium text-capitalize">{liveShipStationData.shipmentStatus?.replace(/_/g, ' ') || 'N/A'}</span>
                     </div>
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted"><i className="fas fa-info-circle me-2"></i> Status:</span>
-                      <span className={`badge ${liveShipStationData.orderStatus === 'shipped' ? 'bg-success' : 
-                                                liveShipStationData.orderStatus === 'awaiting_payment' ? 'bg-warning' :
-                                                liveShipStationData.orderStatus === 'cancelled' ? 'bg-danger' : 'bg-secondary'}`}>
-                        {liveShipStationData.orderStatus?.replace('_', ' ')}
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Carrier</span>
+                      <span className="fw-medium">{liveShipStationData.carrier || 'N/A'}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-2">
+                      <span className="text-muted">Ship Date</span>
+                      <span className="fw-medium">
+                        {liveShipStationData.shipDate ? format(new Date(liveShipStationData.shipDate), 'MMM d, yyyy') : 'N/A'}
                       </span>
                     </div>
-                    {liveShipStationData.orderDate && (
-                      <div className="d-flex justify-content-between">
-                        <span className="text-muted"><i className="fas fa-calendar-alt me-2"></i> Order Date:</span>
-                        <span className="fw-medium">{format(new Date(liveShipStationData.orderDate), 'MMM d, yyyy')}</span>
+                    {liveShipStationData.trackingNumber && (
+                      <div className="mb-2">
+                        <span className="text-muted d-block">Tracking #</span>
+                        <a href={liveShipStationData.trackingUrl || '#'} target="_blank" rel="noopener noreferrer" className="fw-medium text-break">
+                          {liveShipStationData.trackingNumber} <i className="fas fa-external-link-alt fa-xs"></i>
+                        </a>
                       </div>
                     )}
-                    {liveShipStationData.shipments && liveShipStationData.shipments.length > 0 && (
-                      <div className="mt-2">
-                        <small className="text-muted d-block mb-1"><i className="fas fa-shipping-fast me-2"></i> Shipments:</small>
-                        {liveShipStationData.shipments.map((shipment: any, index: number) => (
-                          <div key={index} className="border rounded p-2 mb-1 bg-light">
-                            <div className="d-flex justify-content-between align-items-center">
-                              <div>
-                                <span className="fw-medium">{shipment.carrierCode?.toUpperCase()}: </span>
-                                <span className="font-monospace small">{shipment.trackingNumber}</span>
-                              </div>
-                              {shipment.voided && (
-                                <span className="badge bg-danger">VOIDED</span>
-                              )}
-                            </div>
-                            {shipment.shipDate && (
-                              <small className="text-muted">
-                                Shipped: {format(new Date(shipment.shipDate), 'MMM d, yyyy')}
-                              </small>
-                            )}
-                          </div>
-                        ))}
+                    {liveShipStationData.lastEvent && (
+                      <div className="mt-3 pt-3 border-top">
+                         <p className="text-muted mb-1 small">Latest Update:</p>
+                         <p className="mb-0">
+                           <strong>{liveShipStationData.lastEvent.event}</strong>
+                           <br/>
+                           <small className="text-muted">
+                             {liveShipStationData.lastEvent.location} - {format(new Date(liveShipStationData.lastEvent.timestamp), 'MMM d, h:mm a')}
+                           </small>
+                         </p>
                       </div>
                     )}
                   </div>
                 )}
-                
-                {!isLoadingLiveData && !liveShipStationData && !liveDataError && (
-                  <div className="text-muted text-center py-2">
-                    <i className="fas fa-search me-2"></i>
-                    <small>No ShipStation data found for order #{ticket.orderNumber}</small>
-                  </div>
-                )}
               </div>
             </div>
-          )}
-          
-          {/* AI Insights Panel - New addition */}
-          {(extractedOrderDate || extractedTracking || extractedStatus || extractedShipDate) && (
-            <div className="card shadow-sm mb-4 border-info border-opacity-50">
-              <div className="card-header bg-info bg-opacity-10 border-info border-opacity-25">
-                <h5 className="mb-0 h6 d-flex align-items-center">
-                  <i className="fas fa-robot me-2 text-info"></i> AI Insights
-                </h5>
-              </div>
-              <div className="card-body p-3">
-                <div className="d-flex flex-column gap-2">
-                  {extractedOrderDate && (
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted"><i className="fas fa-calendar-alt me-2"></i> Order Date:</span>
-                      <span className="fw-medium">{extractedOrderDate}</span>
-                    </div>
-                  )}
-                  {extractedShipDate && (
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted"><i className="fas fa-shipping-fast me-2"></i> Ship Date:</span>
-                      <span className="fw-medium">{extractedShipDate}</span>
-                    </div>
-                  )}
-                  {extractedStatus && (
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted"><i className="fas fa-info-circle me-2"></i> Status:</span>
-                      <span className="fw-medium">{extractedStatus}</span>
-                    </div>
-                  )}
-                  {extractedCarrier && extractedTracking && (
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted"><i className="fas fa-truck me-2"></i> Tracking:</span>
-                      <span className="fw-medium">{extractedCarrier}: {extractedTracking}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* AI-Generated Order Status Details */}
-          {fetchedOrderStatusUIDetails && !isLoadingOrderStatusDraft && (
-            <div className="card shadow-sm mb-4 border-success border-opacity-50">
-              <div className="card-header bg-success bg-opacity-10 border-success border-opacity-25">
-                <h6 className="mb-0 d-flex align-items-center">
-                  <i className="fas fa-clipboard-list me-2 text-success"></i> 
-                  Latest Order Status
-                  {fetchedOrderStatusUIDetails.confidence && (
-                    <span className={`badge ms-2 ${
-                      fetchedOrderStatusUIDetails.confidence === 'high' ? 'bg-success' :
-                      fetchedOrderStatusUIDetails.confidence === 'medium' ? 'bg-warning' : 'bg-secondary'
-                    }`}>
-                      {fetchedOrderStatusUIDetails.confidence} confidence
-                    </span>
-                  )}
-                </h6>
-              </div>
-              <div className="card-body p-3">
-                <div className="d-flex flex-column gap-2">
-                  {fetchedOrderStatusUIDetails.orderNumber && (
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted"><i className="fas fa-hashtag me-2"></i> Order:</span>
-                      <span className="fw-medium">#{fetchedOrderStatusUIDetails.orderNumber}</span>
-                    </div>
-                  )}
-                  {fetchedOrderStatusUIDetails.carrier && (
-                    <div className="d-flex justify-content-between">
-                      <span className="text-muted"><i className="fas fa-truck me-2"></i> Carrier:</span>
-                      <span className="fw-medium">{fetchedOrderStatusUIDetails.carrier}</span>
-                    </div>
-                  )}
-                  {fetchedOrderStatusUIDetails.trackingNumber && (
-                    <div className="d-flex justify-content-between align-items-center">
-                      <span className="text-muted"><i className="fas fa-barcode me-2"></i> Tracking:</span>
-                      <div className="d-flex align-items-center">
-                        <span className="fw-medium me-2">{fetchedOrderStatusUIDetails.trackingNumber}</span>
-                        {fetchedOrderStatusUIDetails.trackingLink && (
-                          <a 
-                            href={fetchedOrderStatusUIDetails.trackingLink} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="btn btn-sm btn-outline-primary"
-                            title="Track package"
-                          >
-                            <i className="fas fa-external-link-alt fa-xs"></i>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {fetchedOrderStatusUIDetails.isStalled && (
-                    <div className="alert alert-warning py-2 mb-2">
-                      <i className="fas fa-exclamation-triangle me-2"></i>
-                      <small>Tracking may be stalled - consider following up</small>
-                    </div>
-                  )}
-                  {fetchedOrderStatusUIDetails.isException && (
-                    <div className="alert alert-danger py-2 mb-0">
-                      <i className="fas fa-times-circle me-2"></i>
-                      <small>
-                        Delivery Exception: {fetchedOrderStatusUIDetails.exceptionDetails || "Check tracking for details"}
-                      </small>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Only show shipping info if we have shipping data */}
-          {extractedStatus && (
-            <ShippingInfoSidebar 
-              extractedStatus={extractedStatus}
-              extractedCarrier={extractedCarrier}
-              extractedTracking={extractedTracking}
-              extractedShipDate={extractedShipDate}
-              extractedOrderDate={extractedOrderDate}
-            />
           )}
         </div>
       </div>
