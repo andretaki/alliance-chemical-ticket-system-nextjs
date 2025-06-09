@@ -238,6 +238,7 @@ interface ProcessEmailResult {
     aiTriageClassification?: string; // Store AI triage result
     automation_attempted?: boolean;
     automation_info?: OrderTrackingInfo | null;
+    messageId?: string; // Add messageId for error tracking
 }
 
 // Helper function to log and return results with duration
@@ -269,6 +270,7 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
         return {
             success: false,
             message: `Unhandled exception: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            messageId: state.messageId,
         };
     }
 }
@@ -288,6 +290,7 @@ async function processSingleEmailInternal(emailMessage: Message): Promise<Proces
             success: false,
             message: `Email ${state.messageId} is missing the required InternetMessageId and cannot be processed.`,
             quarantined: true,
+            messageId: state.messageId,
         }, state, "Missing InternetMessageId");
     }
 
@@ -298,17 +301,19 @@ async function processSingleEmailInternal(emailMessage: Message): Promise<Proces
                 success: false,
                 message: `Could not acquire processing lock for email ${state.internetMessageId}. It is likely being processed by another instance.`,
                 skipped: true,
+                messageId: state.messageId,
             }, state, "Lock not acquired");
         }
         console.log(`[EmailProcessor] [${state.messageId}] Lock acquired.`);
 
-        const result = await processSingleEmailInternal(emailMessage, state);
+        const result = await processSingleEmailInternal(emailMessage);
         return logAndReturn(result, state, "Processing complete");
     } catch (error) {
         console.error(`[EmailProcessor] [${state.messageId}] Unhandled exception in processSingleEmail:`, error);
         return logAndReturn({
             success: false,
             message: `Unhandled exception: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            messageId: state.messageId,
         }, state, "Unhandled exception");
     } finally {
         if (state.lockAcquired && state.internetMessageId) {
@@ -384,8 +389,8 @@ export async function processUnreadEmails(limit = 50): Promise<{
                 errorCount++;
                 results.push({
                     success: false,
-                    messageId: message.id,
-                    message: `Failed to process: ${emailError.message}`
+                    message: `Failed to process: ${emailError.message}`,
+                    messageId: message.id
                 });
             }
         }
