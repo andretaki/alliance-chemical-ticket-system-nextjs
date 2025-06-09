@@ -105,7 +105,7 @@ export default function SubscriptionManager() {
             </thead>
             <tbody>
               {subscriptions.length === 0 ? (
-                <tr><td colSpan={5} className="text-center text-muted py-3">No active subscriptions found. Click "Ensure Active" to create one.</td></tr>
+                <tr><td colSpan={5} className="text-center text-muted py-3">No active subscriptions found. Click &quot;Ensure Active&quot; to create one.</td></tr>
               ) : (
                 subscriptions.map(sub => {
                   const isExpired = isPast(new Date(sub.expirationDateTime));

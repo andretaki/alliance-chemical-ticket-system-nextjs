@@ -17,6 +17,11 @@ export default function DashboardClient() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
+  // State to hold search results from SimpleOrderSearch
+  const [searchResults, setSearchResults] = useState<OrderSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
   // Client-side authentication check
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -32,11 +37,6 @@ export default function DashboardClient() {
   if (status === 'unauthenticated') {
     return null; // Don't render anything, redirect will happen from useEffect
   }
-
-  // State to hold search results from SimpleOrderSearch
-  const [searchResults, setSearchResults] = useState<OrderSearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [debouncedQuery, setDebouncedQuery] = useState('');
 
   // Callback function for the search component to pass up its results
   const handleSearchResults = (results: OrderSearchResult[]) => {
