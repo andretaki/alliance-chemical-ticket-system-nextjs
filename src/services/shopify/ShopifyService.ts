@@ -435,12 +435,18 @@ export class ShopifyService {
   public async createDraftOrder(appInput: AppDraftOrderInput): Promise<ShopifyDraftOrderGQLResponse | null> {
     const { lineItems, customer, shopifyCustomerId, shippingAddress, billingAddress, note, email: emailForInvoice, tags, customAttributes } = appInput;
 
-    const shopifyLineItems: ShopifyDraftOrderInput_LineItem[] = lineItems.map(item => ({
-      variantId: `gid://shopify/ProductVariant/${item.numericVariantIdShopify}`,
-      quantity: item.quantity,
-      ...(item.title && { title: item.title }), // For custom items
-      ...(item.price && { originalUnitPrice: item.price.toFixed(2) }), // For custom items or price overrides
-    }));
+    const shopifyLineItems: ShopifyDraftOrderInput_LineItem[] = lineItems.map(item => {
+      const variantId = item.numericVariantIdShopify.startsWith('gid://')
+        ? item.numericVariantIdShopify
+        : `gid://shopify/ProductVariant/${item.numericVariantIdShopify}`;
+      
+      return {
+        variantId: variantId,
+        quantity: item.quantity,
+        ...(item.title && { title: item.title }), // For custom items
+        ...(item.price && { originalUnitPrice: item.price.toFixed(2) }), // For custom items or price overrides
+      };
+    });
 
     let shopifyShippingAddressInput: ShopifyDraftOrderInput_Address | undefined = undefined;
     if (shippingAddress) {

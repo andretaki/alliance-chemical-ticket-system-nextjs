@@ -277,7 +277,7 @@ export async function processSingleEmail(emailMessage: Message): Promise<Process
 async function processSingleEmailInternal(emailMessage: Message): Promise<ProcessEmailResult> {
     const state: EmailProcessingState = {
         messageId: emailMessage.id!,
-        internetMessageId: emailMessage.internetMessageId,
+        internetMessageId: nullableToOptional(emailMessage.internetMessageId),
         startTime: Date.now(),
         lockAcquired: false,
     };

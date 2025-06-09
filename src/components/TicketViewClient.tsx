@@ -857,9 +857,9 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
       />
 
       {/* Main Content Area (Scrollable) */}
-      <div className="ticket-main-content row g-0 flex-grow-1">
+      <div className="row g-0 flex-grow-1">
         {/* Communication Pane (Left Side) */}
-        <div className="col-lg-8 communication-pane p-3">
+        <div className="col-lg-8 p-3">
           {/* Description */}
           <TicketDescription ticket={ticket} />
           
@@ -896,7 +896,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         </div>
 
         {/* Details Sidebar (Right Side) */}
-        <div className="col-lg-4 details-sidebar p-3 border-start">
+        <div className="col-lg-4 p-3 border-start">
           {/* Ticket Details */}
           <TicketDetailsSidebar 
             ticket={ticket} 

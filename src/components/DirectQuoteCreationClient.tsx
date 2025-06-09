@@ -696,6 +696,14 @@ export const DirectQuoteCreationClient: React.FC = () => {
         customAttributes: customAttributes.length > 0 ? customAttributes : undefined,
       };
 
+      if (selectedShippingRateIndex !== null && shippingRates[selectedShippingRateIndex]) {
+        const selectedRate = shippingRates[selectedShippingRateIndex];
+        draftOrderInput.shippingLine = {
+          title: selectedRate.title,
+          price: selectedRate.price.toString(),
+        };
+      }
+
       const response = await axios.post<DraftOrderOutput>('/api/draft-orders', draftOrderInput);
       setSuccessMessage(`Quote #${response.data.name} created successfully!`);
       setCreatedDraftOrder(response.data);

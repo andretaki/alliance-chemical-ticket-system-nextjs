@@ -126,6 +126,10 @@ export interface AppDraftOrderInput {
   materialOnlyDisclaimer?: string;
   deliveryTerms?: string;
   customAttributes?: Array<{ key: string; value: string }>;
+  shippingLine?: {
+    title: string;
+    price: number | string;
+  };
 }
 
 export interface ShopifyMoney {

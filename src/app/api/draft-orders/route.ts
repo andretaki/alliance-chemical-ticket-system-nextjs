@@ -189,10 +189,26 @@ export async function POST(request: NextRequest) {
     console.log('[API /api/draft-orders POST] Draft order created successfully:', JSON.stringify(shopifyDraftOrder, null, 2));
     let outputData = mapShopifyResponseToOutput(shopifyDraftOrder);
 
-    // Step 2: If shipping address is provided, calculate shipping rates
-    if (body.shippingAddress && outputData.id) {
+    // Step 2: If a shipping line is provided directly, use it. Otherwise, calculate.
+    if (body.shippingLine && outputData.id) {
+        console.log(`[API /api/draft-orders POST] Applying provided shipping line: ${body.shippingLine.title} - ${body.shippingLine.price}`);
+        const updatedDraftOrderWithShipping = await shopifyService.updateDraftOrderShippingLine(
+            outputData.id,
+            { 
+                title: body.shippingLine.title, 
+                price: typeof body.shippingLine.price === 'number' ? body.shippingLine.price.toString() : body.shippingLine.price 
+            }
+        );
+
+        if (updatedDraftOrderWithShipping) {
+            console.log('[API /api/draft-orders POST] Successfully applied provided shipping line to draft order.');
+            outputData = mapShopifyResponseToOutput(updatedDraftOrderWithShipping); // Remap the whole output
+        } else {
+            console.warn(`[API /api/draft-orders POST] Failed to apply provided shipping line to draft order ${outputData.id}.`);
+        }
+    } else if (body.shippingAddress && outputData.id) {
+        // Original logic to calculate shipping if no shippingLine is provided
         try {
-            // Prepare line items for shipping calculation from the created draft order's response
             const lineItemsForCalc: DraftOrderLineItemInput[] = outputData.lineItems.map(item => ({
                 numericVariantIdShopify: item.variant?.legacyResourceId || '', // Fallback if not present
                 quantity: item.quantity,
