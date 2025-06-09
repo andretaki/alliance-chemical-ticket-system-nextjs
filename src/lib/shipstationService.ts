@@ -1,46 +1,36 @@
 import axios, { AxiosError } from 'axios';
 import * as alertService from '@/lib/alertService'; // For alerting on API failures
+import { OrderSearchResult } from '@/types/orderSearch';
 
 const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY;
 const SHIPSTATION_API_SECRET = process.env.SHIPSTATION_API_SECRET;
 const SHIPSTATION_BASE_URL = 'https://ssapi.shipstation.com';
 
 // --- Rate Limiting Configuration ---
-const RATE_LIMIT = 200; // requests per minute
+const RATE_LIMIT = 40; // ShipStation's official limit is 40 requests per 60 seconds.
 const RATE_WINDOW = 60 * 1000; // 1 minute in milliseconds
 const MAX_RETRIES = 3;
 
-// Simple in-memory rate limiter
-class RateLimiter {
-    private requests: number[] = [];
-    private readonly limit: number;
-    private readonly window: number;
+// Simple in-memory rate limiter queue
+const requestQueue: number[] = [];
 
-    constructor(limit: number, window: number) {
-        this.limit = limit;
-        this.window = window;
-    }
+async function waitForRateLimitSlot(): Promise<void> {
+  const now = Date.now();
 
-    async waitForSlot(): Promise<void> {
-        const now = Date.now();
-        // Remove requests outside the current window
-        this.requests = this.requests.filter(time => now - time < this.window);
+  // Remove requests from the queue that are older than the window
+  while (requestQueue.length > 0 && now - requestQueue[0] > RATE_WINDOW) {
+    requestQueue.shift();
+  }
 
-        if (this.requests.length >= this.limit) {
-            // Calculate wait time until the oldest request expires
-            const oldestRequest = this.requests[0];
-            const waitTime = this.window - (now - oldestRequest);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-            // Try again after waiting
-            return this.waitForSlot();
-        }
+  if (requestQueue.length >= RATE_LIMIT) {
+    const waitTime = RATE_WINDOW - (now - requestQueue[0]);
+    console.warn(`[ShipStationService] Rate limit reached. Waiting for ${waitTime.toFixed(0)}ms...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime + 100)); // Wait and retry
+    return waitForRateLimitSlot();
+  }
 
-        this.requests.push(now);
-    }
+  requestQueue.push(now);
 }
-
-// Create a single rate limiter instance for all requests
-const rateLimiter = new RateLimiter(RATE_LIMIT, RATE_WINDOW);
 
 // --- Type Definitions for ShipStation API Response Snippets ---
 interface ShipStationOrderItem {
@@ -159,6 +149,8 @@ export async function getOrderTrackingInfo(orderNumber: string): Promise<OrderTr
         return null;
     }
 
+    await waitForRateLimitSlot(); // Wait for a slot before making any API call
+
     const authHeader = `Basic ${Buffer.from(`${SHIPSTATION_API_KEY}:${SHIPSTATION_API_SECRET}`).toString('base64')}`;
     console.log(`ShipStation Service: Looking up orderNumber: ${orderNumber}`);
 
@@ -222,7 +214,7 @@ async function getOrderInfo(orderNumber: string, authHeader: string): Promise<Or
     while (retryCount <= MAX_RETRIES) {
         try {
             // Wait for a rate limit slot before making the request
-            await rateLimiter.waitForSlot();
+            await waitForRateLimitSlot();
 
             const response = await axios.get<ShipStationOrderResponse>(url, {
                 headers: {
@@ -249,7 +241,7 @@ async function getOrderInfo(orderNumber: string, authHeader: string): Promise<Or
                 
                 // Fetch additional pages if needed
                 while (currentPage < totalPages) {
-                    await rateLimiter.waitForSlot();
+                    await waitForRateLimitSlot();
                     currentPage++;
                     
                     const pageResponse = await axios.get<ShipStationOrderResponse>(url, {
@@ -475,7 +467,7 @@ async function getShipmentsInfo(orderNumber: string, authHeader: string, origina
     while (retryCount <= MAX_RETRIES) {
         try {
             // Wait for a rate limit slot before making the request
-            await rateLimiter.waitForSlot();
+            await waitForRateLimitSlot();
 
             const response = await axios.get<ShipStationShipmentsResponse>(url, {
                 headers: {
@@ -503,7 +495,7 @@ async function getShipmentsInfo(orderNumber: string, authHeader: string, origina
                 
                 // Fetch additional pages if needed
                 while (currentPage < totalPages) {
-                    await rateLimiter.waitForSlot();
+                    await waitForRateLimitSlot();
                     currentPage++;
                     
                     const pageResponse = await axios.get<ShipStationShipmentsResponse>(url, {
@@ -726,7 +718,7 @@ async function tryDateBasedShipmentSearch(orderNumber: string, authHeader: strin
         
         console.log(`[ShipStationService tryDateBasedShipmentSearch] Searching shipments from ${startDateStr} to ${endDateStr}`);
         
-        await rateLimiter.waitForSlot();
+        await waitForRateLimitSlot();
         
         const response = await axios.get<ShipStationShipmentsResponse>(url, {
             headers: {
@@ -798,6 +790,8 @@ export async function getShipStationOrderDetails(orderNumber: string): Promise<O
         return null;
     }
 
+    await waitForRateLimitSlot(); // Wait for a slot before making any API call
+
     const authHeader = `Basic ${Buffer.from(`${SHIPSTATION_API_KEY}:${SHIPSTATION_API_SECRET}`).toString('base64')}`;
     
     try {
@@ -811,26 +805,92 @@ export async function getShipStationOrderDetails(orderNumber: string): Promise<O
 }
 
 /**
- * Constructs a ShipStation admin URL for an order
+ * Constructs a direct URL to the ShipStation order details page.
  * Note: The URL format may need to be adjusted based on your ShipStation instance
  * @param shipStationOrderId The ShipStation internal order ID
- * @param orderNumber The order number for the quickSearch parameter
  * @returns ShipStation admin URL or null if construction fails
  */
-export function constructShipStationUrl(shipStationOrderId: number, orderNumber: string): string | null {
-    try {
-        const baseUrl = process.env.SHIPSTATION_WEB_URL || 'https://ship12.shipstation.com';
-        
-        // **FIXED: Use the correct URL format based on user testing**
-        // Search URL that actually works: https://ship12.shipstation.com/orders/all-orders-search-result?quickSearch=4422
-        return `${baseUrl}/orders/all-orders-search-result?quickSearch=${orderNumber}`;
-        
-        // **NOTE: Direct order URL would be ideal but requires a GUID we don't have from API:**
-        // https://ship12.shipstation.com/orders/all-orders-search-result/order/8719a4a2-95e2-5929-8098-544d9007f002/active/433202969?quickSearch=4422
-        // The GUID (8719a4a2-95e2-5929-8098-544d9007f002) is not available in the ShipStation API response
-        
-    } catch (error) {
-        console.error(`Error constructing ShipStation URL for order ${shipStationOrderId}:`, error);
+export function constructShipStationUrl(shipStationOrderId: number): string | null {
+    if (!shipStationOrderId) {
         return null;
     }
+    return `${SHIPSTATION_BASE_URL}/orders/details/${shipStationOrderId}`;
+}
+
+// Helper function to map ShipStation order data to OrderSearchResult
+function mapShipStationToOrderSearchResult(
+  shipStationInfo: OrderTrackingInfo,
+  customerEmail?: string,
+  customerName?: string
+): OrderSearchResult | null {
+  if (!shipStationInfo || !shipStationInfo.shipStationOrderId) {
+    console.warn('[mapShipStationToOrderSearchResult] Missing shipStationInfo or shipStationOrderId');
+    return null;
+  }
+
+  const orderNumber = shipStationInfo.shipStationOrderId?.toString() || 'unknown';
+  
+  const latestShipment = shipStationInfo.shipments?.sort((a, b) => new Date(b.shipDate).getTime() - new Date(a.shipDate))[0];
+
+  // Check for major date mismatches
+  const orderYear = new Date().getFullYear() + 1; // Assume orders are for current or next year
+  const shipDate = latestShipment && latestShipment.shipDate ? new Date(latestShipment.shipDate) : null;
+  const shipmentYear = shipDate && !isNaN(shipDate.getTime()) ? shipDate.getFullYear() : 0;
+
+  if (shipmentYear && Math.abs(shipmentYear - orderYear) > 2) {
+    console.log(`MAJOR DATE MISMATCH: Order ${orderNumber} from ${orderYear} has shipment from ${shipmentYear}. Ignoring shipment data.`);
+  }
+
+  const result: OrderSearchResult = {
+    shopifyOrderGID: `shipstation-order-${orderNumber}`,
+    shopifyOrderName: orderNumber,
+    legacyResourceId: `shipstation-${orderNumber}`, // Dummy value
+    customerFullName: customerName || 'N/A',
+    customerEmail: customerEmail || 'N/A',
+    createdAt: shipDate?.toISOString() || new Date().toISOString(),
+    totalPrice: 'N/A', // ShipStation API doesn't provide this easily
+    shopifyAdminUrl: '', // No Shopify URL for ShipStation-only orders
+    itemSummary: shipStationInfo.items?.map(i => `${i.name} x ${i.quantity}`).join(', '),
+    shipStationOrderId: shipStationInfo.shipStationOrderId,
+    shipStationUrl: constructShipStationUrl(shipStationInfo.shipStationOrderId) ?? undefined,
+    shipStationStatus: shipStationInfo.orderStatus,
+    trackingNumbers: shipStationInfo.shipments?.map(s => s.trackingNumber).filter(Boolean) as string[],
+    source: 'shipstation',
+  };
+  return result;
+}
+
+/**
+NEW Helper: Search orders only in ShipStation and map them for fallback
+*/
+export async function searchShipStationOrdersAndMap(
+    query: string,
+    searchType: string,
+    customerEmail?: string,
+    customerName?: string
+): Promise<OrderSearchResult[]> {
+    let shipStationOrdersInfo: OrderTrackingInfo[] = [];
+
+    if (searchType === 'orderNumber') {
+        const orderInfo = await getOrderTrackingInfo(query);
+        if (orderInfo && orderInfo.found) {
+            shipStationOrdersInfo.push(orderInfo);
+        }
+    } else {
+        // ShipStation does not support efficient searching by email or name directly.
+        // The current fallback for order number is sufficient.
+        // We can extend this later if needed by fetching recent orders and filtering.
+        console.warn(`[ShipStationService] Fallback search for type '${searchType}' is not implemented.`);
+    }
+
+    return shipStationOrdersInfo
+        .map(info => {
+            if (!info.shipStationOrderId) return null;
+            return mapShipStationToOrderSearchResult(
+                info,
+                customerEmail,
+                customerName
+            );
+        })
+        .filter((order): order is OrderSearchResult => order !== null);
 } 

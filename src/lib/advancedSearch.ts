@@ -27,109 +27,64 @@ export interface SearchSuggestion {
 
 export class AdvancedSearchProcessor {
   private static readonly ORDER_NUMBER_PATTERNS = [
-    /^\s*#?(\d{4,})\s*$/i,                    // #1234 or 1234
-    /order\s*#?\s*(\d+)/i,                    // order #1234
-    /inv(?:oice)?\s*#?\s*(\d+)/i,            // invoice #1234
-    /po\s*#?\s*(\d+)/i,                      // PO #1234
-    /ref\s*#?\s*(\d+)/i,                     // ref #1234
+    /^\s*#?(\d{4,})\s*$/i,          // #1234 or 1234
+    /order\s*#?\s*(\d+)/i,          // order #1234
+    /inv(?:oice)?\s*#?\s*(\d+)/i,   // invoice #1234
+    /po\s*#?\s*(\d+)/i,             // PO #1234
   ];
 
   private static readonly EMAIL_PATTERN = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
 
   /**
-   * Parse a search query into structured components
+   * Parse a search query into structured components.
    */
-  static parseQuery(query: string): SearchQuery {
+  static parseQuery(query: string): {
+    originalQuery: string;
+    orderNumbers: string[];
+    emails: string[];
+    customerNames: string[];
+  } {
     const originalQuery = query.trim();
-    const terms = originalQuery.split(/\s+/).filter(term => term.length > 0);
-    
-    const orderNumbers: string[] = [];
-    const emails: string[] = [];
-    const customerNames: string[] = [];
     let remainingQuery = originalQuery;
 
-    // Extract order numbers
-    for (const pattern of this.ORDER_NUMBER_PATTERNS) {
-      const matches = remainingQuery.match(pattern);
-      if (matches) {
-        orderNumbers.push(matches[1]);
+    const orderNumbers = this.ORDER_NUMBER_PATTERNS.map(pattern => {
+      const match = remainingQuery.match(pattern);
+      if (match && match[1]) {
         remainingQuery = remainingQuery.replace(pattern, '').trim();
+        return match[1];
       }
-    }
+      return null;
+    }).filter((id): id is string => id !== null);
 
-    // Extract emails
-    const emailMatches = remainingQuery.match(this.EMAIL_PATTERN);
-    if (emailMatches) {
-      emails.push(...emailMatches);
+    const emailMatches = remainingQuery.match(this.EMAIL_PATTERN) || [];
+    const emails = [...emailMatches];
+    if (emails.length > 0) {
       remainingQuery = remainingQuery.replace(this.EMAIL_PATTERN, '').trim();
     }
 
-    // Extract date filters (simple format: after:2024-01-01, before:2024-12-31)
-    let dateRange: { start?: Date; end?: Date } | undefined;
-    const afterMatch = remainingQuery.match(/after:(\d{4}-\d{2}-\d{2})/i);
-    const beforeMatch = remainingQuery.match(/before:(\d{4}-\d{2}-\d{2})/i);
-    
-    if (afterMatch || beforeMatch) {
-      dateRange = {};
-      if (afterMatch) {
-        dateRange.start = new Date(afterMatch[1]);
-        remainingQuery = remainingQuery.replace(/after:\d{4}-\d{2}-\d{2}/i, '').trim();
-      }
-      if (beforeMatch) {
-        dateRange.end = new Date(beforeMatch[1]);
-        remainingQuery = remainingQuery.replace(/before:\d{4}-\d{2}-\d{2}/i, '').trim();
-      }
-    }
-
-    // Extract status filters (status:paid, status:shipped)
-    const statusMatches = remainingQuery.match(/status:(\w+)/gi);
-    let statusFilters: string[] | undefined;
-    if (statusMatches) {
-      statusFilters = statusMatches.map(match => match.split(':')[1]);
-      remainingQuery = remainingQuery.replace(/status:\w+/gi, '').trim();
-    }
-
-    // Extract amount filters (amount:>100, amount:<500)
-    let amountRange: { min?: number; max?: number } | undefined;
-    const amountMatches = remainingQuery.match(/amount:([><]=?)(\d+)/gi);
-    if (amountMatches) {
-      amountRange = {};
-      amountMatches.forEach(match => {
-        const [, operator, value] = match.match(/amount:([><]=?)(\d+)/i) || [];
-        const amount = parseFloat(value);
-        if (operator === '>' || operator === '>=') {
-          amountRange!.min = amount;
-        } else if (operator === '<' || operator === '<=') {
-          amountRange!.max = amount;
-        }
-      });
-      remainingQuery = remainingQuery.replace(/amount:[><]=?\d+/gi, '').trim();
-    }
-
-    // Remaining text is considered customer names
-    if (remainingQuery) {
-      customerNames.push(remainingQuery);
-    }
-
-    // Determine search type
-    let searchType: 'simple' | 'advanced' | 'batch' = 'simple';
-    if (orderNumbers.length > 1) {
-      searchType = 'batch';
-    } else if (dateRange || statusFilters || amountRange || (orderNumbers.length + emails.length + customerNames.length > 1)) {
-      searchType = 'advanced';
-    }
+    const customerNames = remainingQuery.length > 0 ? [remainingQuery.trim()] : [];
 
     return {
       originalQuery,
-      terms,
-      orderNumbers,
-      emails,
+      orderNumbers: [...new Set(orderNumbers)],
+      emails: [...new Set(emails)],
       customerNames,
-      dateRange,
-      statusFilters,
-      amountRange,
-      searchType
     };
+  }
+
+  static buildShopifyQuery(parsedQuery: ReturnType<typeof this.parseQuery>): string {
+    const parts: string[] = [];
+    if (parsedQuery.orderNumbers.length > 0) {
+      parts.push(parsedQuery.orderNumbers.map(on => `(name:${on} OR name:#${on})`).join(' OR '));
+    }
+    if (parsedQuery.emails.length > 0) {
+      parts.push(parsedQuery.emails.map(e => `email:${e}`).join(' OR '));
+    }
+    if (parsedQuery.customerNames.length > 0) {
+      const nameQuery = parsedQuery.customerNames.join(' ');
+      parts.push(`(first_name:*${nameQuery}* OR last_name:*${nameQuery}* OR company:*${nameQuery}*)`);
+    }
+    return parts.join(' OR ');
   }
 
   /**
