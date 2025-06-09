@@ -423,9 +423,18 @@ async function processAsNewComment(emailMessage: Message, ticketId: number, stat
             })
             .where(eq(tickets.id, ticketId));
 
-        // Mark email as read
+        // Mark email as read and flag it for review
         if (emailMessage.id) {
             await graphService.markEmailAsRead(emailMessage.id);
+            
+            // Flag customer email for human review
+            try {
+                await graphService.flagEmail(emailMessage.id);
+                console.log(`EmailProcessor: Flagged email ${emailMessage.id} for comment on ticket ${ticketId} (customer reply requiring review)`);
+            } catch (flagError) {
+                console.warn(`EmailProcessor: Failed to flag email ${emailMessage.id}:`, flagError);
+                // Don't fail the whole process if flagging fails
+            }
         }
 
         return logAndReturn({
@@ -507,9 +516,36 @@ async function processAsNewTicket(emailMessage: Message, state: EmailProcessingS
             trackingNumber: aiAnalysis?.trackingNumber
         }).returning();
 
-        // Mark email as read
+        // Mark email as read and flag it for human review
         if (emailMessage.id) {
             await graphService.markEmailAsRead(emailMessage.id);
+            
+            // Flag ALL customer emails that create tickets for human review
+            try {
+                let flagReason = 'customer request requiring human review';
+                
+                // Add specific reasons for prioritization
+                if (newTicket.priority === 'high' || newTicket.priority === 'urgent') {
+                    flagReason = `${newTicket.priority} priority customer request`;
+                }
+                
+                if (aiAnalysis?.intent === 'return_request' || 
+                    aiAnalysis?.sentiment === 'negative' ||
+                    aiAnalysis?.ticketType === 'Return') {
+                    flagReason = `${aiAnalysis.intent || 'return request'} requiring urgent attention`;
+                }
+                
+                if (aiAnalysis?.intent === 'documentation_request') {
+                    flagReason = 'documentation request requiring review';
+                }
+                
+                await graphService.flagEmail(emailMessage.id);
+                console.log(`EmailProcessor: Flagged ticket ${newTicket.id} email (${flagReason})`);
+                
+            } catch (flagError) {
+                console.warn(`EmailProcessor: Failed to flag email for ticket ${newTicket.id}:`, flagError);
+                // Don't fail the whole process if flagging fails
+            }
         }
 
         // Emit ticket created event
