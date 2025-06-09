@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/authOptions';
 import Link from 'next/link';
 import WebhookStatus from '@/components/admin/WebhookStatus';
 import SubscriptionManager from '@/components/admin/SubscriptionManager';
+import GraphApiTester from '@/components/admin/GraphApiTester';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard - Alliance Chemical Support',
@@ -29,6 +30,13 @@ export default async function AdminPage() {
         <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4">
           <div className="pt-3 pb-2 mb-3 border-bottom">
             <h1 className="h2 fw-bold">Admin Dashboard</h1>
+          </div>
+
+          {/* NEW: API Tester Card */}
+          <div className="row mb-4">
+            <div className="col-12">
+              <GraphApiTester />
+            </div>
           </div>
 
           {/* Webhook Status Card */}
