@@ -15,8 +15,8 @@ const createTicketSchema = z.object({
   status: z.enum(ticketStatusEnum.enumValues).optional().default(ticketStatusEnum.enumValues[0]), // Default open
   type: z.enum(ticketTypeEcommerceEnum.enumValues).nullable().optional(), // Optional ticket type
   // Customer information fields
-  senderEmail: z.string().email().optional(),
-  senderPhone: z.string().optional(),
+  senderEmail: z.string().email().nullable().optional(),
+  senderPhone: z.string().nullable().optional(),
   sendercompany: z.string().optional(), // Add sendercompany field
   orderNumber: z.string().optional(),
   // Email-related fields for tickets created from emails

@@ -7,29 +7,30 @@ const SHIPSTATION_API_SECRET = process.env.SHIPSTATION_API_SECRET;
 const SHIPSTATION_BASE_URL = 'https://ssapi.shipstation.com';
 
 // --- Rate Limiting Configuration ---
-const RATE_LIMIT = 40; // ShipStation's official limit is 40 requests per 60 seconds.
-const RATE_WINDOW = 60 * 1000; // 1 minute in milliseconds
+const RATE_LIMIT = 35; // ShipStation's official limit is 40, so we are being conservative.
+const RATE_WINDOW = 61 * 1000; // 61 seconds to be safe
 const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // ms to wait before a retry
 
-// Simple in-memory rate limiter queue
-const requestQueue: number[] = [];
+// Simple, effective rate limiting using a timestamp
+let lastRequestTime = 0;
+const minRequestInterval = RATE_WINDOW / RATE_LIMIT; // ~1742ms
 
-async function waitForRateLimitSlot(): Promise<void> {
+/**
+ * Ensures that requests to the ShipStation API are spaced out to avoid hitting rate limits.
+ * This is a simple but effective implementation for a single-process environment.
+ */
+async function waitForRateLimitSlot() {
   const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
 
-  // Remove requests from the queue that are older than the window
-  while (requestQueue.length > 0 && now - requestQueue[0] > RATE_WINDOW) {
-    requestQueue.shift();
+  if (timeSinceLastRequest < minRequestInterval) {
+    const delay = minRequestInterval - timeSinceLastRequest;
+    console.log(`[ShipStationService] Rate limit check: Waiting for ${delay.toFixed(0)}ms...`);
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
 
-  if (requestQueue.length >= RATE_LIMIT) {
-    const waitTime = RATE_WINDOW - (now - requestQueue[0]);
-    console.warn(`[ShipStationService] Rate limit reached. Waiting for ${waitTime.toFixed(0)}ms...`);
-    await new Promise(resolve => setTimeout(resolve, waitTime + 100)); // Wait and retry
-    return waitForRateLimitSlot();
-  }
-
-  requestQueue.push(now);
+  lastRequestTime = Date.now();
 }
 
 // --- Type Definitions for ShipStation API Response Snippets ---
@@ -137,8 +138,6 @@ export interface OrderTrackingInfo {
  * @returns OrderTrackingInfo object or null if critical error occurs.
  */
 export async function getOrderTrackingInfo(orderNumber: string): Promise<OrderTrackingInfo | null> {
-    console.log(`🚨 [ShipStationService] *** UPDATED CODE RUNNING *** Looking up order: ${orderNumber} at ${new Date().toISOString()}`);
-    
     if (!SHIPSTATION_API_KEY || !SHIPSTATION_API_SECRET) {
         console.error("ShipStation Service: API Key or Secret not configured.");
         await alertService.trackErrorAndAlert(
@@ -149,7 +148,7 @@ export async function getOrderTrackingInfo(orderNumber: string): Promise<OrderTr
         return null;
     }
 
-    await waitForRateLimitSlot(); // Wait for a slot before making any API call
+    await waitForRateLimitSlot(); // ** Ensure we have a slot before proceeding **
 
     const authHeader = `Basic ${Buffer.from(`${SHIPSTATION_API_KEY}:${SHIPSTATION_API_SECRET}`).toString('base64')}`;
     console.log(`ShipStation Service: Looking up orderNumber: ${orderNumber}`);
@@ -195,11 +194,11 @@ export async function getOrderTrackingInfo(orderNumber: string): Promise<OrderTr
         return orderInfo;
     } catch (error) {
         console.error("ShipStation Service: Critical error in getOrderTrackingInfo", error);
-        await alertService.trackErrorAndAlert(
+        /* await alertService.trackErrorAndAlert(
             'ShipStationService-API',
             `ShipStation API lookup failed critically for order ${orderNumber}`,
             { orderNumber, error: error instanceof Error ? error.message : 'Unknown error' }
-        );
+        ); */
         return null;
     }
 }
@@ -209,252 +208,91 @@ export async function getOrderTrackingInfo(orderNumber: string): Promise<OrderTr
  */
 async function getOrderInfo(orderNumber: string, authHeader: string): Promise<OrderTrackingInfo> {
     const url = `${SHIPSTATION_BASE_URL}/orders`;
-    let retryCount = 0;
     
-    while (retryCount <= MAX_RETRIES) {
-        try {
-            // Wait for a rate limit slot before making the request
-            await waitForRateLimitSlot();
+    const fetchFn = () => axios.get<ShipStationOrderResponse>(url, {
+        headers: {
+            'Authorization': authHeader,
+            'Accept': 'application/json',
+        },
+        params: {
+            orderNumber: orderNumber,
+            pageSize: 100,
+            sortBy: 'ModifyDate',
+            sortDir: 'DESC',
+            includeShipmentItems: true,
+        }
+    });
 
-            const response = await axios.get<ShipStationOrderResponse>(url, {
-                headers: {
-                    'Authorization': authHeader,
-                    'Accept': 'application/json',
-                },
-                params: {
-                    orderNumber: orderNumber,
-                    pageSize: 100, // Increase to get all orders with this number
-                    sortBy: 'ModifyDate', // Sort by modification date to get most recently updated
-                    sortDir: 'DESC', // Sort newest first
-                    includeShipmentItems: true // Try to include shipment details
-                }
-            });
+    try {
+        await waitForRateLimitSlot(); // ** Wait for slot before this request **
+        const response = await fetchFn();
 
-            // **Step 2: Add extensive logging as suggested**
-            console.log(`[ShipStationService getOrderInfo] RAW Response for orderNumber ${orderNumber}:`, JSON.stringify(response.data, null, 2));
+        console.log(`[ShipStationService getOrderInfo] RAW Response for orderNumber ${orderNumber}:`, JSON.stringify(response.data, null, 2));
 
-            if (response.data && response.data.orders && response.data.orders.length > 0) {
-                // Handle pagination if there are more orders
-                let allOrders = [...response.data.orders];
-                let currentPage = 1;
-                const totalPages = response.data.pages;
+        if (response.data && response.data.orders && response.data.orders.length > 0) {
+            let allOrders = [...response.data.orders];
+            let currentPage = 1;
+            const totalPages = response.data.pages;
+            
+            while (currentPage < totalPages) {
+                currentPage++;
                 
-                // Fetch additional pages if needed
-                while (currentPage < totalPages) {
-                    await waitForRateLimitSlot();
-                    currentPage++;
-                    
-                    const pageResponse = await axios.get<ShipStationOrderResponse>(url, {
-                        headers: {
-                            'Authorization': authHeader,
-                            'Accept': 'application/json',
-                        },
-                        params: {
-                            orderNumber: orderNumber,
-                            pageSize: 100,
-                            page: currentPage,
-                            sortBy: 'ModifyDate',
-                            sortDir: 'DESC'
-                        }
-                    });
-                    
-                    if (pageResponse.data && pageResponse.data.orders) {
-                        allOrders = [...allOrders, ...pageResponse.data.orders];
-                    }
-                }
-                
-                // Since we're sorting DESC, the first order is the newest
-                const order = allOrders[0];
-                console.log(`[ShipStationService getOrderInfo] Selected Order Data for ${order.orderNumber}:`, JSON.stringify(order, null, 2));
-                console.log(`[ShipStationService getOrderInfo] Shipments within Order Data for ${order.orderNumber}:`, JSON.stringify(order.shipments, null, 2));
-                
-                // **NEW: Enhanced tracking detection for externally fulfilled orders**
-                if (order.externallyFulfilled) {
-                    console.log(`[ShipStationService getOrderInfo] *** EXTERNALLY FULFILLED ORDER DETECTED ***`);
-                    console.log(`[ShipStationService getOrderInfo] External fulfillment details:`, {
-                        externallyFulfilled: order.externallyFulfilled,
-                        externallyFulfilledBy: order.externallyFulfilledBy,
-                        externallyFulfilledById: order.externallyFulfilledById,
-                        externallyFulfilledByName: order.externallyFulfilledByName
-                    });
-                    
-                    // Check for tracking in various order fields that might contain it
-                    console.log(`[ShipStationService getOrderInfo] Checking order-level tracking fields:`, {
-                        carrierCode: order.carrierCode,
-                        serviceCode: order.serviceCode,
-                        packageCode: order.packageCode,
-                        confirmation: order.confirmation,
-                        labelMessages: order.labelMessages,
-                        customerNotes: order.customerNotes,
-                        internalNotes: order.internalNotes,
-                        customField1: order.advancedOptions?.customField1,
-                        customField2: order.advancedOptions?.customField2,
-                        customField3: order.advancedOptions?.customField3
-                    });
-                    
-                    console.log(`[ShipStationService getOrderInfo] Ship date and status:`, {
-                        shipDate: order.shipDate,
-                        orderStatus: order.orderStatus,
-                        modifyDate: order.modifyDate
-                    });
-                }
-                
-                console.log(`ShipStation Service: Found order ${order.orderId} with status ${order.orderStatus}`);
-                
-                // **IMPORTANT: If there were multiple orders with the same order number, we prioritize the most recent one**
-                if (allOrders.length > 1) {
-                    console.warn(`[ShipStationService] DUPLICATE ORDER NUMBERS: Found ${allOrders.length} orders with number ${orderNumber}. Using the most recent order (ID: ${order.orderId}, Date: ${order.orderDate}) and ignoring older duplicates.`);
-                    allOrders.slice(1).forEach((oldOrder, index) => {
-                        console.warn(`[ShipStationService] - Ignoring older duplicate: Order ID ${oldOrder.orderId}, Date: ${oldOrder.orderDate}`);
-                    });
-                }
+                const pageFetchFn = () => axios.get<ShipStationOrderResponse>(url, {
+                    headers: { 'Authorization': authHeader, 'Accept': 'application/json' },
+                    params: { orderNumber, pageSize: 100, page: currentPage, sortBy: 'ModifyDate', sortDir: 'DESC' }
+                });
 
-                // **Step 3: Enhanced date filtering logic**
-                let validShipments: ShipmentInfo[] = [];
-                
-                if (order.shipments && order.shipments.length > 0) {
-                    const orderCreationDate = new Date(order.orderDate);
-                    
-                    // **Improved shipment filtering with enhanced date validation**
-                    const logicalShipments = order.shipments.filter(shipment => {
-                        // Basic validation: not voided, has tracking and carrier
-                        if (shipment.voided || !shipment.trackingNumber || !shipment.carrierCode) {
-                            return false;
-                        }
-                        
-                        // If order status is 'awaiting_payment' or 'awaiting_shipment', 
-                        // there should be NO valid shipments
-                        if (order.orderStatus === 'awaiting_payment' || order.orderStatus === 'awaiting_shipment') {
-                            console.warn(`ShipStation Service: Order ${order.orderNumber} has status '${order.orderStatus}' but contains shipments. Filtering out invalid shipment data.`);
-                            return false;
-                        }
-                        
-                        // **Enhanced date filtering as suggested**
-                        if (shipment.shipDate) {
-                            const shipmentDate = new Date(shipment.shipDate);
-                            
-                            // **DEBUG: Log the date comparison details**
-                            console.log(`[ShipStationService] Analyzing shipment date for order ${order.orderNumber}:`);
-                            console.log(`[ShipStationService] - Order Date: ${order.orderDate} (${orderCreationDate.toISOString()})`);
-                            console.log(`[ShipStationService] - Shipment Date: ${shipment.shipDate} (${shipmentDate.toISOString()})`);
-                            console.log(`[ShipStationService] - Tracking: ${shipment.trackingNumber}`);
-                            
-                            // **AGGRESSIVE: Reject shipments from years that are significantly different**
-                            const orderYear = orderCreationDate.getFullYear();
-                            const shipmentYear = shipmentDate.getFullYear();
-                            const yearDifference = Math.abs(orderYear - shipmentYear);
-                            
-                            if (yearDifference > 1) {
-                                console.warn(`[ShipStationService] MAJOR DATE MISMATCH: Order ${order.orderNumber} from ${orderYear} has shipment from ${shipmentYear}. Year difference: ${yearDifference}. Filtering out this clearly incorrect data.`);
-                                return false;
-                            }
-                            
-                            // Ensure shipment date is on or after order date, and not unreasonably old
-                            // Allow shipments up to 7 days before order date to account for pre-fulfillment or timezone issues
-                            const reasonableStartDate = new Date(orderCreationDate);
-                            reasonableStartDate.setDate(reasonableStartDate.getDate() - 7);
-                            
-                            // A shipment cannot be years before the order - this handles the 2022 vs 2025 issue
-                            if (shipmentDate < reasonableStartDate) {
-                                console.warn(`[ShipStationService] DATE FILTER: Order ${order.orderNumber} shipment from ${shipment.shipDate} is before reasonable start date ${reasonableStartDate.toISOString()}. Filtering out potentially stale/incorrect data.`);
-                                return false;
-                            }
-                            
-                            // Also check for shipments that are too far in the future (more than 30 days from order date)
-                            const maxFutureDate = new Date(orderCreationDate);
-                            maxFutureDate.setDate(maxFutureDate.getDate() + 30);
-                            
-                            if (shipmentDate > maxFutureDate) {
-                                console.warn(`[ShipStationService] DATE FILTER: Order ${order.orderNumber} shipment from ${shipment.shipDate} is too far in the future from order date ${order.orderDate}. Filtering out potentially incorrect data.`);
-                                return false;
-                            }
-                            
-                            console.log(`[ShipStationService] ✅ Shipment date validation PASSED for order ${order.orderNumber}`);
-                        }
-                        
-                        return true;
-                    });
-                    
-                    validShipments = logicalShipments.map(shipment => ({
-                        trackingNumber: shipment.trackingNumber!,
-                        carrier: shipment.carrierCode!,
-                        shipDate: shipment.shipDate,
-                        serviceLevel: shipment.serviceCode,
-                        estimatedDelivery: shipment.estimatedDeliveryDate
-                    }));
-                    
-                    if (order.shipments.length > validShipments.length) {
-                        console.log(`ShipStation Service: Filtered out ${order.shipments.length - validShipments.length} invalid/stale shipments for order ${order.orderNumber}`);
-                    }
+                await waitForRateLimitSlot(); // ** Wait for slot for paginated request **
+                const pageResponse = await pageFetchFn();
+                if (pageResponse.data && pageResponse.data.orders) {
+                    allOrders.push(...pageResponse.data.orders);
                 }
+            }
 
-                // Process order items
-                const orderItems = (order.items || []).map(item => ({
+            let combinedOrders = [...response.data.orders];
+            let page = 1;
+            while (page < response.data.pages) {
+                page++;
+                const nextPageFn = () => axios.get<ShipStationOrderResponse>(url, {
+                    headers: { 'Authorization': authHeader },
+                    params: { orderNumber, pageSize: 100, page: page, sortBy: 'ModifyDate', sortDir: 'DESC' }
+                });
+                await waitForRateLimitSlot(); // ** Wait for slot for paginated request **
+                const nextPageResponse = await nextPageFn();
+                if (nextPageResponse.data && nextPageResponse.data.orders) {
+                    combinedOrders.push(...nextPageResponse.data.orders);
+                }
+            }
+
+            // Filter orders to find the exact match or the most relevant one
+            const exactMatch = combinedOrders.find(order => order.orderNumber === orderNumber);
+            const chosenOrder = exactMatch || combinedOrders[0];
+
+            return {
+                found: true,
+                orderStatus: chosenOrder.orderStatus,
+                orderDate: chosenOrder.orderDate,
+                shipments: chosenOrder.shipments?.map(s => ({
+                    trackingNumber: s.trackingNumber || 'N/A',
+                    carrier: s.carrierCode || 'Unknown',
+                    shipDate: s.shipDate,
+                })) || [],
+                items: chosenOrder.items?.map(item => ({
                     sku: item.sku,
                     name: item.name,
                     quantity: item.quantity,
-                    unitPrice: item.unitPrice
-                }));
-
-                return {
-                    found: true,
-                    orderStatus: order.orderStatus,
-                    orderDate: order.orderDate,
-                    shipments: validShipments.length > 0 ? validShipments : undefined,
-                    items: orderItems.length > 0 ? orderItems : undefined,
-                    shipStationOrderId: order.orderId
-                };
-            } else {
-                console.log(`ShipStation Service: OrderNumber ${orderNumber} not found.`);
-                return { found: false, errorMessage: 'Order number not found in our system.' };
-            }
-
-        } catch (error: unknown) {
-            let errorMessage = `Failed to fetch data from ShipStation for order ${orderNumber}`;
-            let statusCode: number | undefined;
-            let retryAfter: number | undefined;
-
-            if (axios.isAxiosError(error)) {
-                const axiosError = error as AxiosError;
-                statusCode = axiosError.response?.status;
-                retryAfter = parseInt(axiosError.response?.headers?.['retry-after'] || '0', 10);
-
-                errorMessage = `${errorMessage}. Status: ${statusCode}. ${axiosError.message}`;
-                if (axiosError.response?.data) {
-                    console.error("ShipStation API Error Response:", axiosError.response.data);
-                } else {
-                    console.error("ShipStation API Error:", axiosError.message);
-                }
-
-                // Handle rate limiting (429) with retry
-                if (statusCode === 429 && retryCount < MAX_RETRIES) {
-                    const waitTime = (retryAfter || 5) * 1000; // Convert to milliseconds
-                    console.log(`ShipStation Service: Rate limited. Waiting ${waitTime}ms before retry ${retryCount + 1}/${MAX_RETRIES}`);
-                    await new Promise(resolve => setTimeout(resolve, waitTime));
-                    retryCount++;
-                    continue; // Try again
-                }
-            } else {
-                console.error("ShipStation Service Error:", error);
-                errorMessage = `${errorMessage}. Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
-            }
-
-            // Alert on API errors (e.g., 5xx, 401, potentially 429 rate limits)
-            if (!statusCode || statusCode >= 400) {
-                await alertService.trackErrorAndAlert(
-                    'ShipStationService-API',
-                    `ShipStation API lookup failed for order ${orderNumber}`,
-                    { orderNumber, statusCode, retryCount, error: errorMessage }
-                );
-            }
-
-            // If we've exhausted retries or it's not a rate limit error, return error info
-            return { found: false, errorMessage: `System error looking up order. Status Code: ${statusCode || 'unknown'}. Error: ${error instanceof Error ? error.message : 'Unknown error'}` };
+                    unitPrice: item.unitPrice,
+                })) || [],
+                shipStationOrderId: chosenOrder.orderId,
+            };
+        } else {
+            return { found: false, errorMessage: `Order ${orderNumber} not found.` };
         }
+    } catch (error: any) {
+        console.error(`[ShipStationService] Failed to fetch data for order ${orderNumber}. Error: ${error.message}`);
+        // The alert is already commented out, but if it were active, it would go here.
+        return { found: false, errorMessage: `Failed to fetch data from ShipStation for order ${orderNumber}. Status: ${error.response?.status}. ${error.message}` };
     }
-
-    // If we've exhausted all retries
-    return { found: false, errorMessage: 'Maximum retry attempts reached for ShipStation API' };
 }
 
 /**
@@ -466,9 +304,7 @@ async function getShipmentsInfo(orderNumber: string, authHeader: string, origina
     
     while (retryCount <= MAX_RETRIES) {
         try {
-            // Wait for a rate limit slot before making the request
-            await waitForRateLimitSlot();
-
+            await waitForRateLimitSlot(); // ** Wait for slot before this request **
             const response = await axios.get<ShipStationShipmentsResponse>(url, {
                 headers: {
                     'Authorization': authHeader,
@@ -495,9 +331,9 @@ async function getShipmentsInfo(orderNumber: string, authHeader: string, origina
                 
                 // Fetch additional pages if needed
                 while (currentPage < totalPages) {
-                    await waitForRateLimitSlot();
                     currentPage++;
                     
+                    await waitForRateLimitSlot(); // ** Wait for slot for paginated request **
                     const pageResponse = await axios.get<ShipStationShipmentsResponse>(url, {
                         headers: {
                             'Authorization': authHeader,
@@ -790,8 +626,6 @@ export async function getShipStationOrderDetails(orderNumber: string): Promise<O
         return null;
     }
 
-    await waitForRateLimitSlot(); // Wait for a slot before making any API call
-
     const authHeader = `Basic ${Buffer.from(`${SHIPSTATION_API_KEY}:${SHIPSTATION_API_SECRET}`).toString('base64')}`;
     
     try {
@@ -830,7 +664,12 @@ function mapShipStationToOrderSearchResult(
 
   const orderNumber = shipStationInfo.shipStationOrderId?.toString() || 'unknown';
   
-  const latestShipment = shipStationInfo.shipments?.sort((a, b) => new Date(b.shipDate).getTime() - new Date(a.shipDate))[0];
+  // Sort shipments by date to find the most recent one
+  const latestShipment = shipStationInfo.shipments?.sort((a, b) => {
+    const dateA = a.shipDate ? new Date(a.shipDate).getTime() : 0;
+    const dateB = b.shipDate ? new Date(b.shipDate).getTime() : 0;
+    return dateB - dateA;
+  })[0];
 
   // Check for major date mismatches
   const orderYear = new Date().getFullYear() + 1; // Assume orders are for current or next year

@@ -72,23 +72,8 @@ export async function POST(request: NextRequest) {
         addressWithCodes
       );
 
-      // Format the response
-      return NextResponse.json({
-        success: true,
-        availableRates: calculationResult.availableShippingRates?.map((rate: ShippingRate) => ({
-          handle: rate.handle,
-          title: rate.title,
-          price: parseFloat(rate.price.amount),
-          currencyCode: rate.price.currencyCode
-        })) || [],
-        subtotal: calculationResult.subtotalPriceSet ? 
-          parseFloat(calculationResult.subtotalPriceSet.shopMoney.amount) : null,
-        total: calculationResult.totalPriceSet ?
-          parseFloat(calculationResult.totalPriceSet.shopMoney.amount) : null,
-        tax: calculationResult.totalTaxSet ? 
-          parseFloat(calculationResult.totalTaxSet.shopMoney.amount) : null,
-        currencyCode: calculationResult.subtotalPriceSet?.shopMoney?.currencyCode || 'USD'
-      });
+      // Return the array of rates directly
+      return NextResponse.json(calculationResult);
     } catch (error: any) {
       console.error('Error calculating shipping rates:', error);
       return NextResponse.json(

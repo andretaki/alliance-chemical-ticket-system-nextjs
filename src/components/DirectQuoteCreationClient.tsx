@@ -494,19 +494,26 @@ export const DirectQuoteCreationClient: React.FC = () => {
       
       console.log('Shipping rates response:', response.data);
       
-      if (response.data?.availableRates?.length > 0) {
-        // Store all available shipping rates
-        setShippingRates(response.data.availableRates);
+      if (response.data?.length > 0) {
+        // The API now returns an array of rates directly
+        const availableRates = response.data.map((rate: any) => ({
+          handle: rate.handle,
+          title: rate.title,
+          price: parseFloat(rate.price.amount), // Extract price from the nested object
+          currencyCode: rate.price.currencyCode,
+        }));
+
+        setShippingRates(availableRates);
         
         // If there are multiple rates, show the selection modal
-        if (response.data.availableRates.length > 1) {
+        if (availableRates.length > 1) {
           setSelectedShippingRateIndex(0); // Default to first option
           setShowShippingRatesModal(true);
-          toast.success(`${response.data.availableRates.length} shipping options available`);
+          toast.success(`${availableRates.length} shipping options available`);
         } else {
           // If only one rate, select it automatically
           setSelectedShippingRateIndex(0);
-          toast.success(`Shipping calculated: ${response.data.availableRates[0].title}`);
+          toast.success(`Shipping calculated: ${availableRates[0].title}`);
         }
         
         // Get current subtotal from line items
@@ -519,19 +526,19 @@ export const DirectQuoteCreationClient: React.FC = () => {
 
         console.log('Current subtotal for shipping calc:', currentSubtotal);
         console.log('API subtotal response:', response.data.subtotal);
-        console.log('First shipping rate:', response.data.availableRates[0]);
+        console.log('First shipping rate:', availableRates[0]);
         
         // Update price summary with the first rate initially
         setPriceSummary({
           subtotal: currentSubtotal,
-          shipping: response.data.availableRates[0].price || null,
-          tax: response.data.tax || null,
-          total: currentSubtotal + (response.data.availableRates[0].price || 0) + (response.data.tax || 0),
-          currencyCode: response.data.availableRates[0].currencyCode || 'USD'
+          shipping: availableRates[0].price || null,
+          tax: priceSummary.tax || null, // Preserve existing tax if any
+          total: currentSubtotal + (availableRates[0].price || 0) + (priceSummary.tax || 0),
+          currencyCode: availableRates[0].currencyCode || 'USD'
         });
       } else {
         setPriceSummary(prev => ({ ...prev, shipping: 0 })); // No rates, shipping is 0
-        toast.error(response.data?.error || "No shipping rates available for this address.");
+        toast.error("No shipping rates available for this address.");
       }
     } catch (error: any) {
       console.error("Shipping calculation error:", error);
@@ -866,37 +873,52 @@ export const DirectQuoteCreationClient: React.FC = () => {
     return () => clearTimeout(timer);
   }, [customerSearchTerm, searchCustomer]); // Added searchCustomer
 
-  const handleCustomerSelect = (customer: CustomerSearchResult) => {
-    setSelectedCustomer(customer);
-    setCustomerSearchTerm(customer.email);
-    setShowCustomerResults(false);
+  const handleCustomerSelect = (customerResult: CustomerSearchResult) => {
+    console.log('Selected customer:', customerResult);
     
-    // Populate customer form fields with the shopifyCustomerId field included
+    // The ID from the search result could be a Shopify GID or a ShipStation identifier
+    const shopifyId = customerResult.id.startsWith('gid://shopify/Customer/') 
+      ? customerResult.id.split('/').pop() 
+      : customerResult.source === 'shipstation'
+      ? null // Explicitly set to null if source is shipstation and not a valid GID format
+      : customerResult.id; // Fallback for other potential identifiers, though might need review
+
     setCustomer({
-      email: customer.email || '',
-      firstName: customer.firstName || '',
-      lastName: customer.lastName || '',
-      phone: customer.phone || '',
-      company: customer.company || '',
-      shopifyCustomerId: customer.id, // Store the Shopify customer ID
+      email: customerResult.email,
+      firstName: customerResult.firstName,
+      lastName: customerResult.lastName,
+      phone: customerResult.phone,
+      company: customerResult.company,
+      shopifyCustomerId: shopifyId || undefined,
+      source: customerResult.source,
     });
 
-    // Populate shipping address if available
-    if (customer.defaultAddress) {
+    if (customerResult.defaultAddress) {
       setShippingAddress({
-        firstName: customer.defaultAddress.firstName || customer.firstName || '',
-        lastName: customer.defaultAddress.lastName || customer.lastName || '',
-        address1: customer.defaultAddress.address1 || '',
-        city: customer.defaultAddress.city || '',
-        province: customer.defaultAddress.province || '',
-        country: customer.defaultAddress.country || 'United States',
-        zip: customer.defaultAddress.zip || '',
-        company: customer.defaultAddress.company || customer.company || '',
-        phone: customer.defaultAddress.phone || customer.phone || '',
+        firstName: customerResult.defaultAddress.firstName || customerResult.firstName || '',
+        lastName: customerResult.defaultAddress.lastName || customerResult.lastName || '',
+        address1: customerResult.defaultAddress.address1 || '',
+        address2: customerResult.defaultAddress.address2 || '',
+        city: customerResult.defaultAddress.city || '',
+        province: customerResult.defaultAddress.province || '',
+        country: customerResult.defaultAddress.country || 'United States',
+        zip: customerResult.defaultAddress.zip || '',
+        company: customerResult.defaultAddress.company || customerResult.company || '',
+        phone: customerResult.defaultAddress.phone || customerResult.phone || '',
       });
     }
 
-    toast.success(`Customer ${customer.firstName} ${customer.lastName} loaded`);
+    setShowCustomerResults(false);
+    setSelectedCustomer(customerResult); // Keep track of the selected customer
+    
+    // Update the search term to reflect the selection, preventing the dropdown from reappearing.
+    setCustomerSearchTerm(`${customerResult.firstName} ${customerResult.lastName} <${customerResult.email}>`);
+    
+    // Automatically fetch ShipStation orders for the selected customer
+    if (customerResult.email) {
+        // console.log(`Fetching ShipStation orders for ${customerResult.email}`);
+        fetchShipStationOrders(customerResult.email);
+    }
   };
 
   // Add ShipStation previous orders functions - moved up before useEffect

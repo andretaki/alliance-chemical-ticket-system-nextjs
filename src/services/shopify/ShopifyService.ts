@@ -34,6 +34,41 @@ interface ShopifyVariantNode {
   requiresShipping?: boolean;
 }
 
+// Type for a single Shopify Order node from GraphQL
+export interface ShopifyOrderNode {
+  id: string; // The GID, e.g., "gid://shopify/Order/12345"
+  legacyResourceId: string; // The numeric ID, e.g., "12345"
+  name: string; // The order name, e.g., "#1001"
+  createdAt: string; // ISO 8601 date string
+  displayFulfillmentStatus: 'FULFILLED' | 'UNFULFILLED' | 'PARTIALLY_FULFILLED' | 'SCHEDULED' | 'ON_HOLD';
+  totalPriceSet: {
+    shopMoney: {
+      amount: string;
+      currencyCode: string;
+    };
+  };
+  customer: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+  lineItems: {
+    edges: Array<{
+      node: {
+        quantity: number;
+        name: string;
+        sku?: string;
+        variant?: {
+          id: string;
+          title: string;
+        };
+      };
+    }>;
+  };
+  // Add other fields as needed
+}
+
 // Define the GraphQL response type to match the Shopify client's actual return type
 type ResponseErrors = any;
 
@@ -267,7 +302,7 @@ export class ShopifyService {
   }
 
   public async getDraftOrdersByQuery(query: string, limit: number = 1): Promise<ShopifyDraftOrderGQLResponse[]> {
-    const gqlQuery = `
+    const draftOrderQuery = `
       query GetDraftOrders($query: String!, $first: Int!) {
         draftOrders(query: $query, first: $first, sortKey: UPDATED_AT, reverse: true) {
           edges {
@@ -300,7 +335,7 @@ export class ShopifyService {
     try {
       console.log(`[ShopifyService] Searching for draft orders with query: ${query}`);
       const response: any = await this.graphqlClient.request(
-        gqlQuery,
+        draftOrderQuery,
         {
           variables: { query: query, first: limit },
           retries: 2
@@ -316,7 +351,7 @@ export class ShopifyService {
       console.log(`[ShopifyService] Found ${draftOrders.length} draft orders.`);
       return draftOrders;
     } catch (error) {
-      console.error(`[ShopifyService] Error searching draft orders by query "${query}":`, error);
+      console.error('[ShopifyService] Error getting draft orders by query:', error);
       throw error;
     }
   }
@@ -325,7 +360,6 @@ export class ShopifyService {
     return `https://${this.shopifyStoreDomain}/admin/draft_orders/${legacyResourceId}`;
   }
 
-  // New method to directly search Shopify products
   public async searchProducts(query: string): Promise<ShopifyProductNode[]> {
     const searchQuery = `
       query SearchProducts($query: String!, $first: Int!) {
@@ -392,7 +426,7 @@ export class ShopifyService {
       console.log(`[ShopifyService] Found ${products.length} products matching query: "${query}"`);
       return products;
     } catch (error: any) {
-      console.error('[ShopifyService] Error during product search:', error.message);
+      console.error('[ShopifyService] Error in searchProducts:', error);
       throw error;
     }
   }
@@ -597,68 +631,67 @@ export class ShopifyService {
 
     } catch (error: any) {
       console.error('[ShopifyService] Error creating draft order:', error);
-      console.error('[ShopifyService] Error details:', {
-        message: error.message,
-        response: error.response ? JSON.stringify(error.response, null, 2) : 'No response',
-        stack: error.stack
-      });
-      if (error.response && error.response.errors) { // Check for GraphQL error structure
-        const messages = error.response.errors.map((e: any) => e.message).join(', ');
-        console.error('GraphQL Errors:', messages);
-        throw new Error(`Shopify API Error: ${messages}`);
+      // Attempt to parse and re-throw GraphQL errors for better client-side handling
+      if (error.message.includes('GraphQL query failed')) {
+        try {
+            const gqlErrors = JSON.parse(error.message.substring(error.message.indexOf('{')));
+            throw new Error(`Shopify API Error: ${gqlErrors.errors[0].message}`);
+        } catch (e) {
+            throw error; // fallback to original error
+        }
       }
-      throw error; // Re-throw other errors
+      throw error;
     }
   }
 
   public async sendDraftOrderInvoice(draftOrderId: string): Promise<{ success: boolean; invoiceUrl?: string; status?: string; error?: string }> {
-      const mutation = `
-          mutation draftOrderInvoiceSend($id: ID!) {
-              draftOrderInvoiceSend(id: $id) {
-                  draftOrder {
-                      id
-                      invoiceUrl
-                      status
-                  }
-                  userErrors { field message }
-              }
-          }
-      `;
-      try {
-          console.log(`[ShopifyService] Sending invoice for draft order: ${draftOrderId}`);
-          const response: any = await this.graphqlClient.request(mutation, {
-              variables: { id: draftOrderId }, // draftOrderId should be the GID
-              retries: 1
-          });
+    const mutation = `
+        mutation draftOrderInvoiceSend($id: ID!) {
+            draftOrderInvoiceSend(id: $id) {
+                draftOrder {
+                    id
+                    invoiceUrl
+                    status
+                }
+                userErrors { field message }
+            }
+        }
+    `;
+    try {
+        console.log(`[ShopifyService] Sending invoice for draft order: ${draftOrderId}`);
+        const response: any = await this.graphqlClient.request(mutation, {
+            variables: { id: draftOrderId }, // draftOrderId should be the GID
+            retries: 1
+        });
 
-          // Check for GraphQL errors
-          if (response.errors) {
-            console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
-            return { success: false, error: 'GraphQL query failed' };
-          }
+        // Check for GraphQL errors
+        if (response.errors) {
+          console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
+          return { success: false, error: 'GraphQL query failed' };
+        }
 
-          // Check for userErrors
-          const userErrors = response.data?.draftOrderInvoiceSend?.userErrors;
-          if (userErrors && userErrors.length > 0) {
-              const errorMessages = userErrors.map((e: any) => e.message).join(', ');
-              console.error(`[ShopifyService] UserErrors sending draft order invoice: ${errorMessages}`);
-              return { success: false, error: errorMessages };
-          }
+        // Check for userErrors
+        const userErrors = response.data?.draftOrderInvoiceSend?.userErrors;
+        if (userErrors && userErrors.length > 0) {
+            const errorMessages = userErrors.map((e: any) => e.message).join(', ');
+            console.error(`[ShopifyService] UserErrors sending draft order invoice: ${errorMessages}`);
+            return { success: false, error: errorMessages };
+        }
 
-          if (response.data?.draftOrderInvoiceSend?.draftOrder) {
-              const { invoiceUrl, status } = response.data.draftOrderInvoiceSend.draftOrder;
-              console.log(`[ShopifyService] Draft order invoice sent. URL: ${invoiceUrl}, Status: ${status}`);
-              return { success: true, invoiceUrl, status };
-          }
-          
-          console.error('[ShopifyService] Failed to send draft order invoice, no order data returned.');
-          return { success: false, error: 'Failed to send draft order invoice, no order data returned.' };
+        if (response.data?.draftOrderInvoiceSend?.draftOrder) {
+            const { invoiceUrl, status } = response.data.draftOrderInvoiceSend.draftOrder;
+            console.log(`[ShopifyService] Draft order invoice sent. URL: ${invoiceUrl}, Status: ${status}`);
+            return { success: true, invoiceUrl, status };
+        }
+        
+        console.error('[ShopifyService] Failed to send draft order invoice, no order data returned.');
+        return { success: false, error: 'Failed to send draft order invoice, no order data returned.' };
 
-      } catch (error: any) {
-          console.error('[ShopifyService] Error sending draft order invoice:', error);
-          const errorMessage = error.response?.errors ? error.response.errors.map((e: any) => e.message).join(', ') : error.message;
-          return { success: false, error: `Shopify API Error: ${errorMessage}` };
-      }
+    } catch (error: any) {
+        console.error('[ShopifyService] Error sending draft order invoice:', error);
+        const errorMessage = error.response?.errors ? error.response.errors.map((e: any) => e.message).join(', ') : error.message;
+        return { success: false, error: `Shopify API Error: ${errorMessage}` };
+    }
   }
 
   public async updateDraftOrderShippingLine(
@@ -724,130 +757,88 @@ export class ShopifyService {
     }
   }
 
-  // Add new method for calculating shipping rates
+  /**
+   * Calculates shipping rates for a set of line items and a destination address
+   * by creating a temporary draft order.
+   */
   public async calculateShippingRates(
     lineItems: DraftOrderLineItemInput[],
     shippingAddress: DraftOrderAddressInput,
     note?: string
   ) {
+    // This function creates a draft order without saving it to calculate shipping.
+    const shopifyLineItems: ShopifyDraftOrderInput_LineItem[] = lineItems.map(item => ({
+      variantId: `gid://shopify/ProductVariant/${item.numericVariantIdShopify}`,
+      quantity: item.quantity,
+    }));
+
+    let shopifyShippingAddressInput: ShopifyDraftOrderInput_Address | undefined;
     try {
-      console.log('[ShopifyService] Calculating shipping rates for address:', JSON.stringify(shippingAddress, null, 2));
-      
-      // Convert line items to Shopify format
-      const shopifyLineItems = lineItems.map(item => ({
-        variantId: `gid://shopify/ProductVariant/${item.numericVariantIdShopify}`,
-        quantity: item.quantity,
-        ...(item.title && { title: item.title }),
-        ...(item.price && { originalUnitPrice: item.price.toFixed(2) })
-      }));
-
-      // Get country and province codes
       const countryCode = mapCountryToCode(shippingAddress.country);
-      if (!countryCode) {
-        throw new Error(`Invalid country provided: ${shippingAddress.country}. Could not map to a valid code.`);
-      }
-      
-      const provinceCode = mapProvinceToCode(shippingAddress.province, shippingAddress.country);
+      const provinceCode = mapProvinceToCode(shippingAddress.country, shippingAddress.province || '');
+      shopifyShippingAddressInput = {
+        ...shippingAddress,
+        countryCode,
+        provinceCode,
+      };
+    } catch(e) {
+        console.error("Could not map country or province:", e);
+        throw e;
+    }
 
-      const mutation = `
-        mutation draftOrderCalculate($input: DraftOrderInput!) {
-          draftOrderCalculate(input: $input) {
-            calculatedDraftOrder {
-              availableShippingRates {
-                handle
-                title
-                price {
-                  amount
-                  currencyCode
-                }
-              }
-              subtotalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              totalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              totalShippingPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              totalTaxSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
+
+    const calculationMutation = `
+      mutation draftOrderCalculate($input: DraftOrderInput!) {
+        draftOrderCalculate(input: $input) {
+          calculatedDraftOrder {
+            availableShippingRates {
+              handle
+              title
+              price {
+                amount
+                currencyCode
               }
             }
-            userErrors { field message }
+          }
+          userErrors {
+            field
+            message
           }
         }
-      `;
+      }
+    `;
 
-      const variables = {
-        input: {
-          lineItems: shopifyLineItems,
-          shippingAddress: {
-            address1: shippingAddress.address1,
-            address2: shippingAddress.address2 || "",
-            city: shippingAddress.city,
-            company: shippingAddress.company || "",
-            countryCode: countryCode,
-            firstName: shippingAddress.firstName || "Temporary",
-            lastName: shippingAddress.lastName || "Order",
-            phone: shippingAddress.phone || "",
-            provinceCode: provinceCode,
-            zip: shippingAddress.zip
-          },
-          note: note || "Temporary calculation for shipping rates"
-        }
-      };
+    const variables = {
+      input: {
+        lineItems: shopifyLineItems,
+        shippingAddress: shopifyShippingAddressInput,
+        note: note,
+      },
+    };
 
-      // Calculate shipping rates using draftOrderCalculate
-      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
-
-      // Check for GraphQL errors
+    try {
+      console.log('[ShopifyService] Calculating shipping rates with input:', JSON.stringify(variables, null, 2));
+      const response: any = await this.graphqlClient.request(calculationMutation, { variables, retries: 2 });
+      
       if (response.errors) {
-        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
-        throw new Error('GraphQL query failed');
+        console.error('[ShopifyService] GraphQL Errors during shipping calculation:', JSON.stringify(response.errors, null, 2));
+        throw new Error('GraphQL query failed during shipping calculation');
       }
 
-      // Check for userErrors
       const userErrors = response.data?.draftOrderCalculate?.userErrors;
       if (userErrors && userErrors.length > 0) {
-        console.error('[ShopifyService] User errors calculating shipping rates:', userErrors);
-        throw new Error(userErrors.map((e: any) => e.message).join('; '));
+        console.error('[ShopifyService] UserErrors calculating shipping rates:', userErrors);
+        const errorMessage = userErrors.map((e: any) => `${e.field?.join(', ') || 'Input'}: ${e.message}`).join('; ');
+        throw new Error(errorMessage);
       }
-
-      const calculatedDraftOrder = response.data?.draftOrderCalculate?.calculatedDraftOrder;
-      if (!calculatedDraftOrder) {
-        throw new Error('No calculated draft order data returned');
-      }
-
-      console.log('[ShopifyService] Successfully calculated shipping rates');
       
-      // Return the shipping rates and pricing info
-      return {
-        availableShippingRates: calculatedDraftOrder.availableShippingRates || [],
-        subtotalPriceSet: calculatedDraftOrder.subtotalPriceSet,
-        totalPriceSet: calculatedDraftOrder.totalPriceSet,
-        totalShippingPriceSet: calculatedDraftOrder.totalShippingPriceSet,
-        totalTaxSet: calculatedDraftOrder.totalTaxSet
-      };
-
-    } catch (error: any) {
+      const rates = response.data.draftOrderCalculate.calculatedDraftOrder.availableShippingRates || [];
+      console.log('[ShopifyService] Shipping rates calculated:', JSON.stringify(rates, null, 2));
+      
+      // Return the raw rates array from Shopify
+      return rates;
+    } catch (error) {
       console.error('[ShopifyService] Error calculating shipping rates:', error);
-      if (error.response && error.response.errors) {
-        const messages = error.response.errors.map((e: any) => e.message).join(', ');
-        throw new Error(`Shopify API Error (Shipping Calc): ${messages}`);
-      }
       throw error;
     }
   }
@@ -914,349 +905,137 @@ export class ShopifyService {
     };
 
     try {
-      console.log(`[ShopifyService] Fetching draft order: ${id}`);
-      const response: any = await this.graphqlClient.request(query, { variables, retries: 1 });
-
+      console.log(`[ShopifyService] Fetching draft order with ID: ${id}`);
+      const response: any = await this.graphqlClient.request(query, { variables, retries: 2 });
+      
       if (response.errors) {
-        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
+        console.error(`[ShopifyService] GraphQL Errors fetching draft order ${id}:`, JSON.stringify(response.errors, null, 2));
         throw new Error('GraphQL query failed');
       }
 
-      if (!response.data?.draftOrder) {
-        console.error('[ShopifyService] Draft order not found, full response:', JSON.stringify(response, null, 2));
-        throw new Error('Draft order not found');
+      if (!response.data.draftOrder) {
+        console.warn(`[ShopifyService] Draft order with ID ${id} not found.`);
+        return null;
+      }
+      
+      console.log(`[ShopifyService] Draft order ${id} fetched successfully.`);
+      return response.data.draftOrder;
+    } catch (error) {
+      console.error(`[ShopifyService] Error fetching draft order ${id}:`, error);
+      return null;
+    }
+  }
+
+  
+  // --- Order Management Methods ---
+
+  /**
+   * Flexible order search.
+   * Example queries:
+   * - "name:#1234" (specific order)
+   * - "email:john.doe@example.com"
+   * - "first_name:John AND last_name:Doe"
+   * - "fulfillment_status:unshipped"
+   */
+  public async searchOrders(query: string, limit: number = 20): Promise<ShopifyOrderNode[]> {
+    console.log(`[ShopifyService] Searching orders with query: "${query}"`);
+
+    const gqlQuery = `
+      query SearchOrders($query: String!, $first: Int!) {
+        orders(first: $first, query: $query, sortKey: CREATED_AT, reverse: true) {
+          edges {
+            node {
+              id
+              legacyResourceId
+              name
+              createdAt
+              displayFulfillmentStatus
+              totalPriceSet {
+                shopMoney {
+                  amount
+                  currencyCode
+                }
+              }
+              customer {
+                id
+                firstName
+                lastName
+                email
+              }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    quantity
+                    name
+                    sku
+                    variant {
+                      id
+                      title
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    
+    try {
+      const response: any = await this.graphqlClient.request(gqlQuery, {
+        variables: { first: limit, query: query },
+        retries: 2,
+      });
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors during order search:', JSON.stringify(response.errors, null, 2));
+        throw new Error(`GraphQL query failed: ${JSON.stringify(response.errors)}`);
       }
 
-      const draftOrder = response.data.draftOrder;
-      console.log('[ShopifyService] Draft order fetched successfully:', JSON.stringify(draftOrder, null, 2));
-      return draftOrder;
-    } catch (error: any) {
-      console.error('[ShopifyService] Error fetching draft order:', error);
-      if (error.response && error.response.errors) {
-        const messages = error.response.errors.map((e: any) => e.message).join(', ');
-        throw new Error(`Shopify API Error (Fetch Draft Order): ${messages}`);
-      }
+      const orders = response.data?.orders?.edges?.map((edge: any) => edge.node) || [];
+      console.log(`[ShopifyService] Found ${orders.length} orders from search.`);
+      return orders;
+    } catch (error) {
+      console.error(`[ShopifyService] Error in searchOrders:`, error);
       throw error;
     }
   }
+
 
   /**
    * Search orders by order name or number
    */
-  public async searchOrdersByNameOrNumber(query: string, limit: number = 5): Promise<any[]> {
+  public async searchOrdersByNameOrNumber(query: string, limit: number = 5): Promise<ShopifyOrderNode[]> {
     // Clean the query - remove # and whitespace
-    const cleanQuery = query.replace(/[#\s]/g, '');
-    const numericQuery = cleanQuery.replace(/\D/g, ''); // Extract only digits
-    
-    const orderQuery = `
-      query SearchOrders($query: String!, $first: Int!) {
-        orders(first: $first, query: $query) {
-          edges {
-            node {
-              id
-              legacyResourceId
-              name
-              email
-              phone
-              createdAt
-              updatedAt
-              displayFinancialStatus
-              displayFulfillmentStatus
-              totalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              customer {
-                id
-                email
-                firstName
-                lastName
-                phone
-                displayName
-              }
-              lineItems(first: 10) {
-                edges {
-                  node {
-                    id
-                    title
-                    quantity
-                    variant {
-                      title
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      console.log(`[ShopifyService] Searching orders for: "${query}" (cleaned: "${cleanQuery}", numeric: "${numericQuery}")`);
-      
-      // Try search patterns in order of specificity (most specific first)
-      const searchQueries = [
-        `name:#${cleanQuery}`,        // Exact match with #
-        `name:${cleanQuery}`,         // Exact match without #
-        `order_number:${numericQuery}` // Numeric order number match
-      ];
-
-      let allResults: any[] = [];
-      
-      for (const searchQuery of searchQueries) {
-        try {
-          console.log(`[ShopifyService] Trying search pattern: "${searchQuery}"`);
-          const variables = { query: searchQuery, first: limit };
-          const response: any = await this.graphqlClient.request(orderQuery, { variables, retries: 1 });
-
-          if (response.errors) {
-            console.warn(`[ShopifyService] GraphQL Errors for query "${searchQuery}":`, response.errors);
-            continue;
-          }
-
-          const orders = response.data?.orders?.edges || [];
-          console.log(`[ShopifyService] Found ${orders.length} orders with pattern "${searchQuery}"`);
-          
-          if (orders.length > 0) {
-            const newResults = orders.map((edge: any) => edge.node);
-            console.log(`[ShopifyService] Order names found:`, newResults.map((order: any) => order.name));
-            
-            // Add unique results only
-            newResults.forEach((order: any) => {
-              if (!allResults.find((existing: any) => existing.id === order.id)) {
-                allResults.push(order);
-              }
-            });
-            
-            // If we found exact matches, don't try broader searches
-            if (searchQuery.includes('name:#') || searchQuery.includes('name:') && !searchQuery.includes('*')) {
-              console.log(`[ShopifyService] Found exact matches, stopping search here`);
-              break;
-            }
-          }
-        } catch (error) {
-          console.warn(`[ShopifyService] Error with search query "${searchQuery}":`, error);
-          continue;
-        }
-      }
-
-      // Only try wildcard search if no exact matches were found
-      if (allResults.length === 0) {
-        console.log(`[ShopifyService] No exact matches found, trying wildcard search`);
-        try {
-          const wildcardQuery = `name:*${cleanQuery}*`;
-          console.log(`[ShopifyService] Trying wildcard pattern: "${wildcardQuery}"`);
-          
-          const variables = { query: wildcardQuery, first: limit };
-          const response: any = await this.graphqlClient.request(orderQuery, { variables, retries: 1 });
-
-          if (!response.errors) {
-            const orders = response.data?.orders?.edges || [];
-            console.log(`[ShopifyService] Found ${orders.length} orders with wildcard pattern`);
-            
-            if (orders.length > 0) {
-              const newResults = orders.map((edge: any) => edge.node);
-              console.log(`[ShopifyService] Wildcard order names found:`, newResults.map((order: any) => order.name));
-              
-              newResults.forEach((order: any) => {
-                if (!allResults.find((existing: any) => existing.id === order.id)) {
-                  allResults.push(order);
-                }
-              });
-            }
-          }
-        } catch (error) {
-          console.warn(`[ShopifyService] Error with wildcard search:`, error);
-        }
-      }
-
-      console.log(`[ShopifyService] Final results for query "${query}": ${allResults.length} orders found`);
-      if (allResults.length > 0) {
-        console.log(`[ShopifyService] Final order names:`, allResults.map(order => order.name));
-      }
-      
-      return allResults.slice(0, limit); // Ensure we don't exceed the limit
-    } catch (error: any) {
-      console.error('[ShopifyService] Error searching orders by name/number:', error);
-      throw error;
-    }
+    const cleanQuery = query.replace(/[#\\s]/g, '');
+    const numericQuery = cleanQuery.replace(/\\D/g, ''); // Extract only digits
+    const constructedQuery = `name:"${numericQuery}" OR name:"#${numericQuery}"`;
+    return this.searchOrders(constructedQuery, limit);
   }
 
   /**
-   * Search orders by customer email
+   * Search orders by customer email.
    */
-  public async searchOrdersByCustomerEmail(email: string, limit: number = 5): Promise<any[]> {
-    const orderQuery = `
-      query SearchOrdersByEmail($query: String!, $first: Int!) {
-        orders(first: $first, query: $query) {
-          edges {
-            node {
-              id
-              legacyResourceId
-              name
-              email
-              phone
-              createdAt
-              updatedAt
-              displayFinancialStatus
-              displayFulfillmentStatus
-              totalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              customer {
-                id
-                email
-                firstName
-                lastName
-                phone
-                displayName
-              }
-              lineItems(first: 10) {
-                edges {
-                  node {
-                    id
-                    title
-                    quantity
-                    variant {
-                      title
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      console.log(`[ShopifyService] Searching orders by email: ${email}`);
-      const variables = { query: `email:${email}`, first: limit };
-      const response: any = await this.graphqlClient.request(orderQuery, { variables, retries: 1 });
-
-      if (response.errors) {
-        console.error('[ShopifyService] GraphQL Errors:', JSON.stringify(response.errors, null, 2));
-        throw new Error('GraphQL query failed');
-      }
-
-      const orders = response.data?.orders?.edges || [];
-      console.log(`[ShopifyService] Found ${orders.length} orders for email: ${email}`);
-      return orders.map((edge: any) => edge.node);
-    } catch (error: any) {
-      console.error('[ShopifyService] Error searching orders by email:', error);
-      throw error;
-    }
+  public async searchOrdersByCustomerEmail(email: string, limit: number = 5): Promise<ShopifyOrderNode[]> {
+    const query = `email:'${email}'`;
+    return this.searchOrders(query, limit);
   }
 
   /**
-   * Search orders by customer name
+   * Search orders by customer's full name.
+   * This is a bit tricky as Shopify's query language for customer name is not straightforward.
+   * We will search for the name in the customer fields.
    */
-  public async searchOrdersByCustomerName(name: string, limit: number = 5): Promise<any[]> {
-    const orderQuery = `
-      query SearchOrdersByCustomerName($query: String!, $first: Int!) {
-        orders(first: $first, query: $query) {
-          edges {
-            node {
-              id
-              legacyResourceId
-              name
-              email
-              phone
-              createdAt
-              updatedAt
-              displayFinancialStatus
-              displayFulfillmentStatus
-              totalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              customer {
-                id
-                email
-                firstName
-                lastName
-                phone
-                displayName
-              }
-              lineItems(first: 10) {
-                edges {
-                  node {
-                    id
-                    title
-                    quantity
-                    variant {
-                      title
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
-    try {
-      console.log(`[ShopifyService] Searching orders by customer name: ${name}`);
-      
-      // Try multiple search patterns for customer names
-      const searchQueries = [
-        `customer:"${name}"`,
-        `customer:*${name}*`,
-        `first_name:*${name}* OR last_name:*${name}*`
-      ];
-
-      let allResults: any[] = [];
-      
-      for (const searchQuery of searchQueries) {
-        try {
-          const variables = { query: searchQuery, first: limit };
-          const response: any = await this.graphqlClient.request(orderQuery, { variables, retries: 1 });
-
-          if (response.errors) {
-            console.warn(`[ShopifyService] GraphQL Errors for query "${searchQuery}":`, response.errors);
-            continue;
-          }
-
-          const orders = response.data?.orders?.edges || [];
-          if (orders.length > 0) {
-            const newResults = orders.map((edge: any) => edge.node);
-            // Add unique results only
-            newResults.forEach((order: any) => {
-              if (!allResults.find(existing => existing.id === order.id)) {
-                allResults.push(order);
-              }
-            });
-          }
-        } catch (error) {
-          console.warn(`[ShopifyService] Error with search query "${searchQuery}":`, error);
-          continue;
-        }
-      }
-
-      console.log(`[ShopifyService] Found ${allResults.length} orders for customer name: ${name}`);
-      return allResults.slice(0, limit); // Ensure we don't exceed the limit
-    } catch (error: any) {
-      console.error('[ShopifyService] Error searching orders by customer name:', error);
-      throw error;
-    }
+  public async searchOrdersByCustomerName(name: string, limit: number = 5): Promise<ShopifyOrderNode[]> {
+    const query = `customer:${name}`;
+    return this.searchOrders(query, limit);
   }
 
-  /**
-   * Helper method to construct Shopify Admin URL for an order
-   */
   public getOrderAdminUrl(legacyResourceId: string): string {
-    const storeUrl = Config.shopify.storeUrl;
-    return `${storeUrl}/admin/orders/${legacyResourceId}`;
+    return `https://${this.shopifyStoreDomain}/admin/orders/${legacyResourceId}`;
   }
+
+  // --- Customer Management Methods ---
 
   /**
    * Check if a customer exists in Shopify by email

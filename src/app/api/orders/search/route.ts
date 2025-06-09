@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ShopifyService, ShopifyOrderNode } from '@/services/shopify/ShopifyService';
+import { ShopifyService } from '@/services/shopify/ShopifyService';
 import { getOrderTrackingInfo, searchShipStationOrdersAndMap, constructShipStationUrl } from '@/lib/shipstationService';
 import { db } from '@/lib/db';
 import { tickets } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { OrderSearchResult } from '@/types/orderSearch';
 import { AdvancedSearchProcessor } from '@/lib/advancedSearch'; // Import the new advanced processor
+
+const shopifyService = new ShopifyService();
 
 // Helper function to map ShipStation order data to OrderSearchResult
 function mapShipStationToOrderSearchResult(
@@ -44,9 +46,8 @@ function generateItemSummary(lineItems: { node: { quantity: number; name: string
 
 async function searchAndEnrich(
   parsedQuery: ReturnType<typeof AdvancedSearchProcessor.parseQuery>,
-  shopifyService: ShopifyService,
 ): Promise<OrderSearchResult[]> {
-  let shopifyOrders: ShopifyOrderNode[] = [];
+  let shopifyOrders: any[] = [];
 
   // Build a single, efficient Shopify query
   let shopifyQueryString = '';
@@ -66,77 +67,75 @@ async function searchAndEnrich(
     try {
       shopifyOrders = await shopifyService.searchOrders(shopifyQueryString);
     } catch (error) {
-      console.error(`[OrderSearch] Error during Shopify search with query "${shopifyQueryString}":`, error);
-      // Return empty array to allow fallback logic to proceed if desired
-      return [];
+      console.error('[OrderSearch] Error querying Shopify:', error);
+      // Let it continue, ShipStation might find something
     }
   }
 
-  // Transform and enrich Shopify orders
-  const searchResults: OrderSearchResult[] = await Promise.all(
-    shopifyOrders.map(async (order: any) => {
-      let relatedTicketId: number | undefined;
-      let relatedTicketUrl: string | undefined;
-      const orderName = order.name?.replace('#', '') || '';
-      if (orderName) {
-        try {
-          const relatedTicket = await db.query.tickets.findFirst({
-            where: eq(tickets.orderNumber, orderName),
-            columns: { id: true }
-          });
-          if (relatedTicket) {
-            relatedTicketId = relatedTicket.id;
-            relatedTicketUrl = `/tickets/${relatedTicket.id}`;
-          }
-        } catch (ticketError) {
-          console.warn('[OrderSearch] Error checking for related tickets:', ticketError);
+  // Transform and enrich Shopify orders sequentially
+  const searchResults: OrderSearchResult[] = [];
+  for (const order of shopifyOrders) {
+    let relatedTicketId: number | undefined;
+    let relatedTicketUrl: string | undefined;
+    const orderName = order.name?.replace('#', '') || '';
+    if (orderName) {
+      try {
+        const relatedTicket = await db.query.tickets.findFirst({
+          where: eq(tickets.orderNumber, orderName),
+          columns: { id: true }
+        });
+        if (relatedTicket) {
+          relatedTicketId = relatedTicket.id;
+          relatedTicketUrl = `/tickets/${relatedTicket.id}`;
         }
+      } catch (ticketError) {
+        console.warn('[OrderSearch] Error checking for related tickets:', ticketError);
       }
+    }
 
-      let shipStationOrderId: number | undefined;
-      let shipStationUrl: string | undefined;
-      let shipStationStatus: string | undefined;
-      let trackingNumbers: string[] | undefined;
-      const orderNumberForShipStation = order.name?.replace('#', '') || '';
+    let shipStationOrderId: number | undefined;
+    let shipStationUrl: string | undefined;
+    let shipStationStatus: string | undefined;
+    let trackingNumbers: string[] | undefined;
+    const orderNumberForShipStation = order.name?.replace('#', '') || '';
 
-      if (orderNumberForShipStation) {
-        try {
-          const shipStationData = await getOrderTrackingInfo(orderNumberForShipStation);
-          if (shipStationData && shipStationData.found) {
-            shipStationOrderId = shipStationData.shipStationOrderId;
-            shipStationStatus = shipStationData.orderStatus;
-            trackingNumbers = shipStationData.shipments?.map(s => s.trackingNumber!).filter(tn => tn && tn.trim() !== '') || [];
-            if (shipStationOrderId) {
-              shipStationUrl = constructShipStationUrl(shipStationOrderId) || undefined;
-            }
+    if (orderNumberForShipStation) {
+      try {
+        const shipStationData = await getOrderTrackingInfo(orderNumberForShipStation);
+        if (shipStationData && shipStationData.found) {
+          shipStationOrderId = shipStationData.shipStationOrderId;
+          shipStationStatus = shipStationData.orderStatus;
+          trackingNumbers = shipStationData.shipments?.map(s => s.trackingNumber!).filter(tn => tn && tn.trim() !== '') || [];
+          if (shipStationOrderId) {
+            shipStationUrl = constructShipStationUrl(shipStationOrderId) || undefined;
           }
-        } catch (shipStationError) {
-          console.warn(`[OrderSearch] Error enriching Shopify order #${order.name} with ShipStation data:`, shipStationError);
         }
+      } catch (shipStationError) {
+        console.warn(`[OrderSearch] Error enriching Shopify order #${order.name} with ShipStation data:`, shipStationError);
       }
+    }
 
-      return {
-        source: 'shopify',
-        shopifyOrderGID: order.id,
-        shopifyOrderName: order.name,
-        legacyResourceId: order.legacyResourceId,
-        createdAt: order.createdAt,
-        customerFullName: `${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`.trim(),
-        customerEmail: order.customer?.email,
-        fulfillmentStatus: order.displayFulfillmentStatus || undefined,
-        totalPrice: order.totalPriceSet?.shopMoney?.amount || undefined,
-        currencyCode: order.totalPriceSet?.shopMoney?.currencyCode || undefined,
-        shopifyAdminUrl: shopifyService.getOrderAdminUrl(order.legacyResourceId),
-        relatedTicketId,
-        relatedTicketUrl,
-        itemSummary: generateItemSummary(order.lineItems),
-        shipStationOrderId,
-        shipStationUrl,
-        shipStationStatus,
-        trackingNumbers,
-      };
-    })
-  );
+    searchResults.push({
+      source: 'shopify',
+      shopifyOrderGID: order.id,
+      shopifyOrderName: order.name,
+      legacyResourceId: order.legacyResourceId,
+      createdAt: order.createdAt,
+      customerFullName: `${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`.trim(),
+      customerEmail: order.customer?.email,
+      fulfillmentStatus: order.displayFulfillmentStatus || undefined,
+      totalPrice: order.totalPriceSet?.shopMoney?.amount || undefined,
+      currencyCode: order.totalPriceSet?.shopMoney?.currencyCode || undefined,
+      shopifyAdminUrl: shopifyService.getOrderAdminUrl(order.legacyResourceId),
+      relatedTicketId,
+      relatedTicketUrl,
+      itemSummary: generateItemSummary(order.lineItems),
+      shipStationOrderId,
+      shipStationUrl,
+      shipStationStatus,
+      trackingNumbers,
+    });
+  }
 
   return searchResults;
 }
@@ -154,13 +153,12 @@ export async function GET(request: NextRequest) {
     console.log(`[OrderSearch] Incoming query: "${query}"`);
 
     const parsedQuery = AdvancedSearchProcessor.parseQuery(query);
-    const shopifyService = new ShopifyService();
 
     let allOrders: OrderSearchResult[] = [];
     let searchMethod = '';
 
     console.log('[OrderSearch] Phase 1: Searching Shopify with unified query...');
-    let shopifyResults = await searchAndEnrich(parsedQuery, shopifyService);
+    let shopifyResults = await searchAndEnrich(parsedQuery);
 
     const uniqueShopifyResults = new Map<string, OrderSearchResult>();
     shopifyResults.forEach(order => uniqueShopifyResults.set(order.shopifyOrderGID, order));

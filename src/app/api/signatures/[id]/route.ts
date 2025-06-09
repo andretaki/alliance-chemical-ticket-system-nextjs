@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { db, userSignatures } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
