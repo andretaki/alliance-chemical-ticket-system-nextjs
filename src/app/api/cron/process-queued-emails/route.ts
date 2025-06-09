@@ -55,14 +55,28 @@ export async function GET(request: NextRequest) {
         if (typeof messageId !== 'string') return;
         
         try {
-          const emailMessage = await graphService.getMessageById(messageId);
+          // STEP 1: Get the message headers first to find the internetMessageId. This is a very light API call.
+          const headers = await graphService.getEmailHeaders(messageId);
+          const internetMessageId = headers?.internetMessageId;
+
+          if (!internetMessageId) {
+              console.error(`Cron (ProcessEmails): Failed to retrieve internetMessageId for Graph ID ${messageId}. Skipping.`);
+              // We might want to alert on this if it happens frequently.
+              return;
+          }
+          
+          // STEP 2: Use the correct, filterable ID to find the message anywhere in the mailbox.
+          const emailMessage = await graphService.getMessageByInternetId(internetMessageId);
+          
           if (!emailMessage) {
-            console.warn(`Cron (ProcessEmails): Could not fetch email with ID ${messageId}. It may have been deleted.`);
+            console.warn(`Cron (ProcessEmails): Could not fetch email with Internet ID ${internetMessageId}. It may have been deleted.`);
             return;
           }
+          
           await processSingleEmail(emailMessage);
+
         } catch (error) {
-          console.error(`Cron (ProcessEmails): Error processing email ID ${messageId}:`, error);
+          console.error(`Cron (ProcessEmails): Critical unhandled error processing email ID ${messageId}:`, error);
         }
       })
     );

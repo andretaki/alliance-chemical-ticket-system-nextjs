@@ -138,6 +138,17 @@ function extractFirstName(senderName: string | null | undefined, senderEmail: st
   return words[0];
 }
 
+// Helper function to extract email header values
+function extractEmailHeaderValue(message: Message, headerName: string): string | null {
+    if (!message.internetMessageHeaders) return null;
+    
+    const header = message.internetMessageHeaders.find(h => 
+        h.name?.toLowerCase() === headerName.toLowerCase()
+    );
+    
+    return header?.value || null;
+}
+
 /**
  * Extracts and cleans message IDs from In-Reply-To or References headers.
  * @param headerValue The raw header string value.
@@ -306,10 +317,74 @@ async function processSingleEmailInternal(emailMessage: Message): Promise<Proces
         }
         console.log(`[EmailProcessor] [${state.messageId}] Lock acquired.`);
 
-        const result = await processSingleEmailInternal(emailMessage);
-        return logAndReturn(result, state, "Processing complete");
+        // Check for duplicates first
+        const duplicateCheck = await performAtomicDuplicateCheck(state.internetMessageId);
+        if (duplicateCheck.isDuplicate) {
+            return logAndReturn({
+                success: true,
+                message: `Email ${state.internetMessageId} already processed as ${duplicateCheck.type} ID ${duplicateCheck.ticketId || duplicateCheck.commentId || duplicateCheck.quarantineId}`,
+                skipped: true,
+                messageId: state.messageId,
+            }, state, "Duplicate detected");
+        }
+
+        // Extract basic info
+        const senderEmail = nullableToOptional(emailMessage.sender?.emailAddress?.address) || '';
+        const senderName = nullableToOptional(emailMessage.sender?.emailAddress?.name) || null;
+        const subject = nullableToOptional(emailMessage.subject) || '';
+        const bodyContent = nullableToOptional(emailMessage.body?.content) || '';
+
+        // Check if it's an internal email (skip if not a reply)
+        const isInternal = senderEmail.toLowerCase().includes(INTERNAL_DOMAIN.toLowerCase());
+        if (isInternal) {
+            // Only process internal emails if they are replies to existing tickets
+            const inReplyToIds = parseMessageIdHeader(extractEmailHeaderValue(emailMessage, 'In-Reply-To'));
+            const referencesIds = parseMessageIdHeader(extractEmailHeaderValue(emailMessage, 'References'));
+            const allReferencedIds = [...inReplyToIds, ...referencesIds];
+
+            if (allReferencedIds.length === 0) {
+                return logAndReturn({
+                    success: true,
+                    message: `Internal email from ${senderEmail} has no reply context. Skipping.`,
+                    skipped: true,
+                    messageId: state.messageId,
+                }, state, "Internal non-reply skipped");
+            }
+        }
+
+        // Determine if this is a reply to an existing ticket
+        const inReplyToIds = parseMessageIdHeader(extractEmailHeaderValue(emailMessage, 'In-Reply-To'));
+        const referencesIds = parseMessageIdHeader(extractEmailHeaderValue(emailMessage, 'References'));
+        const allReferencedIds = [...inReplyToIds, ...referencesIds];
+
+        if (allReferencedIds.length > 0) {
+            // Check if any referenced IDs match existing tickets or comments
+            const existingTicket = await db.query.tickets.findFirst({
+                where: or(
+                    inArray(tickets.externalMessageId, allReferencedIds),
+                    eq(tickets.conversationId, nullableToOptional(emailMessage.conversationId) || '')
+                ),
+                columns: { id: true, title: true, status: true }
+            });
+
+            const existingComment = await db.query.ticketComments.findFirst({
+                where: inArray(ticketComments.externalMessageId, allReferencedIds),
+                columns: { id: true, ticketId: true }
+            });
+
+            if (existingTicket || existingComment) {
+                const targetTicketId = existingTicket?.id || existingComment?.ticketId;
+                if (targetTicketId) {
+                    return await processAsNewComment(emailMessage, targetTicketId, state);
+                }
+            }
+        }
+
+        // Process as new ticket
+        return await processAsNewTicket(emailMessage, state);
+
     } catch (error) {
-        console.error(`[EmailProcessor] [${state.messageId}] Unhandled exception in processSingleEmail:`, error);
+        console.error(`[EmailProcessor] [${state.messageId}] Unhandled exception in processSingleEmailInternal:`, error);
         return logAndReturn({
             success: false,
             message: `Unhandled exception: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -323,7 +398,145 @@ async function processSingleEmailInternal(emailMessage: Message): Promise<Proces
     }
 }
 
-// ... (rest of processAsNewComment and processAsNewTicket functions)
+// Placeholder for processAsNewComment - needs to be implemented
+async function processAsNewComment(emailMessage: Message, ticketId: number, state: EmailProcessingState): Promise<ProcessEmailResult> {
+    try {
+        const senderEmail = nullableToOptional(emailMessage.sender?.emailAddress?.address) || '';
+        const senderName = nullableToOptional(emailMessage.sender?.emailAddress?.name) || null;
+        const bodyContent = nullableToOptional(emailMessage.body?.content) || '';
+
+        // Add comment to the ticket
+        const [newComment] = await db.insert(ticketComments).values({
+            ticketId: ticketId,
+            commentText: bodyContent,
+            isFromCustomer: true,
+            isInternalNote: false,
+            isOutgoingReply: false,
+            externalMessageId: state.internetMessageId
+        }).returning();
+
+        // Update ticket status to 'open' if it was pending
+        await db.update(tickets)
+            .set({ 
+                status: OPEN_STATUS, 
+                updatedAt: new Date() 
+            })
+            .where(eq(tickets.id, ticketId));
+
+        // Mark email as read
+        if (emailMessage.id) {
+            await graphService.markEmailAsRead(emailMessage.id);
+        }
+
+        return logAndReturn({
+            success: true,
+            commentId: newComment.id,
+            message: `Comment added to ticket ${ticketId}`,
+            messageId: state.messageId,
+        }, state, "Comment added successfully");
+
+    } catch (error) {
+        console.error(`[EmailProcessor] [${state.messageId}] Error processing as comment:`, error);
+        return logAndReturn({
+            success: false,
+            message: `Failed to add comment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            messageId: state.messageId,
+        }, state, "Comment processing failed");
+    }
+}
+
+// Placeholder for processAsNewTicket - needs to be implemented
+async function processAsNewTicket(emailMessage: Message, state: EmailProcessingState): Promise<ProcessEmailResult> {
+    try {
+        const senderEmail = nullableToOptional(emailMessage.sender?.emailAddress?.address) || '';
+        const senderName = nullableToOptional(emailMessage.sender?.emailAddress?.name) || null;
+        const subject = nullableToOptional(emailMessage.subject) || '';
+        const bodyContent = nullableToOptional(emailMessage.body?.content) || '';
+
+        // Find or create a default system user for external tickets
+        let reporterId = 'system'; // Default fallback
+        try {
+            const systemUser = await db.query.users.findFirst({
+                where: eq(users.email, 'system@alliancechemical.com'),
+                columns: { id: true }
+            });
+            if (systemUser) {
+                reporterId = systemUser.id;
+            } else {
+                // Create a system user if it doesn't exist
+                const [newSystemUser] = await db.insert(users).values({
+                    email: 'system@alliancechemical.com',
+                    name: 'System User',
+                    role: 'user',
+                    isExternal: true
+                }).returning();
+                reporterId = newSystemUser.id;
+            }
+        } catch (error) {
+            console.error(`[EmailProcessor] [${state.messageId}] Error finding/creating system user:`, error);
+        }
+
+        // Analyze email content with AI
+        let aiAnalysis: EmailAnalysisResult | null = null;
+        let suggestedAssigneeId: string | null = null;
+        try {
+            aiAnalysis = await analyzeEmailContent(subject, bodyContent);
+            if (aiAnalysis?.suggestedRoleOrKeywords) {
+                suggestedAssigneeId = await mapKeywordsToAssigneeId(aiAnalysis.suggestedRoleOrKeywords);
+            }
+        } catch (aiError) {
+            console.error(`[EmailProcessor] [${state.messageId}] AI analysis failed:`, aiError);
+        }
+
+        // Create new ticket
+        const [newTicket] = await db.insert(tickets).values({
+            title: subject || 'No Subject',
+            description: bodyContent,
+            status: DEFAULT_STATUS,
+            priority: aiAnalysis?.prioritySuggestion || DEFAULT_PRIORITY,
+            type: aiAnalysis?.ticketType && aiAnalysis.ticketType !== 'Other' ? aiAnalysis.ticketType : DEFAULT_TYPE,
+            senderEmail: senderEmail,
+            senderName: senderName,
+            externalMessageId: state.internetMessageId,
+            conversationId: nullableToOptional(emailMessage.conversationId),
+            sentiment: aiAnalysis?.sentiment || DEFAULT_SENTIMENT,
+            ai_summary: aiAnalysis?.ai_summary,
+            ai_suggested_assignee_id: suggestedAssigneeId,
+            reporterId: reporterId,
+            orderNumber: aiAnalysis?.orderNumber,
+            trackingNumber: aiAnalysis?.trackingNumber
+        }).returning();
+
+        // Mark email as read
+        if (emailMessage.id) {
+            await graphService.markEmailAsRead(emailMessage.id);
+        }
+
+        // Emit ticket created event
+        ticketEventEmitter.emit({
+            type: 'ticket_created',
+            ticketId: newTicket.id,
+            title: newTicket.title || 'No Subject',
+            priority: newTicket.priority || DEFAULT_PRIORITY,
+            assigneeId: suggestedAssigneeId
+        });
+
+        return logAndReturn({
+            success: true,
+            ticketId: newTicket.id,
+            message: `New ticket created: ${newTicket.id}`,
+            messageId: state.messageId,
+        }, state, "Ticket created successfully");
+
+    } catch (error) {
+        console.error(`[EmailProcessor] [${state.messageId}] Error processing as new ticket:`, error);
+        return logAndReturn({
+            success: false,
+            message: `Failed to create ticket: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            messageId: state.messageId,
+        }, state, "Ticket creation failed");
+    }
+}
 
 // --- Batch Processing Function (processUnreadEmails) ---
 // Keep the existing batch function logic, it will now call the enhanced processSingleEmail

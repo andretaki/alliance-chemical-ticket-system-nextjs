@@ -405,11 +405,53 @@ export async function sendEmailReply(
 }
 
 /**
- * Get a specific email message by its ID.
- * @param messageId The ID of the message.
- * @returns The Message object or null if not found/error.
+ * NEW AND IMPROVED: Fetches a single message by its globally unique Internet Message ID.
+ * This is more reliable than the internal ID for finding messages that might have been moved.
+ * @param internetMessageId The Internet Message ID of the email to fetch.
+ * @returns The message object or null if not found.
  */
+export async function getMessageByInternetId(internetMessageId: string): Promise<Message | null> {
+  if (!internetMessageId) {
+    console.warn("graphService.getMessageByInternetId was called with an empty ID.");
+    return null;
+  }
+  
+  try {
+    // The 'internetMessageId' property IS filterable.
+    // Note the single quotes around the ID in the filter string.
+    const encodedId = encodeURIComponent(internetMessageId).replace(/'/g, "''"); // Proper escaping
+    const response = await graphClient
+      .api(`/users/${userEmail}/messages`)
+      .filter(`internetMessageId eq '${encodedId}'`)
+      .get();
+
+    if (response && response.value && response.value.length > 0) {
+      return response.value[0];
+    }
+    
+    console.warn(`Could not find message with internetMessageId ${internetMessageId} in any folder.`);
+    return null;
+    
+  } catch (error: any) {
+    console.error(`Error getting message by internetMessageId ${internetMessageId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetches a single message by its ID from any folder.
+ * so the email might have been moved from the Inbox.
+ * @param messageId The ID of the message to fetch.
+ * @returns The message object or null if not found.
+ */
+// We can now remove or deprecate the old getMessageById if you wish,
+// but let's keep it for now and just not use it in the cron job.
 export async function getMessageById(messageId: string): Promise<Message | null> {
+  if (!messageId) {
+    console.warn("graphService.getMessageById was called with an empty ID.");
+    return null;
+  }
+  
   try {
     // This new API call searches ALL folders for the message ID.
     const response = await graphClient
@@ -438,22 +480,21 @@ export async function getMessageById(messageId: string): Promise<Message | null>
 }
 
 /**
- * Get email headers and basic info for quick filtering (lighter than full message).
- * @param messageId The ID of the message.
- * @returns Basic message info with sender details or null if not found/error.
+ * Gets just the internetMessageId from an email. This is a lightweight call.
+ * @param messageId The Graph internal message ID.
+ * @returns The message object containing headers or null.
  */
-export async function getEmailHeaders(messageId: string): Promise<{ sender?: { emailAddress?: { address?: string } } } | null> {
+export async function getEmailHeaders(messageId: string): Promise<{ internetMessageId?: string | null } | null> {
   try {
     return await graphClient
       .api(`/users/${userEmail}/messages/${messageId}`)
-      .select('sender,subject,internetMessageHeaders')
+      .select('internetMessageId')
       .get();
   } catch (error: any) {
-    // Handle 404 errors gracefully - emails can be moved/deleted quickly  
-    if (error.statusCode === 404 || error.code === 'ErrorItemNotFound') {
-      console.log(`Email headers for ${messageId} not found - likely moved/deleted quickly (normal for webhooks)`);
+    if (error.statusCode === 404) {
+      console.warn(`getEmailHeaders: Message ${messageId} not found. It may have been moved or deleted.`);
     } else {
-      console.error(`Error getting email headers ${messageId}:`, error);
+      console.error(`Error getting headers for message ${messageId}:`, error);
     }
     return null;
   }
