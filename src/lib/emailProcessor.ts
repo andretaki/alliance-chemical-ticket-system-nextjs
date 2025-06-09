@@ -253,13 +253,19 @@ async function logAndReturn(
 
 // --- Core Processing Function for a Single Email ---
 export async function processSingleEmail(emailMessage: Message): Promise<ProcessEmailResult> {
-    console.log(`[EmailProcessor] [${emailMessage.id}] Starting processing for subject: "${emailMessage.subject}"`);
+    const state: EmailProcessingState = {
+        messageId: emailMessage.id!,
+        internetMessageId: nullableToOptional(emailMessage.internetMessageId),
+        startTime: Date.now(),
+        lockAcquired: false,
+    };
+    console.log(`[EmailProcessor] [${state.messageId}] Starting processing for subject: "${emailMessage.subject}"`);
     try {
         const result = await processSingleEmailInternal(emailMessage);
-        console.log(`[EmailProcessor] [${emailMessage.id}] Finished processing. Success: ${result.success}, Message: ${result.message}`);
+        console.log(`[EmailProcessor] [${state.messageId}] Finished processing. Success: ${result.success}, Message: ${result.message}`);
         return result;
     } catch (error) {
-        console.error(`[EmailProcessor] [${emailMessage.id}] Unhandled exception in processSingleEmail:`, error);
+        console.error(`[EmailProcessor] [${state.messageId}] Unhandled exception in processSingleEmail:`, error);
         return {
             success: false,
             message: `Unhandled exception: ${error instanceof Error ? error.message : 'Unknown error'}`,
