@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function CreateQuotePage() {
   return (
-    <div className="container-fluid py-4">
+    <div className="container py-4">
       <DirectQuoteCreationClient />
     </div>
   );

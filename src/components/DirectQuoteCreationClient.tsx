@@ -1141,820 +1141,816 @@ export const DirectQuoteCreationClient: React.FC = () => {
   }, [useSameAddressForBilling, shippingAddress]);
 
   return (
-    <div className="card shadow-sm">
-      <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-        <h3 className="mb-0">Create Direct Quote</h3>
-        {/* Test button for debugging - can be removed for production */}
-        <button 
-          type="button" 
-          className="btn btn-sm btn-outline-light" 
-          onClick={async () => {
-            console.log('📡 Testing direct API call to /api/products/search-variant?query=test');
-            try {
-              const response = await axios.get('/api/products/search-variant?query=test');
-              console.log('📡 Test API response:', response.data);
-              toast('Test API call successful. Check console.');
-            } catch (error) {
-              console.error('📡 Test API error:', error);
-              toast.error('Test API call failed. Check console.');
-            }
-          }}
-        >
-          Test API
-        </button>
-      </div>
-      <div className="card-body">
-        <div className="row">
-          {/* Main form column */}
-          <div className={`${showPreviousOrders && shipStationOrders.length > 0 ? 'col-lg-8' : 'col-12'}`}>
+    <div className="container-xxl">
+      <div className="card shadow-sm create-quote-form">
+        <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h3 className="mb-0">Create Direct Quote</h3>
+          {/* Test button for debugging - can be removed for production */}
+          <button 
+            type="button" 
+            className="btn btn-sm btn-outline-light" 
+            onClick={async () => {
+              console.log('📡 Testing direct API call to /api/products/search-variant?query=test');
+              try {
+                const response = await axios.get('/api/products/search-variant?query=test');
+                console.log('📡 Test API response:', response.data);
+                toast('Test API call successful. Check console.');
+              } catch (error) {
+                console.error('📡 Test API error:', error);
+                toast.error('Test API call failed. Check console.');
+              }
+            }}
+          >
+            Test API
+          </button>
+        </div>
+        <div className="card-body">
+          <div className="row">
+            {/* Main form column - wider on larger screens, more focused layout */}
+            <div className={`${showPreviousOrders && shipStationOrders.length > 0 ? 'col-xl-9 col-lg-8' : 'col-12'} mb-4`}>
+              
+            {formError && !successMessage && (
+              <div className="alert alert-danger alert-dismissible fade show" role="alert">
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formError) }}></div>
+                <button type="button" className="btn-close" onClick={() => setFormError(null)} aria-label="Close"></button>
+              </div>
+            )}
+            {successMessage && (
+              <div className="alert alert-success">
+                {successMessage}
+                {createdTicketId && (
+                  <p className="mb-0 mt-1">
+                    <strong>Ticket #{createdTicketId}</strong> created.
+                    <a href={`/tickets/${createdTicketId}`} className="alert-link ms-2" target="_blank" rel="noopener noreferrer">
+                      View Ticket <i className="fas fa-external-link-alt fa-xs"></i>
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
             
-        {formError && !successMessage && (
-          <div className="alert alert-danger alert-dismissible fade show" role="alert">
-            <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formError) }}></div>
-            <button type="button" className="btn-close" onClick={() => setFormError(null)} aria-label="Close"></button>
-          </div>
-        )}
-        {successMessage && (
-          <div className="alert alert-success">
-            {successMessage}
-            {createdTicketId && (
-              <p className="mb-0 mt-1">
-                <strong>Ticket #{createdTicketId}</strong> created.
-                <a href={`/tickets/${createdTicketId}`} className="alert-link ms-2" target="_blank" rel="noopener noreferrer">
-                  View Ticket <i className="fas fa-external-link-alt fa-xs"></i>
-                </a>
-              </p>
-            )}
-          </div>
-        )}
-        
-        {createdDraftOrder && (
-          <div className="alert alert-info mt-3">
-            <p className="fw-bold mb-1">Quote Details:</p>
-            <p className="mb-1"><strong>Name:</strong> {createdDraftOrder.name}</p>
-            <p className="mb-1"><strong>Status:</strong> <span className={`badge bg-${createdDraftOrder.status === 'OPEN' ? 'success' : 'secondary'}`}>{createdDraftOrder.status}</span></p>
-            <p className="mb-1"><strong>Total:</strong> ${createdDraftOrder.totalPrice.toFixed(2)} {createdDraftOrder.currencyCode}</p>
-            {createdDraftOrder.invoiceUrl && (
-              <p className="mb-1"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break alert-link">{createdDraftOrder.invoiceUrl} <i className="fas fa-external-link-alt fa-xs"></i></a></p>
-            )}
-            <div className="mt-3">
-              <a href={`/tickets/${createdTicketId}`} className="btn btn-sm btn-outline-primary me-2">
-                <i className="fas fa-ticket-alt me-1"></i> View Ticket
-              </a>
-              {(createdDraftOrder as any).adminUrl && (
-                <a href={(createdDraftOrder as any).adminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary me-2">
-                  <i className="fas fa-store me-1"></i> View in Shopify
-                </a>
-              )}
-              {customer.email && (
-                <button 
-                  type="button" 
-                  className="btn btn-sm btn-success" 
-                  onClick={sendInvoiceEmail}
-                  disabled={isSendingEmail}
-                >
-                  {isSendingEmail ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-envelope me-1"></i> Send Invoice Email
-                    </>
+            {createdDraftOrder && (
+              <div className="alert alert-info mt-3">
+                <p className="fw-bold mb-1">Quote Details:</p>
+                <p className="mb-1"><strong>Name:</strong> {createdDraftOrder.name}</p>
+                <p className="mb-1"><strong>Status:</strong> <span className={`badge bg-${createdDraftOrder.status === 'OPEN' ? 'success' : 'secondary'}`}>{createdDraftOrder.status}</span></p>
+                <p className="mb-1"><strong>Total:</strong> ${createdDraftOrder.totalPrice.toFixed(2)} {createdDraftOrder.currencyCode}</p>
+                {createdDraftOrder.invoiceUrl && (
+                  <p className="mb-1"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break alert-link">{createdDraftOrder.invoiceUrl} <i className="fas fa-external-link-alt fa-xs"></i></a></p>
+                )}
+                <div className="mt-3">
+                  <a href={`/tickets/${createdTicketId}`} className="btn btn-sm btn-outline-primary me-2">
+                    <i className="fas fa-ticket-alt me-1"></i> View Ticket
+                  </a>
+                  {(createdDraftOrder as any).adminUrl && (
+                    <a href={(createdDraftOrder as any).adminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary me-2">
+                      <i className="fas fa-store me-1"></i> View in Shopify
+                    </a>
                   )}
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} noValidate>
-          <fieldset className="border p-3 rounded mb-4">
-            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Customer Information</legend>
-            
-            {/* Customer Search Field */}
-            <div className="mb-4 position-relative" ref={customerSearchRef}>
-              <label htmlFor="customerSearch" className="form-label fw-medium">Find Existing Customer</label>
-              <div className="input-group">
-                <span className="input-group-text"><i className="fas fa-search"></i></span>
-                <input
-                  type="text"
-                  id="customerSearch"
-                  className="form-control"
-                  placeholder="Search by name, email, or phone..."
-                  value={customerSearchTerm}
-                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                  onFocus={() => { if (customerSearchTerm.trim()) setShowCustomerResults(true); }}
-                />
-              </div>
-              {showCustomerResults && (
-                <div className="dropdown-menu d-block position-absolute w-100 mt-1 shadow-lg" style={{ zIndex: 1051 }}>
-                  {isSearchingCustomer && <div className="dropdown-item">Searching...</div>}
-                  {customerSearchError && <div className="dropdown-item text-danger">{customerSearchError}</div>}
-                  {!isSearchingCustomer && customerSearchResults.length > 0 && customerSearchResults.map(cust => (
-                    <button
-                      type="button"
-                      key={cust.id}
-                      className="dropdown-item"
-                      onClick={() => handleCustomerSelect(cust)}
+                  {customer.email && (
+                    <button 
+                      type="button" 
+                      className="btn btn-sm btn-success" 
+                      onClick={sendInvoiceEmail}
+                      disabled={isSendingEmail}
                     >
-                      <div><strong>{cust.firstName} {cust.lastName}</strong> ({cust.company})</div>
-                      <small className="text-muted">{cust.email}</small>
+                      {isSendingEmail ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-envelope me-1"></i> Send Invoice Email
+                        </>
+                      )}
                     </button>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Horizontal rule to separate search from manual entry */}
-            <div className="d-flex align-items-center my-3">
-              <hr className="flex-grow-1" />
-              <span className="mx-2 text-muted small">OR ENTER MANUALLY</span>
-              <hr className="flex-grow-1" />
-            </div>
+            <form onSubmit={handleSubmit} noValidate>
+              <fieldset className="border p-4 rounded mb-4 bg-light">
+                <legend className="h5 fw-normal mb-3 float-none w-auto px-2 bg-white">
+                  <i className="fas fa-user me-2 text-primary"></i>Customer Information
+                </legend>
+                
+                {/* Customer Search Field */}
+                <div className="mb-4 position-relative" ref={customerSearchRef}>
+                  <label htmlFor="customerSearch" className="form-label fw-medium">Find Existing Customer</label>
+                  <div className="input-group">
+                    <span className="input-group-text"><i className="fas fa-search"></i></span>
+                    <input
+                      type="text"
+                      id="customerSearch"
+                      className="form-control"
+                      placeholder="Search by name, email, or phone..."
+                      value={customerSearchTerm}
+                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                      onFocus={() => { if (customerSearchTerm.trim()) setShowCustomerResults(true); }}
+                    />
+                  </div>
+                  {showCustomerResults && (
+                    <div className="dropdown-menu d-block position-absolute w-100 mt-1 shadow-lg" style={{ zIndex: 1051 }}>
+                      {isSearchingCustomer && <div className="dropdown-item">Searching...</div>}
+                      {customerSearchError && <div className="dropdown-item text-danger">{customerSearchError}</div>}
+                      {!isSearchingCustomer && customerSearchResults.length > 0 && customerSearchResults.map(cust => (
+                        <button
+                          type="button"
+                          key={cust.id}
+                          className="dropdown-item"
+                          onClick={() => handleCustomerSelect(cust)}
+                        >
+                          <div><strong>{cust.firstName} {cust.lastName}</strong> ({cust.company})</div>
+                          <small className="text-muted">{cust.email}</small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-            <div className="row g-3">
-              <div className="col-md-4">
-                <label htmlFor="firstName" className="form-label">First Name</label>
-                <input type="text" className="form-control" id="firstName" name="firstName" value={customer.firstName} onChange={handleCustomerChange} />
-              </div>
-              <div className="col-md-4">
-                <label htmlFor="lastName" className="form-label">Last Name</label>
-                <input type="text" className="form-control" id="lastName" name="lastName" value={customer.lastName} onChange={handleCustomerChange} />
-              </div>
-              <div className="col-md-4">
-                <label htmlFor="company" className="form-label">Company</label>
-                <input type="text" className="form-control" id="company" name="company" value={customer.company} onChange={handleCustomerChange} />
-              </div>
-              <div className="col-md-6">
-                <label htmlFor="email" className="form-label">Email {sendShopifyInvoice && <span className="text-danger">*</span>}</label>
-                <input type="email" className="form-control" id="email" name="email" value={customer.email} onChange={handleCustomerChange} required={sendShopifyInvoice} />
-              </div>
-              <div className="col-md-6">
-                <label htmlFor="phone" className="form-label">Phone</label>
-                <input type="tel" className="form-control" id="phone" name="phone" value={customer.phone} onChange={handleCustomerChange} />
-              </div>
-            </div>
-          </fieldset>
+                {/* Horizontal rule to separate search from manual entry */}
+                <div className="d-flex align-items-center my-4">
+                  <hr className="flex-grow-1" />
+                  <span className="mx-3 text-muted small fw-medium">OR ENTER MANUALLY</span>
+                  <hr className="flex-grow-1" />
+                </div>
 
-          <fieldset className="border p-3 rounded mb-4">
-            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Line Items</legend>
-            {lineItems.map((itemData, index) => {
-              const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData();
-              return (
-                <div key={currentSearchState.id || index} className={`mb-3 p-3 border rounded ${index > 0 ? 'mt-3' : ''}`}>
-                  <div className="row g-3 align-items-start">
-                    <div className="col-lg-5 col-md-12">
-                      <label htmlFor={`product-${index}`} className="form-label">Product Search</label>
-                      <div className="position-relative" ref={setRef(index)}>
-                        <input
-                          type="text"
-                          className="form-control"
-                          id={`product-${index}`}
-                          placeholder="Search by name, SKU, or variant..."
-                          value={currentSearchState.searchTerm}
-                          onChange={(e) => handleSearchTermChange(index, e.target.value)}
-                          onFocus={() => handleInputFocus(index)}
-                          onKeyDown={(e) => handleKeyDown(index, e)}
-                          autoComplete="off"
-                          role="combobox"
-                          aria-autocomplete="list"
-                          aria-expanded={activeSearchDropdown === index}
-                          aria-controls={`search-results-${index}`}
-                        />
-                        {currentSearchState.isSearching && (
-                          <div className="position-absolute top-50 end-0 translate-middle-y me-3"> {/* Adjusted me-3 for better spacing with clear button if any */}
-                            <div className="spinner-border spinner-border-sm text-secondary" role="status">
-                              <span className="visually-hidden">Searching...</span>
-                            </div>
-                          </div>
-                        )}
-                        {activeSearchDropdown === index && (
-                          <div id={`search-results-${index}`} className="dropdown-menu d-block position-absolute start-0 w-100 mt-1 shadow-lg" style={{zIndex: 1050}}> {/* Bootstrap's dropdown-menu for styling */}
-                            <div className="px-2 py-1 bg-light text-muted small border-bottom">
-                              {currentSearchState.isSearching ? (
-                                <span><i className="fas fa-spinner fa-spin me-1"></i>Searching...</span>
-                              ) : (
-                                <span>
-                                  {currentSearchState.searchResults.length} result(s) for &ldquo;{currentSearchState.searchTerm}&rdquo;
-                                </span>
-                              )}
-                            </div>
-                            
-                            {currentSearchState.error && !currentSearchState.isSearching && (
-                              <div className="p-2 text-danger small">{currentSearchState.error}</div>
-                            )}
-                            
-                            {!currentSearchState.error && currentSearchState.searchResults.length === 0 && !currentSearchState.isSearching && currentSearchState.searchTerm.trim() !== "" && (
-                              <div className="p-2 text-muted small">No products found.</div>
-                            )}
-                            
-                            <div className="list-group list-group-flush" style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                              {currentSearchState.searchResults.map((result, resultIdx) => (
-                                <button
-                                  type="button"
-                                  key={result.variant.numericVariantIdShopify || `${result.variant.sku}-${resultIdx}`}
-                                  className={`list-group-item list-group-item-action py-2 px-3 text-start ${resultIdx === focusedResultIndex ? 'active' : ''}`}
-                                  onClick={() => addProductToLineItems(result, index)}
-                                  onMouseEnter={() => setFocusedResultIndex(resultIdx)} // Optional: focus on hover
-                                >
-                                  <div className="d-flex align-items-center">
-                                    {result.parentProduct.primaryImageUrl ? (
-                                       <Image 
-                                          src={result.parentProduct.primaryImageUrl} 
-                                          alt={result.parentProduct.name} 
-                                          width={40} 
-                                          height={40} 
-                                          className="object-fit-contain me-2 rounded border"
-                                          // Add unoptimized if domain not in next.config.js, or configure domain
-                                          // unoptimized 
-                                        />
-                                    ) : (
-                                      <div 
-                                        className="bg-light d-flex align-items-center justify-content-center rounded border me-2" 
-                                        style={{ width: '40px', height: '40px', minWidth: '40px' }}
-                                      >
-                                        <i className="fas fa-image text-muted"></i>
-                                      </div>
-                                    )}
-                                    <div>
-                                      <div className="fw-medium small">{result.parentProduct.name}</div>
-                                      <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-75' : 'text-muted'}`}>
-                                        {result.variant.variantTitle} (SKU: {result.variant.sku})
-                                      </div>
-                                      <div className={`small fw-bold ${resultIdx === focusedResultIndex ? '' : 'text-primary'}`}>
-                                        ${result.variant.price?.toFixed(2)} {result.variant.currency}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                <div className="row g-3">
+                  <div className="col-lg-6">
+                    <label htmlFor="firstName" className="form-label">First Name</label>
+                    <input type="text" className="form-control" id="firstName" name="firstName" value={customer.firstName} onChange={handleCustomerChange} />
+                  </div>
+                  <div className="col-lg-6">
+                    <label htmlFor="lastName" className="form-label">Last Name</label>
+                    <input type="text" className="form-control" id="lastName" name="lastName" value={customer.lastName} onChange={handleCustomerChange} />
+                  </div>
+                  <div className="col-12">
+                    <label htmlFor="company" className="form-label">Company</label>
+                    <input type="text" className="form-control" id="company" name="company" value={customer.company} onChange={handleCustomerChange} />
+                  </div>
+                  <div className="col-lg-6">
+                    <label htmlFor="email" className="form-label">Email {sendShopifyInvoice && <span className="text-danger">*</span>}</label>
+                    <input type="email" className="form-control" id="email" name="email" value={customer.email} onChange={handleCustomerChange} required={sendShopifyInvoice} />
+                  </div>
+                  <div className="col-lg-6">
+                    <label htmlFor="phone" className="form-label">Phone</label>
+                    <input type="tel" className="form-control" id="phone" name="phone" value={customer.phone} onChange={handleCustomerChange} />
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset className="border p-4 rounded mb-4 bg-light">
+                <legend className="h5 fw-normal mb-3 float-none w-auto px-2 bg-white">
+                  <i className="fas fa-shopping-cart me-2 text-primary"></i>Line Items
+                </legend>
+                {lineItems.map((itemData, index) => {
+                  const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData();
+                  return (
+                    <div key={currentSearchState.id || index} className={`mb-4 p-4 border rounded bg-white ${index > 0 ? 'mt-4' : ''}`}>
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <h6 className="mb-0 text-primary fw-medium">Product #{index + 1}</h6>
+                        {lineItems.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => removeLineItem(index)}
+                            aria-label="Remove item"
+                          >
+                            <i className="fas fa-trash-alt me-1"></i>Remove
+                          </button>
                         )}
                       </div>
-                       {currentSearchState.error && !currentSearchState.isSearching && activeSearchDropdown !== index && (
-                          <div className="text-danger small mt-1">{currentSearchState.error}</div>
-                        )}
-                    </div>
-                    
-                    <div className="col-lg-4 col-md-6">
-                      <label htmlFor={`itemTitle-${index}`} className="form-label">Selected Product</label>
-                      <input 
-                        type="text" 
-                        className="form-control bg-light" 
-                        id={`itemTitle-${index}`} 
-                        value={itemData.productDisplay || ''} 
-                        readOnly 
-                        placeholder="Product details appear here"
-                        tabIndex={-1}
-                      />
-                      {itemData.unitPrice !== undefined && itemData.currencyCode && (
-                          <small className="text-muted d-block mt-1">
-                              Unit Price: ${itemData.unitPrice.toFixed(2)} {itemData.currencyCode}
-                          </small>
-                      )}
-                    </div>
-
-                    <div className="col-lg-2 col-md-3 col-8">
-                      <label htmlFor={`quantity-${index}`} className="form-label">Quantity</label>
-                      <input
-                        type="number"
-                        className="form-control"
-                        id={`quantity-${index}`}
-                        min="1"
-                        value={itemData.quantity}
-                        onChange={(e) => handleLineItemChange(index, 'quantity', e.target.value)}
-                      />
-                    </div>
-
-                    <div className="col-lg-1 col-md-3 col-4 d-flex align-items-end">
-                      <button
-                        type="button"
-                        className="btn btn-outline-danger w-100"
-                        onClick={() => removeLineItem(index)}
-                        disabled={lineItems.length <= 1}
-                        aria-label="Remove item"
-                      >
-                        <i className="fas fa-trash-alt"></i>
-                      </button>
-                    </div>
-                  </div>
-                  {/* Debug button - kept for consistency with original */}
-                  {/* <button 
-                    type="button" 
-                    className="btn btn-sm btn-outline-secondary mt-2" 
-                    onClick={() => {
-                      console.log(`🔍 Current search state for item ${index}:`, currentSearchState);
-                      console.log(`🔍 activeSearchDropdown:`, activeSearchDropdown);
-                      if (currentSearchState.searchResults.length > 0) setActiveSearchDropdown(index);
-                    }}
-                  >
-                    Debug Search ({currentSearchState.searchResults.length})
-                  </button> */}
-                </div>
-              );
-            })}
-            <button type="button" className="btn btn-outline-primary" onClick={addLineItem}>
-              <i className="fas fa-plus me-2"></i>Add Product
-            </button>
-          </fieldset>
-
-          <fieldset className="border p-3 rounded mb-4">
-            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Quote Type & Options</legend>
-            
-            <div className="mb-3">
-              <label htmlFor="quoteType" className="form-label">Quote Type <span className="text-danger">*</span></label>
-              <select 
-                className="form-select" 
-                id="quoteType" 
-                value={quoteType} 
-                onChange={(e) => setQuoteType(e.target.value as 'material_only' | 'material_and_delivery')}
-                required
-              >
-                <option value="material_and_delivery">Material and Delivery</option>
-                <option value="material_only">Material Only (Customer arranges pickup)</option>
-              </select>
-              <div className="form-text">
-                {quoteType === 'material_only' && 'Materials only - customer arranges pickup/delivery'}
-                {quoteType === 'material_and_delivery' && 'Materials with delivery - Alliance Chemical delivers to customer location'}
-              </div>
-            </div>
-
-            {quoteType === 'material_only' && (
-              <>
-                <div className="mb-3">
-                  <label htmlFor="deliveryTerms" className="form-label">Delivery Terms</label>
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    id="deliveryTerms" 
-                    value={deliveryTerms} 
-                    onChange={(e) => setDeliveryTerms(e.target.value)}
-                    placeholder="e.g., Customer arranges pickup, FOB Origin, etc."
-                  />
-                </div>
-                
-                <div className="mb-3">
-                  <label htmlFor="materialOnlyDisclaimer" className="form-label">Material-Only Disclaimer</label>
-                  <textarea 
-                    className="form-control" 
-                    id="materialOnlyDisclaimer" 
-                    rows={3} 
-                    value={materialOnlyDisclaimer} 
-                    onChange={(e) => setMaterialOnlyDisclaimer(e.target.value)}
-                    placeholder="Disclaimer text that will appear on the quote..."
-                  />
-                  <div className="form-text">This disclaimer will appear prominently on the quote and email.</div>
-                </div>
-              </>
-            )}
-          </fieldset>
-
-          {/* Billing Address Section */}
-          <fieldset className="border p-3 rounded mb-4">
-            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Billing Address</legend>
-            
-            <div className="form-check mb-3">
-              <input 
-                className="form-check-input" 
-                type="checkbox" 
-                id="useSameAddressForBilling"
-                checked={useSameAddressForBilling}
-                onChange={(e) => setUseSameAddressForBilling(e.target.checked)}
-              />
-              <label className="form-check-label" htmlFor="useSameAddressForBilling">
-                Same as shipping address
-              </label>
-            </div>
-
-            {!useSameAddressForBilling && (
-              <div className="row g-3">
-                <div className="col-md-6">
-                  <label htmlFor="billCompany" className="form-label">Company</label>
-                  <input type="text" className="form-control" id="billCompany" name="company" value={billingAddress.company || ''} onChange={handleBillingAddressChange} />
-                </div>
-                <div className="col-md-3">
-                  <label htmlFor="billFirstName" className="form-label">First Name <span className="text-danger">*</span></label>
-                  <input type="text" className="form-control" id="billFirstName" name="firstName" value={billingAddress.firstName || ''} onChange={handleBillingAddressChange} required />
-                </div>
-                <div className="col-md-3">
-                  <label htmlFor="billLastName" className="form-label">Last Name <span className="text-danger">*</span></label>
-                  <input type="text" className="form-control" id="billLastName" name="lastName" value={billingAddress.lastName || ''} onChange={handleBillingAddressChange} required />
-                </div>
-                
-                <div className="col-12">
-                  <label htmlFor="billAddress1" className="form-label">Address <span className="text-danger">*</span></label>
-                  <input type="text" className="form-control" id="billAddress1" name="address1" value={billingAddress.address1 || ''} onChange={handleBillingAddressChange} required />
-                </div>
-                
-                <div className="col-12">
-                  <label htmlFor="billAddress2" className="form-label">Address Line 2</label>
-                  <input type="text" className="form-control" id="billAddress2" name="address2" value={billingAddress.address2 || ''} onChange={handleBillingAddressChange} />
-                </div>
-                
-                <div className="col-md-4">
-                  <label htmlFor="billCity" className="form-label">City <span className="text-danger">*</span></label>
-                  <input type="text" className="form-control" id="billCity" name="city" value={billingAddress.city || ''} onChange={handleBillingAddressChange} required />
-                </div>
-                
-                <div className="col-md-3">
-                  <label htmlFor="billCountry" className="form-label">Country <span className="text-danger">*</span></label>
-                  <select id="billCountry" name="country" className="form-select" value={billingAddress.country} onChange={handleBillingAddressChange} required>
-                    <option value="United States">United States</option>
-                    <option value="Canada">Canada</option>
-                  </select>
-                </div>
-                
-                <div className="col-md-3">
-                  <label htmlFor="billProvince" className="form-label">State/Province <span className="text-danger">*</span></label>
-                  <input type="text" className="form-control" id="billProvince" name="province" value={billingAddress.province || ''} onChange={handleBillingAddressChange} placeholder="e.g., TX or Texas" required />
-                </div>
-                
-                <div className="col-md-2">
-                  <label htmlFor="billZip" className="form-label">ZIP/Postal Code <span className="text-danger">*</span></label>
-                  <input type="text" className="form-control" id="billZip" name="zip" value={billingAddress.zip || ''} onChange={handleBillingAddressChange} required />
-                </div>
-                
-                <div className="col-md-6">
-                  <label htmlFor="billPhone" className="form-label">Phone</label>
-                  <input type="tel" className="form-control" id="billPhone" name="phone" value={billingAddress.phone || ''} onChange={handleBillingAddressChange} />
-                </div>
-              </div>
-            )}
-          </fieldset>
-
-          <fieldset className="border p-3 rounded mb-4">
-            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">
-              {quoteType === 'material_only' ? 'Material Pickup/Delivery Address' : 'Shipping Address'}
-              <small className="text-muted fw-light"> 
-                ({quoteType === 'material_only' ? 'For pickup coordination or customer-arranged delivery' : 'Required for quote & shipping calculation'})
-              </small>
-            </legend>
-            <div className="row g-3">
-              <div className="col-md-6">
-                <label htmlFor="shipCompany" className="form-label">Company</label>
-                <input type="text" className="form-control" id="shipCompany" name="company" value={shippingAddress.company || ''} onChange={handleShippingAddressChange} />
-              </div>
-              <div className="col-md-3">
-                <label htmlFor="shipFirstName" className="form-label">First Name <span className="text-danger">*</span></label>
-                <input type="text" className="form-control" id="shipFirstName" name="firstName" value={shippingAddress.firstName || ''} onChange={handleShippingAddressChange} required />
-              </div>
-              <div className="col-md-3">
-                <label htmlFor="shipLastName" className="form-label">Last Name <span className="text-danger">*</span></label>
-                <input type="text" className="form-control" id="shipLastName" name="lastName" value={shippingAddress.lastName || ''} onChange={handleShippingAddressChange} required />
-              </div>
-              
-              <div className="col-12">
-                <label htmlFor="shipAddress1" className="form-label">Address <span className="text-danger">*</span></label>
-                <input type="text" className="form-control" id="shipAddress1" name="address1" value={shippingAddress.address1 || ''} onChange={handleShippingAddressChange} required />
-              </div>
-              
-              <div className="col-md-4">
-                <label htmlFor="shipCity" className="form-label">City <span className="text-danger">*</span></label>
-                <input type="text" className="form-control" id="shipCity" name="city" value={shippingAddress.city || ''} onChange={handleShippingAddressChange} required />
-              </div>
-              
-              <div className="col-md-3">
-                <label htmlFor="shipCountry" className="form-label">Country <span className="text-danger">*</span></label>
-                <select id="shipCountry" name="country" className="form-select" value={shippingAddress.country} onChange={handleShippingAddressChange} required>
-                  <option value="United States">United States</option>
-                  <option value="Canada">Canada</option>
-                </select>
-              </div>
-              <div className="col-md-3">
-                <label htmlFor="shipProvince" className="form-label">State/Province <span className="text-danger">*</span></label>
-                <select className="form-select" id="shipProvince" name="province" value={shippingAddress.province || ''} onChange={handleShippingAddressChange} required>
-                  <option value="">Select {shippingAddress.country === 'Canada' ? 'Province' : 'State'}...</option>
-                  {selectedProvinces.map(provinceOpt => (
-                    <option key={provinceOpt} value={provinceOpt}>{provinceOpt}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-md-2">
-                <label htmlFor="shipZip" className="form-label">ZIP/Postal <span className="text-danger">*</span></label>
-                <input type="text" className="form-control" id="shipZip" name="zip" value={shippingAddress.zip || ''} onChange={handleShippingAddressChange} required />
-              </div>
-              <div className="col-md-4">
-                <label htmlFor="shipPhone" className="form-label">Shipping Phone</label>
-                <input type="tel" className="form-control" id="shipPhone" name="phone" value={shippingAddress.phone || ''} onChange={handleShippingAddressChange} placeholder="For delivery purposes"/>
-              </div>
-              
-              <div className="col-12 mt-3">
-                <button 
-                  type="button" 
-                  className="btn btn-outline-info" 
-                  onClick={calculateShipping}
-                  disabled={
-                    isCalculatingShipping || 
-                    !lineItems.some(item => item.numericVariantIdShopify && item.quantity > 0) ||
-                    !shippingAddress.address1 || 
-                    !shippingAddress.city || 
-                    !shippingAddress.zip || 
-                    !shippingAddress.province || 
-                    !shippingAddress.country
-                  }
-                >
-                  {isCalculatingShipping ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Calculating Shipping...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-shipping-fast me-2"></i> Calculate Shipping Costs
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </fieldset>
-
-          {(priceSummary.subtotal !== null || priceSummary.shipping !== null || priceSummary.total !== null) && (
-            <div className="card my-4 bg-light border">
-              <div className="card-body p-3">
-                <h5 className="card-title h6 text-muted mb-2">Price Estimate</h5>
-                <div className="row">
-                  <div className="col-lg-6 offset-lg-6 col-md-8 offset-md-4">
-                    <table className="table table-sm mb-0">
-                      <tbody>
-                        <tr>
-                          <td>Subtotal:</td>
-                          <td className="text-end">
-                            {priceSummary.subtotal !== null && priceSummary.subtotal !== undefined ? 
-                              `$${priceSummary.subtotal.toFixed(2)} ${priceSummary.currencyCode}` : 
-                              <span className="text-muted">N/A</span>}
-                          </td>
-                        </tr>
-                        <tr>
-                          <td>
-                            Shipping:
-                            {selectedShippingRateIndex !== null && shippingRates.length > 0 && (
-                              <small className="text-muted d-block">
-                                {shippingRates[selectedShippingRateIndex].title}
-                              </small>
+                      
+                      <div className="row g-3 align-items-start">
+                        <div className="col-12">
+                          <label htmlFor={`product-${index}`} className="form-label fw-medium">Product Search</label>
+                          <div className="position-relative" ref={setRef(index)}>
+                            <input
+                              type="text"
+                              className="form-control"
+                              id={`product-${index}`}
+                              placeholder="Search by name, SKU, or variant..."
+                              value={currentSearchState.searchTerm}
+                              onChange={(e) => handleSearchTermChange(index, e.target.value)}
+                              onFocus={() => handleInputFocus(index)}
+                              onKeyDown={(e) => handleKeyDown(index, e)}
+                              autoComplete="off"
+                              role="combobox"
+                              aria-autocomplete="list"
+                              aria-expanded={activeSearchDropdown === index}
+                              aria-controls={`search-results-${index}`}
+                            />
+                            {currentSearchState.isSearching && (
+                              <div className="position-absolute top-50 end-0 translate-middle-y me-3">
+                                <div className="spinner-border spinner-border-sm text-secondary" role="status">
+                                  <span className="visually-hidden">Searching...</span>
+                                </div>
+                              </div>
                             )}
-                          </td>
-                          <td className="text-end">
-                            {priceSummary.shipping !== null ? (
-                              <>
-                                ${typeof priceSummary.shipping === 'number' ? priceSummary.shipping.toFixed(2) : '0.00'} {priceSummary.currencyCode}
-                                {shippingRates.length > 1 && (
-                                  <button
-                                    className="btn btn-sm btn-link p-0 ms-2"
-                                    onClick={() => setShowShippingRatesModal(true)}
-                                    type="button"
-                                  >
-                                    <i className="fas fa-edit"></i>
-                                  </button>
+                            {activeSearchDropdown === index && (
+                              <div id={`search-results-${index}`} className="dropdown-menu d-block position-absolute start-0 w-100 mt-1 shadow-lg" style={{zIndex: 1050}}>
+                                <div className="px-2 py-1 bg-light text-muted small border-bottom">
+                                  {currentSearchState.isSearching ? (
+                                    <span><i className="fas fa-spinner fa-spin me-1"></i>Searching...</span>
+                                  ) : (
+                                    <span>
+                                      {currentSearchState.searchResults.length} result(s) for &ldquo;{currentSearchState.searchTerm}&rdquo;
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {currentSearchState.error && !currentSearchState.isSearching && (
+                                  <div className="p-2 text-danger small">{currentSearchState.error}</div>
                                 )}
-                              </>
-                            ) : (
-                              isCalculatingShipping ? 'Calculating...' : <span className="text-muted">Not calculated</span>
+                                
+                                {!currentSearchState.error && currentSearchState.searchResults.length === 0 && !currentSearchState.isSearching && currentSearchState.searchTerm.trim() !== "" && (
+                                  <div className="p-2 text-muted small">No products found.</div>
+                                )}
+                                
+                                <div className="list-group list-group-flush" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                                  {currentSearchState.searchResults.map((result, resultIdx) => (
+                                    <button
+                                      type="button"
+                                      key={result.variant.numericVariantIdShopify || `${result.variant.sku}-${resultIdx}`}
+                                      className={`list-group-item list-group-item-action py-2 px-3 text-start ${resultIdx === focusedResultIndex ? 'active' : ''}`}
+                                      onClick={() => addProductToLineItems(result, index)}
+                                      onMouseEnter={() => setFocusedResultIndex(resultIdx)}
+                                    >
+                                      <div className="d-flex align-items-center">
+                                        {result.parentProduct.primaryImageUrl ? (
+                                           <Image 
+                                              src={result.parentProduct.primaryImageUrl} 
+                                              alt={result.parentProduct.name} 
+                                              width={40} 
+                                              height={40} 
+                                              className="object-fit-contain me-2 rounded border"
+                                          />
+                                        ) : (
+                                          <div 
+                                            className="bg-light d-flex align-items-center justify-content-center rounded border me-2" 
+                                            style={{ width: '40px', height: '40px', minWidth: '40px' }}
+                                          >
+                                            <i className="fas fa-image text-muted"></i>
+                                          </div>
+                                        )}
+                                        <div>
+                                          <div className="fw-medium small">{result.parentProduct.name}</div>
+                                          <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-75' : 'text-muted'}`}>
+                                            {result.variant.variantTitle} (SKU: {result.variant.sku})
+                                          </div>
+                                          <div className={`small fw-bold ${resultIdx === focusedResultIndex ? '' : 'text-primary'}`}>
+                                            ${result.variant.price?.toFixed(2)} {result.variant.currency}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
                             )}
-                          </td>
-                        </tr>
-                        {priceSummary.tax !== null && (
-                          <tr>
-                            <td>Tax:</td>
-                            <td className="text-end">
-                              ${priceSummary.tax.toFixed(2)} {priceSummary.currencyCode}
-                            </td>
-                          </tr>
-                        )}
-                        <tr className="fw-bold border-top">
-                          <td>Estimated Total:</td>
-                          <td className="text-end">
-                            {priceSummary.total !== null ? 
-                              `$${priceSummary.total.toFixed(2)} ${priceSummary.currencyCode}` : 
-                              (isCalculatingShipping ? 'Calculating...' : <span className="text-muted">N/A</span>)}
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <fieldset className="border p-3 rounded mb-4">
-            <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Quote Options</legend>
-            <div className="mb-3">
-              <label htmlFor="note" className="form-label">Notes for Quote</label>
-              <textarea 
-                className="form-control" 
-                id="note" 
-                rows={3} 
-                value={note} 
-                onChange={(e) => setNote(e.target.value)}
-                placeholder="Internal notes or details for the customer..."
-              ></textarea>
-            </div>
-            <div className="form-check">
-              <input 
-                className="form-check-input" 
-                type="checkbox" 
-                id="sendShopifyInvoice"
-                checked={sendShopifyInvoice}
-                onChange={(e) => setSendShopifyInvoice(e.target.checked)}
-              />
-              <label className="form-check-label" htmlFor="sendShopifyInvoice">
-                Send Shopify invoice to customer&apos;s email
-              </label>
-            </div>
-          </fieldset>
-
-          <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-4 pt-3 border-top">
-             <button 
-                type="button" 
-                className="btn btn-outline-secondary me-md-2" 
-                onClick={() => router.back()} // Or router.push('/admin/quotes') etc.
-                disabled={isLoading}
-              >
-                Cancel
-              </button>
-            <button 
-              type="submit" 
-              className="btn btn-primary btn-lg" 
-              disabled={isLoading || successMessage !== null}
-            >
-              {isLoading ? (
-                <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                  Creating Quote...
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-file-invoice-dollar me-2"></i> Create Quote
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-
-        </div>
-        
-        {/* Previous Orders Sidebar */}
-        {showPreviousOrders && shipStationOrders.length > 0 && (
-          <div className="col-lg-4">
-            <div className="card h-100 border-start-0 border-top-0 border-bottom-0 border-end border-primary">
-              <div className="card-header bg-light d-flex justify-content-between align-items-center">
-                <h6 className="mb-0">
-                  <i className="fas fa-history me-2 text-primary"></i>
-                  Previous Orders
-                </h6>
-                <button
-                  className="btn btn-sm btn-outline-secondary"
-                  onClick={() => setShowPreviousOrders(false)}
-                  title="Hide previous orders"
-                >
-                  <i className="fas fa-times"></i>
-                </button>
-              </div>
-              <div className="card-body p-0" style={{ maxHeight: '600px', overflowY: 'auto' }}>
-                {isLoadingOrders && (
-                  <div className="text-center py-3">
-                    <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                    Loading order history...
-                  </div>
-                )}
-                
-                {ordersError && (
-                  <div className="alert alert-warning m-3 py-2 mb-0">
-                    <i className="fas fa-exclamation-triangle me-2"></i>
-                    <small>{ordersError}</small>
-                  </div>
-                )}
-                
-                {!isLoadingOrders && !ordersError && shipStationOrders.length === 0 && (
-                  <div className="text-center py-3 text-muted">
-                    <i className="fas fa-inbox fa-2x mb-2 d-block text-muted opacity-50"></i>
-                    <small>No previous orders found</small>
-                  </div>
-                )}
-                
-                {!isLoadingOrders && shipStationOrders.length > 0 && (
-                  <div className="list-group list-group-flush">
-                    {shipStationOrders.slice(0, 10).map((order, index) => (
-                      <div key={`${order.orderNumber}-${index}`} className="list-group-item p-3 border-0">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <div>
-                            <h6 className="mb-1 fw-bold text-primary">
-                              #{order.orderNumber}
-                            </h6>
-                            <small className="text-muted">
-                              {new Date(order.orderDate).toLocaleDateString()} • 
-                              <span className={`badge ms-1 ${
-                                order.orderStatus === 'shipped' ? 'bg-success' :
-                                order.orderStatus === 'awaiting_shipment' ? 'bg-warning' :
-                                order.orderStatus === 'cancelled' ? 'bg-danger' : 'bg-secondary'
-                              }`}>
-                                {order.orderStatus.replace('_', ' ')}
-                              </span>
-                            </small>
                           </div>
+                           {currentSearchState.error && !currentSearchState.isSearching && activeSearchDropdown !== index && (
+                              <div className="text-danger small mt-1">{currentSearchState.error}</div>
+                            )}
                         </div>
                         
-                        {order.items && order.items.length > 0 && (
-                          <div className="small text-muted mb-2">
-                            <i className="fas fa-shopping-cart me-1"></i>
-                            {order.items.slice(0, 2).map(item => `${item.name} x${item.quantity}`).join(', ')}
-                            {order.items.length > 2 && ` +${order.items.length - 2} more`}
-                          </div>
-                        )}
-                        
-                        {order.trackingNumbers && order.trackingNumbers.length > 0 && (
-                          <div className="small mb-2">
-                            <i className="fas fa-truck me-1 text-secondary"></i>
-                            <span className="badge bg-light text-dark border font-monospace">
-                              {order.trackingNumbers[0]}
-                            </span>
-                            {order.trackingNumbers.length > 1 && (
-                              <span className="text-muted ms-1">+{order.trackingNumbers.length - 1} more</span>
-                            )}
-                          </div>
-                        )}
-                        
-                        {/* Always show address button with different states */}
-                        <div className="mt-2">
-                          {order.shippingAddress ? (
-                            <>
-                              <button
-                                className="btn btn-sm btn-outline-primary w-100"
-                                onClick={() => populateShippingFromOrder(order)}
-                                title="Use this shipping address for the quote"
-                              >
-                                <i className="fas fa-copy me-1"></i>
-                                Use Shipping Address
-                              </button>
-                              <div className="small text-muted mt-1">
-                                {order.shippingAddress.address1}, {order.shippingAddress.city} {order.shippingAddress.zip}
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                className="btn btn-sm btn-outline-secondary w-100"
-                                onClick={() => fetchOrderDetails(order.orderNumber)}
-                                title="Fetch full address details for this order"
-                              >
-                                <i className="fas fa-search me-1"></i>
-                                Get Address Details
-                              </button>
-                              <div className="small text-warning mt-1">
-                                <i className="fas fa-exclamation-triangle me-1"></i>
-                                Address not loaded - click to fetch
-                              </div>
-                            </>
+                        <div className="col-lg-8">
+                          <label htmlFor={`itemTitle-${index}`} className="form-label fw-medium">Selected Product</label>
+                          <input 
+                            type="text" 
+                            className="form-control bg-light" 
+                            id={`itemTitle-${index}`} 
+                            value={itemData.productDisplay || ''} 
+                            readOnly 
+                            placeholder="Product details appear here"
+                            tabIndex={-1}
+                          />
+                          {itemData.unitPrice !== undefined && itemData.currencyCode && (
+                              <small className="text-success d-block mt-1 fw-medium">
+                                  Unit Price: ${itemData.unitPrice.toFixed(2)} {itemData.currencyCode}
+                              </small>
                           )}
                         </div>
+
+                        <div className="col-lg-4">
+                          <label htmlFor={`itemQuantity-${index}`} className="form-label fw-medium">Quantity</label>
+                          <input
+                            type="number"
+                            className="form-control"
+                            id={`itemQuantity-${index}`}
+                            value={itemData.quantity}
+                            onChange={(e) => handleLineItemChange(index, 'quantity', parseInt(e.target.value, 10))}
+                            min="1"
+                            required
+                            disabled={!currentSearchState.hasSelection}
+                          />
+                        </div>
                       </div>
-                    ))}
+                    </div>
+                  );
+                })}
+                <button type="button" className="btn btn-outline-primary btn-lg w-100" onClick={addLineItem}>
+                  <i className="fas fa-plus me-2"></i>Add Another Product
+                </button>
+              </fieldset>
+
+              <fieldset className="border p-3 rounded mb-4">
+                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Quote Type & Options</legend>
+                
+                <div className="mb-3">
+                  <label htmlFor="quoteType" className="form-label">Quote Type <span className="text-danger">*</span></label>
+                  <select 
+                    className="form-select" 
+                    id="quoteType" 
+                    value={quoteType} 
+                    onChange={(e) => setQuoteType(e.target.value as 'material_only' | 'material_and_delivery')}
+                    required
+                  >
+                    <option value="material_and_delivery">Material and Delivery</option>
+                    <option value="material_only">Material Only (Customer arranges pickup)</option>
+                  </select>
+                  <div className="form-text">
+                    {quoteType === 'material_only' && 'Materials only - customer arranges pickup/delivery'}
+                    {quoteType === 'material_and_delivery' && 'Materials with delivery - Alliance Chemical delivers to customer location'}
+                  </div>
+                </div>
+
+                {quoteType === 'material_only' && (
+                  <>
+                    <div className="mb-3">
+                      <label htmlFor="deliveryTerms" className="form-label">Delivery Terms</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        id="deliveryTerms" 
+                        value={deliveryTerms} 
+                        onChange={(e) => setDeliveryTerms(e.target.value)}
+                        placeholder="e.g., Customer arranges pickup, FOB Origin, etc."
+                      />
+                    </div>
                     
-                    {shipStationOrders.length > 10 && (
-                      <div className="list-group-item text-center py-2 border-0 bg-light">
-                        <small className="text-muted">
-                          Showing 10 of {shipStationOrders.length} orders
-                        </small>
+                    <div className="mb-3">
+                      <label htmlFor="materialOnlyDisclaimer" className="form-label">Material-Only Disclaimer</label>
+                      <textarea 
+                        className="form-control" 
+                        id="materialOnlyDisclaimer" 
+                        rows={3} 
+                        value={materialOnlyDisclaimer} 
+                        onChange={(e) => setMaterialOnlyDisclaimer(e.target.value)}
+                        placeholder="Disclaimer text that will appear on the quote..."
+                      />
+                      <div className="form-text">This disclaimer will appear prominently on the quote and email.</div>
+                    </div>
+                  </>
+                )}
+              </fieldset>
+
+              {/* Billing Address Section */}
+              <fieldset className="border p-3 rounded mb-4">
+                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Billing Address</legend>
+                
+                <div className="form-check mb-3">
+                  <input 
+                    className="form-check-input" 
+                    type="checkbox" 
+                    id="useSameAddressForBilling"
+                    checked={useSameAddressForBilling}
+                    onChange={(e) => setUseSameAddressForBilling(e.target.checked)}
+                  />
+                  <label className="form-check-label" htmlFor="useSameAddressForBilling">
+                    Same as shipping address
+                  </label>
+                </div>
+
+                {!useSameAddressForBilling && (
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label htmlFor="billCompany" className="form-label">Company</label>
+                      <input type="text" className="form-control" id="billCompany" name="company" value={billingAddress.company || ''} onChange={handleBillingAddressChange} />
+                    </div>
+                    <div className="col-md-3">
+                      <label htmlFor="billFirstName" className="form-label">First Name <span className="text-danger">*</span></label>
+                      <input type="text" className="form-control" id="billFirstName" name="firstName" value={billingAddress.firstName || ''} onChange={handleBillingAddressChange} required />
+                    </div>
+                    <div className="col-md-3">
+                      <label htmlFor="billLastName" className="form-label">Last Name <span className="text-danger">*</span></label>
+                      <input type="text" className="form-control" id="billLastName" name="lastName" value={billingAddress.lastName || ''} onChange={handleBillingAddressChange} required />
+                    </div>
+                    
+                    <div className="col-12">
+                      <label htmlFor="billAddress1" className="form-label">Address <span className="text-danger">*</span></label>
+                      <input type="text" className="form-control" id="billAddress1" name="address1" value={billingAddress.address1 || ''} onChange={handleBillingAddressChange} required />
+                    </div>
+                    
+                    <div className="col-12">
+                      <label htmlFor="billAddress2" className="form-label">Address Line 2</label>
+                      <input type="text" className="form-control" id="billAddress2" name="address2" value={billingAddress.address2 || ''} onChange={handleBillingAddressChange} />
+                    </div>
+                    
+                    <div className="col-md-4">
+                      <label htmlFor="billCity" className="form-label">City <span className="text-danger">*</span></label>
+                      <input type="text" className="form-control" id="billCity" name="city" value={billingAddress.city || ''} onChange={handleBillingAddressChange} required />
+                    </div>
+                    
+                    <div className="col-md-3">
+                      <label htmlFor="billCountry" className="form-label">Country <span className="text-danger">*</span></label>
+                      <select id="billCountry" name="country" className="form-select" value={billingAddress.country} onChange={handleBillingAddressChange} required>
+                        <option value="United States">United States</option>
+                        <option value="Canada">Canada</option>
+                      </select>
+                    </div>
+                    
+                    <div className="col-md-3">
+                      <label htmlFor="billProvince" className="form-label">State/Province <span className="text-danger">*</span></label>
+                      <input type="text" className="form-control" id="billProvince" name="province" value={billingAddress.province || ''} onChange={handleBillingAddressChange} placeholder="e.g., TX or Texas" required />
+                    </div>
+                    
+                    <div className="col-md-2">
+                      <label htmlFor="billZip" className="form-label">ZIP/Postal Code <span className="text-danger">*</span></label>
+                      <input type="text" className="form-control" id="billZip" name="zip" value={billingAddress.zip || ''} onChange={handleBillingAddressChange} required />
+                    </div>
+                    
+                    <div className="col-md-6">
+                      <label htmlFor="billPhone" className="form-label">Phone</label>
+                      <input type="tel" className="form-control" id="billPhone" name="phone" value={billingAddress.phone || ''} onChange={handleBillingAddressChange} />
+                    </div>
+                  </div>
+                )}
+              </fieldset>
+
+              <fieldset className="border p-3 rounded mb-4">
+                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">
+                  {quoteType === 'material_only' ? 'Material Pickup/Delivery Address' : 'Shipping Address'}
+                  <small className="text-muted fw-light"> 
+                    ({quoteType === 'material_only' ? 'For pickup coordination or customer-arranged delivery' : 'Required for quote & shipping calculation'})
+                  </small>
+                </legend>
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <label htmlFor="shipCompany" className="form-label">Company</label>
+                    <input type="text" className="form-control" id="shipCompany" name="company" value={shippingAddress.company || ''} onChange={handleShippingAddressChange} />
+                  </div>
+                  <div className="col-md-3">
+                    <label htmlFor="shipFirstName" className="form-label">First Name <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control" id="shipFirstName" name="firstName" value={shippingAddress.firstName || ''} onChange={handleShippingAddressChange} required />
+                  </div>
+                  <div className="col-md-3">
+                    <label htmlFor="shipLastName" className="form-label">Last Name <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control" id="shipLastName" name="lastName" value={shippingAddress.lastName || ''} onChange={handleShippingAddressChange} required />
+                  </div>
+                  
+                  <div className="col-12">
+                    <label htmlFor="shipAddress1" className="form-label">Address <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control" id="shipAddress1" name="address1" value={shippingAddress.address1 || ''} onChange={handleShippingAddressChange} required />
+                  </div>
+                  
+                  <div className="col-md-4">
+                    <label htmlFor="shipCity" className="form-label">City <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control" id="shipCity" name="city" value={shippingAddress.city || ''} onChange={handleShippingAddressChange} required />
+                  </div>
+                  
+                  <div className="col-md-3">
+                    <label htmlFor="shipCountry" className="form-label">Country <span className="text-danger">*</span></label>
+                    <select id="shipCountry" name="country" className="form-select" value={shippingAddress.country} onChange={handleShippingAddressChange} required>
+                      <option value="United States">United States</option>
+                      <option value="Canada">Canada</option>
+                    </select>
+                  </div>
+                  <div className="col-md-3">
+                    <label htmlFor="shipProvince" className="form-label">State/Province <span className="text-danger">*</span></label>
+                    <select className="form-select" id="shipProvince" name="province" value={shippingAddress.province || ''} onChange={handleShippingAddressChange} required>
+                      <option value="">Select {shippingAddress.country === 'Canada' ? 'Province' : 'State'}...</option>
+                      {selectedProvinces.map(provinceOpt => (
+                        <option key={provinceOpt} value={provinceOpt}>{provinceOpt}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-2">
+                    <label htmlFor="shipZip" className="form-label">ZIP/Postal <span className="text-danger">*</span></label>
+                    <input type="text" className="form-control" id="shipZip" name="zip" value={shippingAddress.zip || ''} onChange={handleShippingAddressChange} required />
+                  </div>
+                  <div className="col-md-4">
+                    <label htmlFor="shipPhone" className="form-label">Shipping Phone</label>
+                    <input type="tel" className="form-control" id="shipPhone" name="phone" value={shippingAddress.phone || ''} onChange={handleShippingAddressChange} placeholder="For delivery purposes"/>
+                  </div>
+                  
+                  <div className="col-12 mt-3">
+                    <button 
+                      type="button" 
+                      className="btn btn-outline-info" 
+                      onClick={calculateShipping}
+                      disabled={
+                        isCalculatingShipping || 
+                        !lineItems.some(item => item.numericVariantIdShopify && item.quantity > 0) ||
+                        !shippingAddress.address1 || 
+                        !shippingAddress.city || 
+                        !shippingAddress.zip || 
+                        !shippingAddress.province || 
+                        !shippingAddress.country
+                      }
+                    >
+                      {isCalculatingShipping ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Calculating Shipping...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-shipping-fast me-2"></i> Calculate Shipping Costs
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </fieldset>
+
+              {(priceSummary.subtotal !== null || priceSummary.shipping !== null || priceSummary.total !== null) && (
+                <div className="card my-4 bg-light border">
+                  <div className="card-body p-3">
+                    <h5 className="card-title h6 text-muted mb-2">Price Estimate</h5>
+                    <div className="row">
+                      <div className="col-lg-6 offset-lg-6 col-md-8 offset-md-4">
+                        <table className="table table-sm mb-0">
+                          <tbody>
+                            <tr>
+                              <td>Subtotal:</td>
+                              <td className="text-end">
+                                {priceSummary.subtotal !== null && priceSummary.subtotal !== undefined ? 
+                                  `$${priceSummary.subtotal.toFixed(2)} ${priceSummary.currencyCode}` : 
+                                  <span className="text-muted">N/A</span>}
+                              </td>
+                            </tr>
+                            <tr>
+                              <td>
+                                Shipping:
+                                {selectedShippingRateIndex !== null && shippingRates.length > 0 && (
+                                  <small className="text-muted d-block">
+                                    {shippingRates[selectedShippingRateIndex].title}
+                                  </small>
+                                )}
+                              </td>
+                              <td className="text-end">
+                                {priceSummary.shipping !== null ? (
+                                  <>
+                                    ${typeof priceSummary.shipping === 'number' ? priceSummary.shipping.toFixed(2) : '0.00'} {priceSummary.currencyCode}
+                                    {shippingRates.length > 1 && (
+                                      <button
+                                        className="btn btn-sm btn-link p-0 ms-2"
+                                        onClick={() => setShowShippingRatesModal(true)}
+                                        type="button"
+                                      >
+                                        <i className="fas fa-edit"></i>
+                                      </button>
+                                    )}
+                                  </>
+                                ) : (
+                                  isCalculatingShipping ? 'Calculating...' : <span className="text-muted">Not calculated</span>
+                                )}
+                              </td>
+                            </tr>
+                            {priceSummary.tax !== null && (
+                              <tr>
+                                <td>Tax:</td>
+                                <td className="text-end">
+                                  ${priceSummary.tax.toFixed(2)} {priceSummary.currencyCode}
+                                </td>
+                              </tr>
+                            )}
+                            <tr className="fw-bold border-top">
+                              <td>Estimated Total:</td>
+                              <td className="text-end">
+                                {priceSummary.total !== null ? 
+                                  `$${priceSummary.total.toFixed(2)} ${priceSummary.currencyCode}` : 
+                                  (isCalculatingShipping ? 'Calculating...' : <span className="text-muted">N/A</span>)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <fieldset className="border p-3 rounded mb-4">
+                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Quote Options</legend>
+                <div className="mb-3">
+                  <label htmlFor="note" className="form-label">Notes for Quote</label>
+                  <textarea 
+                    className="form-control" 
+                    id="note" 
+                    rows={3} 
+                    value={note} 
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Internal notes or details for the customer..."
+                  ></textarea>
+                </div>
+                <div className="form-check">
+                  <input 
+                    className="form-check-input" 
+                    type="checkbox" 
+                    id="sendShopifyInvoice"
+                    checked={sendShopifyInvoice}
+                    onChange={(e) => setSendShopifyInvoice(e.target.checked)}
+                  />
+                  <label className="form-check-label" htmlFor="sendShopifyInvoice">
+                    Send Shopify invoice to customer&apos;s email
+                  </label>
+                </div>
+              </fieldset>
+
+              <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-4 pt-3 border-top">
+                 <button 
+                    type="button" 
+                    className="btn btn-outline-secondary me-md-2" 
+                    onClick={() => router.back()} // Or router.push('/admin/quotes') etc.
+                    disabled={isLoading}
+                  >
+                    Cancel
+                  </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary btn-lg" 
+                  disabled={isLoading || successMessage !== null}
+                >
+                  {isLoading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Creating Quote...
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-file-invoice-dollar me-2"></i> Create Quote
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            </div>
+            
+            {/* Previous Orders Sidebar */}
+            {showPreviousOrders && shipStationOrders.length > 0 && (
+              <div className="col-lg-4">
+                <div className="card h-100 border-start-0 border-top-0 border-bottom-0 border-end border-primary">
+                  <div className="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 className="mb-0">
+                      <i className="fas fa-history me-2 text-primary"></i>
+                      Previous Orders
+                    </h6>
+                    <button
+                      className="btn btn-sm btn-outline-secondary"
+                      onClick={() => setShowPreviousOrders(false)}
+                      title="Hide previous orders"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                  <div className="card-body p-0" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                    {isLoadingOrders && (
+                      <div className="text-center py-3">
+                        <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
+                        Loading order history...
+                      </div>
+                    )}
+                    
+                    {ordersError && (
+                      <div className="alert alert-warning m-3 py-2 mb-0">
+                        <i className="fas fa-exclamation-triangle me-2"></i>
+                        <small>{ordersError}</small>
+                      </div>
+                    )}
+                    
+                    {!isLoadingOrders && !ordersError && shipStationOrders.length === 0 && (
+                      <div className="text-center py-3 text-muted">
+                        <i className="fas fa-inbox fa-2x mb-2 d-block text-muted opacity-50"></i>
+                        <small>No previous orders found</small>
+                      </div>
+                    )}
+                    
+                    {!isLoadingOrders && shipStationOrders.length > 0 && (
+                      <div className="list-group list-group-flush">
+                        {shipStationOrders.slice(0, 10).map((order, index) => (
+                          <div key={`${order.orderNumber}-${index}`} className="list-group-item p-3 border-0">
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <div>
+                                <h6 className="mb-1 fw-bold text-primary">
+                                  #{order.orderNumber}
+                                </h6>
+                                <small className="text-muted">
+                                  {new Date(order.orderDate).toLocaleDateString()} • 
+                                  <span className={`badge ms-1 ${
+                                    order.orderStatus === 'shipped' ? 'bg-success' :
+                                    order.orderStatus === 'awaiting_shipment' ? 'bg-warning' :
+                                    order.orderStatus === 'cancelled' ? 'bg-danger' : 'bg-secondary'
+                                  }`}>
+                                    {order.orderStatus.replace('_', ' ')}
+                                  </span>
+                                </small>
+                              </div>
+                            </div>
+                            
+                            {order.items && order.items.length > 0 && (
+                              <div className="small text-muted mb-2">
+                                <i className="fas fa-shopping-cart me-1"></i>
+                                {order.items.slice(0, 2).map(item => `${item.name} x${item.quantity}`).join(', ')}
+                                {order.items.length > 2 && ` +${order.items.length - 2} more`}
+                              </div>
+                            )}
+                            
+                            {order.trackingNumbers && order.trackingNumbers.length > 0 && (
+                              <div className="small mb-2">
+                                <i className="fas fa-truck me-1 text-secondary"></i>
+                                <span className="badge bg-light text-dark border font-monospace">
+                                  {order.trackingNumbers[0]}
+                                </span>
+                                {order.trackingNumbers.length > 1 && (
+                                  <span className="text-muted ms-1">+{order.trackingNumbers.length - 1} more</span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Always show address button with different states */}
+                            <div className="mt-2">
+                              {order.shippingAddress ? (
+                                <>
+                                  <button
+                                    className="btn btn-sm btn-outline-primary w-100"
+                                    onClick={() => populateShippingFromOrder(order)}
+                                    title="Use this shipping address for the quote"
+                                  >
+                                    <i className="fas fa-copy me-1"></i>
+                                    Use Shipping Address
+                                  </button>
+                                  <div className="small text-muted mt-1">
+                                    {order.shippingAddress.address1}, {order.shippingAddress.city} {order.shippingAddress.zip}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    className="btn btn-sm btn-outline-secondary w-100"
+                                    onClick={() => fetchOrderDetails(order.orderNumber)}
+                                    title="Fetch full address details for this order"
+                                  >
+                                    <i className="fas fa-search me-1"></i>
+                                    Get Address Details
+                                  </button>
+                                  <div className="small text-warning mt-1">
+                                    <i className="fas fa-exclamation-triangle me-1"></i>
+                                    Address not loaded - click to fetch
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {shipStationOrders.length > 10 && (
+                          <div className="list-group-item text-center py-2 border-0 bg-light">
+                            <small className="text-muted">
+                              Showing 10 of {shipStationOrders.length} orders
+                            </small>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
+                </div>
               </div>
+            )}
+            
             </div>
           </div>
-        )}
-        
         </div>
-      </div>
 
-      {/* Shipping Rates Modal */}
-      {showShippingRatesModal && shippingRates.length > 0 && (
-        <div className="modal fade show" 
-             style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} 
-             tabIndex={-1} 
-             role="dialog"
-             onClick={() => setShowShippingRatesModal(false)}>
-          <div className="modal-dialog modal-dialog-centered" 
-               role="document"
-               onClick={e => e.stopPropagation()}>
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Select Shipping Option</h5>
-                <button type="button" 
-                        className="btn-close" 
-                        onClick={() => setShowShippingRatesModal(false)}
-                        aria-label="Close"></button>
-              </div>
-              <div className="modal-body">
-                <div className="list-group">
-                  {shippingRates.map((rate, index) => (
-                    <button key={rate.handle || index} 
-                            type="button"
+        {/* Shipping Rates Modal */}
+        {showShippingRatesModal && shippingRates.length > 0 && (
+          <div className="modal fade show" 
+               style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} 
+               tabIndex={-1} 
+               role="dialog"
+               onClick={() => setShowShippingRatesModal(false)}>
+            <div className="modal-dialog modal-dialog-centered" 
+                 role="document"
+                 onClick={e => e.stopPropagation()}>
+              <div className="modal-content">
+                <div className="modal-header">
+                  <h5 className="modal-title">Select Shipping Option</h5>
+                  <button type="button" 
+                          className="btn-close" 
+                          onClick={() => setShowShippingRatesModal(false)}
+                          aria-label="Close"></button>
+                </div>
+                <div className="modal-body">
+                  <div className="list-group">
+                    {shippingRates.map((rate, index) => (
+                      <button key={rate.handle || index} 
+                              type="button"
                             className={`list-group-item list-group-item-action ${selectedShippingRateIndex === index ? 'active' : ''}`}
                             onClick={() => selectShippingRate(index)}>
                       <div className="d-flex justify-content-between align-items-center">
