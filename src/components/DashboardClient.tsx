@@ -27,8 +27,6 @@ export default function DashboardClient() {
         <div className="loading-content">
           <div className="loading-spinner">
             <div className="spinner-ring"></div>
-            <div className="spinner-ring"></div>
-            <div className="spinner-ring"></div>
           </div>
           <div className="loading-text">
             <h3>Loading Dashboard</h3>
@@ -41,11 +39,9 @@ export default function DashboardClient() {
 
   return (
     <div className="modern-dashboard-container">
-      {/* Animated Background */}
+      {/* Optimized Static Background */}
       <div className="dashboard-background">
-        <div className="bg-gradient-1"></div>
-        <div className="bg-gradient-2"></div>
-        <div className="bg-pattern"></div>
+        <div className="bg-gradient-static"></div>
       </div>
 
       {/* Main Dashboard Content */}
@@ -68,7 +64,6 @@ export default function DashboardClient() {
                   <i className="fas fa-plus"></i>
                 </span>
                 <span className="button-text">New Ticket</span>
-                <div className="button-glow"></div>
               </Link>
             </div>
           </div>
@@ -148,48 +143,17 @@ export default function DashboardClient() {
           z-index: -1;
         }
 
-        .bg-gradient-1 {
+        /* Optimized Static Background - No Heavy Animations */
+        .bg-gradient-static {
           position: absolute;
           top: 0;
           left: 0;
           width: 100%;
           height: 100%;
-          background: radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-                      radial-gradient(circle at 80% 80%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
-          animation: gradientShift 8s ease-in-out infinite;
-        }
-
-        .bg-gradient-2 {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: radial-gradient(circle at 60% 40%, rgba(64, 224, 208, 0.2) 0%, transparent 50%);
-          animation: gradientShift 10s ease-in-out infinite reverse;
-        }
-
-        .bg-pattern {
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background-image: 
-            radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0);
-          background-size: 40px 40px;
-          opacity: 0.5;
-          animation: patternMove 20s linear infinite;
-        }
-
-        @keyframes gradientShift {
-          0%, 100% { transform: scale(1) rotate(0deg); }
-          50% { transform: scale(1.1) rotate(180deg); }
-        }
-
-        @keyframes patternMove {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(40px, 40px); }
+          background: 
+            radial-gradient(circle at 20% 20%, rgba(120, 119, 198, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255, 119, 198, 0.15) 0%, transparent 50%),
+            radial-gradient(circle at 60% 40%, rgba(64, 224, 208, 0.1) 0%, transparent 50%);
         }
 
         .loading-overlay {
@@ -212,8 +176,8 @@ export default function DashboardClient() {
 
         .loading-spinner {
           position: relative;
-          width: 80px;
-          height: 80px;
+          width: 60px;
+          height: 60px;
           margin: 0 auto 2rem;
         }
 
@@ -224,17 +188,7 @@ export default function DashboardClient() {
           border: 3px solid transparent;
           border-top: 3px solid white;
           border-radius: 50%;
-          animation: spin 1.2s linear infinite;
-        }
-
-        .spinner-ring:nth-child(2) {
-          animation-delay: 0.15s;
-          border-top-color: rgba(255,255,255,0.8);
-        }
-
-        .spinner-ring:nth-child(3) {
-          animation-delay: 0.3s;
-          border-top-color: rgba(255,255,255,0.6);
+          animation: spin 1s linear infinite;
         }
 
         @keyframes spin {
@@ -262,7 +216,8 @@ export default function DashboardClient() {
 
         .dashboard-header {
           margin-bottom: 3rem;
-          animation: slideInDown 0.8s ease-out;
+          opacity: 0;
+          animation: fadeIn 0.6s ease-out 0.1s forwards;
         }
 
         .header-content {
@@ -294,12 +249,16 @@ export default function DashboardClient() {
           background: linear-gradient(90deg, #667eea, #764ba2);
           border-radius: 2px;
           margin-top: 0.5rem;
-          animation: expandWidth 1s ease-out 0.5s forwards;
           width: 0;
+          animation: expandWidth 0.8s ease-out 0.3s forwards;
         }
 
         @keyframes expandWidth {
           to { width: 100%; }
+        }
+
+        @keyframes fadeIn {
+          to { opacity: 1; }
         }
 
         .dashboard-subtitle {
@@ -321,14 +280,14 @@ export default function DashboardClient() {
           border-radius: 16px;
           font-weight: 600;
           font-size: 1.1rem;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
           border: 1px solid rgba(255, 255, 255, 0.2);
           overflow: hidden;
         }
 
         .cta-button:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
           color: white;
         }
 
@@ -340,7 +299,7 @@ export default function DashboardClient() {
           height: 24px;
           background: rgba(255, 255, 255, 0.2);
           border-radius: 8px;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
         }
 
         .cta-button:hover .button-icon {
@@ -348,25 +307,10 @@ export default function DashboardClient() {
           transform: rotate(90deg);
         }
 
-        .button-glow {
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
-
-        .cta-button:hover .button-glow {
-          opacity: 1;
-        }
-
         .search-section {
           margin-bottom: 3rem;
-          animation: slideInUp 0.8s ease-out 0.2s forwards;
           opacity: 0;
+          animation: fadeIn 0.6s ease-out 0.2s forwards;
         }
 
         .search-card {
@@ -375,13 +319,13 @@ export default function DashboardClient() {
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 24px;
           padding: 2rem;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
         }
 
         .search-card:hover {
           background: rgba(255, 255, 255, 0.08);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
 
         .search-header {
@@ -414,16 +358,16 @@ export default function DashboardClient() {
         .charts-section,
         .tickets-section {
           margin-bottom: 4rem;
-          animation: slideInUp 0.8s ease-out forwards;
           opacity: 0;
+          animation: fadeIn 0.6s ease-out forwards;
         }
 
         .charts-section {
-          animation-delay: 0.4s;
+          animation-delay: 0.3s;
         }
 
         .tickets-section {
-          animation-delay: 0.6s;
+          animation-delay: 0.4s;
         }
 
         .section-header {
@@ -457,7 +401,7 @@ export default function DashboardClient() {
           color: rgba(255, 255, 255, 0.8);
           text-decoration: none;
           font-weight: 500;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
           padding: 0.5rem 1rem;
           border-radius: 8px;
           border: 1px solid rgba(255, 255, 255, 0.1);
@@ -466,7 +410,7 @@ export default function DashboardClient() {
         .view-all-link:hover {
           color: white;
           background: rgba(255, 255, 255, 0.1);
-          transform: translateX(4px);
+          transform: translateX(2px);
         }
 
         .charts-grid {
@@ -481,14 +425,14 @@ export default function DashboardClient() {
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 20px;
           padding: 0;
-          transition: all 0.4s ease;
+          transition: all 0.2s ease;
           overflow: hidden;
         }
 
         .chart-card:hover {
           background: rgba(255, 255, 255, 0.08);
-          transform: translateY(-4px);
-          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
         }
 
         .tickets-card {
@@ -497,31 +441,13 @@ export default function DashboardClient() {
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 20px;
           overflow: hidden;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
         }
 
         .tickets-card:hover {
           background: rgba(255, 255, 255, 0.08);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-
-        @keyframes slideInDown {
-          from {
-            opacity: 0;
-            transform: translateY(-40px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slideInUp {
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          transform: translateY(-1px);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
 
         /* Responsive Design */
@@ -558,6 +484,15 @@ export default function DashboardClient() {
 
           .search-card {
             padding: 1.5rem;
+          }
+        }
+
+        /* Reduced motion for accessibility */
+        @media (prefers-reduced-motion: reduce) {
+          * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
           }
         }
 

@@ -261,7 +261,8 @@ const DashboardStatsSection: React.FC = () => {
 
         .stats-header {
           margin-bottom: 2rem;
-          animation: slideInDown 0.6s ease-out;
+          opacity: 0;
+          animation: fadeIn 0.4s ease-out 0.1s forwards;
         }
 
         .header-content {
@@ -308,14 +309,14 @@ const DashboardStatsSection: React.FC = () => {
           color: white;
           font-weight: 500;
           cursor: pointer;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
           backdrop-filter: blur(10px);
         }
 
         .refresh-button:hover:not(:disabled) {
           background: rgba(255, 255, 255, 0.2);
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
         .refresh-button:disabled {
@@ -333,7 +334,7 @@ const DashboardStatsSection: React.FC = () => {
           background: linear-gradient(90deg, transparent, #667eea, #764ba2, transparent);
           border-radius: 1px;
           opacity: 0;
-          animation: expandLine 1s ease-out 0.5s forwards;
+          animation: fadeIn 0.6s ease-out 0.3s forwards;
         }
 
         .stats-grid {
@@ -344,26 +345,30 @@ const DashboardStatsSection: React.FC = () => {
 
         .stat-card-wrapper {
           position: relative;
-          animation: slideInUp 0.8s ease-out forwards;
           opacity: 0;
-          transform: translateY(30px);
+          animation: fadeInUp 0.4s ease-out forwards;
         }
+
+        .stat-card-wrapper:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card-wrapper:nth-child(2) { animation-delay: 0.15s; }
+        .stat-card-wrapper:nth-child(3) { animation-delay: 0.2s; }
+        .stat-card-wrapper:nth-child(4) { animation-delay: 0.25s; }
 
         .card-glow {
           position: absolute;
-          top: -20px;
-          left: -20px;
-          right: -20px;
-          bottom: -20px;
+          top: -10px;
+          left: -10px;
+          right: -10px;
+          bottom: -10px;
           border-radius: 24px;
           opacity: 0;
-          transition: opacity 0.4s ease;
+          transition: opacity 0.2s ease;
           z-index: -1;
-          filter: blur(20px);
+          filter: blur(15px);
         }
 
         .stat-card-wrapper:hover .card-glow {
-          opacity: 0.6;
+          opacity: 0.3;
         }
 
         .glow-blue {
@@ -382,22 +387,11 @@ const DashboardStatsSection: React.FC = () => {
           background: linear-gradient(45deg, #f59e0b, #d97706);
         }
 
-        @keyframes expandLine {
+        @keyframes fadeIn {
           to { opacity: 1; }
         }
 
-        @keyframes slideInDown {
-          from {
-            opacity: 0;
-            transform: translateY(-30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slideInUp {
+        @keyframes fadeInUp {
           to {
             opacity: 1;
             transform: translateY(0);

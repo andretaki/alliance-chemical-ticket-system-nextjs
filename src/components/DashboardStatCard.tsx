@@ -140,35 +140,25 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           border-radius: 24px;
           padding: 0;
           overflow: hidden;
-          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.2s ease;
           cursor: pointer;
           isolation: isolate;
         }
 
         .modern-stat-card:hover {
           background: rgba(255, 255, 255, 0.08);
-          transform: translateY(-12px) scale(1.02);
+          transform: translateY(-4px);
           box-shadow: 
-            0 32px 64px rgba(0, 0, 0, 0.4),
-            0 0 0 1px rgba(255, 255, 255, 0.2);
+            0 12px 32px rgba(0, 0, 0, 0.3),
+            0 0 0 1px rgba(255, 255, 255, 0.15);
         }
 
         .modern-stat-card:hover .card-glow {
-          opacity: 0.6;
-          transform: scale(1.2);
-        }
-
-        .modern-stat-card:hover .card-shine {
-          transform: translateX(200%);
-        }
-
-        .modern-stat-card:hover .icon-ripple {
-          transform: scale(3);
-          opacity: 0;
+          opacity: 0.4;
         }
 
         .modern-stat-card:hover .stat-icon {
-          transform: scale(1.1) rotate(5deg);
+          transform: scale(1.05);
         }
 
         .card-pattern {
@@ -178,15 +168,9 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           right: 0;
           bottom: 0;
           background-image: 
-            radial-gradient(circle at 2px 2px, rgba(255,255,255,0.1) 1px, transparent 0);
+            radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
           background-size: 24px 24px;
           opacity: 0.3;
-          animation: patternDrift 20s linear infinite;
-        }
-
-        @keyframes patternDrift {
-          0% { transform: translate(0, 0); }
-          100% { transform: translate(24px, 24px); }
         }
 
         .card-content {
@@ -215,7 +199,7 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           justify-content: center;
           color: white;
           font-size: 1.5rem;
-          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: all 0.2s ease;
           overflow: hidden;
         }
 
@@ -242,21 +226,21 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           font-weight: 700;
           backdrop-filter: blur(10px);
           overflow: hidden;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
         }
 
         .change-badge.positive {
           background: rgba(16, 185, 129, 0.15);
           color: #10b981;
           border: 1px solid rgba(16, 185, 129, 0.3);
-          box-shadow: 0 4px 20px rgba(16, 185, 129, 0.2);
+          box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);
         }
 
         .change-badge.negative {
           background: rgba(239, 68, 68, 0.15);
           color: #ef4444;
           border: 1px solid rgba(239, 68, 68, 0.3);
-          box-shadow: 0 4px 20px rgba(239, 68, 68, 0.2);
+          box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15);
         }
 
         .change-icon {
@@ -324,7 +308,7 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           font-feature-settings: 'tnum';
           letter-spacing: -0.025em;
           text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
         }
 
         .value-underline {
@@ -333,7 +317,7 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           border-radius: 2px;
           margin-top: 0.5rem;
           opacity: 0.8;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
         }
 
         .modern-stat-card:hover .value-underline {
@@ -357,7 +341,7 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           );
           background-size: 200% 100%;
           border-radius: 8px;
-          animation: shimmer 2s ease-in-out infinite;
+          animation: shimmer 1.5s ease-in-out infinite;
         }
 
         @keyframes shimmer {
@@ -376,20 +360,20 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           height: 8px;
           background: rgba(255, 255, 255, 0.6);
           border-radius: 50%;
-          animation: pulse 1.5s ease-in-out infinite;
+          animation: pulse 1.2s ease-in-out infinite;
         }
 
         .loading-dots span:nth-child(2) {
-          animation-delay: 0.2s;
+          animation-delay: 0.15s;
         }
 
         .loading-dots span:nth-child(3) {
-          animation-delay: 0.4s;
+          animation-delay: 0.3s;
         }
 
         @keyframes pulse {
           0%, 100% { opacity: 0.4; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.2); }
+          50% { opacity: 1; transform: scale(1.1); }
         }
 
         .card-footer {
@@ -409,17 +393,17 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           font-size: 0.875rem;
           padding: 0.75rem 0;
           border-radius: 12px;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
           overflow: hidden;
         }
 
         .footer-link:hover {
           color: white;
-          transform: translateX(4px);
+          transform: translateX(2px);
         }
 
         .footer-link:hover .footer-arrow {
-          transform: translateX(4px);
+          transform: translateX(2px);
         }
 
         .footer-link:hover .footer-hover-bg {
@@ -441,7 +425,7 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           justify-content: center;
           background: rgba(255, 255, 255, 0.1);
           border-radius: 6px;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease;
         }
 
         .footer-hover-bg {
@@ -458,15 +442,15 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
 
         .card-glow {
           position: absolute;
-          top: -20px;
-          left: -20px;
-          right: -20px;
-          bottom: -20px;
+          top: -15px;
+          left: -15px;
+          right: -15px;
+          bottom: -15px;
           border-radius: 32px;
           opacity: 0;
-          filter: blur(24px);
+          filter: blur(20px);
           z-index: -1;
-          transition: all 0.4s ease;
+          transition: all 0.2s ease;
         }
 
         .card-shine {
@@ -522,16 +506,12 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
         @media (prefers-reduced-motion: reduce) {
           .modern-stat-card,
           .stat-icon,
-          .icon-ripple,
           .card-glow,
-          .card-shine,
           .footer-link,
-          .footer-arrow {
+          .footer-arrow,
+          .value-underline,
+          .change-badge {
             transition: none;
-          }
-
-          .card-pattern {
-            animation: none;
           }
 
           .skeleton-value {

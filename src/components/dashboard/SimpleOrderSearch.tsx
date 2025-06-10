@@ -92,7 +92,7 @@ export default function SimpleOrderSearch({ placeholder = "Search Orders, Custom
   const [results, setResults] = useState<OrderSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [debouncedQuery] = useDebounce(query, 500);
+  const [debouncedQuery] = useDebounce(query, 300);
 
   const performSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery || searchQuery.trim().length < 2) { // Allow 2 chars for SKU searches
@@ -153,6 +153,16 @@ export default function SimpleOrderSearch({ placeholder = "Search Orders, Custom
       
       <div className="mt-4">
           {error && <div className="alert alert-danger">{error}</div>}
+          
+          {isSearching && results.length === 0 && (
+            <div className="text-center text-muted p-4 border rounded bg-light">
+                <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                </div>
+                <span>Searching for &quot;{debouncedQuery}&quot;...</span>
+            </div>
+          )}
+
           {!isSearching && debouncedQuery.length >= 2 && results.length === 0 && (
               <div className="text-center text-muted p-4 border rounded bg-light">
                   <p className="mb-0">No results found for &quot;{debouncedQuery}&quot;. Try an order number, customer name, or email.</p>

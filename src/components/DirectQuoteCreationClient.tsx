@@ -1301,8 +1301,8 @@ export const DirectQuoteCreationClient: React.FC = () => {
                 </div>
               </fieldset>
 
-              <fieldset className="border p-4 rounded mb-4 bg-light">
-                <legend className="h5 fw-normal mb-3 float-none w-auto px-2 bg-white">
+              <fieldset className="border p-4 rounded mb-4">
+                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">
                   <i className="fas fa-shopping-cart me-2 text-primary"></i>Line Items
                 </legend>
                 {lineItems.map((itemData, index) => {
@@ -1420,7 +1420,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                           <label htmlFor={`itemTitle-${index}`} className="form-label fw-medium">Selected Product</label>
                           <input 
                             type="text" 
-                            className="form-control bg-light" 
+                            className="form-control" 
                             id={`itemTitle-${index}`} 
                             value={itemData.productDisplay || ''} 
                             readOnly 
@@ -1667,7 +1667,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
               </fieldset>
 
               {(priceSummary.subtotal !== null || priceSummary.shipping !== null || priceSummary.total !== null) && (
-                <div className="card my-4 bg-light border">
+                <div className="card my-4 border">
                   <div className="card-body p-3">
                     <h5 className="card-title h6 text-muted mb-2">Price Estimate</h5>
                     <div className="row">

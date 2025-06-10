@@ -132,7 +132,7 @@ body::before {
 #content {
   flex: 1;
   padding: 2rem;
-  margin-left: 280px;
+  margin-left: 320px;
   transition: var(--transition-normal);
   min-height: 100vh;
   background: transparent;
@@ -1203,7 +1203,12 @@ body::before {
 }
 
 .main-content {
-  min-width: 0;
+  flex: 1;
+  min-height: 100vh;
+  transition: margin-left 0.3s ease;
+  position: relative;
+  z-index: 1;
+  overflow-y: auto;
 }
 
 .sidebar-content {
@@ -2010,7 +2015,7 @@ body::before {
 
 @media (max-width: 1200px) {
   #content {
-    margin-left: 70px;
+    margin-left: 88px;
     padding: 1.5rem;
   }
   
@@ -2215,7 +2220,7 @@ body::before {
     display: none;
   }
   
-  .sidebar,
+  .sidebar-container,
   .navbar,
   .btn,
   .filters-bar {
@@ -2239,19 +2244,17 @@ body::before {
 
 .app-layout {
   display: flex;
-  min-height: 100vh;
-  background: var(--background);
   position: relative;
-  overflow-x: hidden;
+  height: 100vh;
 }
 
 .main-content {
   flex: 1;
-  margin-left: 280px;
   min-height: 100vh;
   transition: margin-left 0.3s ease;
   position: relative;
   z-index: 1;
+  overflow-y: auto;
 }
 
 .content-container {
@@ -2498,7 +2501,7 @@ body::before {
 /* Responsive Design for Layout */
 @media (max-width: 1200px) {
   .main-content {
-    margin-left: 70px;
+    margin-left: 88px;
   }
   
   .page-content {
@@ -2708,4 +2711,9 @@ body::before {
 
 .create-quote-form .list-group-item:last-child {
   border-bottom: none;
+}
+
+/* Adjust main content when sidebar collapsed */
+.app-layout .sidebar-container.collapsed + .main-content {
+  margin-left: 80px;
 }

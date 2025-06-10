@@ -65,8 +65,12 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   const isInitialMount = useRef(true);
   const eventSourceRef = useRef<EventSource | null>(null);
 
-  const fetchTickets = useCallback(async () => {
-    if (!isApplyingFilters) setIsLoading(true);
+  const fetchTickets = useCallback(async (options: { backgroundRefresh?: boolean } = {}) => {
+    const { backgroundRefresh = false } = options;
+
+    if (!isApplyingFilters && !backgroundRefresh) {
+      setIsLoading(true);
+    }
     setIsApplyingFilters(true);
     setError(null);
 
@@ -101,13 +105,13 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   useEffect(() => {
     let pollInterval: NodeJS.Timeout;
 
-    console.log('Using polling for ticket updates (30s interval).');
+    console.log('Using polling for ticket updates (2 minutes interval).');
     setRealtimeStatus('polling');
     
     pollInterval = setInterval(() => {
       console.log('Polling for ticket updates...');
-      fetchTicketsRef.current();
-    }, 30000);
+      fetchTicketsRef.current({ backgroundRefresh: true });
+    }, 120000);
 
     return () => {
       console.log('Cleaning up polling interval...');
@@ -319,7 +323,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
             
             {shouldShowControls && (
               <div className="header-actions">
-                <Link href="/tickets/create" className="create-ticket-btn">
+                <Link href="/tickets/create" className="create-ticket-btn" prefetch={false}>
                   <span className="btn-icon">
                     <i className="fas fa-plus" />
                   </span>
@@ -473,7 +477,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
             <div className="status-indicator">
               <div className={`status-dot ${realtimeStatus}`} />
               <span className="status-text">
-                {realtimeStatus === 'sse' ? 'Live Updates' : 'Auto-refresh (30s)'}
+                {realtimeStatus === 'sse' ? 'Live Updates' : 'Auto-refresh (2 minutes)'}
               </span>
             </div>
           </div>
@@ -573,7 +577,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
           backdrop-filter: blur(20px);
           border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 24px;
-          overflow: hidden;
+          overflow: visible;
           animation: slideInUp 0.6s ease-out;
         }
 
