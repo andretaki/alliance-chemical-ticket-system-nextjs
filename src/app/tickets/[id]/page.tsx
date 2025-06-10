@@ -45,16 +45,61 @@ async function getDraftOrdersByQuery(shopifyService: ShopifyService, query: stri
             invoiceUrl
             createdAt
             updatedAt
-            totalPriceSet {
-              shopMoney {
-                amount
-                currencyCode
-              }
-            }
+            totalPriceSet { shopMoney { amount currencyCode } }
+            subtotalPriceSet { shopMoney { amount currencyCode } }
+            totalTaxSet { shopMoney { amount currencyCode } }
+            totalShippingPriceSet { shopMoney { amount currencyCode } }
             customer {
               id
               displayName
               email
+              firstName
+              lastName
+              phone
+              company
+            }
+            shippingAddress {
+              firstName
+              lastName
+              address1
+              address2
+              city
+              province
+              zip
+              country
+              company
+              phone
+            }
+            billingAddress {
+              firstName
+              lastName
+              address1
+              address2
+              city
+              province
+              zip
+              country
+              company
+              phone
+            }
+            lineItems(first: 50) {
+              edges {
+                node {
+                  id
+                  quantity
+                  title
+                  originalUnitPriceSet { shopMoney { amount currencyCode } }
+                  product {
+                    id
+                    title
+                  }
+                  variant {
+                    id
+                    title
+                    sku
+                  }
+                }
+              }
             }
             tags
           }
