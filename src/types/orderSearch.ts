@@ -1,15 +1,15 @@
 export interface OrderSearchResult {
+    source: 'shopify' | 'shipstation';
     shopifyOrderGID: string; // e.g., "gid://shopify/Order/1234567890"
     shopifyOrderName: string; // e.g., "#1001"
     legacyResourceId: string; // Numeric ID for constructing admin URL
+    createdAt: string; // ISO Date string
     customerFullName?: string;
     customerEmail?: string;
-    createdAt: string; // ISO Date string
-    financialStatus?: string; // e.g., "PAID", "PENDING"
     fulfillmentStatus?: string; // e.g., "FULFILLED", "UNFULFILLED"
     totalPrice?: string;
     currencyCode?: string;
-    shopifyAdminUrl: string;
+    shopifyAdminUrl?: string;
     relatedTicketId?: number;
     relatedTicketUrl?: string;
     itemSummary?: string; // e.g., "Product A x 2, Product B x 1"
@@ -18,44 +18,32 @@ export interface OrderSearchResult {
     shipStationUrl?: string; // Direct link to ShipStation order page
     shipStationStatus?: string; // e.g., "shipped", "awaiting_shipment"
     trackingNumbers?: string[]; // Array of tracking numbers if available
-    source?: 'shopify' | 'shipstation'; // Data source for this order
 }
 
 export interface ShopifyOrderNode {
-    id: string; // GID format
+    id: string;
+    name: string;
     legacyResourceId: string;
-    name: string; // Order name like "#1001"
-    email?: string;
-    phone?: string;
     createdAt: string;
-    updatedAt: string;
-    displayFinancialStatus?: string;
-    displayFulfillmentStatus?: string;
+    displayFulfillmentStatus: string;
+    customer?: {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+    } | null;
     totalPriceSet?: {
         shopMoney: {
             amount: string;
             currencyCode: string;
         };
     };
-    customer?: {
-        id: string;
-        email?: string;
-        firstName?: string;
-        lastName?: string;
-        phone?: string;
-        displayName?: string;
-    };
-    lineItems?: {
-        edges: Array<{
+    lineItems: {
+        edges: {
             node: {
-                id: string;
-                title: string;
+                name: string;
                 quantity: number;
-                variant?: {
-                    title: string;
-                };
             };
-        }>;
+        }[];
     };
 }
 

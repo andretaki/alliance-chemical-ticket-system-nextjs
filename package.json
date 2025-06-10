@@ -13,6 +13,11 @@
     "sync-products": "tsx src/scripts/syncProducts.ts",
     "test:sync": "tsx src/scripts/test-sync.ts"
   },
+  "overrides": {
+    "esbuild": "^0.25.5",
+    "path-to-regexp": "^8.2.0",
+    "undici": "^7.10.0"
+  },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.4.0",
     "@azure/identity": "^4.10.0",
@@ -55,7 +60,6 @@
     "react-hot-toast": "^2.5.2",
     "use-debounce": "^10.0.4",
     "uuid": "^11.1.0",
-    "vercel": "^42.3.0",
     "zod": "^3.25.51"
   },
   "devDependencies": {
@@ -76,7 +80,8 @@
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.4",
-    "typescript": "5.4.5"
+    "typescript": "5.4.5",
+    "vercel": "^42.3.0"
   },
   "type": "module"
 }

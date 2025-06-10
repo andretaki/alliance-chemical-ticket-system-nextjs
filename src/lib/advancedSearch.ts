@@ -27,16 +27,13 @@ export interface SearchSuggestion {
 
 export class AdvancedSearchProcessor {
   private static readonly ORDER_NUMBER_PATTERNS = [
-    /^\s*#?(\d{4,})\s*$/i,          // #1234 or 1234
-    /order\s*#?\s*(\d+)/i,          // order #1234
-    /inv(?:oice)?\s*#?\s*(\d+)/i,   // invoice #1234
-    /po\s*#?\s*(\d+)/i,             // PO #1234
+    /order\s*#?\s*(\d{4,})/i, // "Order #12345" or "order 12345"
+    /#(\d{4,})/,             // #4272
   ];
-
   private static readonly EMAIL_PATTERN = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g;
 
   /**
-   * Parse a search query into structured components.
+   * Parses a search query into structured components.
    */
   static parseQuery(query: string): {
     originalQuery: string;
@@ -45,24 +42,34 @@ export class AdvancedSearchProcessor {
     customerNames: string[];
   } {
     const originalQuery = query.trim();
-    let remainingQuery = originalQuery;
+    let remainingQuery = ` ${originalQuery} `; // Pad for easier regex
 
-    const orderNumbers = this.ORDER_NUMBER_PATTERNS.map(pattern => {
-      const match = remainingQuery.match(pattern);
-      if (match && match[1]) {
-        remainingQuery = remainingQuery.replace(pattern, '').trim();
-        return match[1];
+    // Extract Order Numbers
+    const orderNumbers: string[] = [];
+    this.ORDER_NUMBER_PATTERNS.forEach(pattern => {
+      const globalPattern = new RegExp(pattern.source, 'gi');
+      let match;
+      while ((match = globalPattern.exec(remainingQuery)) !== null) {
+        orderNumbers.push(match[1]);
       }
-      return null;
-    }).filter((id): id is string => id !== null);
-
-    const emailMatches = remainingQuery.match(this.EMAIL_PATTERN) || [];
-    const emails = [...emailMatches];
-    if (emails.length > 0) {
-      remainingQuery = remainingQuery.replace(this.EMAIL_PATTERN, '').trim();
+      remainingQuery = remainingQuery.replace(globalPattern, ' ');
+    });
+    // Add plain numbers as potential order numbers
+    const plainNumbers = remainingQuery.match(/\b(\d{4,})\b/g);
+    if (plainNumbers) {
+        orderNumbers.push(...plainNumbers);
+        remainingQuery = remainingQuery.replace(/\b(\d{4,})\b/g, ' ');
     }
 
-    const customerNames = remainingQuery.length > 0 ? [remainingQuery.trim()] : [];
+
+    // Extract Emails
+    const emails = [...(remainingQuery.match(this.EMAIL_PATTERN) || [])];
+    if (emails.length > 0) {
+      remainingQuery = remainingQuery.replace(this.EMAIL_PATTERN, ' ');
+    }
+
+    // The rest is the customer name
+    const customerNames = remainingQuery.trim().split(/\s+/).filter(Boolean);
 
     return {
       originalQuery,
