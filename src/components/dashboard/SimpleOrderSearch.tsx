@@ -155,7 +155,7 @@ export default function SimpleOrderSearch({ placeholder = "Search Orders, Custom
           {error && <div className="alert alert-danger">{error}</div>}
           {!isSearching && debouncedQuery.length >= 2 && results.length === 0 && (
               <div className="text-center text-muted p-4 border rounded bg-light">
-                  <p className="mb-0">No results found for "{debouncedQuery}". Try an order number, customer name, or email.</p>
+                  <p className="mb-0">No results found for &quot;{debouncedQuery}&quot;. Try an order number, customer name, or email.</p>
               </div>
           )}
           {results.map(result => <SearchResultCard key={result.shopifyOrderGID} result={result} />)}

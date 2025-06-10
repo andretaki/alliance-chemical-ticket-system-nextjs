@@ -5,8 +5,8 @@ import React, { useState, useEffect, useCallback, useRef, ChangeEvent, FormEvent
 import axios, { AxiosError } from 'axios';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
-import { ticketPriorityEnum, ticketStatusEnum, users as usersSchema } from '@/db/schema'; // Import enums and user schema
-import { InferSelectModel } from 'drizzle-orm'; // If using Drizzle types elsewhere
+import { ticketPriorityEnum, ticketStatusEnum, users as usersSchema } from '@/db/schema';
+import { InferSelectModel } from 'drizzle-orm';
 import toast from 'react-hot-toast';
 
 // Import our new components
@@ -19,64 +19,58 @@ import ShippingInfoSidebar from './ticket-view/ShippingInfoSidebar';
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
 
 // --- Type Definitions ---
-
-// Type for user data (matching schema and expected API response)
 type BaseUser = {
-  id: string; // UUID
+  id: string;
   name: string | null;
   email: string | null;
 };
 
-// Define User type based on schema for clarity if needed elsewhere, but BaseUser is sufficient here
 type User = InferSelectModel<typeof usersSchema>;
 
-// Type for attachment data (adjust if your API returns different fields)
 export interface AttachmentData {
   id: number;
-  filename?: string; // Internal storage filename
+  filename?: string;
   originalFilename: string;
   fileSize: number;
   mimeType: string;
-  uploadedAt: string; // ISO string
-  url?: string; // Optional direct URL if stored in cloud
-  commentId?: number | null; // Added if your API returns this
-  ticketId?: number | null;  // Added if your API returns this
+  uploadedAt: string;
+  url?: string;
+  commentId?: number | null;
+  ticketId?: number | null;
 }
 
-// Type for comment data (matching schema and API response)
 interface CommentData {
   id: number;
-  commentText: string | null; // Allow null for attachment-only comments
-  createdAt: string; // ISO string
+  commentText: string | null;
+  createdAt: string;
   commenter: BaseUser | null;
   isInternalNote: boolean;
   isFromCustomer: boolean;
-  isOutgoingReply: boolean; // Ensure this is included
-  attachments?: AttachmentData[]; // Array of attachments for this comment
+  isOutgoingReply: boolean;
+  attachments?: AttachmentData[];
   externalMessageId?: string | null;
 }
 
-// Type for the main ticket data passed as props and used in state
 interface TicketData {
   id: number;
   title: string;
   description: string | null;
-  status: string; // Should match enum values
-  priority: string; // Should match enum values
-  type: string | null; // Should match enum values or be null
+  status: string;
+  priority: string;
+  type: string | null;
   assignee: BaseUser | null;
   reporter: BaseUser | null;
-  createdAt: string; // ISO string
-  updatedAt: string; // ISO string
+  createdAt: string;
+  updatedAt: string;
   orderNumber: string | null;
   trackingNumber: string | null;
   senderEmail: string | null;
   senderName: string | null;
-  senderPhone?: string | null; // Make optional
+  senderPhone?: string | null;
   externalMessageId: string | null;
   conversationId: string | null;
   comments: CommentData[];
-  attachments?: AttachmentData[]; // Attachments directly on the ticket (e.g., from initial email)
+  attachments?: AttachmentData[];
 }
 
 interface TicketViewClientProps {
@@ -86,45 +80,71 @@ interface TicketViewClientProps {
 }
 
 // --- Helper Functions ---
-
-// Helper function to extract just the first name for greetings
 const extractFirstName = (fullName: string | null | undefined): string => {
-  if (!fullName) {
-    return 'Customer';
-  }
+  if (!fullName) return 'Customer';
   
-  // Handle common name formats
   if (fullName.includes(',')) {
-    // "Last, First" format - take the part after the comma
     const parts = fullName.split(',');
-    if (parts.length > 1) {
-      return parts[1].trim();
-    }
+    if (parts.length > 1) return parts[1].trim();
   }
   
-  // Handle "First Last" format - take the first word
   const words = fullName.trim().split(/\s+/);
   return words[0];
 };
 
-const getStatusClass = (status: string | null): string => {
+const getStatusConfig = (status: string | null) => {
   switch (status?.toLowerCase()) {
-    case 'new': return 'badge bg-info text-dark';
-    case 'open': return 'badge bg-success';
-    case 'in_progress': return 'badge bg-primary';
-    case 'pending_customer': return 'badge bg-warning text-dark';
-    case 'closed': return 'badge bg-secondary';
-    default: return 'badge bg-light text-dark border'; // Default for null or unknown
+    case 'new':
+      return { 
+        class: 'status-new', 
+        icon: 'fas fa-star',
+        label: 'New'
+      };
+    case 'open':
+      return { 
+        class: 'status-open', 
+        icon: 'fas fa-folder-open',
+        label: 'Open'
+      };
+    case 'in_progress':
+      return { 
+        class: 'status-progress', 
+        icon: 'fas fa-cog fa-spin',
+        label: 'In Progress'
+      };
+    case 'pending_customer':
+      return { 
+        class: 'status-pending', 
+        icon: 'fas fa-clock',
+        label: 'Pending Customer'
+      };
+    case 'closed':
+      return { 
+        class: 'status-closed', 
+        icon: 'fas fa-check-circle',
+        label: 'Closed'
+      };
+    default:
+      return { 
+        class: 'status-unknown', 
+        icon: 'fas fa-question-circle',
+        label: status || 'Unknown'
+      };
   }
 };
 
-const getPriorityClass = (priority: string | null): string => {
+const getPriorityConfig = (priority: string | null) => {
   switch (priority?.toLowerCase()) {
-    case 'low': return 'badge bg-success';
-    case 'medium': return 'badge bg-warning text-dark';
-    case 'high': return 'badge bg-danger';
-    case 'urgent': return 'badge bg-danger fw-bold text-white';
-    default: return 'badge bg-light text-dark border'; // Default for null or unknown
+    case 'low':
+      return { class: 'priority-low', label: 'Low', icon: 'fas fa-flag' };
+    case 'medium':
+      return { class: 'priority-medium', label: 'Medium', icon: 'fas fa-flag' };
+    case 'high':
+      return { class: 'priority-high', label: 'High', icon: 'fas fa-flag' };
+    case 'urgent':
+      return { class: 'priority-urgent', label: 'Urgent', icon: 'fas fa-exclamation-triangle' };
+    default:
+      return { class: 'priority-none', label: priority || 'None', icon: 'fas fa-flag' };
   }
 };
 
@@ -149,27 +169,78 @@ const getFileIconClass = (mimeType?: string | null): string => {
     return 'fa-file';
 };
 
-// --- Attachment List Component --- (Integrated for simplicity, can be separate file)
+// AI Suggestion Detection
+const AI_SUGGESTION_MARKERS = [
+  "**AI Suggested Reply:**",
+  "**Order Status Found - Suggested Reply:**",
+  "**Suggested Reply (Request for Lot #):**",
+  "**Order Status Reply:**",
+  "**Suggested Reply (SDS Document):**",
+  "**Suggested Reply (COC Information):**",
+  "**Suggested Reply (Document Request):**",
+  "**AI Order Status Reply:**",
+  "**AI COA Reply:**"
+];
+
+const isAISuggestionNote = (commentText: string | null): boolean => {
+  return !!commentText && AI_SUGGESTION_MARKERS.some(marker => commentText.startsWith(marker));
+};
+
+const extractAISuggestionContent = (commentText: string | null): string => {
+  if (!commentText) return '';
+  for (const marker of AI_SUGGESTION_MARKERS) {
+    if (commentText.startsWith(marker)) {
+      const markerEndIndex = commentText.indexOf('\n', marker.length);
+      if (markerEndIndex !== -1) {
+        return commentText.substring(markerEndIndex + 1).trim();
+      }
+      return commentText.substring(marker.length).trim();
+    }
+  }
+  return '';
+};
+
+const getAISuggestionTitle = (commentText: string | null): string => {
+  if (!commentText) return "AI Suggestion";
+  if (commentText.startsWith("**Order Status Found - Suggested Reply:**")) return "AI Order Status Reply";
+  if (commentText.startsWith("**Suggested Reply (Request for Lot #):**")) return "AI COA/Lot# Reply";
+  if (commentText.startsWith("**Suggested Reply (SDS Document):**")) return "AI SDS Reply";
+  if (commentText.startsWith("**Suggested Reply (COC Information):**")) return "AI COC Reply";
+  if (commentText.startsWith("**AI Suggested Reply:**")) return "AI General Reply";
+  return "AI Suggestion";
+};
+
+// Attachment List Component
 const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: string }> = ({ attachments, title }) => {
     if (!attachments || attachments.length === 0) return null;
     return (
       <div className="attachment-list">
-        {title && <div className="attachment-header mb-2 text-muted small"><i className="fas fa-paperclip me-1"></i>{title} ({attachments.length})</div>}
-        <div className="list-group list-group-flush">
+        {title && (
+          <div className="attachment-header">
+            <i className="fas fa-paperclip"></i>
+            <span>{title} ({attachments.length})</span>
+          </div>
+        )}
+        <div className="attachment-grid">
           {attachments.map(att => (
             <a
               key={att.id}
-              href={`/api/attachments/${att.id}/download`} // Ensure this API route exists
+              href={`/api/attachments/${att.id}/download`}
               target="_blank"
               rel="noopener noreferrer"
-              className="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-1 px-0 border-0 bg-transparent"
+              className="attachment-item"
               title={`Download ${att.originalFilename}`}
             >
-              <div className="d-flex align-items-center text-truncate me-2">
-                <i className={`fas ${getFileIconClass(att.mimeType)} me-2 text-primary fa-fw`}></i>
-                <span className="text-truncate small">{att.originalFilename}</span>
+              <div className="attachment-icon">
+                <i className={`fas ${getFileIconClass(att.mimeType)}`}></i>
               </div>
-              <span className="badge bg-light text-dark ms-2">{formatFileSize(att.fileSize)}</span>
+              <div className="attachment-info">
+                <span className="attachment-name">{att.originalFilename}</span>
+                <span className="attachment-size">{formatFileSize(att.fileSize)}</span>
+              </div>
+              <div className="attachment-download">
+                <i className="fas fa-download"></i>
+              </div>
             </a>
           ))}
         </div>
@@ -181,7 +252,7 @@ const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: 
 export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdminUrl }: TicketViewClientProps) {
   const [ticket, setTicket] = useState<TicketData>(initialTicket);
   const [users, setUsers] = useState<BaseUser[]>([]);
-  const [isLoading, setIsLoading] = useState(false); // Combined loading state for simplicity
+  const [isLoading, setIsLoading] = useState(false);
   const [isUsersLoading, setIsUsersLoading] = useState(true);
   const [isUpdatingAssignee, setIsUpdatingAssignee] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -206,24 +277,14 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   const [isLoadingOrderStatusDraft, setIsLoadingOrderStatusDraft] = useState(false);
   const [orderStatusDraft, setOrderStatusDraft] = useState<string | null>(null);
   const [orderStatusDraftError, setOrderStatusDraftError] = useState<string | null>(null);
-  const [fetchedOrderStatusUIDetails, setFetchedOrderStatusUIDetails] = useState<{
-    carrier?: string;
-    trackingNumber?: string;
-    trackingLink?: string;
-    isStalled?: boolean;
-    isException?: boolean;
-    exceptionDetails?: string;
-    confidence?: 'high' | 'medium' | 'low';
-    orderNumber?: string;
-  } | null>(null);
 
-  // **NEW: Live ShipStation Data State**
+  // Live ShipStation Data State
   const [liveShipStationData, setLiveShipStationData] = useState<any>(null);
   const [isLoadingLiveData, setIsLoadingLiveData] = useState(false);
   const [liveDataFetchedAt, setLiveDataFetchedAt] = useState<string | null>(null);
   const [liveDataError, setLiveDataError] = useState<string | null>(null);
 
-  // **NEW: Resend Invoice State**
+  // Resend Invoice State
   const [isResendingInvoice, setIsResendingInvoice] = useState(false);
   const [invoiceInfo, setInvoiceInfo] = useState<{
     quoteName: string;
@@ -233,7 +294,6 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   const [isResendingShopifyInvoice, setIsResendingShopifyInvoice] = useState(false);
   const [isResendingPdf, setIsResendingPdf] = useState(false);
 
-  // --- Helper to safely parse date strings ---
   const parseDate = (dateString: string | Date | null | undefined): Date | null => {
       if (!dateString) return null;
       if (dateString instanceof Date) return dateString;
@@ -246,13 +306,11 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   };
 
   // --- Effects ---
-
-  // Initial Load Users
   useEffect(() => {
     const fetchUsers = async () => {
       setIsUsersLoading(true);
       try {
-        const res = await axios.get<BaseUser[]>('/api/users'); // Ensure API returns BaseUser compatible structure
+        const res = await axios.get<BaseUser[]>('/api/users');
         setUsers(res.data);
       } catch (err) {
         console.error("Failed to fetch users:", err);
@@ -264,70 +322,24 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     fetchUsers();
   }, []);
 
-  // Parse ShipStation Info from Comments - **DISABLED: Now using live data instead**
+  // Parse ShipStation Info from Comments - DISABLED: Now using live data instead
   useEffect(() => {
-    // **DISABLED: Old comment parsing that was showing stale/incorrect data**
-    // Since we now fetch live ShipStation data, we don't need to parse old comments
-    // that may contain outdated or incorrect information
-    
     console.log('[TicketViewClient] ShipStation comment parsing DISABLED - using live data instead');
-    
-    // Reset all extracted values to prevent old data from showing
     setExtractedStatus(null); 
     setExtractedOrderDate(null); 
     setExtractedCarrier(null);
     setExtractedTracking(null); 
     setExtractedShipDate(null);
-    
-    // OLD CODE (now disabled):
-    // const findAndParseShippingInfo = () => {
-    //   setExtractedStatus(null); setExtractedOrderDate(null); setExtractedCarrier(null);
-    //   setExtractedTracking(null); setExtractedShipDate(null);
-    //
-    //   const shipStationNote = ticket.comments.find(
-    //     comment => comment.isInternalNote && comment.commentText?.includes('**ShipStation Info for Order')
-    //   );
-    //
-    //   if (shipStationNote?.commentText) {
-    //     const text = shipStationNote.commentText;
-    //     const statusMatch = text.match(/Status:\s*([\w_]+)/i);
-    //     const currentStatus = statusMatch ? statusMatch[1].toLowerCase() : null;
-    //     setExtractedStatus(currentStatus);
-    //
-    //     const orderDateMatch = text.match(/Order Date:\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
-    //     setExtractedOrderDate(orderDateMatch ? orderDateMatch[1] : null);
-    //
-    //     // Only parse ship date if status makes sense (e.g., shipped)
-    //     if (currentStatus === 'shipped') {
-    //         const shipDateMatch = text.match(/Shipped:\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
-    //         setExtractedShipDate(shipDateMatch ? shipDateMatch[1] : null);
-    //     }
-    //
-    //     const carrierTrackingMatch = text.match(/Carrier:\s*([\w\s.&/-]+?),\s*Tracking:\s*([\w#.\-/]+)/i);
-    //     if (carrierTrackingMatch) {
-    //         setExtractedCarrier(carrierTrackingMatch[1]?.trim() || 'Unknown');
-    //         setExtractedTracking(carrierTrackingMatch[2]?.trim());
-    //     } else {
-    //         const carrierMatch = text.match(/Carrier:\s*([\w\s.&/-]+)/i);
-    //         const trackingMatch = text.match(/Tracking:\s*([\w#.\-/]+)/i);
-    //         setExtractedCarrier(carrierMatch ? carrierMatch[1]?.trim() : 'Unknown');
-    //         setExtractedTracking(trackingMatch ? trackingMatch[1]?.trim() : null);
-    //     }
-    //   }
-    // };
-    // findAndParseShippingInfo();
-  }, [ticket.comments]); // Rerun only when comments change
+  }, [ticket.comments]);
 
   // Checkbox mutual exclusivity
   useEffect(() => { if (isInternalNote && sendAsEmail) setSendAsEmail(false); }, [isInternalNote, sendAsEmail]);
   useEffect(() => { if (sendAsEmail && isInternalNote) setIsInternalNote(false); }, [sendAsEmail, isInternalNote]);
 
   // --- Data Fetching & Updating Functions ---
-
   const refreshTicket = useCallback(async () => {
-    // Note: This simple refresh might lose unsaved comment form state.
-    // A more complex solution involves merging updates instead of full replacement.
-    setIsLoading(true); setError(null);
+    setIsLoading(true);
+    setError(null);
     try {
       const response = await axios.get<TicketData>(`/api/tickets/${initialTicket.id}`);
       setTicket(response.data);
@@ -337,24 +349,22 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     } finally {
       setIsLoading(false);
     }
-  }, [initialTicket.id]); // Depends only on the ID passed initially
+  }, [initialTicket.id]);
 
   const handleAssigneeChange = useCallback(async (e: ChangeEvent<HTMLSelectElement>) => {
     const selectedAssigneeId = e.target.value || null;
     if (selectedAssigneeId === (ticket.assignee?.id || null)) return;
 
-    setIsUpdatingAssignee(true); setError(null);
-    const originalAssignee = ticket.assignee; // Store for potential revert
+    setIsUpdatingAssignee(true);
+    setError(null);
+    const originalAssignee = ticket.assignee;
 
     try {
-      // API Call
       await axios.put(`/api/tickets/${ticket.id}`, { assigneeId: selectedAssigneeId });
-      // Refresh after successful API call
       await refreshTicket();
     } catch (err) {
       console.error('Error updating assignee:', err);
       setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to update assignee.' : 'Failed to update assignee.');
-      // Revert UI optimistically if needed (though refresh handles it)
       setTicket(prev => ({ ...prev, assignee: originalAssignee }));
       setTimeout(() => setError(null), 6000);
     } finally {
@@ -366,18 +376,16 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     const newStatus = e.target.value as typeof ticketStatusEnum.enumValues[number];
     if (newStatus === ticket.status) return;
 
-    setIsUpdatingStatus(true); setError(null);
+    setIsUpdatingStatus(true);
+    setError(null);
     const originalStatus = ticket.status;
 
     try {
-      // API Call
       await axios.put(`/api/tickets/${ticket.id}`, { status: newStatus });
-      // Refresh after successful API call
       await refreshTicket();
     } catch (err) {
       console.error('Error updating status:', err);
       setError(axios.isAxiosError(err) ? err.response?.data?.error || 'Failed to update status.' : 'Failed to update status.');
-      // Revert UI optimistically if needed (though refresh handles it)
       setTicket(prev => ({ ...prev, status: originalStatus }));
       setTimeout(() => setError(null), 6000);
     } finally {
@@ -385,8 +393,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     }
   }, [ticket.id, ticket.status, refreshTicket]);
 
-  // --- Order Status Draft Handler ---
-
+  // Order Status Draft Handler
   const handleGetOrderStatusDraft = useCallback(async () => {
     if (!ticket?.id) return;
 
@@ -413,7 +420,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     }
   }, [ticket?.id]);
 
-  // **NEW: Live ShipStation Data Handler**
+  // Live ShipStation Data Handler
   const fetchLiveShipStationData = useCallback(async () => {
     if (!ticket?.id) return;
 
@@ -427,35 +434,8 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
       if (response.data) {
         setLiveShipStationData(response.data.shipstationData);
         setLiveDataFetchedAt(response.data.fetchedAt);
-        
-        // Log what we received
         console.log(`✅ [TicketViewClient] Live ShipStation data received:`, response.data.shipstationData);
-        
-        // Show a small notification that data was refreshed
-        if (response.data.shipstationData) {
-          const toastElement = document.createElement('div');
-          toastElement.className = 'toast-container position-fixed top-0 end-0 p-3';
-          toastElement.innerHTML = `
-            <div class="toast show" role="alert">
-              <div class="toast-header">
-                <i class="fas fa-sync-alt text-success me-2"></i>
-                <strong class="me-auto">Live Shipping Data</strong>
-                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-              </div>
-              <div class="toast-body">
-                Latest ShipStation data loaded successfully
-              </div>
-            </div>
-          `;
-          document.body.appendChild(toastElement);
-          setTimeout(() => {
-            if (document.body.contains(toastElement)) {
-              document.body.removeChild(toastElement);
-            }
-          }, 3000);
-        }
       }
-
     } catch (err: any) {
       const errorMsg = err.response?.data?.error || "Failed to fetch live ShipStation data.";
       setLiveDataError(errorMsg);
@@ -465,7 +445,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     }
   }, [ticket?.id]);
 
-  // **NEW: Effect to fetch live data when ticket loads**
+  // Effect to fetch live data when ticket loads
   useEffect(() => {
     if (ticket?.orderNumber) {
       console.log(`🚀 [TicketViewClient] Ticket loaded with order number ${ticket.orderNumber}, fetching live ShipStation data...`);
@@ -473,17 +453,15 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     }
   }, [ticket?.orderNumber, fetchLiveShipStationData]);
 
-  // **NEW: Extract invoice information from comments**
+  // Extract invoice information from comments
   useEffect(() => {
     const extractInvoiceInfo = () => {
-      // Look for comments that indicate an invoice was sent
       const invoiceComment = ticket.comments.find(comment => 
         comment.commentText?.includes('Invoice email sent') && 
         comment.commentText?.includes('for quote')
       );
       
       if (invoiceComment && invoiceComment.commentText) {
-        // Extract email and quote name from comment text
         const emailMatch = invoiceComment.commentText.match(/Invoice email sent to ([^\s]+)/);
         const quoteMatch = invoiceComment.commentText.match(/for quote ([^\s]+)/);
         
@@ -491,12 +469,10 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
           const recipientEmail = emailMatch[1];
           const quoteName = quoteMatch[1];
           
-          // Extract numeric ID from quote name (e.g., "#D260" -> "1014170091562")
-          // We'll need to make an API call to get the draft order ID from the quote name
           setInvoiceInfo({
             quoteName,
             recipientEmail,
-            draftOrderId: '', // Will be populated when needed
+            draftOrderId: '',
           });
         }
       }
@@ -505,7 +481,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     extractInvoiceInfo();
   }, [ticket.comments]);
 
-  // **NEW: Resend Invoice Function**
+  // Resend Invoice Function
   const handleResendInvoice = async () => {
     if (!invoiceInfo) return;
     
@@ -513,8 +489,6 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     setError(null);
     
     try {
-      // First, we need to get the draft order ID from the quote name
-      // The quote name format is like "#D260", we need to find the corresponding draft order
       const response = await axios.get(`/api/draft-orders/search?name=${encodeURIComponent(invoiceInfo.quoteName)}`);
       const draftOrder = response.data;
       
@@ -522,36 +496,13 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         throw new Error('Could not find the draft order for this quote');
       }
       
-      // Now send the invoice
       await axios.post('/api/email/send-invoice', {
         draftOrderId: draftOrder.id,
         recipientEmail: invoiceInfo.recipientEmail,
         ticketId: ticket.id
       });
       
-      // Show success and refresh ticket to show new comment
-      const toastElement = document.createElement('div');
-      toastElement.className = 'toast-container position-fixed top-0 end-0 p-3';
-      toastElement.innerHTML = `
-        <div class="toast show" role="alert">
-          <div class="toast-header">
-            <i class="fas fa-check-circle text-success me-2"></i>
-            <strong class="me-auto">Invoice Resent</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-          </div>
-          <div class="toast-body">
-            Invoice successfully resent to ${invoiceInfo.recipientEmail}
-          </div>
-        </div>
-      `;
-      document.body.appendChild(toastElement);
-      
-      // Auto-remove toast after 5 seconds
-      setTimeout(() => {
-        document.body.removeChild(toastElement);
-      }, 5000);
-      
-      // Refresh ticket to show new comment
+      toast.success(`Invoice successfully resent to ${invoiceInfo.recipientEmail}`);
       await refreshTicket();
       
     } catch (error) {
@@ -634,7 +585,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     const toastId = toast.loading('Reopening ticket...');
     try {
       await axios.post(`/api/admin/tickets/${ticket.id}/reopen`);
-      await refreshTicket(); // Refresh to get the new status and comments
+      await refreshTicket();
       toast.success('Ticket has been reopened!', { id: toastId });
     } catch (err) {
       console.error('Error reopening ticket:', err);
@@ -646,16 +597,13 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   };
 
   // --- Comment & Attachment Functions ---
-
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      // Append new files, consider limits
       const currentFiles = files.length;
       const newFiles = Array.from(e.target.files);
-      // Basic limit check example
       if (currentFiles + newFiles.length > 5) {
          setError("Maximum 5 attachments allowed per comment.");
-         if (fileInputRef.current) fileInputRef.current.value = ''; // Clear input
+         if (fileInputRef.current) fileInputRef.current.value = '';
          return;
       }
       setFiles(prevFiles => [...prevFiles, ...newFiles]);
@@ -664,7 +612,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
 
   const removeFile = (indexToRemove: number) => {
     setFiles(prevFiles => prevFiles.filter((_, index) => index !== indexToRemove));
-    if (files.length === 1 && fileInputRef.current) { // Clear input value if removing the last file
+    if (files.length === 1 && fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
@@ -676,11 +624,11 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         return;
     }
 
-    setIsSubmittingComment(true); setError(null);
+    setIsSubmittingComment(true);
+    setError(null);
     let uploadedAttachmentIds: number[] = [];
 
     try {
-      // 1. Upload attachments
       if (files.length > 0) {
         const formData = new FormData();
         files.forEach(file => formData.append('files', file));
@@ -691,24 +639,22 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
            console.error("Attachment upload failed:", uploadError);
            setError("Failed to upload attachments. Comment not saved.");
            setIsSubmittingComment(false);
-           return; // Stop if upload fails
+           return;
         }
       }
 
-      // 2. Post the reply/comment
       await axios.post(`/api/tickets/${ticket.id}/reply`, {
-        content: newComment.trim() || null, // Send null if only attachments
+        content: newComment.trim() || null,
         isInternalNote,
         sendAsEmail,
         attachmentIds: uploadedAttachmentIds,
       });
 
-      // 3. Clear form and refresh
       setNewComment('');
       setIsInternalNote(false);
       setSendAsEmail(false);
-      setFiles([]); // Clear file list state
-      if (fileInputRef.current) fileInputRef.current.value = ''; // Clear file input element
+      setFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       await refreshTicket();
 
     } catch (err) {
@@ -719,46 +665,18 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     }
   };
 
-  // --- Template/Draft Functions ---
-
-  const isDraftReplyNote = (commentText: string | null): boolean => !!commentText && commentText.includes('**Suggested Reply');
-
-  const extractDraftContent = (commentText: string | null): string => {
-    if (!commentText) return '';
-    const markerEnd = commentText.indexOf('**\n'); // Find end of the marker line
-    return markerEnd !== -1 ? commentText.substring(markerEnd + 3).trim() : '';
-  };
-
-  // **NEW: Helper function to identify AI suggestions (for TicketHeaderBar indicator)**
-  const isAISuggestionNote = (commentText: string | null): boolean => {
-    const AI_SUGGESTION_MARKERS = [
-        "**AI Suggested Reply:**",
-        "**Order Status Found - Suggested Reply:**",
-        "**Suggested Reply (Request for Lot #):**",
-        "**Order Status Reply:**",
-        "**Suggested Reply (SDS Document):**",
-        "**Suggested Reply (COC Information):**",
-        "**Suggested Reply (Document Request):**",
-        "**AI Order Status Reply:**",
-        "**AI COA Reply:**"
-    ];
-    return !!commentText && AI_SUGGESTION_MARKERS.some(marker => commentText.startsWith(marker));
-  };
-
-  // **UPDATED: Improved handleApproveAndSendDraft function**
+  // Improved handleApproveAndSendDraft function
   const handleApproveAndSendDraft = useCallback(async (draftText: string) => {
     if (!ticket?.senderEmail) {
         setError("Cannot send email: Original sender email not found for this ticket.");
         return;
     }
     
-    // Populate the reply form states
     setNewComment(draftText);
-    setSendAsEmail(true); // Default to sending as email
-    setIsInternalNote(false); // Ensure it's not an internal note
-    setFiles([]); // Clear any existing files from manual input
+    setSendAsEmail(true);
+    setIsInternalNote(false);
+    setFiles([]);
 
-    // Directly trigger the submission logic
     setIsSubmittingComment(true); 
     setError(null);
     
@@ -767,10 +685,9 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         content: draftText.trim(),
         isInternalNote: false, 
         sendAsEmail: true, 
-        attachmentIds: [], // No attachments for AI suggested replies
+        attachmentIds: [],
       });
       
-      // Clear the form after successful submission
       setNewComment(''); 
       setIsInternalNote(false); 
       setSendAsEmail(false); 
@@ -792,7 +709,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     if (!orderNum) { setError("Cannot generate reply: Ticket is missing the Order Number."); return; }
 
     let suggestedReply = '';
-    const signature = "\n\nBest regards,\nAlliance Chemical Shipping Team"; // Consider making signature configurable
+    const signature = "\n\nBest regards,\nAlliance Chemical Shipping Team";
 
     switch (extractedStatus) {
       case 'shipped':
@@ -815,173 +732,619 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   }, [ticket.senderName, ticket.reporter, ticket.orderNumber, ticket.senderEmail, extractedStatus, extractedOrderDate, extractedShipDate, extractedTracking, extractedCarrier]);
 
   // --- Render Logic ---
-
-  // Added initial loading check based on users loading state
   if (isUsersLoading) {
-     return <div className="text-center py-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
+     return (
+       <div className="glass-container">
+         <div className="glass-card loading-state">
+           <div className="loading-spinner"></div>
+           <p>Loading ticket details...</p>
+         </div>
+       </div>
+     );
   }
 
   if (!ticket && !isLoading) {
-      return <div className="alert alert-danger">Ticket not found or could not be loaded.</div>;
+      return <div className="glass-alert glass-alert-danger">Ticket not found or could not be loaded.</div>;
   }
 
   const createdAtDate = parseDate(ticket.createdAt);
   const updatedAtDate = parseDate(ticket.updatedAt);
+  const statusConfig = getStatusConfig(ticket.status);
+  const priorityConfig = getPriorityConfig(ticket.priority);
 
   return (
-    <div className="ticket-view-outlook">
-      {/* Error display (centralized, can be moved to header) */}
+    <div className="ticket-view-container">
+      {/* Error Alert */}
       {error && (
-        <div className="alert alert-danger alert-dismissible fade show m-2" style={{ gridColumn: '1 / -1' }} role="alert">
-          {error}
-          <button type="button" className="btn-close" onClick={() => setError(null)} aria-label="Close"></button>
+        <div className="glass-alert glass-alert-danger">
+          <div className="alert-content">
+            <i className="fas fa-exclamation-triangle"></i>
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="alert-close">
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
         </div>
       )}
       
-      {/* Ticket Header Bar (Actions, Status, Assignee) */}
-      <div style={{ gridColumn: '1 / -1' }}>
-        <TicketHeaderBar 
-          ticket={ticket} 
-          users={users} 
-          isUpdatingAssignee={isUpdatingAssignee} 
-          isUpdatingStatus={isUpdatingStatus} 
-          handleAssigneeChange={handleAssigneeChange} 
-          handleStatusSelectChange={handleStatusSelectChange}
-          onReopenTicket={handleReopenTicket}
-          showAiSuggestionIndicator={ticket.comments.some(c => isAISuggestionNote(c.commentText))}
-          orderNumberForStatus={ticket.orderNumber}
-          onGetOrderStatusDraft={handleGetOrderStatusDraft}
-          isLoadingOrderStatusDraft={isLoadingOrderStatusDraft}
-          onResendInvoice={handleResendInvoice}
-          isResendingInvoice={isResendingInvoice}
-          hasInvoiceInfo={!!invoiceInfo}
-        />
-      </div>
+      {/* Premium Header */}
+      <div className="glass-card ticket-header">
+        <div className="header-main">
+          <div className="ticket-identity">
+            <div className="ticket-icon gradient-icon">
+              <i className="fas fa-ticket-alt"></i>
+            </div>
+            <div className="ticket-meta">
+              <div className="ticket-title-row">
+                <span className="ticket-id">#{ticket.id}</span>
+                <h1 className="ticket-title">{ticket.title}</h1>
+              </div>
+              <div className="status-row">
+                <span className={`status-badge ${statusConfig.class}`}>
+                  <i className={statusConfig.icon}></i>
+                  <span>{statusConfig.label}</span>
+                </span>
+                <span className={`priority-badge ${priorityConfig.class}`}>
+                  <i className={priorityConfig.icon}></i>
+                  <span>{priorityConfig.label}</span>
+                </span>
+                {ticket.comments.some(c => isAISuggestionNote(c.commentText)) && (
+                  <span className="ai-indicator">
+                    <i className="fas fa-robot"></i>
+                    <span>AI Suggestion Available</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
 
-      {/* Main Content Area (Scrollable) */}
-      <div className="row g-0 flex-grow-1">
-        <div className="col-12 col-md-8">
-          {/* Description */}
-          <TicketDescription ticket={ticket} />
-          
-          {/* Communication History */}
-          <CommunicationHistory 
-            comments={ticket.comments} 
-            ticket={ticket} 
-            handleApproveAndSendDraft={handleApproveAndSendDraft} 
-            isSubmittingComment={isSubmittingComment} 
-          />
-          
-          {/* Reply Form */}
-          <ReplyForm 
-            ticketId={ticket.id}
-            senderEmail={ticket.senderEmail}
-            extractedStatus={extractedStatus}
-            extractedTracking={extractedTracking}
-            extractedCarrier={extractedCarrier}
-            extractedShipDate={extractedShipDate}
-            extractedOrderDate={extractedOrderDate}
-            orderNumber={ticket.orderNumber}
-            isSubmittingComment={isSubmittingComment}
-            newComment={newComment}
-            setNewComment={setNewComment}
-            isInternalNote={isInternalNote}
-            setIsInternalNote={setIsInternalNote}
-            sendAsEmail={sendAsEmail}
-            setSendAsEmail={setSendAsEmail}
-            files={files}
-            setFiles={setFiles}
-            handleCommentSubmit={handleCommentSubmit}
-            insertSuggestedResponse={insertSuggestedResponse}
-          />
+          <div className="header-controls">
+            <div className="control-group">
+              <label className="control-label">Status</label>
+              <div className="glass-select-wrapper">
+                <select 
+                  className="glass-select" 
+                  value={ticket.status} 
+                  onChange={handleStatusSelectChange} 
+                  disabled={isUpdatingStatus}
+                >
+                  {ticketStatusEnum.enumValues.map(s => (
+                    <option key={s} value={s}>
+                      {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </option>
+                  ))}
+                </select>
+                {isUpdatingStatus && <div className="loading-overlay"><div className="spinner"></div></div>}
+              </div>
+            </div>
+            
+            <div className="control-group">
+              <label className="control-label">Assignee</label>
+              <div className="glass-select-wrapper">
+                <select 
+                  className="glass-select" 
+                  value={ticket.assignee?.id || ''} 
+                  onChange={handleAssigneeChange} 
+                  disabled={isUpdatingAssignee}
+                >
+                  <option value="">Unassigned</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.id}>
+                      {user.name || user.email}
+                    </option>
+                  ))}
+                </select>
+                {isUpdatingAssignee && <div className="loading-overlay"><div className="spinner"></div></div>}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Details Sidebar (Right Side) */}
-        <div className="col-12 col-md-4">
+        {/* Action Bar */}
+        <div className="action-bar">
+          <div className="action-group-left">
+            {ticket.orderNumber && (
+              <button
+                type="button"
+                className="glass-btn glass-btn-info"
+                onClick={handleGetOrderStatusDraft}
+                disabled={isLoadingOrderStatusDraft}
+              >
+                {isLoadingOrderStatusDraft ? (
+                  <>
+                    <div className="spinner"></div>
+                    <span>Fetching Status...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-truck"></i>
+                    <span>Get Order Status</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {invoiceInfo && (
+              <button
+                type="button"
+                className="glass-btn glass-btn-warning"
+                onClick={handleResendInvoice}
+                disabled={isResendingInvoice}
+              >
+                {isResendingInvoice ? (
+                  <>
+                    <div className="spinner"></div>
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-envelope"></i>
+                    <span>Resend Invoice</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {ticket.status === 'closed' && (
+              <button onClick={handleReopenTicket} className="glass-btn glass-btn-warning">
+                <i className="fas fa-folder-open"></i>
+                <span>Reopen Ticket</span>
+              </button>
+            )}
+          </div>
+          
+          <div className="action-group-right">
+            <Link href={`/tickets/${ticket.id}/create-quote`} className="glass-btn glass-btn-success">
+              <i className="fas fa-file-invoice-dollar"></i>
+              <span>Create Quote</span>
+            </Link>
+
+            <button 
+              className="glass-btn glass-btn-secondary" 
+              onClick={() => {
+                const url = `${window.location.origin}/tickets/${ticket.id}`;
+                navigator.clipboard.writeText(url);
+                toast.success('Link copied to clipboard!');
+              }}
+              title="Copy ticket link"
+            >
+              <i className="fas fa-link"></i>
+              <span>Copy Link</span>
+            </button>
+
+            <Link href={`/tickets/${ticket.id}/edit`} className="glass-btn glass-btn-secondary">
+              <i className="fas fa-edit"></i>
+              <span>Edit</span>
+            </Link>
+            
+            <Link href="/tickets" className="glass-btn glass-btn-secondary">
+              <i className="fas fa-arrow-left"></i>
+              <span>Back to List</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="content-layout">
+        {/* Main Column */}
+        <div className="main-content">
+          {/* Original Description */}
+          <div className="glass-card communication-card">
+            <div className="card-header gradient-header">
+              <div className="header-icon">
+                <i className="fas fa-ticket-alt"></i>
+              </div>
+              <div className="header-content">
+                <h3>Original Request</h3>
+                <span className="timestamp">
+                  {createdAtDate ? format(createdAtDate, 'PPp') : 'Unknown'}
+                </span>
+              </div>
+            </div>
+            <div className="card-content">
+              <div className="message-content">
+                {ticket.description || <span className="empty-state">No description provided.</span>}
+              </div>
+              {ticket.attachments && ticket.attachments.length > 0 && (
+                <AttachmentListDisplay attachments={ticket.attachments} title="Attachments" />
+              )}
+            </div>
+          </div>
+
+          {/* Communication History */}
+          <div className="communications-section">
+            {ticket.comments.map((comment, index) => {
+              const isAIResponse = isAISuggestionNote(comment.commentText);
+              const aiSuggestionContent = isAIResponse ? extractAISuggestionContent(comment.commentText) : '';
+              const aiSuggestionTitle = isAIResponse ? getAISuggestionTitle(comment.commentText) : '';
+              const commentDate = parseDate(comment.createdAt);
+              const senderDisplayName = isAIResponse ? "AI Assistant" : 
+                                        comment.commenter?.name || 
+                                        (comment.isFromCustomer ? (ticket.senderName || ticket.senderEmail || 'Customer') : 'System/Agent');
+
+              let cardClasses = 'glass-card communication-card';
+              let headerIcon = 'fas fa-user-edit';
+
+              if (isAIResponse) {
+                cardClasses += ' ai-suggestion';
+                headerIcon = 'fas fa-robot';
+              } else if (comment.isInternalNote) {
+                cardClasses += ' internal-note';
+                headerIcon = 'fas fa-lock';
+              } else if (comment.isOutgoingReply) {
+                cardClasses += ' outgoing-reply';
+                headerIcon = 'fas fa-paper-plane';
+              } else if (comment.isFromCustomer) {
+                cardClasses += ' incoming-message';
+                headerIcon = 'fas fa-envelope';
+              }
+
+              return (
+                <div key={comment.id} className={cardClasses}>
+                  <div className="card-header">
+                    <div className="commenter-avatar">
+                      <i className={headerIcon}></i>
+                    </div>
+                    <div className="header-content">
+                      <h4>{senderDisplayName}</h4>
+                      <span className="timestamp">
+                        {commentDate ? format(commentDate, 'PPp') : 'Unknown time'}
+                      </span>
+                    </div>
+                    <div className="message-badges">
+                      {isAIResponse && <span className="badge badge-ai">AI Suggestion</span>}
+                      {comment.isInternalNote && !isAIResponse && <span className="badge badge-internal">Internal</span>}
+                      {comment.isOutgoingReply && <span className="badge badge-sent">Sent</span>}
+                      {comment.isFromCustomer && <span className="badge badge-received">Received</span>}
+                    </div>
+                  </div>
+                  <div className="card-content">
+                    {isAIResponse ? (
+                      <div className="ai-suggestion-wrapper">
+                        <div className="ai-suggestion-header">
+                          <h6>
+                            <i className="fas fa-lightbulb"></i>
+                            {aiSuggestionTitle}
+                          </h6>
+                          <p>AI has analyzed this ticket and suggests the following response:</p>
+                        </div>
+                        
+                        <div className="suggested-content">
+                          {aiSuggestionContent}
+                        </div>
+                        
+                        <div className="ai-suggestion-actions">
+                          <button 
+                            className="glass-btn glass-btn-sm glass-btn-secondary" 
+                            onClick={() => navigator.clipboard.writeText(aiSuggestionContent)} 
+                            disabled={isSubmittingComment}
+                          >
+                            <i className="fas fa-copy"></i>
+                            <span>Copy Text</span>
+                          </button>
+                          <button 
+                            className="glass-btn glass-btn-sm glass-btn-primary" 
+                            onClick={() => handleApproveAndSendDraft(aiSuggestionContent)} 
+                            disabled={isSubmittingComment}
+                          >
+                            {isSubmittingComment ? (
+                              <>
+                                <div className="spinner"></div>
+                                <span>Sending...</span>
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-paper-plane"></i>
+                                <span>Approve & Send</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="message-content">
+                        {comment.commentText || <span className="empty-state">No content</span>}
+                      </div>
+                    )}
+
+                    {comment.attachments && comment.attachments.length > 0 && (
+                      <AttachmentListDisplay attachments={comment.attachments} />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Reply Form */}
+          <div className="glass-card reply-form-card">
+            <div className="card-header gradient-header">
+              <div className="header-icon">
+                <i className="fas fa-reply"></i>
+              </div>
+              <h3>Add Reply</h3>
+            </div>
+            <form onSubmit={handleCommentSubmit} className="reply-form">
+              <div className="form-content">
+                <div className="textarea-wrapper">
+                  <textarea
+                    className="glass-textarea"
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Type your response here..."
+                    rows={4}
+                    disabled={isSubmittingComment}
+                  />
+                </div>
+
+                {/* File Upload Section */}
+                <div className="file-section">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="file-input-hidden"
+                    multiple
+                    disabled={isSubmittingComment}
+                    id="fileInput"
+                  />
+                  <label htmlFor="fileInput" className="file-input-label">
+                    <i className="fas fa-paperclip"></i>
+                    <span>Attach Files</span>
+                  </label>
+                  <span className="file-input-hint">Drop files anywhere or click to browse (max 5 files)</span>
+                  
+                  {files.length > 0 && (
+                    <div className="selected-files">
+                      <div className="files-header">
+                        <i className="fas fa-paperclip"></i>
+                        <span>Attached Files ({files.length})</span>
+                      </div>
+                      <div className="files-grid">
+                        {files.map((file, index) => (
+                          <div key={index} className="file-item">
+                            <div className="file-icon">
+                              <i className={`fas ${getFileIconClass(file.type)}`}></i>
+                            </div>
+                            <div className="file-info">
+                              <span className="file-name">{file.name}</span>
+                              <span className="file-size">{formatFileSize(file.size)}</span>
+                            </div>
+                            <button 
+                              type="button" 
+                              className="file-remove" 
+                              onClick={() => removeFile(index)}
+                              disabled={isSubmittingComment}
+                            >
+                              <i className="fas fa-times"></i>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="form-actions">
+                  <div className="form-options">
+                    <label className="glass-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={isInternalNote}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setIsInternalNote(checked);
+                          if (checked) setSendAsEmail(false);
+                        }}
+                        disabled={isSubmittingComment}
+                      />
+                      <span className="checkmark"></span>
+                      <span className="label-text">
+                        <i className="fas fa-lock"></i>
+                        Internal Note
+                      </span>
+                    </label>
+                    
+                    <label className="glass-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={sendAsEmail}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          setSendAsEmail(checked);
+                          if (checked) setIsInternalNote(false);
+                        }}
+                        disabled={isInternalNote || !ticket.senderEmail || isSubmittingComment}
+                      />
+                      <span className="checkmark"></span>
+                      <span className="label-text">
+                        <i className="fas fa-paper-plane"></i>
+                        Send as Email
+                      </span>
+                    </label>
+
+                    {!ticket.senderEmail && (
+                      <span className="email-disabled-hint">
+                        <i className="fas fa-info-circle"></i>
+                        Email option disabled - no customer email
+                      </span>
+                    )}
+                  </div>
+                  
+                  <button 
+                    type="submit" 
+                    className="glass-btn glass-btn-primary glass-btn-large"
+                    disabled={(!newComment?.trim() && files.length === 0) || isSubmittingComment}
+                  >
+                    {isSubmittingComment ? (
+                      <>
+                        <div className="spinner"></div>
+                        <span>Submitting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <i className={`fas ${isInternalNote ? 'fa-lock' : sendAsEmail ? 'fa-paper-plane' : 'fa-comment'}`}></i>
+                        <span>{isInternalNote ? 'Save Note' : sendAsEmail ? 'Send Email' : 'Add Comment'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {/* Sidebar */}
+        <div className="sidebar-content">
           {/* Ticket Details */}
-          <TicketDetailsSidebar 
-            ticket={ticket} 
-          />
+          <div className="glass-card details-card">
+            <div className="card-header gradient-header">
+              <div className="header-icon">
+                <i className="fas fa-info-circle"></i>
+              </div>
+              <h3>Ticket Details</h3>
+            </div>
+            <div className="details-grid">
+              <div className="detail-item">
+                <span className="label">Priority</span>
+                <span className={`priority-badge ${priorityConfig.class}`}>
+                  {priorityConfig.label}
+                </span>
+              </div>
+              {ticket.type && (
+                <div className="detail-item">
+                  <span className="label">Type</span>
+                  <span className="value">{ticket.type}</span>
+                </div>
+              )}
+              <div className="detail-item">
+                <span className="label">Created</span>
+                <span className="value">
+                  {createdAtDate ? formatDistanceToNow(createdAtDate, { addSuffix: true }) : 'N/A'}
+                </span>
+              </div>
+              <div className="detail-item">
+                <span className="label">Updated</span>
+                <span className="value">
+                  {updatedAtDate ? formatDistanceToNow(updatedAtDate, { addSuffix: true }) : 'N/A'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Info */}
+          <div className="glass-card customer-card">
+            <div className="card-header gradient-header">
+              <div className="header-icon">
+                <i className="fas fa-user-circle"></i>
+              </div>
+              <h3>Customer Information</h3>
+            </div>
+            <div className="customer-info">
+              <div className="customer-item">
+                <i className="fas fa-user"></i>
+                <span>{ticket.senderName || ticket.reporter?.name || 'Not Provided'}</span>
+              </div>
+              {(ticket.senderEmail || ticket.reporter?.email) && (
+                <div className="customer-item">
+                  <i className="fas fa-envelope"></i>
+                  <span>{ticket.senderEmail || ticket.reporter?.email}</span>
+                </div>
+              )}
+              {ticket.senderPhone && (
+                <div className="customer-item">
+                  <i className="fas fa-phone"></i>
+                  <span>{ticket.senderPhone}</span>
+                </div>
+              )}
+              {ticket.orderNumber && (
+                <div className="customer-item">
+                  <i className="fas fa-shopping-cart"></i>
+                  <span>Order #{ticket.orderNumber}</span>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Related Quote */}
           {relatedQuote && (
-            <div className="card shadow-sm mb-4 border-primary">
-              <div className="card-header bg-primary bg-opacity-10 d-flex justify-content-between align-items-center">
-                <h6 className="mb-0 d-flex align-items-center">
-                  <i className="fas fa-file-invoice-dollar me-2 text-primary"></i>
-                  Related Quote
-                </h6>
+            <div className="glass-card quote-card">
+              <div className="card-header gradient-header">
+                <div className="header-icon">
+                  <i className="fas fa-file-invoice-dollar"></i>
+                </div>
+                <h3>Related Quote</h3>
                 <a 
                   href={quoteAdminUrl || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="btn btn-sm btn-outline-primary"
+                  className="glass-btn glass-btn-sm glass-btn-secondary"
                 >
-                  View in Shopify <i className="fas fa-external-link-alt ms-1"></i>
+                  <i className="fas fa-external-link-alt"></i>
+                  <span>View in Shopify</span>
                 </a>
               </div>
-              <div className="card-body p-3">
-                <div className="d-flex flex-column gap-2">
-                  <div className="d-flex justify-content-between">
-                    <span className="text-muted">Quote #</span>
-                    <span className="fw-medium">{relatedQuote.name}</span>
-                  </div>
-                  <div className="d-flex justify-content-between">
-                    <span className="text-muted">Status</span>
-                    <span className="fw-medium text-capitalize">{relatedQuote.status.replace('_', ' ')}</span>
-                  </div>
-                  <div className="d-flex justify-content-between">
-                    <span className="text-muted">Total</span>
-                    <span className="fw-medium">
-                      ${parseFloat(relatedQuote.totalPriceSet.shopMoney.amount).toFixed(2)} {relatedQuote.totalPriceSet.shopMoney.currencyCode}
-                    </span>
-                  </div>
+              <div className="quote-details">
+                <div className="detail-row">
+                  <span className="label">Quote #</span>
+                  <span className="value">{relatedQuote.name}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="label">Status</span>
+                  <span className="status-badge status-open">{relatedQuote.status.replace('_', ' ')}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="label">Total</span>
+                  <span className="value price">
+                    ${parseFloat(relatedQuote.totalPriceSet.shopMoney.amount).toFixed(2)} {relatedQuote.totalPriceSet.shopMoney.currencyCode}
+                  </span>
                 </div>
               </div>
-              <div className="card-footer bg-light p-2">
-                <div className="d-flex justify-content-end gap-2">
-                   <button 
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={handleResendShopifyInvoice}
-                    disabled={isResendingShopifyInvoice || !relatedQuote?.id}
-                  >
-                    {isResendingShopifyInvoice ? (
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    ) : (
-                      <><i className="fas fa-file-invoice me-1"></i> Resend Shopify Invoice</>
-                    )}
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={handleResendPdfInvoice}
-                    disabled={isResendingPdf || !relatedQuote?.legacyResourceId}
-                  >
-                    {isResendingPdf ? (
-                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                    ) : (
-                      <><i className="fas fa-file-pdf me-1"></i> Resend PDF via Email</>
-                    )}
-                  </button>
-                </div>
+              <div className="quote-actions">
+                <button 
+                  className="glass-btn glass-btn-sm glass-btn-secondary"
+                  onClick={handleResendShopifyInvoice}
+                  disabled={isResendingShopifyInvoice || !relatedQuote?.id}
+                >
+                  {isResendingShopifyInvoice ? (
+                    <div className="spinner"></div>
+                  ) : (
+                    <><i className="fas fa-file-invoice"></i> Resend Shopify Invoice</>
+                  )}
+                </button>
+                <button 
+                  className="glass-btn glass-btn-sm glass-btn-secondary"
+                  onClick={handleResendPdfInvoice}
+                  disabled={isResendingPdf || !relatedQuote?.legacyResourceId}
+                >
+                  {isResendingPdf ? (
+                    <div className="spinner"></div>
+                  ) : (
+                    <><i className="fas fa-file-pdf"></i> Resend PDF via Email</>
+                  )}
+                </button>
               </div>
             </div>
           )}
           
-          {/* **NEW: Live ShipStation Data Section** */}
+          {/* Live ShipStation Data Section */}
           {ticket.orderNumber && (
-            <div className={`card shadow-sm mb-4 ${liveShipStationData ? 'border-success' : 'border-warning'} border-opacity-50`}>
-              <div className={`card-header ${liveShipStationData ? 'bg-success' : 'bg-warning'} bg-opacity-10 d-flex justify-content-between align-items-center`}>
-                <h6 className="mb-0 d-flex align-items-center">
-                  <i className={`fas ${isLoadingLiveData ? 'fa-spinner fa-spin' : 'fa-satellite-dish'} me-2 ${liveShipStationData ? 'text-success' : 'text-warning'}`}></i>
+            <div className="glass-card shipping-card">
+              <div className="card-header gradient-header">
+                <div className="header-icon">
+                  <i className={`fas ${isLoadingLiveData ? 'fa-spinner fa-spin' : 'fa-satellite-dish'}`}></i>
+                </div>
+                <h3>
                   Live Shipping Status
                   {liveDataFetchedAt && (
-                    <small className="ms-2 text-muted">
+                    <span className="fetch-time">
                       ({format(new Date(liveDataFetchedAt), 'MMM d, h:mm a')})
-                    </small>
+                    </span>
                   )}
-                </h6>
+                </h3>
                 <button 
-                  className="btn btn-sm btn-outline-secondary"
+                  className="glass-btn glass-btn-sm glass-btn-secondary"
                   onClick={fetchLiveShipStationData}
                   disabled={isLoadingLiveData}
                   title="Refresh live data"
@@ -989,63 +1352,60 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
                   <i className={`fas fa-sync-alt ${isLoadingLiveData ? 'fa-spin' : ''}`}></i>
                 </button>
               </div>
-              <div className="card-body p-3">
+              <div className="shipping-content">
                 {isLoadingLiveData && (
-                  <div className="text-center py-3">
-                    <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                    Fetching latest data...
+                  <div className="loading-state">
+                    <div className="spinner"></div>
+                    <span>Fetching latest data...</span>
                   </div>
                 )}
                 
                 {liveDataError && !isLoadingLiveData && (
-                  <div className="alert alert-danger mb-0">
-                    <i className="fas fa-exclamation-triangle me-2"></i>
-                    {liveDataError}
+                  <div className="error-state">
+                    <i className="fas fa-exclamation-triangle"></i>
+                    <span>{liveDataError}</span>
                   </div>
                 )}
                 
                 {!isLoadingLiveData && !liveDataError && !liveShipStationData && (
-                   <div className="text-center text-muted py-3">
-                    <p className="mb-1"><i className="fas fa-search-location fa-2x mb-2"></i></p>
-                    No live data found for order <strong>{ticket.orderNumber}</strong>. This is normal for older orders or if the order number is incorrect.
+                   <div className="empty-state">
+                    <i className="fas fa-search-location"></i>
+                    <p>No live data found for order <strong>{ticket.orderNumber}</strong>. This is normal for older orders or if the order number is incorrect.</p>
                   </div>
                 )}
 
                 {liveShipStationData && (
-                  <div>
-                    <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Status</span>
-                      <span className="fw-medium text-capitalize">{liveShipStationData.shipmentStatus?.replace(/_/g, ' ') || 'N/A'}</span>
+                  <div className="shipping-details">
+                    <div className="detail-row">
+                      <span className="label">Status</span>
+                      <span className="value">{liveShipStationData.shipmentStatus?.replace(/_/g, ' ') || 'N/A'}</span>
                     </div>
-                    <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Carrier</span>
-                      <span className="fw-medium">{liveShipStationData.carrier || 'N/A'}</span>
+                    <div className="detail-row">
+                      <span className="label">Carrier</span>
+                      <span className="value">{liveShipStationData.carrier || 'N/A'}</span>
                     </div>
-                    <div className="d-flex justify-content-between mb-2">
-                      <span className="text-muted">Ship Date</span>
-                      <span className="fw-medium">
+                    <div className="detail-row">
+                      <span className="label">Ship Date</span>
+                      <span className="value">
                         {liveShipStationData.shipDate ? format(new Date(liveShipStationData.shipDate), 'MMM d, yyyy') : 'N/A'}
                       </span>
                     </div>
                     {liveShipStationData.trackingNumber && (
-                      <div className="mb-2">
-                        <span className="text-muted d-block">Tracking #</span>
-                        <a href={liveShipStationData.trackingUrl || '#'} target="_blank" rel="noopener noreferrer" className="fw-medium text-break">
-                          {liveShipStationData.trackingNumber} <i className="fas fa-external-link-alt fa-xs"></i>
+                      <div className="detail-row">
+                        <span className="label">Tracking #</span>
+                        <a href={liveShipStationData.trackingUrl || '#'} target="_blank" rel="noopener noreferrer" className="tracking-link">
+                          {liveShipStationData.trackingNumber} <i className="fas fa-external-link-alt"></i>
                         </a>
                       </div>
                     )}
                     {liveShipStationData.lastEvent && (
-                      <div className="mt-3 pt-3 border-top">
-                         <p className="text-muted mb-1 small">Latest Update:</p>
-                         <p className="mb-0">
-                           <strong>{liveShipStationData.lastEvent.event}</strong>
-                           <br/>
-                           <small className="text-muted">
+                      <div className="last-event">
+                         <h6>Latest Update:</h6>
+                         <p>
+                           <strong>{liveShipStationData.lastEvent.event}</strong><br/>
+                           <span className="event-details">
                              {liveShipStationData.lastEvent.location} - {format(new Date(liveShipStationData.lastEvent.timestamp), 'MMM d, h:mm a')}
-                           </small>
+                           </span>
                          </p>
                       </div>
                     )}

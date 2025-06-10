@@ -42,7 +42,7 @@ async function enrichShopifyOrder(order: ShopifyOrderNode): Promise<OrderSearchR
         relatedTicketId: relatedTicket?.id,
         relatedTicketUrl: relatedTicket ? `/tickets/${relatedTicket.id}` : undefined,
         shipStationOrderId: shipStationInfo?.shipStationOrderId,
-        shipStationUrl: shipStationInfo?.shipStationOrderId ? constructShipStationUrl(shipStationInfo.shipStationOrderId) : undefined,
+        shipStationUrl: (shipStationInfo?.shipStationOrderId && typeof shipStationInfo.shipStationOrderId === 'number') ? constructShipStationUrl(shipStationInfo.shipStationOrderId) || undefined : undefined,
         shipStationStatus: shipStationInfo?.orderStatus || undefined,
         trackingNumbers: shipStationInfo?.shipments?.map(s => s.trackingNumber).filter((tn): tn is string => Boolean(tn)),
     };

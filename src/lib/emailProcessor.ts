@@ -249,6 +249,44 @@ async function processAsNewTicket(emailMessage: Message, state: EmailProcessingS
         trackingNumber: aiAnalysis?.trackingNumber,
     }).returning();
 
+    // === INTELLIGENT EMAIL FLAGGING ===
+    // Flag ALL customer requests that create tickets for human review
+    try {
+        let shouldFlag = true; // Always flag customer requests
+        let flagReason = 'customer request requiring human review';
+
+        // Add specific reasons for prioritization
+        if (newTicket.priority === 'high' || newTicket.priority === 'urgent') {
+            flagReason = `${newTicket.priority} priority customer request`;
+        }
+
+        if (aiAnalysis?.intent === 'return_request' || 
+            aiAnalysis?.sentiment === 'negative' ||
+            newTicket.type === 'Return') {
+            flagReason = `${aiAnalysis?.intent || newTicket.type} requiring urgent attention`;
+        }
+
+        if (aiAnalysis?.intent === 'documentation_request') {
+            flagReason = 'documentation request requiring review';
+        }
+
+        if (aiAnalysis?.intent === 'order_status_inquiry') {
+            flagReason = 'order inquiry requiring review';
+        }
+
+        if (aiAnalysis?.intent === 'quote_request') {
+            flagReason = 'quote request requiring review';
+        }
+
+        if (shouldFlag && state.messageId) {
+            await graphService.flagEmail(state.messageId, 'red');
+            console.log(`EmailProcessor: Flagged ticket ${newTicket.id} email (${flagReason})`);
+        }
+    } catch (flagError) {
+        console.warn(`Failed to flag email for ticket ${newTicket.id}:`, flagError);
+        // Don't fail the whole process if flagging fails
+    }
+
     await graphService.markEmailAsRead(state.messageId!);
     ticketEventEmitter.emit({ type: 'ticket_created', ticketId: newTicket.id });
 
