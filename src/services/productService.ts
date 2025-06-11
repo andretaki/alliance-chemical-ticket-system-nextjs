@@ -4,12 +4,21 @@ import { eq, or, ilike, sql, asc, desc, and } from 'drizzle-orm';
 import type { ParentProductData, ProductVariantData } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
 
+import path from 'path';
+import fs from 'fs';
+import csv from 'csv-parser';
+
 const BATCH_SIZE = 1000;
 
 // Helper interface for search results
 interface ProductVariantSearchResult {
   parentProduct: ParentProductData;
   variant: ProductVariantData;
+}
+
+interface SdsInfo {
+  productTitle: string;
+  sdsUrl: string;
 }
 
 export class ProductService {
@@ -176,5 +185,36 @@ export class ProductService {
       console.error(`[ProductService] Error finding product with variants by identifier "${productIdentifier}":`, error);
       return null;
     }
+  }
+
+  public async getSdsInfoForProduct(productName: string): Promise<SdsInfo[]> {
+    console.log(`[ProductService] Getting SDS info for product: ${productName}`);
+    const results: SdsInfo[] = [];
+    const filePath = path.join(process.cwd(), 'public', 'Export_2025-06-11_154200.csv');
+    const lowerCaseProductName = productName.toLowerCase();
+
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(filePath)
+        .pipe(csv())
+        .on('data', (data) => {
+          const title = data['Title'];
+          const sdsUrl = data['Metafield: custom.safety_data_sheet [file_reference]'];
+
+          if (title && sdsUrl && title.toLowerCase().includes(lowerCaseProductName)) {
+            results.push({
+              productTitle: title,
+              sdsUrl: sdsUrl,
+            });
+          }
+        })
+        .on('end', () => {
+          console.log(`[ProductService] Found ${results.length} SDS matches for "${productName}".`);
+          resolve(results);
+        })
+        .on('error', (error) => {
+          console.error(`[ProductService] Error processing CSV for SDS info:`, error);
+          reject(error);
+        });
+    });
   }
 } 

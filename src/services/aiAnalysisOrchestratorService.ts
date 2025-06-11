@@ -1,6 +1,7 @@
 import { EmailAnalysisData } from '@/types/emailAnalysis';
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig, type GenerativeModel } from '@google/generative-ai';
 import { NotificationService } from './notificationService';
+import { ProductService } from './productService';
 import { OpenAI } from 'openai';
 import { db, tickets, ticketComments } from '@/lib/db';
 
@@ -35,6 +36,7 @@ geminiModel = initializeGoogleAI();
 
 export class AiAnalysisOrchestratorService {
   private notificationService: NotificationService;
+  private productService: ProductService;
 
   // Defined primary topics list
   private definedPrimaryTopics = [
@@ -83,6 +85,7 @@ export class AiAnalysisOrchestratorService {
       console.warn("[AIService] Gemini model not available during construction.");
     }
     this.notificationService = new NotificationService();
+    this.productService = new ProductService();
   }
 
   /**
@@ -161,6 +164,35 @@ Be extremely thorough in 'extractedEntities'. Ensure the JSON is perfectly forme
       if (!responseText) { throw new Error("Empty AI response from Gemini."); }
 
       const parsedGeminiOutput = JSON.parse(responseText.trim());
+
+      // --- SDS/COA DOCUMENTATION REQUEST LOGIC ---
+      if (parsedGeminiOutput.primaryTopic === "Documentation Request (SDS/COA)") {
+        console.log(`[AIService] Email ${email.id} identified as Documentation Request. Attempting to find product and generate response.`);
+        
+        // Attempt to find a product name from the extracted entities
+        const productEntity = parsedGeminiOutput.extractedEntities?.find((e: { type: string; value: string }) => e.type.toLowerCase().includes('product'));
+        const productName = productEntity?.value;
+
+        if (productName) {
+          const sdsInfo = await this.productService.getSdsInfoForProduct(productName);
+          
+          if (sdsInfo && sdsInfo.length > 0) {
+            const intro = `The customer is requesting documentation for "${productName}". I found the following Safety Data Sheet(s) (SDS):`;
+            const sdsLinks = sdsInfo.map(info => `- ${info.productTitle}: ${info.sdsUrl}`).join('\n');
+            const suggestedResponse = `Hello,\n\nThank you for contacting us. Here are the Safety Data Sheet(s) you requested for ${productName}:\n\n${sdsLinks}\n\nPlease let us know if you need anything else.\n\nBest regards,\nThe Alliance Chemical Team`;
+            
+            parsedGeminiOutput.keyInformationForResolution.push(intro);
+            parsedGeminiOutput.suggestedNextActions.push(`**Suggested AI Response:**\n\n${suggestedResponse}`);
+            console.log(`[AIService] Successfully generated SDS response for ${productName} in email ${email.id}.`);
+          } else {
+            console.log(`[AIService] Could not find SDS info for product "${productName}" in email ${email.id}.`);
+            parsedGeminiOutput.suggestedNextActions.push(`Could not automatically locate SDS for product: "${productName}". Please search manually.`);
+          }
+        } else {
+          console.log(`[AIService] Documentation request identified, but no product name was extracted by the AI from email ${email.id}.`);
+          parsedGeminiOutput.suggestedNextActions.push("AI identified a documentation request, but could not determine the product name. Please identify the product and find the SDS/COA manually.");
+        }
+      }
 
       // --- CREDIT APPLICATION LOGIC MODIFICATION ---
       const emailTextForPatternMatching = `${email.subject} ${email.bodyText}`.toLowerCase();
