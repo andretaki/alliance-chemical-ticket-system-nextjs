@@ -248,6 +248,7 @@ export default function Sidebar() {
                 </div>
 
                 <div className="nav-group">
+                    <div className="nav-group-title">Menu</div>
                     <Link href="/dashboard" className={`nav-item ${isActive('/dashboard') ? 'active' : ''}`}>
                         <div className="nav-icon">
                             <i className="fas fa-home" />
@@ -277,10 +278,26 @@ export default function Sidebar() {
                     </Link>
                 </div>
 
+                <div className="nav-group">
+                    <div className="nav-group-title">External Links</div>
+                    <a href="https://admin.shopify.com" target="_blank" rel="noopener noreferrer" className="nav-item">
+                        <div className="nav-icon"><i className="fab fa-shopify" /></div>
+                        <div className="nav-label">Shopify</div>
+                    </a>
+                    <a href="https://c21.qbo.intuit.com" target="_blank" rel="noopener noreferrer" className="nav-item">
+                        <div className="nav-icon"><i className="fas fa-file-invoice-dollar" /></div>
+                        <div className="nav-label">QuickBooks</div>
+                    </a>
+                    <a href="https://ship.shipstation.com/" target="_blank" rel="noopener noreferrer" className="nav-item">
+                        <div className="nav-icon"><i className="fas fa-shipping-fast" /></div>
+                        <div className="nav-label">ShipStation</div>
+                    </a>
+                </div>
+
                 {/* Admin Section */}
                 {isAdmin && (
-                    <div className="nav-group">
-                        {!isCollapsed && <div className="nav-divider">Admin</div>}
+                    <div className="nav-group admin-group">
+                        <div className="nav-group-title">Admin</div>
                         
                         <Link href="/admin/manage-users" className={`nav-item ${isActive('/admin/manage-users') ? 'active' : ''}`}>
                             <div className="nav-icon">
