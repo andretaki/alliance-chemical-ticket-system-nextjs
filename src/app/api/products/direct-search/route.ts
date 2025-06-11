@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
 
     // Transform the results to match the expected format in the frontend
     const results = shopifyProducts.flatMap(product => {
+      if (!Array.isArray(product.variants?.edges)) {
+        return [] as any[]; // Skip products without variants/edges
+      }
       return product.variants.edges.map(variantEdge => {
         const variant = variantEdge.node;
         return {

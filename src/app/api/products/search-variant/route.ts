@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
 
     // Transform the results to match the expected ProductVariantSearchResult format
     const results: ProductVariantSearchResult[] = shopifyProducts.flatMap(product => {
-      // Add null safety checks for variants and edges
-      if (!product.variants || !product.variants.edges || !Array.isArray(product.variants.edges)) {
+      // Null-safety checks for variants/edges
+      if (!Array.isArray(product.variants?.edges)) {
         console.warn(`[API /api/products/search-variant] Product ${product.title} has no variants or invalid variants structure`);
         return [];
       }

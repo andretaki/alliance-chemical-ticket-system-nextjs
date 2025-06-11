@@ -30,24 +30,26 @@ function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): 
       firstName: gqlResponse.customer.firstName,
       lastName: gqlResponse.customer.lastName,
     } : undefined,
-    lineItems: gqlResponse.lineItems.edges.map(edge => ({
-      id: edge.node.id,
-      title: edge.node.title,
-      quantity: edge.node.quantity,
-      originalUnitPrice: parseFloat(edge.node.originalUnitPriceSet.shopMoney.amount),
-      variant: edge.node.variant ? {
-        id: edge.node.variant.id,
-        legacyResourceId: edge.node.variant.legacyResourceId, // This is the numeric ID
-        sku: edge.node.variant.sku,
-        title: edge.node.variant.title,
-        image: edge.node.variant.image,
-      } : undefined,
-      product: edge.node.product ? {
-        id: edge.node.product.id,
-        legacyResourceId: edge.node.product.legacyResourceId, // Numeric ID
-        title: edge.node.product.title,
-      } : undefined,
-    })),
+    lineItems: Array.isArray(gqlResponse.lineItems?.edges)
+      ? gqlResponse.lineItems.edges.map(edge => ({
+        id: edge.node.id,
+        title: edge.node.title,
+        quantity: edge.node.quantity,
+        originalUnitPrice: parseFloat(edge.node.originalUnitPriceSet.shopMoney.amount),
+        variant: edge.node.variant ? {
+          id: edge.node.variant.id,
+          legacyResourceId: edge.node.variant.legacyResourceId, // This is the numeric ID
+          sku: edge.node.variant.sku,
+          title: edge.node.variant.title,
+          image: edge.node.variant.image,
+        } : undefined,
+        product: edge.node.product ? {
+          id: edge.node.product.id,
+          legacyResourceId: edge.node.product.legacyResourceId, // Numeric ID
+          title: edge.node.product.title,
+        } : undefined,
+      }))
+      : [],
     shippingLine: gqlResponse.shippingLine ? {
       title: gqlResponse.shippingLine.title,
       price: parseFloat(gqlResponse.shippingLine.price),

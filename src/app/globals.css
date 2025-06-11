@@ -2717,3 +2717,42 @@ body::before {
 .app-layout .sidebar-container.collapsed + .main-content {
   margin-left: 80px;
 }
+
+/* ---------- Create Quote Readability Fixes ---------- */
+/* Ensure dark foreground text on light/white backgrounds within the quote form */
+.create-quote-form .bg-light,
+.create-quote-form .bg-white {
+  color: #374151; /* slate-700 */
+}
+
+.create-quote-form .bg-light .form-label,
+.create-quote-form .bg-white .form-label {
+  color: #374151;
+}
+
+/* Override input styles when sitting on light backgrounds */
+.create-quote-form .bg-light .form-control,
+.create-quote-form .bg-white .form-control,
+.create-quote-form .bg-light .form-select,
+.create-quote-form .bg-white .form-select {
+  background-color: #ffffff;
+  color: #374151;
+  border-color: #ced4da;
+}
+
+/* Adjust placeholder & focus colors */
+.create-quote-form .bg-light .form-control::placeholder,
+.create-quote-form .bg-white .form-control::placeholder {
+  color: #6c757d;
+}
+
+/* Fix muted / secondary text inside light sections */
+.create-quote-form .bg-light .text-muted,
+.create-quote-form .bg-white .text-muted {
+  color: #6c757d !important;
+}
+
+/* Ensure active list-group items remain readable */
+.create-quote-form .list-group-item.active {
+  color: #ffffff;
+}
