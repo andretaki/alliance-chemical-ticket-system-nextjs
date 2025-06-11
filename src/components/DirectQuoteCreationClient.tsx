@@ -1572,7 +1572,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                       <input type="text" className="form-control" id="billZip" name="zip" value={billingAddress.zip || ''} onChange={handleBillingAddressChange} required />
                     </div>
                     
-                    <div className="col-md-6">
+                    <div className="col-md-4">
                       <label htmlFor="billPhone" className="form-label">Phone</label>
                       <input type="tel" className="form-control" id="billPhone" name="phone" value={billingAddress.phone || ''} onChange={handleBillingAddressChange} />
                     </div>
