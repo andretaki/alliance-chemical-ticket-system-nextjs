@@ -97,7 +97,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
       setIsLoading(false);
       setIsApplyingFilters(false);
     }
-  }, [statusFilter, priorityFilter, assigneeFilter, searchTerm, sortBy, sortOrder, limit, isApplyingFilters]);
+  }, [statusFilter, priorityFilter, assigneeFilter, searchTerm, sortBy, sortOrder, limit]);
 
   const fetchTicketsRef = useRef(fetchTickets);
   fetchTicketsRef.current = fetchTickets;
@@ -530,12 +530,12 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                 </tr>
               </thead>
               <tbody>
-                {isApplyingFilters && tickets.length > 0 ? (
+                {isLoading && tickets.length === 0 ? (
                   <tr className="loading-row">
                     <td colSpan={8}>
                       <div className="table-loading">
                         <i className="fas fa-spinner fa-spin" />
-                        <span>Filtering tickets...</span>
+                        <span>Loading tickets...</span>
                       </div>
                     </td>
                   </tr>
@@ -568,6 +568,14 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
               </tbody>
             </table>
           </div>
+          {isApplyingFilters && (
+            <div className="table-overlay">
+              <div className="table-loading">
+                <i className="fas fa-spinner fa-spin" />
+                <span>Refreshing tickets...</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -947,6 +955,28 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
 
         .table-container {
           overflow-x: auto;
+          position: relative;
+        }
+
+        .table-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(17, 24, 39, 0.8);
+          backdrop-filter: blur(2px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+          border-radius: 0 0 24px 24px;
+          animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         .table-wrapper {
@@ -956,7 +986,17 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
         .tickets-table {
           width: 100%;
           border-collapse: collapse;
+          table-layout: fixed;
         }
+
+        .tickets-table th:nth-child(1) { width: 8%; }   /* ID */
+        .tickets-table th:nth-child(2) { width: 20%; }  /* Title */
+        .tickets-table th:nth-child(3) { width: 25%; }  /* Description */
+        .tickets-table th:nth-child(4) { width: 15%; }  /* Assignee */
+        .tickets-table th:nth-child(5) { width: 10%; }  /* Priority */
+        .tickets-table th:nth-child(6) { width: 10%; }  /* Status */
+        .tickets-table th:nth-child(7) { width: 8%; }   /* Type */
+        .tickets-table th:nth-child(8) { width: 14%; }   /* Actions */
 
         .tickets-table thead tr {
           background: rgba(255, 255, 255, 0.05);
@@ -1018,7 +1058,9 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
           align-items: center;
           justify-content: center;
           gap: 1rem;
-          color: rgba(255, 255, 255, 0.7);
+          color: rgba(255, 255, 255, 0.9);
+          font-size: 1.2rem;
+          font-weight: 500;
         }
 
         .empty-row td {
@@ -1086,6 +1128,19 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
           .filter-actions {
             justify-content: center;
           }
+
+          .table-wrapper {
+            min-width: 600px;
+          }
+
+          .tickets-table th:nth-child(1) { width: 10%; }  /* ID */
+          .tickets-table th:nth-child(2) { width: 25%; }  /* Title */
+          .tickets-table th:nth-child(3) { width: 20%; }  /* Description */
+          .tickets-table th:nth-child(4) { width: 15%; }  /* Assignee */
+          .tickets-table th:nth-child(5) { width: 10%; }  /* Priority */
+          .tickets-table th:nth-child(6) { width: 10%; }  /* Status */
+          .tickets-table th:nth-child(7) { width: 0%; }   /* Type - hide */
+          .tickets-table th:nth-child(8) { width: 10%; }  /* Actions */
         }
 
         @media (max-width: 768px) {
@@ -1109,6 +1164,14 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
           .tickets-table th {
             padding: 0.75rem 1rem;
           }
+
+          .table-wrapper {
+            min-width: 500px;
+          }
+
+          .tickets-table th:nth-child(3) { width: 15%; }  /* Description - smaller */
+          .tickets-table th:nth-child(4) { width: 0%; }   /* Assignee - hide */
+          .tickets-table th:nth-child(7) { width: 0%; }   /* Type - hide */
         }
 
         /* Global styles for nested TicketDisplay components */

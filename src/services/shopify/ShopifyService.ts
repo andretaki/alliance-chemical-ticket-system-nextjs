@@ -32,6 +32,7 @@ interface ShopifyVariantNode {
   weightUnit?: string;
   taxable?: boolean;
   requiresShipping?: boolean;
+  image?: { url: string };
 }
 
 // Type for a single Shopify Order node from GraphQL
@@ -257,6 +258,9 @@ export class ShopifyService {
                   weightUnit
                   taxable
                   requiresShipping
+                  image {
+                    url
+                  }
                 }
               }
             }
@@ -362,7 +366,7 @@ export class ShopifyService {
 
   public async searchProducts(query: string): Promise<ShopifyProductNode[]> {
     const searchQuery = `
-      query SearchProducts($query: String!, $first: Int!) {
+      query SearchProducts($first: Int!, $query: String!) {
         products(first: $first, query: $query) {
           edges {
             node {
@@ -379,7 +383,7 @@ export class ShopifyService {
               featuredImage {
                 url
               }
-              variants(first: 50) {
+              variants(first: 30) {
                 edges {
                   node {
                     id
@@ -393,6 +397,9 @@ export class ShopifyService {
                     weightUnit
                     taxable
                     requiresShipping
+                    image {
+                      url
+                    }
                   }
                 }
               }

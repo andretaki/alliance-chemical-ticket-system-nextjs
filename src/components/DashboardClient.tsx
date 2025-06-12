@@ -367,7 +367,9 @@ export default function DashboardClient() {
         }
 
         .tickets-section {
-          animation-delay: 0.4s;
+          margin-bottom: 3rem;
+          opacity: 0;
+          animation: slideInUp 0.8s ease-out 0.8s forwards;
         }
 
         .section-header {
@@ -436,18 +438,12 @@ export default function DashboardClient() {
         }
 
         .tickets-card {
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(255, 255, 255, 0.02);
           backdrop-filter: blur(20px);
           border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 20px;
+          border-radius: 24px;
           overflow: hidden;
-          transition: all 0.2s ease;
-        }
-
-        .tickets-card:hover {
-          background: rgba(255, 255, 255, 0.08);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
         }
 
         /* Responsive Design */
