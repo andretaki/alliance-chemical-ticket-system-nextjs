@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { agentProducts, agentProductVariants } from '@/db/schema';
+import { agentProducts, agentProductVariants, sds } from '@/db/schema';
 import { eq, or, ilike, sql, asc, desc, and } from 'drizzle-orm';
 import type { ParentProductData, ProductVariantData } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
@@ -187,34 +187,28 @@ export class ProductService {
     }
   }
 
-  public async getSdsInfoForProduct(productName: string): Promise<SdsInfo[]> {
-    console.log(`[ProductService] Getting SDS info for product: ${productName}`);
-    const results: SdsInfo[] = [];
-    const filePath = path.join(process.cwd(), 'public', 'Export_2025-06-11_154200.csv');
-    const lowerCaseProductName = productName.toLowerCase();
+  public async getSdsInfoForProduct(productName: string, grade?: string): Promise<SdsInfo[]> {
+    console.log(`[ProductService] Getting SDS info for product: ${productName}` + (grade ? ` with grade: ${grade}` : ''));
+    try {
+      const searchConditions = [ilike(sds.title, `%${productName}%`)];
 
-    return new Promise((resolve, reject) => {
-      fs.createReadStream(filePath)
-        .pipe(csv())
-        .on('data', (data) => {
-          const title = data['Title'];
-          const sdsUrl = data['Metafield: custom.safety_data_sheet [file_reference]'];
+      if (grade) {
+        searchConditions.push(ilike(sds.title, `%${grade}%`));
+      }
 
-          if (title && sdsUrl && title.toLowerCase().includes(lowerCaseProductName)) {
-            results.push({
-              productTitle: title,
-              sdsUrl: sdsUrl,
-            });
-          }
+      const results = await db
+        .select({
+          productTitle: sds.title,
+          sdsUrl: sds.sdsUrl,
         })
-        .on('end', () => {
-          console.log(`[ProductService] Found ${results.length} SDS matches for "${productName}".`);
-          resolve(results);
-        })
-        .on('error', (error) => {
-          console.error(`[ProductService] Error processing CSV for SDS info:`, error);
-          reject(error);
-        });
-    });
+        .from(sds)
+        .where(and(...searchConditions));
+
+      console.log(`[ProductService] Found ${results.length} SDS matches from DB for "${productName}"` + (grade ? ` and grade "${grade}"` : ''));
+      return results;
+    } catch (error) {
+      console.error(`[ProductService] Error fetching SDS info from DB for "${productName}":`, error);
+      return [];
+    }
   }
 } 

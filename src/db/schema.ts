@@ -1,5 +1,5 @@
 // src/db/schema.ts
-import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, vector, type PgTable, index } from 'drizzle-orm/pg-core';
+import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, vector, type PgTable, index, doublePrecision } from 'drizzle-orm/pg-core';
 import { relations, type One, type Many } from 'drizzle-orm';
 import crypto from 'crypto'; // For UUID generation
 import { pgTable, bigint, jsonb, decimal } from 'drizzle-orm/pg-core';
@@ -419,3 +419,9 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const sds = ticketingProdSchema.table('sds', {
+  id: doublePrecision('id').primaryKey(),
+  title: text('title').notNull(),
+  sdsUrl: text('"Metafield: custom.safety_data_sheet [file_reference]"').notNull(),
+});

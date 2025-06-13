@@ -123,7 +123,15 @@ interface GeminiOutput {
   customerGoal: string;
   specificQuestionsAsked?: string[];
   problemReported?: { description: string; associatedProduct?: string; urgencyToCustomer: 'low' | 'medium' | 'high' | 'critical'; };
-  extractedEntities: Array<{ type: string; value: string; context?: string; attributes?: Record<string, string | number | boolean> }>;
+  extractedEntities: Array<{
+    type: string; // e.g., 'product', 'document_type', 'contact_person', 'company_name', 'order_number'
+    value: string; // The extracted text
+    context?: string; // Where it was found
+    attributes?: {
+      productGrade?: string; // If the product has a specific grade (e.g., 'ACS Grade', 'Technical Grade')
+      partNumber?: string;
+    }
+  }>;
   overallSentiment: 'positive' | 'neutral' | 'negative' | 'mixed' | null;
   specificTones?: ('frustrated' | 'confused' | 'appreciative' | 'demanding' | 'urgent' | 'inquisitive')[];
   estimatedComplexityToResolve: 'very_low' | 'low' | 'medium' | 'high' | 'very_high';
@@ -170,23 +178,26 @@ Be extremely thorough in 'extractedEntities'. Ensure the JSON is perfectly forme
         console.log(`[AIService] Email ${email.id} identified as Documentation Request. Attempting to find product and generate response.`);
         
         // Attempt to find a product name from the extracted entities
-        const productEntity = parsedGeminiOutput.extractedEntities?.find((e: { type: string; value: string }) => e.type.toLowerCase().includes('product'));
+        const productEntity = parsedGeminiOutput.extractedEntities?.find((e: any) => e.type.toLowerCase().includes('product'));
         const productName = productEntity?.value;
+        const productGrade = productEntity?.attributes?.productGrade;
 
         if (productName) {
-          const sdsInfo = await this.productService.getSdsInfoForProduct(productName);
+          const sdsInfo = await this.productService.getSdsInfoForProduct(productName, productGrade);
           
           if (sdsInfo && sdsInfo.length > 0) {
-            const intro = `The customer is requesting documentation for "${productName}". I found the following Safety Data Sheet(s) (SDS):`;
-            const sdsLinks = sdsInfo.map(info => `- ${info.productTitle}: ${info.sdsUrl}`).join('\n');
-            const suggestedResponse = `Hello,\n\nThank you for contacting us. Here are the Safety Data Sheet(s) you requested for ${productName}:\n\n${sdsLinks}\n\nPlease let us know if you need anything else.\n\nBest regards,\nThe Alliance Chemical Team`;
+            const gradeText = productGrade ? ` (Grade: ${productGrade})` : '';
+            const intro = `The customer is requesting documentation for "${productName}"${gradeText}. I found the following Safety Data Sheet(s) (SDS):`;
+            const sdsLinks = sdsInfo.map((info: { productTitle: string; sdsUrl: string; }) => `- ${info.productTitle}: ${info.sdsUrl}`).join('\n');
+            const suggestedResponse = `Hello,\n\nThank you for contacting us. Here are the Safety Data Sheet(s) you requested for ${productName}${gradeText}:\n\n${sdsLinks}\n\nPlease let us know if you need anything else.\n\nBest regards,\nThe Alliance Chemical Team`;
             
             parsedGeminiOutput.keyInformationForResolution.push(intro);
             parsedGeminiOutput.suggestedNextActions.push(`**Suggested AI Response:**\n\n${suggestedResponse}`);
             console.log(`[AIService] Successfully generated SDS response for ${productName} in email ${email.id}.`);
           } else {
-            console.log(`[AIService] Could not find SDS info for product "${productName}" in email ${email.id}.`);
-            parsedGeminiOutput.suggestedNextActions.push(`Could not automatically locate SDS for product: "${productName}". Please search manually.`);
+            const gradeText = productGrade ? ` and grade "${productGrade}"` : '';
+            console.log(`[AIService] Could not find SDS info for product "${productName}"${gradeText} in email ${email.id}.`);
+            parsedGeminiOutput.suggestedNextActions.push(`Could not automatically locate SDS for product: "${productName}"${gradeText}. Please search manually.`);
           }
         } else {
           console.log(`[AIService] Documentation request identified, but no product name was extracted by the AI from email ${email.id}.`);
