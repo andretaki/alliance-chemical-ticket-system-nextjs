@@ -4,6 +4,10 @@ import { NotificationService } from './notificationService';
 import { ProductService } from './productService';
 import { OpenAI } from 'openai';
 import { db, tickets, ticketComments } from '@/lib/db';
+import { differenceInDays } from 'date-fns';
+import { getOrderTrackingInfo } from '@/lib/shipstationService';
+import { searchShipStationCustomerByEmail } from '@/lib/shipstationCustomerService';
+import { ShopifyService } from './shopify/ShopifyService';
 
 // Define the FORM_URL
 const FORM_URL = process.env.CREDIT_APPLICATION_URL || "https://alliance-form.vercel.app/";
@@ -22,6 +26,29 @@ interface RawEmailInput {
 let geminiModel: GenerativeModel | null = null;
 const GEMINI_MODEL_NAME = process.env.GEMINI_MODEL_NAME || "models/gemini-2.5-flash-preview-05-20";
 
+const carrierTrackingLinks: { [key: string]: string } = {
+  ups: "https://www.ups.com/track?loc=en_US&requester=ST/&tracknum=",
+  saia: "https://www.saia.com/track/results?pro=",
+  xpo: "https://www.xpo.com/track/",
+  arcb: "https://view.arcb.com/nlo/tools/tracking/", // For ABF
+  sefl: "https://www.sefl.com/Tracing/index.jsp?trace=",
+  // Add other carriers here as needed
+};
+
+function getTrackingLink(carrier: string, trackingNumber: string): string {
+  const lowerCarrier = carrier.toLowerCase();
+  for (const key in carrierTrackingLinks) {
+    if (lowerCarrier.includes(key)) {
+      return `${carrierTrackingLinks[key]}${trackingNumber}`;
+    }
+  }
+  // Fallback for UPS tracking numbers specifically
+  if (trackingNumber.startsWith('1Z')) {
+    return `${carrierTrackingLinks['ups']}${trackingNumber}`;
+  }
+  return `(Tracking link for ${carrier} not available)`;
+}
+
 function initializeGoogleAI(): GenerativeModel | null {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) { console.error("CRITICAL: GOOGLE_API_KEY not set in aiAnalysisOrchestratorService."); return null; }
@@ -37,6 +64,7 @@ geminiModel = initializeGoogleAI();
 export class AiAnalysisOrchestratorService {
   private notificationService: NotificationService;
   private productService: ProductService;
+  private shopifyService: ShopifyService;
 
   // Defined primary topics list
   private definedPrimaryTopics = [
@@ -86,6 +114,7 @@ export class AiAnalysisOrchestratorService {
     }
     this.notificationService = new NotificationService();
     this.productService = new ProductService();
+    this.shopifyService = new ShopifyService();
   }
 
   /**
@@ -124,12 +153,14 @@ interface GeminiOutput {
   specificQuestionsAsked?: string[];
   problemReported?: { description: string; associatedProduct?: string; urgencyToCustomer: 'low' | 'medium' | 'high' | 'critical'; };
   extractedEntities: Array<{
-    type: string; // e.g., 'product', 'document_type', 'contact_person', 'company_name', 'order_number'
+    type: string; // e.g., 'product', 'document_type', 'contact_person', 'company_name', 'order_number', 'shipping_address'
     value: string; // The extracted text
     context?: string; // Where it was found
     attributes?: {
       productGrade?: string; // If the product has a specific grade (e.g., 'ACS Grade', 'Technical Grade')
       partNumber?: string;
+      quantity?: number;
+      unit?: 'pail' | 'drum' | 'case' | 'bottle' | 'gallon';
     }
   }>;
   overallSentiment: 'positive' | 'neutral' | 'negative' | 'mixed' | null;
@@ -149,7 +180,10 @@ Key Instructions for 'primaryTopic':
 2. If using "Other: New Category", secondaryTopic should be "Proposed Category Name: [Your Suggestion]" and tertiaryTopic should be the rationale.
 3. 'primaryTopic' is for BROAD categorization. 'rawSummary' is for THIS email.
 
-Be extremely thorough in 'extractedEntities'. Ensure the JSON is perfectly formed. Do not add comments.
+Key Instructions for 'extractedEntities':
+1.  If you find a shipping address, set the type to 'shipping_address'.
+2.  For 'product' types, be sure to extract 'quantity' and 'unit' (e.g., pail, drum, case) into the attributes if mentioned.
+3.  Ensure the JSON is perfectly formed. Do not add comments.
     `;
 
     const generationConfig: GenerationConfig = {
@@ -202,6 +236,154 @@ Be extremely thorough in 'extractedEntities'. Ensure the JSON is perfectly forme
         } else {
           console.log(`[AIService] Documentation request identified, but no product name was extracted by the AI from email ${email.id}.`);
           parsedGeminiOutput.suggestedNextActions.push("AI identified a documentation request, but could not determine the product name. Please identify the product and find the SDS/COA manually.");
+        }
+      }
+
+      // --- ORDER STATUS INQUIRY LOGIC ---
+      else if (parsedGeminiOutput.primaryTopic === "Order Status Inquiry") {
+        console.log(`[AIService] Email ${email.id} identified as Order Status Inquiry.`);
+        const orderEntity = parsedGeminiOutput.extractedEntities?.find((e: any) => e.type.toLowerCase() === 'order_number');
+        const orderNumber = orderEntity?.value?.replace('#', ''); // Clean up order number
+
+        if (orderNumber) {
+          const trackingInfo = await getOrderTrackingInfo(orderNumber);
+
+          if (trackingInfo && trackingInfo.found && trackingInfo.shipments && trackingInfo.shipments.length > 0) {
+            // Case 1: Tracking number exists
+            const trackingLinks = trackingInfo.shipments
+              .map(shipment => `Carrier: ${shipment.carrier}, Tracking #: ${shipment.trackingNumber}\nLink: ${getTrackingLink(shipment.carrier, shipment.trackingNumber)}`)
+              .join('\n\n');
+
+            const suggestedResponse = `Hello,\n\nThank you for your inquiry. Your order #${orderNumber} has shipped. Here is the tracking information:\n\n${trackingLinks}\n\nPlease let us know if you have any other questions.\n\nBest regards,\nThe Alliance Chemical Team`;
+            
+            parsedGeminiOutput.keyInformationForResolution.push(`Customer is asking for status of order #${orderNumber}. Tracking info was found.`);
+            parsedGeminiOutput.suggestedNextActions.push(`**Suggested AI Response:**\n\n${suggestedResponse}`);
+          } else {
+            // Case 2 or 3: No tracking number yet
+            const orderDate = trackingInfo?.orderDate ? new Date(trackingInfo.orderDate) : new Date(); // Use today if date not found
+            const daysSinceOrder = differenceInDays(new Date(), orderDate);
+
+            if (daysSinceOrder < 2) {
+              // Case 2: Less than 2 days old
+              const suggestedResponse = `Hello,\n\nThank you for reaching out. We've received your order #${orderNumber}. It is currently being processed and is expected to ship shortly. You will receive an email with tracking information as soon as it's available.\n\nWe appreciate your patience.\n\nBest regards,\nThe Alliance Chemical Team`;
+              parsedGeminiOutput.keyInformationForResolution.push(`Order #${orderNumber} was placed recently and has no tracking yet.`);
+              parsedGeminiOutput.suggestedNextActions.push(`**Suggested AI Response:**\n\n${suggestedResponse}`);
+            } else {
+              // Case 3: 2 or more days old
+              const suggestedResponse = `Hello,\n\nThank you for contacting us about your order #${orderNumber}. We see that it has not yet shipped, and we are looking into the reason for the delay. We will get back to you with an update as soon as possible.\n\nWe apologize for the inconvenience.\n\nBest regards,\nThe Alliance Chemical Team`;
+              parsedGeminiOutput.keyInformationForResolution.push(`Order #${orderNumber} is more than 2 days old and has no tracking. Needs investigation.`);
+              parsedGeminiOutput.suggestedNextActions.push(`**Suggested AI Response:**\n\n${suggestedResponse}`, `**Action Required:** Investigate delay for order #${orderNumber}.`);
+            }
+          }
+        } else {
+          console.log(`[AIService] Order status inquiry identified, but no order number was extracted from email ${email.id}.`);
+          parsedGeminiOutput.suggestedNextActions.push("AI identified an order status inquiry, but could not determine the order number. Please ask the customer for the order number.");
+        }
+      }
+
+      // --- QUOTE REQUEST LOGIC ---
+      else if (parsedGeminiOutput.primaryTopic === "Quote Request") {
+        console.log(`[AIService] Email ${email.id} identified as Quote Request. Checking for shipping address.`);
+        
+        let shippingAddress: any = null;
+
+        // Step 1: Check for address in ShipStation history
+        const customerInfo = await searchShipStationCustomerByEmail(email.senderEmail);
+        if (customerInfo?.addresses?.shipping) {
+          shippingAddress = {
+            address1: customerInfo.addresses.shipping.address1,
+            address2: customerInfo.addresses.shipping.address2,
+            city: customerInfo.addresses.shipping.city,
+            province: customerInfo.addresses.shipping.province,
+            zip: customerInfo.addresses.shipping.zip,
+            country: customerInfo.addresses.shipping.country,
+            firstName: customerInfo.firstName,
+            lastName: customerInfo.lastName,
+            phone: customerInfo.phone,
+            company: customerInfo.company,
+          };
+          console.log(`[AIService] Found address for ${email.senderEmail} in ShipStation history.`);
+        }
+        
+        // Step 2: Check for address extracted directly from the email by the AI
+        const addressEntity = parsedGeminiOutput.extractedEntities?.find((e: any) => e.type.toLowerCase() === 'shipping_address');
+        if (addressEntity) {
+          // A more robust solution would parse this address string, but for now we'll flag it.
+          // For the purpose of this logic, we will assume if an address is extracted, we can proceed.
+          // The actual address object from shipstation will be used if available.
+          // If not, we will need to implement address parsing or pass the string.
+          // For now, let's just use the existence of the entity as a signal.
+          if (!shippingAddress) {
+            // Placeholder: In a real scenario, you'd parse addressEntity.value
+            // For now, we can't proceed without a structured address.
+             console.log("[AIService] Address was found in email text, but parsing is not yet implemented. Cannot calculate rates.");
+          }
+        }
+
+        if (shippingAddress) {
+          // Address Found! Proceed with quote generation.
+          console.log(`[AIService] Shipping address found for ${email.senderEmail}. Proceeding to calculate rates.`);
+          const productEntities = parsedGeminiOutput.extractedEntities?.filter((e: any) => e.type.toLowerCase() === 'product');
+
+          if (productEntities && productEntities.length > 0) {
+            // Step 3: Find product variants
+            const lineItems = [];
+            for (const entity of productEntities) {
+              // Combining value and grade for a more specific search
+              const searchTerm = `${entity.value} ${entity.attributes?.productGrade || ''}`.trim();
+              const searchResults = await this.productService.findVariantByName(searchTerm);
+
+              if (searchResults.length > 0) {
+                const variant = searchResults[0].variant;
+                // Ensure we have a valid variant ID before adding
+                if (variant.numericVariantIdShopify) {
+                  lineItems.push({
+                    numericVariantIdShopify: variant.numericVariantIdShopify,
+                    quantity: entity.attributes?.quantity || 1,
+                  });
+                }
+              }
+            }
+
+            if (lineItems.length > 0) {
+              // Step 4: Calculate shipping rates
+              try {
+                const shippingRates = await this.shopifyService.calculateShippingRates(lineItems, shippingAddress);
+                
+                let responseText = `Hello,\n\nThank you for your quote request. Here are the available shipping options for your order:\n\n`;
+                
+                if (shippingRates && shippingRates.length > 0) {
+                  shippingRates.forEach((rate: any) => {
+                    responseText += `- ${rate.title}: $${parseFloat(rate.price.amount).toFixed(2)} ${rate.price.currencyCode}\n`;
+                  });
+                  responseText += `\nPlease let us know which option you'd like to proceed with.\n\nBest regards,\nThe Alliance Chemical Team`;
+                } else {
+                  responseText = `Hello,\n\nThank you for your quote request. We have the address on file, but we were unable to calculate shipping rates automatically. We will review your request and get back to you with a full quote shortly.\n\nBest regards,\nThe Alliance Chemical Team`;
+                }
+
+                parsedGeminiOutput.keyInformationForResolution.push(`Customer requested a quote. Shipping address was found. Shipping rates were calculated.`);
+                parsedGeminiOutput.suggestedNextActions.push(`**Suggested AI Response:**\n\n${responseText}`);
+
+              } catch (error: any) {
+                console.error(`[AIService] Error calculating shipping rates for ${email.id}:`, error);
+                parsedGeminiOutput.suggestedNextActions.push("Quote request identified with address, but an error occurred while calculating shipping rates. Please review manually.");
+              }
+            } else {
+               parsedGeminiOutput.suggestedNextActions.push("AI could not find matching products for the quote request. Please review manually.");
+            }
+
+          } else {
+            parsedGeminiOutput.suggestedNextActions.push("AI identified a quote request with an address, but could not extract any products. Please review manually.");
+          }
+          
+        } else {
+          // No Address Found. Ask the customer for it.
+          console.log(`[AIService] No shipping address on file for ${email.senderEmail}. Generating request.`);
+          
+          const suggestedResponse = `Hello,\n\nThank you for your interest in our products. To provide you with an accurate quote that includes shipping, could you please reply with your full shipping address?\n\nWe look forward to hearing from you.\n\nBest regards,\nThe Alliance Chemical Team`;
+          
+          parsedGeminiOutput.keyInformationForResolution.push("Customer is requesting a quote, but no shipping address was found on file or in the email.");
+          parsedGeminiOutput.suggestedNextActions.push(`**Suggested AI Response:**\n\n${suggestedResponse}`);
         }
       }
 
