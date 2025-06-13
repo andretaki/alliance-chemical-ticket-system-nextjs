@@ -133,12 +133,6 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({
     }
   };
 
-  const truncateDescription = (text: string | null, maxLength: number = 100) => {
-    if (!text) return 'No description provided';
-    if (text.length <= maxLength) return text;
-    return showFullDescription ? text : `${text.substring(0, maxLength)}...`;
-  };
-
   return (
     <>
       <tr className={`ticket-row ${showDeleteConfirm ? 'deleting' : ''}`}>
@@ -191,26 +185,13 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({
         <td className="ticket-description-cell">
           <div className="description-wrapper">
             <div className="description-text">
-              {truncateDescription(ticket.description ?? null)}
+              {ticket.description 
+                ? ticket.description
+                    .replace(/<[^>]*>/g, '') // Strip HTML tags
+                    .substring(0, 120) + (ticket.description.length > 120 ? '...' : '')
+                : 'No description provided'
+              }
             </div>
-            {ticket.description && ticket.description.length > 100 && (
-              <button
-                className="description-toggle"
-                onClick={() => setShowFullDescription(!showFullDescription)}
-              >
-                {showFullDescription ? (
-                  <>
-                    <i className="fas fa-chevron-up" />
-                    Show less
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-chevron-down" />
-                    Show more
-                  </>
-                )}
-              </button>
-            )}
           </div>
         </td>
 
@@ -441,6 +422,8 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({
           flex-direction: column;
           gap: 0.5rem;
           min-width: 200px;
+          max-width: 100%;
+          overflow: hidden;
         }
 
         .ticket-title-link {
@@ -460,6 +443,10 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({
           font-size: 0.9rem;
           line-height: 1.4;
           transition: all 0.3s ease;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 100%;
         }
 
         .ticket-title-link:hover .title-text {
@@ -508,13 +495,21 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({
 
         /* Description Cell */
         .description-wrapper {
-          max-width: 300px;
+          max-width: 250px;
+          overflow: hidden;
         }
 
         .description-text {
           color: rgba(255, 255, 255, 0.8);
           line-height: 1.4;
           margin-bottom: 0.5rem;
+          white-space: normal;
+          word-break: break-word;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
         }
 
         .description-toggle {
@@ -567,17 +562,11 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({
         .assignee-name {
           font-weight: 500;
           color: white;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
         }
 
         .assignee-email {
           font-size: 0.75rem;
           color: rgba(255, 255, 255, 0.6);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
         }
 
         .unassigned-badge {

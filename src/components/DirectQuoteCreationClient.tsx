@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, ChangeEvent, FormEvent, useRef, useMemo, useCallback, memo } from 'react';
 import axios, { AxiosError } from 'axios';
-import { useRouter } from 'next/navigation'; // Keep if used, though not explicitly in this snippet
+import { useRouter } from 'next/navigation';
 import type { AppDraftOrderInput, DraftOrderLineItemInput, DraftOrderCustomerInput, DraftOrderAddressInput, ProductVariantData, ParentProductData, DraftOrderOutput } from '@/agents/quoteAssistant/quoteInterfaces';
 import DOMPurify from 'dompurify';
-import Image from 'next/image'; // Keep for future use
+import Image from 'next/image';
 import { toast } from 'react-hot-toast';
 
 // Customer search interface
@@ -28,7 +28,7 @@ interface CustomerSearchResult {
     company?: string;
     phone?: string;
   };
-  source?: string; // Added source field
+  source?: string;
 }
 
 // Add ShipStation order interface
@@ -97,6 +97,82 @@ const createNewLineItemSearchData = (): LineItemSearchData => ({
   error: null,
 });
 
+// Memoized shipping rates component to prevent re-renders
+const ShippingRatesSection = memo(({ 
+  shippingRates, 
+  selectedShippingRateIndex, 
+  onSelectRate, 
+  isCalculating 
+}: {
+  shippingRates: Array<{
+    handle: string;
+    title: string;
+    price: number;
+    currencyCode: string;
+  }>;
+  selectedShippingRateIndex: number | null;
+  onSelectRate: (index: number) => void;
+  isCalculating: boolean;
+}) => {
+  if (isCalculating) {
+    return (
+      <div className="mt-3 p-3 bg-light rounded">
+        <div className="d-flex align-items-center">
+          <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <span className="text-muted">Calculating shipping rates...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (shippingRates.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <h6 className="text-primary mb-3">
+        <i className="fas fa-shipping-fast me-2"></i>
+        Available Shipping Options
+      </h6>
+      <div className="row g-2">
+        {shippingRates.map((rate, index) => (
+          <div key={rate.handle || index} className="col-md-6">
+            <div 
+              className={`card h-100 cursor-pointer ${selectedShippingRateIndex === index ? 'border-primary bg-primary bg-opacity-10' : 'border-light'}`}
+              onClick={() => onSelectRate(index)}
+              style={{ cursor: 'pointer' }}
+            >
+              <div className="card-body p-3">
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <h6 className="card-title mb-1">{rate.title}</h6>
+                    <small className="text-muted">Shipping method</small>
+                  </div>
+                  <div className="text-end">
+                    <div className={`fw-bold ${selectedShippingRateIndex === index ? 'text-primary' : ''}`}>
+                      ${rate.price ? rate.price.toFixed(2) : '0.00'}
+                    </div>
+                    <small className="text-muted">{rate.currencyCode || 'USD'}</small>
+                  </div>
+                </div>
+                {selectedShippingRateIndex === index && (
+                  <div className="mt-2">
+                    <i className="fas fa-check-circle text-primary me-1"></i>
+                    <small className="text-primary fw-medium">Selected</small>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+ShippingRatesSection.displayName = 'ShippingRatesSection';
+
 export const DirectQuoteCreationClient: React.FC = () => {
   const router = useRouter();
 
@@ -140,6 +216,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
 
   // UI states
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [createdDraftOrder, setCreatedDraftOrder] = useState<DraftOrderOutput | null>(null);
@@ -153,26 +230,29 @@ export const DirectQuoteCreationClient: React.FC = () => {
   const [activeSearchDropdown, setActiveSearchDropdown] = useState<number | null>(null);
   const [focusedResultIndex, setFocusedResultIndex] = useState<number | null>(null);
 
-  // Add shipping rates and modal states
+  // Shipping rates states - removed modal, made inline
   const [shippingRates, setShippingRates] = useState<Array<{
     handle: string;
     title: string;
     price: number;
     currencyCode: string;
   }>>([]);
-  const [showShippingRatesModal, setShowShippingRatesModal] = useState(false);
   const [selectedShippingRateIndex, setSelectedShippingRateIndex] = useState<number | null>(null);
 
-  const searchTermsForEffect = useMemo(() => 
-    lineItemSearchData.map(item => item.searchTerm).join('||'),
-    [lineItemSearchData]
-  );
-
-  const searchContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
-  
-  const setRef = (index: number) => (el: HTMLDivElement | null) => {
-    searchContainerRefs.current[index] = el;
-  };
+  // Price summary state
+  const [priceSummary, setPriceSummary] = useState<{
+    subtotal: number | null;
+    total: number | null;
+    shipping: number | null;
+    tax: number | null;
+    currencyCode: string;
+  }>({
+    subtotal: null,
+    total: null,
+    shipping: null,
+    tax: null,
+    currencyCode: 'USD'
+  });
 
   // Customer search state
   const [customerSearchTerm, setCustomerSearchTerm] = useState<string>('');
@@ -189,7 +269,19 @@ export const DirectQuoteCreationClient: React.FC = () => {
   const [showPreviousOrders, setShowPreviousOrders] = useState<boolean>(false);
 
   const customerSearchRef = useRef<HTMLDivElement>(null);
+  const searchContainerRefs = useRef<(HTMLDivElement | null)[]>([]);
+  
+  const setRef = (index: number) => (el: HTMLDivElement | null) => {
+    searchContainerRefs.current[index] = el;
+  };
 
+  // Memoized search terms to prevent unnecessary effects
+  const searchTermsForEffect = useMemo(() => 
+    lineItemSearchData.map(item => item.searchTerm).join('||'),
+    [lineItemSearchData]
+  );
+
+  // Optimized province selection effect
   useEffect(() => {
     if (shippingAddress.country in provinces) {
       const countryProvinces = provinces[shippingAddress.country as keyof typeof provinces];
@@ -200,14 +292,12 @@ export const DirectQuoteCreationClient: React.FC = () => {
     }
   }, [shippingAddress.country, shippingAddress.province]);
 
+  // Optimized search effect with better debouncing
   useEffect(() => {
-    // console.log('🔎 Search terms effect triggered:', searchTermsForEffect);
     const timers: (NodeJS.Timeout | null)[] = lineItemSearchData.map((searchData, index) => {
       const { id: itemId, searchTerm, hasSelection } = searchData;
-      // console.log(`🔎 Processing search item ${index}: "${searchTerm}" (hasSelection: ${hasSelection})`);
 
       if (hasSelection || !searchTerm || searchTerm.trim().length < 1) {
-        // console.log(`🔎 Skipping search for item ${index}: hasSelection=${hasSelection}, term=${searchTerm}`);
         if (searchData.isSearching || searchData.searchResults.length > 0 || searchData.error) {
            setLineItemSearchData(prev => prev.map(item => 
             item.id === itemId ? { ...item, isSearching: false, searchResults: [], error: null } : item
@@ -219,363 +309,255 @@ export const DirectQuoteCreationClient: React.FC = () => {
         return null;
       }
 
-      // console.log(`🔎 Setting up search for item ${index}: "${searchTerm}"`);
       setLineItemSearchData(prev => prev.map(item => 
         item.id === itemId ? { ...item, isSearching: true, searchResults: [], error: null } : item
       ));
-      if (activeSearchDropdown !== index) { // Only set if not already active, or to re-trigger if needed
+      if (activeSearchDropdown !== index) {
         setActiveSearchDropdown(index);
       }
 
-
       const timerId = setTimeout(async () => {
-        // console.log(`🔎 Timer fired for item ${index}: "${searchTerm}"`);
         try {
-          // console.log(`🔎 Making API call for item ${index}: "${searchTerm}"`);
           const response = await axios.get<{ results: SearchResult[] }>(
             `/api/products/search-variant?query=${encodeURIComponent(searchTerm.trim())}`
           );
-          // console.log(`🔎 Search results for "${searchTerm}":`, response.data.results.length);
           
           setLineItemSearchData(prev => {
             const currentItem = prev.find(item => item.id === itemId);
             if (!currentItem || currentItem.searchTerm !== searchTerm || currentItem.hasSelection) {
-              // console.log(`🔎 Stale search or selection made for item ${itemId}, skipping update.`);
               return prev;
             }
             
-            if (response.data.results.length > 0 && activeSearchDropdown !== index) {
-              // This might be a redundant setActiveSearchDropdown, but ensures visibility if conditions change rapidly.
-              // setActiveSearchDropdown(index);
-            }
-            
-            return prev.map(item =>
-              item.id === itemId
-                ? { 
-                    ...item, 
-                    searchResults: response.data.results || [], 
-                    isSearching: false, 
-                    error: response.data.results?.length === 0 ? 'No products found.' : null 
-                  }
+            return prev.map(item => 
+              item.id === itemId 
+                ? { ...item, isSearching: false, searchResults: response.data.results, error: null }
                 : item
             );
           });
-        } catch (e: any) {
-          // console.error(`🔎 Search API Error for "${searchTerm}":`, e);
-          setLineItemSearchData(prev =>
-            prev.map(item =>
-              item.id === itemId && item.searchTerm === searchTerm
-                ? { ...item, searchResults: [], isSearching: false, error: 'Search failed. Please try again.' }
-                : item
-            )
-          );
+        } catch (error) {
+          console.error('Search error:', error);
+          setLineItemSearchData(prev => prev.map(item => 
+            item.id === itemId 
+              ? { ...item, isSearching: false, searchResults: [], error: 'Search failed. Please try again.' }
+              : item
+          ));
         }
-      }, 300);
+      }, 500); // Increased debounce time to reduce API calls
+
       return timerId;
     });
 
     return () => {
-      // console.log('🔎 Cleanup: Clearing timers');
-      timers.forEach(timerId => {
-        if (timerId) clearTimeout(timerId);
-      });
-    }; // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTermsForEffect, activeSearchDropdown]); // Added activeSearchDropdown
-
-  const handleLineItemChange = (index: number, field: keyof DraftOrderLineItemInput, value: string | number) => {
-    const updatedLineItems = [...lineItems];
-    if (field === 'quantity') {
-        const newQuantity = Math.max(1, Number(value));
-        updatedLineItems[index] = { ...updatedLineItems[index], [field]: newQuantity };
-        console.log(`Updated quantity for item ${index} to ${newQuantity}, price: ${updatedLineItems[index].unitPrice}`);
-    } else {
-        updatedLineItems[index] = { ...updatedLineItems[index], [field]: String(value) };
-    }
-    setLineItems(updatedLineItems);
-  };
-
-  const handleSearchTermChange = (index: number, value: string) => {
-    // console.log(`⭐ Search term change triggered - Index: ${index}, Value: "${value}"`);
-    const currentItemSearchId = lineItemSearchData[index]?.id;
-    setLineItemSearchData(prevData =>
-      prevData.map((item) =>
-        item.id === currentItemSearchId
-          ? { ...item, searchTerm: value, hasSelection: false, error: null }
-          : item
-      )
-    );
-
-    if (lineItems[index].numericVariantIdShopify) {
-      const updatedLineItems = [...lineItems];
-      updatedLineItems[index] = {
-        ...updatedLineItems[index],
-        numericVariantIdShopify: '',
-        productDisplay: '',
-        title: '',
-        unitPrice: undefined,
-        currencyCode: undefined,
-      };
-      setLineItems(updatedLineItems);
-    }
-    // Ensure dropdown opens on typing if it was closed
-    if (value.trim().length > 0) {
-       setActiveSearchDropdown(index);
-    } else {
-       setActiveSearchDropdown(null);
-    }
-  };
-
-  const addProductToLineItems = (searchResult: SearchResult, index: number) => {
-    const { parentProduct, variant } = searchResult;
-    const currentItemSearchId = lineItemSearchData[index]?.id;
-    if (!currentItemSearchId) return;
-
-    if (!variant.numericVariantIdShopify) {
-      setLineItemSearchData(prev => prev.map(item => item.id === currentItemSearchId ? {...item, error: `Variant ${variant.sku} is missing ID.`} : item));
-      return;
-    }
-
-    console.log('Adding product to line items:', variant);
-    console.log('Product price:', variant.price);
-    console.log('Product currency:', variant.currency);
-
-    const updatedLineItems = [...lineItems];
-    const displayValue = `${parentProduct.name} - ${variant.variantTitle} (SKU: ${variant.sku})`;
-    updatedLineItems[index] = {
-      ...updatedLineItems[index],
-      numericVariantIdShopify: variant.numericVariantIdShopify,
-      title: variant.displayName || variant.variantTitle,
-      productDisplay: displayValue,
-      unitPrice: variant.price, 
-      currencyCode: variant.currency,
+      timers.forEach(timer => timer && clearTimeout(timer));
     };
-    setLineItems(updatedLineItems);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTermsForEffect, activeSearchDropdown]);
 
-    // Log the updated line items to verify changes
-    console.log('Updated line items:', updatedLineItems);
-    
-    // Calculate and log the new subtotal
-    const newSubtotal = updatedLineItems.reduce((total, item) => {
+  // Optimized subtotal calculation
+  useEffect(() => {
+    const subtotal = lineItems.reduce((total, item) => {
       if (item.numericVariantIdShopify && item.unitPrice && item.quantity) {
         return total + (item.unitPrice * item.quantity);
       }
       return total;
     }, 0);
-    console.log('New calculated subtotal:', newSubtotal);
+    
+    setPriceSummary(prev => {
+      const shipping = prev.shipping || 0;
+      const tax = prev.tax || 0;
+      return {
+        ...prev,
+        subtotal,
+        total: subtotal + shipping + tax
+      };
+    });
+  }, [lineItems]);
 
-    setLineItemSearchData(prevData =>
-      prevData.map(item =>
-        item.id === currentItemSearchId
-          ? {
-              ...item,
-              searchTerm: displayValue, // Keep selected item name in search bar
-              searchResults: [],
-              isSearching: false,
-              hasSelection: true,
-              error: null,
-            }
-          : item
-      )
-    );
+  // Memoized handlers to prevent re-renders
+  const handleLineItemChange = useCallback((index: number, field: keyof DraftOrderLineItemInput, value: string | number) => {
+    setLineItems(prev => prev.map((item, i) => 
+      i === index ? { ...item, [field]: value } : item
+    ));
+  }, []);
+
+  const handleSearchTermChange = useCallback((index: number, value: string) => {
+    setLineItemSearchData(prev => prev.map((item, i) => 
+      i === index ? { ...item, searchTerm: value, hasSelection: false } : item
+    ));
+  }, []);
+
+  const addProductToLineItems = useCallback((searchResult: SearchResult, index: number) => {
+    const { parentProduct, variant } = searchResult;
+    
+    setLineItems(prev => prev.map((item, i) => {
+      if (i === index) {
+        const updatedItem: DraftOrderLineItemInput & { productDisplay?: string; unitPrice?: number; currencyCode?: string } = {
+          ...item,
+          numericVariantIdShopify: variant.numericVariantIdShopify || '',
+          productDisplay: `${parentProduct.name || 'Product'} - ${variant.variantTitle} (SKU: ${variant.sku})`,
+          unitPrice: variant.price,
+          currencyCode: variant.currency
+        };
+        return updatedItem;
+      }
+      return item;
+    }));
+
+    setLineItemSearchData(prev => prev.map((item, i) => 
+      i === index ? { ...item, hasSelection: true, searchResults: [] } : item
+    ));
+
     setActiveSearchDropdown(null);
     setFocusedResultIndex(null);
-    toast.success(`Added "${variant.variantTitle}" to quote`);
-  };
-  
-  const addLineItem = () => {
-    setLineItems([...lineItems, { numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
-    setLineItemSearchData([...lineItemSearchData, createNewLineItemSearchData()]);
-    searchContainerRefs.current.push(null); // Accommodate new ref
-  };
+  }, []);
 
-  const removeLineItem = (index: number) => {
-    if (lineItems.length <= 1) return; 
+  const addLineItem = useCallback(() => {
+    setLineItems(prev => [...prev, { numericVariantIdShopify: '', quantity: 1, productDisplay: '' }]);
+    setLineItemSearchData(prev => [...prev, createNewLineItemSearchData()]);
+  }, []);
 
-    const updatedLineItems = [...lineItems];
-    updatedLineItems.splice(index, 1);
-    setLineItems(updatedLineItems);
-
-    const updatedSearchData = [...lineItemSearchData];
-    updatedSearchData.splice(index, 1);
-    setLineItemSearchData(updatedSearchData);
-    
-    searchContainerRefs.current.splice(index, 1); // Remove ref
-
-    toast.success("Line item removed");
-  };
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      const isOutside = searchContainerRefs.current.every((ref) => {
-        return !ref || !ref.contains(event.target as Node);
-      });
+  const removeLineItem = useCallback((index: number) => {
+    if (lineItems.length > 1) {
+      setLineItems(prev => prev.filter((_, i) => i !== index));
+      setLineItemSearchData(prev => prev.filter((_, i) => i !== index));
       
-      if (isOutside && activeSearchDropdown !== null) {
+      if (activeSearchDropdown === index) {
         setActiveSearchDropdown(null);
-        setFocusedResultIndex(null);
+      } else if (activeSearchDropdown !== null && activeSearchDropdown > index) {
+        setActiveSearchDropdown(activeSearchDropdown - 1);
       }
     }
+  }, [lineItems.length, activeSearchDropdown]);
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [activeSearchDropdown]);
-
-  const handleInputFocus = (index: number) => {
-    const currentSearchData = lineItemSearchData[index];
-    if (currentSearchData?.searchTerm && 
-        !currentSearchData.hasSelection &&
-        (currentSearchData.searchResults.length > 0 || currentSearchData.isSearching || currentSearchData.error)) {
-      setActiveSearchDropdown(index);
-    } else if (currentSearchData?.searchTerm && !currentSearchData.hasSelection) {
-      // If there's a term but no results yet (e.g. typing first char), still show (empty/loading) dropdown
-      setActiveSearchDropdown(index);
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    const currentData = lineItemSearchData[index];
-    if (!currentData || !currentData.searchResults) return;
-
-
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (!currentData.searchResults.length && !currentData.isSearching) return;
-
-      setActiveSearchDropdown(index); // Ensure dropdown is active
-      
-      const resultsLength = currentData.searchResults.length;
-      if (resultsLength > 0) {
-        let newIndex: number;
-        if (focusedResultIndex === null) {
-          newIndex = e.key === 'ArrowDown' ? 0 : resultsLength - 1;
-        } else {
-          newIndex = e.key === 'ArrowDown' 
-            ? Math.min(focusedResultIndex + 1, resultsLength - 1)
-            : Math.max(focusedResultIndex - 1, 0);
-        }
-        setFocusedResultIndex(newIndex);
-      }
-    } else if (e.key === 'Enter' && focusedResultIndex !== null && activeSearchDropdown === index) {
-      e.preventDefault();
-      if (currentData.searchResults[focusedResultIndex]) {
-        addProductToLineItems(currentData.searchResults[focusedResultIndex], index);
-      }
-    } else if (e.key === 'Escape') {
-      setActiveSearchDropdown(null);
-      setFocusedResultIndex(null);
-    }
-  };
-
-  const calculateShipping = async () => {
-    // Validation for shipping calculation
-    const requiredAddressFields: (keyof DraftOrderAddressInput)[] = ['address1', 'city', 'zip', 'province', 'country'];
-    const missingFields = requiredAddressFields.filter(field => !shippingAddress[field]);
-
-    if (missingFields.length > 0) {
-      toast.error(`Complete shipping address required: ${missingFields.join(', ')}`);
-      // Optionally, focus the first missing field
-      const firstMissingFieldElement = document.getElementsByName(missingFields[0])[0];
-      if (firstMissingFieldElement) (firstMissingFieldElement as HTMLElement).focus();
+  // Optimized shipping calculation
+  const calculateShipping = useCallback(async () => {
+    if (!lineItems.some(item => item.numericVariantIdShopify && item.quantity > 0) ||
+        !shippingAddress.address1 || !shippingAddress.city || !shippingAddress.zip || 
+        !shippingAddress.province || !shippingAddress.country) {
+      toast.error('Please complete all required fields and add at least one product before calculating shipping.');
       return;
     }
-    
-    if (!lineItems.some(item => item.numericVariantIdShopify && item.quantity > 0)) {
-      toast.error("Add at least one product to calculate shipping");
-      return;
-    }
-    
+
     setIsCalculatingShipping(true);
+    setShippingRates([]);
+    setSelectedShippingRateIndex(null);
+
     try {
-      const response = await axios.post('/api/shipping-rates/calculate', {
-        lineItems: lineItems.filter(item => item.numericVariantIdShopify && item.quantity > 0)
-                            .map(({ numericVariantIdShopify, quantity }) => ({ numericVariantIdShopify, quantity })),
+      const response = await axios.post('/api/shipping/calculate', {
+        lineItems: lineItems.filter(item => item.numericVariantIdShopify && item.quantity > 0),
         shippingAddress
       });
-      
-      console.log('Shipping rates response:', response.data);
-      
-      if (response.data?.length > 0) {
-        // The API now returns an array of rates directly
-        const availableRates = response.data.map((rate: any) => ({
-          handle: rate.handle,
-          title: rate.title,
-          price: parseFloat(rate.price.amount), // Extract price from the nested object
-          currencyCode: rate.price.currencyCode,
-        }));
 
-        setShippingRates(availableRates);
-        
-        // If there are multiple rates, show the selection modal
-        if (availableRates.length > 1) {
-          setSelectedShippingRateIndex(0); // Default to first option
-          setShowShippingRatesModal(true);
-          toast.success(`${availableRates.length} shipping options available`);
-        } else {
-          // If only one rate, select it automatically
-          setSelectedShippingRateIndex(0);
-          toast.success(`Shipping calculated: ${availableRates[0].title}`);
-        }
-        
-        // Get current subtotal from line items
-        const currentSubtotal = lineItems.reduce((total, item) => {
-          if (item.numericVariantIdShopify && item.unitPrice && item.quantity) {
-            return total + (item.unitPrice * item.quantity);
-          }
-          return total;
-        }, 0);
+      const availableRates = response.data.rates || [];
+      setShippingRates(availableRates);
 
-        console.log('Current subtotal for shipping calc:', currentSubtotal);
-        console.log('API subtotal response:', response.data.subtotal);
-        console.log('First shipping rate:', availableRates[0]);
-        
-        // Update price summary with the first rate initially
-        setPriceSummary({
-          subtotal: currentSubtotal,
-          shipping: availableRates[0].price || null,
-          tax: priceSummary.tax || null, // Preserve existing tax if any
-          total: currentSubtotal + (availableRates[0].price || 0) + (priceSummary.tax || 0),
+      if (availableRates.length > 0) {
+        // Auto-select the first (usually cheapest) option
+        setSelectedShippingRateIndex(0);
+        const currentSubtotal = priceSummary.subtotal || 0;
+        setPriceSummary(prev => ({
+          ...prev,
+          shipping: availableRates[0].price || 0,
+          tax: prev.tax || null,
+          total: currentSubtotal + (availableRates[0].price || 0) + (prev.tax || 0),
           currencyCode: availableRates[0].currencyCode || 'USD'
-        });
+        }));
+        toast.success(`Found ${availableRates.length} shipping option${availableRates.length > 1 ? 's' : ''}!`);
       } else {
-        setPriceSummary(prev => ({ ...prev, shipping: 0 })); // No rates, shipping is 0
-        toast.error("No shipping rates available for this address.");
+        setPriceSummary(prev => ({ ...prev, shipping: 0 }));
+        toast('No shipping rates available for this destination.', { icon: 'ℹ️' });
       }
-    } catch (error: any) {
-      console.error("Shipping calculation error:", error);
-      const errorMsg = error.response?.data?.error || "Could not calculate shipping at this time.";
-      toast.error(errorMsg);
-      setPriceSummary(prev => ({ ...prev, shipping: null, total: prev.subtotal })); // Reset shipping
+    } catch (error) {
+      console.error('Shipping calculation error:', error);
+      setPriceSummary(prev => ({ ...prev, shipping: null, total: prev.subtotal }));
+      toast.error('Failed to calculate shipping. Please try again.');
     } finally {
       setIsCalculatingShipping(false);
     }
-  };
+  }, [lineItems, shippingAddress, priceSummary.subtotal]);
 
-  // Handle shipping rate selection
-  const selectShippingRate = (index: number) => {
+  // Optimized shipping rate selection
+  const selectShippingRate = useCallback((index: number) => {
     if (index >= 0 && index < shippingRates.length) {
       setSelectedShippingRateIndex(index);
       const selectedRate = shippingRates[index];
+      const currentSubtotal = priceSummary.subtotal || 0;
       
-      console.log('Selected shipping rate:', selectedRate);
+      setPriceSummary(prev => ({
+        ...prev,
+        shipping: selectedRate.price || 0,
+        total: currentSubtotal + (selectedRate.price || 0) + (prev.tax || 0),
+        currencyCode: selectedRate.currencyCode || prev.currencyCode
+      }));
       
-      // Update price summary with the selected shipping rate
-      setPriceSummary(prev => {
-        const subtotal = prev.subtotal || 0;
-        const tax = prev.tax || 0;
-        const shipping = selectedRate.price;
-        
-        return {
-          ...prev,
-          shipping,
-          total: subtotal + shipping + tax,
-          currencyCode: selectedRate.currencyCode || prev.currencyCode
-        };
+      toast.success(`Selected: ${selectedRate.title}`);
+    }
+  }, [shippingRates, priceSummary.subtotal]);
+
+  // Input focus handler for search dropdowns
+  const handleInputFocus = useCallback((index: number) => {
+    const searchData = lineItemSearchData[index];
+    if (searchData && searchData.searchResults.length > 0 && !searchData.hasSelection) {
+      setActiveSearchDropdown(index);
+    }
+  }, [lineItemSearchData]);
+
+  // Keyboard navigation for search results
+  const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (activeSearchDropdown !== index) return;
+    
+    const searchData = lineItemSearchData[index];
+    if (!searchData || searchData.searchResults.length === 0) return;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusedResultIndex(prev => 
+          prev === null ? 0 : Math.min(prev + 1, searchData.searchResults.length - 1)
+        );
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusedResultIndex(prev => 
+          prev === null ? searchData.searchResults.length - 1 : Math.max(prev - 1, 0)
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (focusedResultIndex !== null && searchData.searchResults[focusedResultIndex]) {
+          addProductToLineItems(searchData.searchResults[focusedResultIndex], index);
+        }
+        break;
+      case 'Escape':
+        setActiveSearchDropdown(null);
+        setFocusedResultIndex(null);
+        break;
+    }
+  }, [activeSearchDropdown, lineItemSearchData, focusedResultIndex, addProductToLineItems]);
+
+  // Send invoice email function
+  const sendInvoiceEmail = useCallback(async () => {
+    if (!createdDraftOrder || !customer.email) {
+      toast.error("Cannot send email: Missing order data or customer email");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const response = await axios.post('/api/email/send-invoice', {
+        draftOrderId: createdDraftOrder.id,
+        recipientEmail: customer.email,
+        ticketId: createdTicketId
       });
       
-      toast.success(`Selected shipping: ${selectedRate.title}`);
-      setShowShippingRatesModal(false);
+      toast.success("Invoice email sent successfully!");
+    } catch (error) {
+      console.error("Error sending invoice email:", error);
+      toast.error("Failed to send invoice email. Please try again.");
+    } finally {
+      setIsSendingEmail(false);
     }
-  };
+  }, [createdDraftOrder, customer.email, createdTicketId]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -761,75 +743,13 @@ export const DirectQuoteCreationClient: React.FC = () => {
         // console.log('🔐 Session check response:', data);
       } catch (error) {
         // console.error('🔐 Session check error:', error);
+      } finally {
+        // Add a small delay to prevent flash
+        setTimeout(() => setIsInitializing(false), 100);
       }
     };
     checkSession();
   }, []);
-
-  // Removed shippingRates and showShippingRatesModal as they weren't fully implemented in the original snippet
-  // If needed, they can be re-added along with a modal component.
-
-  const [priceSummary, setPriceSummary] = useState<{
-    subtotal: number | null;
-    total: number | null;
-    shipping: number | null;
-    tax: number | null;
-    currencyCode: string;
-  }>({
-    subtotal: null,
-    total: null,
-    shipping: null,
-    tax: null,
-    currencyCode: 'USD'
-  });
-
-  // Add new useEffect to calculate subtotal whenever line items change
-  useEffect(() => {
-    // Calculate subtotal based on line items with valid prices
-    const subtotal = lineItems.reduce((total, item) => {
-      if (item.numericVariantIdShopify && item.unitPrice && item.quantity) {
-        return total + (item.unitPrice * item.quantity);
-      }
-      return total;
-    }, 0);
-    
-    // Always update the subtotal, even if it's 0
-    console.log('Calculated subtotal from line items:', subtotal);
-    setPriceSummary(prev => {
-      const shipping = prev.shipping || 0;
-      const tax = prev.tax || 0;
-      return {
-        ...prev,
-        subtotal,
-        // If shipping exists, update total, otherwise just show subtotal as total
-        total: subtotal + shipping + tax
-      };
-    });
-  }, [lineItems]);
-
-  // Send invoice email with PDF attachment
-  const sendInvoiceEmail = async () => {
-    if (!createdDraftOrder || !customer.email) {
-      toast.error("Cannot send email: Missing order data or customer email");
-      return;
-    }
-
-    setIsSendingEmail(true);
-    try {
-      const response = await axios.post('/api/email/send-invoice', {
-        draftOrderId: createdDraftOrder.id,
-        recipientEmail: customer.email,
-        ticketId: createdTicketId
-      });
-      
-      toast.success("Invoice email sent successfully!");
-    } catch (error) {
-      console.error("Error sending invoice email:", error);
-      toast.error("Failed to send invoice email. Please try again.");
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
 
   // Customer search functionality - wrapped in useCallback
   const searchCustomer = useCallback(async (term: string, searchType: string = 'auto') => {
@@ -1140,11 +1060,27 @@ export const DirectQuoteCreationClient: React.FC = () => {
     }
   }, [useSameAddressForBilling, shippingAddress]);
 
+  // Show loading state to prevent flash
+  if (isInitializing) {
+    return (
+      <div className="container-xxl">
+        <div className="card shadow-sm create-quote-form">
+          <div className="card-body text-center py-5">
+            <div className="spinner-border text-primary me-2" role="status">
+              <span className="visually-hidden">Loading...</span>
+            </div>
+            <span className="text-muted">Loading quote form...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container-xxl">
-      <div className="card shadow-sm create-quote-form">
+    <div className="container-fluid">
+      <div className="card shadow create-quote-form">
         <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-          <h3 className="mb-0">Create Direct Quote</h3>
+          <h3 className="mb-0"><i className="fas fa-file-invoice-dollar me-2"></i>Create Direct Quote</h3>
           {/* Test button for debugging - can be removed for production */}
           <button 
             type="button" 
@@ -1167,16 +1103,16 @@ export const DirectQuoteCreationClient: React.FC = () => {
         <div className="card-body">
           <div className="row">
             {/* Main form column - wider on larger screens, more focused layout */}
-            <div className={`${showPreviousOrders && shipStationOrders.length > 0 ? 'col-xl-9 col-lg-8' : 'col-12'} mb-4`}>
+            <div className={`${showPreviousOrders && shipStationOrders.length > 0 ? 'col-xl-8 col-lg-8' : 'col-12'}`}>
               
             {formError && !successMessage && (
-              <div className="alert alert-danger alert-dismissible fade show" role="alert">
+              <div className="alert alert-danger alert-dismissible fade show mb-3" role="alert">
                 <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(formError) }}></div>
                 <button type="button" className="btn-close" onClick={() => setFormError(null)} aria-label="Close"></button>
               </div>
             )}
             {successMessage && (
-              <div className="alert alert-success">
+              <div className="alert alert-success mb-3">
                 {successMessage}
                 {createdTicketId && (
                   <p className="mb-0 mt-1">
@@ -1190,20 +1126,22 @@ export const DirectQuoteCreationClient: React.FC = () => {
             )}
             
             {createdDraftOrder && (
-              <div className="alert alert-info mt-3">
-                <p className="fw-bold mb-1">Quote Details:</p>
-                <p className="mb-1"><strong>Name:</strong> {createdDraftOrder.name}</p>
-                <p className="mb-1"><strong>Status:</strong> <span className={`badge bg-${createdDraftOrder.status === 'OPEN' ? 'success' : 'secondary'}`}>{createdDraftOrder.status}</span></p>
-                <p className="mb-1"><strong>Total:</strong> ${createdDraftOrder.totalPrice.toFixed(2)} {createdDraftOrder.currencyCode}</p>
+              <div className="alert alert-info mb-3">
+                <p className="fw-bold mb-2">Quote Details:</p>
+                <div className="row g-2 mb-2">
+                  <div className="col-md-6"><strong>Name:</strong> {createdDraftOrder.name}</div>
+                  <div className="col-md-6"><strong>Status:</strong> <span className={`badge bg-${createdDraftOrder.status === 'OPEN' ? 'success' : 'secondary'}`}>{createdDraftOrder.status}</span></div>
+                  <div className="col-md-6"><strong>Total:</strong> ${createdDraftOrder.totalPrice.toFixed(2)} {createdDraftOrder.currencyCode}</div>
+                </div>
                 {createdDraftOrder.invoiceUrl && (
-                  <p className="mb-1"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break alert-link">{createdDraftOrder.invoiceUrl} <i className="fas fa-external-link-alt fa-xs"></i></a></p>
+                  <p className="mb-2"><strong>Invoice URL:</strong> <a href={createdDraftOrder.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-break alert-link">{createdDraftOrder.invoiceUrl} <i className="fas fa-external-link-alt fa-xs"></i></a></p>
                 )}
-                <div className="mt-3">
-                  <a href={`/tickets/${createdTicketId}`} className="btn btn-sm btn-outline-primary me-2">
+                <div className="d-flex flex-wrap gap-2">
+                  <a href={`/tickets/${createdTicketId}`} className="btn btn-sm btn-outline-primary">
                     <i className="fas fa-ticket-alt me-1"></i> View Ticket
                   </a>
                   {(createdDraftOrder as any).adminUrl && (
-                    <a href={(createdDraftOrder as any).adminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary me-2">
+                    <a href={(createdDraftOrder as any).adminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-primary">
                       <i className="fas fa-store me-1"></i> View in Shopify
                     </a>
                   )}
@@ -1231,10 +1169,11 @@ export const DirectQuoteCreationClient: React.FC = () => {
             )}
 
             <form onSubmit={handleSubmit} noValidate>
-              <fieldset className="border p-4 rounded mb-4 bg-light">
-                <legend className="h5 fw-normal mb-3 float-none w-auto px-2 bg-white">
-                  <i className="fas fa-user me-2 text-primary"></i>Customer Information
-                </legend>
+              <div className="card mb-3">
+                <div className="card-header">
+                  <h5 className="mb-0"><i className="fas fa-user me-2 text-primary"></i>Customer Information</h5>
+                </div>
+                <div className="card-body">
                 
                 {/* Customer Search Field */}
                 <div className="mb-4 position-relative" ref={customerSearchRef}>
@@ -1299,165 +1238,181 @@ export const DirectQuoteCreationClient: React.FC = () => {
                     <input type="tel" className="form-control" id="phone" name="phone" value={customer.phone} onChange={handleCustomerChange} />
                   </div>
                 </div>
-              </fieldset>
+                </div>
+              </div>
 
-              <fieldset className="border p-4 rounded mb-4">
-                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">
-                  <i className="fas fa-shopping-cart me-2 text-primary"></i>Line Items
-                </legend>
-                {lineItems.map((itemData, index) => {
-                  const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData();
-                  return (
-                    <div key={currentSearchState.id || index} className={`mb-4 p-4 border rounded bg-white ${index > 0 ? 'mt-4' : ''}`}>
-                      <div className="d-flex justify-content-between align-items-center mb-3">
-                        <h6 className="mb-0 text-primary fw-medium">Product #{index + 1}</h6>
-                        {lineItems.length > 1 && (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => removeLineItem(index)}
-                            aria-label="Remove item"
-                          >
-                            <i className="fas fa-trash-alt me-1"></i>Remove
-                          </button>
-                        )}
-                      </div>
-                      
-                      <div className="row g-3 align-items-start">
-                        <div className="col-12">
-                          <label htmlFor={`product-${index}`} className="form-label fw-medium">Product Search</label>
-                          <div className="position-relative" ref={setRef(index)}>
-                            <input
-                              type="text"
-                              className="form-control"
-                              id={`product-${index}`}
-                              placeholder="Search by name, SKU, or variant..."
-                              value={currentSearchState.searchTerm}
-                              onChange={(e) => handleSearchTermChange(index, e.target.value)}
-                              onFocus={() => handleInputFocus(index)}
-                              onKeyDown={(e) => handleKeyDown(index, e)}
-                              autoComplete="off"
-                              role="combobox"
-                              aria-autocomplete="list"
-                              aria-expanded={activeSearchDropdown === index}
-                              aria-controls={`search-results-${index}`}
-                            />
-                            {currentSearchState.isSearching && (
-                              <div className="position-absolute top-50 end-0 translate-middle-y me-3">
-                                <div className="spinner-border spinner-border-sm text-secondary" role="status">
-                                  <span className="visually-hidden">Searching...</span>
-                                </div>
-                              </div>
-                            )}
-                            {activeSearchDropdown === index && (
-                              <div id={`search-results-${index}`} className="dropdown-menu d-block position-absolute start-0 w-100 mt-1 shadow-lg" style={{zIndex: 1050}}>
-                                <div className="px-2 py-1 bg-light text-muted small border-bottom">
-                                  {currentSearchState.isSearching ? (
-                                    <span><i className="fas fa-spinner fa-spin me-1"></i>Searching...</span>
-                                  ) : (
-                                    <span>
-                                      {currentSearchState.searchResults.length} result(s) for &ldquo;{currentSearchState.searchTerm}&rdquo;
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                {currentSearchState.error && !currentSearchState.isSearching && (
-                                  <div className="p-2 text-danger small">{currentSearchState.error}</div>
+              <div className="card mb-3">
+                <div className="card-header">
+                  <h5 className="mb-0"><i className="fas fa-shopping-cart me-2 text-primary"></i>Line Items</h5>
+                </div>
+                <div className="card-body">
+                <div className="table-responsive">
+                  <table className="table table-bordered">
+                    <thead className="table-light">
+                      <tr>
+                        <th style={{ width: '5%' }}>#</th>
+                        <th style={{ width: '45%' }}>Product Search</th>
+                        <th style={{ width: '35%' }}>Selected Product</th>
+                        <th style={{ width: '10%' }}>Qty</th>
+                        <th style={{ width: '5%' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lineItems.map((itemData, index) => {
+                        const currentSearchState = lineItemSearchData[index] || createNewLineItemSearchData();
+                        return (
+                          <tr key={currentSearchState.id || index}>
+                            <td className="align-middle text-center">
+                              <span className="badge bg-primary">{index + 1}</span>
+                            </td>
+                            <td className="align-middle">
+                              <div className="position-relative" ref={setRef(index)}>
+                                <input
+                                  type="text"
+                                  className="form-control form-control-sm"
+                                  id={`product-${index}`}
+                                  placeholder="Search by name, SKU, or variant..."
+                                  value={currentSearchState.searchTerm}
+                                  onChange={(e) => handleSearchTermChange(index, e.target.value)}
+                                  onFocus={() => handleInputFocus(index)}
+                                  onKeyDown={(e) => handleKeyDown(index, e)}
+                                  autoComplete="off"
+                                  role="combobox"
+                                  aria-autocomplete="list"
+                                  aria-expanded={activeSearchDropdown === index}
+                                  aria-controls={`search-results-${index}`}
+                                />
+                                {currentSearchState.isSearching && (
+                                  <div className="position-absolute top-50 end-0 translate-middle-y me-2">
+                                    <div className="spinner-border spinner-border-sm text-secondary" role="status">
+                                      <span className="visually-hidden">Searching...</span>
+                                    </div>
+                                  </div>
                                 )}
-                                
-                                {!currentSearchState.error && currentSearchState.searchResults.length === 0 && !currentSearchState.isSearching && currentSearchState.searchTerm.trim() !== "" && (
-                                  <div className="p-2 text-muted small">No products found.</div>
+                                {activeSearchDropdown === index && (
+                                  <div id={`search-results-${index}`} className="dropdown-menu d-block position-absolute start-0 w-100 mt-1 shadow-lg" style={{zIndex: 1050}}>
+                                    <div className="px-2 py-1 bg-light text-muted small border-bottom">
+                                      {currentSearchState.isSearching ? (
+                                        <span><i className="fas fa-spinner fa-spin me-1"></i>Searching...</span>
+                                      ) : (
+                                        <span>
+                                          {currentSearchState.searchResults.length} result(s) for &ldquo;{currentSearchState.searchTerm}&rdquo;
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    {currentSearchState.error && !currentSearchState.isSearching && (
+                                      <div className="p-2 text-danger small">{currentSearchState.error}</div>
+                                    )}
+                                    
+                                    {!currentSearchState.error && currentSearchState.searchResults.length === 0 && !currentSearchState.isSearching && currentSearchState.searchTerm.trim() !== "" && (
+                                      <div className="p-2 text-muted small">No products found.</div>
+                                    )}
+                                    
+                                    <div className="list-group list-group-flush" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                                      {currentSearchState.searchResults.map((result, resultIdx) => (
+                                        <button
+                                          type="button"
+                                          key={result.variant.numericVariantIdShopify || `${result.variant.sku}-${resultIdx}`}
+                                          className={`list-group-item list-group-item-action py-2 px-3 text-start ${resultIdx === focusedResultIndex ? 'active' : ''}`}
+                                          onClick={() => addProductToLineItems(result, index)}
+                                          onMouseEnter={() => setFocusedResultIndex(resultIdx)}
+                                        >
+                                          <div className="d-flex align-items-center">
+                                            {result.parentProduct.primaryImageUrl ? (
+                                               <Image 
+                                                  src={result.parentProduct.primaryImageUrl} 
+                                                  alt={result.parentProduct.name} 
+                                                  width={30} 
+                                                  height={30} 
+                                                  className="object-fit-contain me-2 rounded border"
+                                              />
+                                            ) : (
+                                              <div 
+                                                className="bg-light d-flex align-items-center justify-content-center rounded border me-2" 
+                                                style={{ width: '30px', height: '30px', minWidth: '30px' }}
+                                              >
+                                                <i className="fas fa-image text-muted"></i>
+                                              </div>
+                                            )}
+                                            <div>
+                                              <div className="fw-medium small">{result.parentProduct.name}</div>
+                                              <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-75' : 'text-muted'}`}>
+                                                {result.variant.variantTitle} (SKU: {result.variant.sku})
+                                              </div>
+                                              <div className={`small fw-bold ${resultIdx === focusedResultIndex ? '' : 'text-primary'}`}>
+                                                ${result.variant.price?.toFixed(2)} {result.variant.currency}
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
                                 )}
-                                
-                                <div className="list-group list-group-flush" style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                                  {currentSearchState.searchResults.map((result, resultIdx) => (
-                                    <button
-                                      type="button"
-                                      key={result.variant.numericVariantIdShopify || `${result.variant.sku}-${resultIdx}`}
-                                      className={`list-group-item list-group-item-action py-2 px-3 text-start ${resultIdx === focusedResultIndex ? 'active' : ''}`}
-                                      onClick={() => addProductToLineItems(result, index)}
-                                      onMouseEnter={() => setFocusedResultIndex(resultIdx)}
-                                    >
-                                      <div className="d-flex align-items-center">
-                                        {result.parentProduct.primaryImageUrl ? (
-                                           <Image 
-                                              src={result.parentProduct.primaryImageUrl} 
-                                              alt={result.parentProduct.name} 
-                                              width={40} 
-                                              height={40} 
-                                              className="object-fit-contain me-2 rounded border"
-                                          />
-                                        ) : (
-                                          <div 
-                                            className="bg-light d-flex align-items-center justify-content-center rounded border me-2" 
-                                            style={{ width: '40px', height: '40px', minWidth: '40px' }}
-                                          >
-                                            <i className="fas fa-image text-muted"></i>
-                                          </div>
-                                        )}
-                                        <div>
-                                          <div className="fw-medium small">{result.parentProduct.name}</div>
-                                          <div className={`small ${resultIdx === focusedResultIndex ? 'text-white-75' : 'text-muted'}`}>
-                                            {result.variant.variantTitle} (SKU: {result.variant.sku})
-                                          </div>
-                                          <div className={`small fw-bold ${resultIdx === focusedResultIndex ? '' : 'text-primary'}`}>
-                                            ${result.variant.price?.toFixed(2)} {result.variant.currency}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </button>
-                                  ))}
-                                </div>
                               </div>
-                            )}
-                          </div>
-                           {currentSearchState.error && !currentSearchState.isSearching && activeSearchDropdown !== index && (
-                              <div className="text-danger small mt-1">{currentSearchState.error}</div>
-                            )}
-                        </div>
-                        
-                        <div className="col-lg-8">
-                          <label htmlFor={`itemTitle-${index}`} className="form-label fw-medium">Selected Product</label>
-                          <input 
-                            type="text" 
-                            className="form-control" 
-                            id={`itemTitle-${index}`} 
-                            value={itemData.productDisplay || ''} 
-                            readOnly 
-                            placeholder="Product details appear here"
-                            tabIndex={-1}
-                          />
-                          {itemData.unitPrice !== undefined && itemData.currencyCode && (
-                              <small className="text-success d-block mt-1 fw-medium">
-                                  Unit Price: ${itemData.unitPrice.toFixed(2)} {itemData.currencyCode}
-                              </small>
-                          )}
-                        </div>
-
-                        <div className="col-lg-4">
-                          <label htmlFor={`itemQuantity-${index}`} className="form-label fw-medium">Quantity</label>
-                          <input
-                            type="number"
-                            className="form-control"
-                            id={`itemQuantity-${index}`}
-                            value={itemData.quantity}
-                            onChange={(e) => handleLineItemChange(index, 'quantity', parseInt(e.target.value, 10))}
-                            min="1"
-                            required
-                            disabled={!currentSearchState.hasSelection}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                               {currentSearchState.error && !currentSearchState.isSearching && activeSearchDropdown !== index && (
+                                  <div className="text-danger small mt-1">{currentSearchState.error}</div>
+                                )}
+                            </td>
+                            <td className="align-middle">
+                              <input 
+                                type="text" 
+                                className="form-control form-control-sm" 
+                                id={`itemTitle-${index}`} 
+                                value={itemData.productDisplay || ''} 
+                                readOnly 
+                                placeholder="Product details appear here"
+                                tabIndex={-1}
+                              />
+                              {itemData.unitPrice !== undefined && itemData.currencyCode && (
+                                  <small className="text-success d-block mt-1 fw-medium">
+                                      ${itemData.unitPrice.toFixed(2)} {itemData.currencyCode}
+                                  </small>
+                              )}
+                            </td>
+                            <td className="align-middle">
+                              <input
+                                type="number"
+                                className="form-control form-control-sm"
+                                id={`itemQuantity-${index}`}
+                                value={itemData.quantity}
+                                onChange={(e) => handleLineItemChange(index, 'quantity', parseInt(e.target.value, 10))}
+                                min="1"
+                                required
+                                disabled={!currentSearchState.hasSelection}
+                              />
+                            </td>
+                            <td className="align-middle text-center">
+                              {lineItems.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() => removeLineItem(index)}
+                                  aria-label="Remove item"
+                                  title="Remove item"
+                                >
+                                  <i className="fas fa-trash-alt"></i>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
                 <button type="button" className="btn btn-outline-primary btn-lg w-100" onClick={addLineItem}>
                   <i className="fas fa-plus me-2"></i>Add Another Product
                 </button>
-              </fieldset>
+                </div>
+              </div>
 
-              <fieldset className="border p-3 rounded mb-4">
-                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Quote Type & Options</legend>
+              <div className="card mb-3">
+                <div className="card-header">
+                  <h5 className="mb-0">Quote Type & Options</h5>
+                </div>
+                <div className="card-body">
                 
                 <div className="mb-3">
                   <label htmlFor="quoteType" className="form-label">Quote Type <span className="text-danger">*</span></label>
@@ -1471,7 +1426,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
                     <option value="material_and_delivery">Material and Delivery</option>
                     <option value="material_only">Material Only (Customer arranges pickup)</option>
                   </select>
-                  <div className="form-text">
+                  <div className="form-text text-secondary">
                     {quoteType === 'material_only' && 'Materials only - customer arranges pickup/delivery'}
                     {quoteType === 'material_and_delivery' && 'Materials with delivery - Alliance Chemical delivers to customer location'}
                   </div>
@@ -1501,15 +1456,19 @@ export const DirectQuoteCreationClient: React.FC = () => {
                         onChange={(e) => setMaterialOnlyDisclaimer(e.target.value)}
                         placeholder="Disclaimer text that will appear on the quote..."
                       />
-                      <div className="form-text">This disclaimer will appear prominently on the quote and email.</div>
+                      <div className="form-text text-secondary">This disclaimer will appear prominently on the quote and email.</div>
                     </div>
                   </>
                 )}
-              </fieldset>
+                </div>
+              </div>
 
               {/* Billing Address Section */}
-              <fieldset className="border p-3 rounded mb-4">
-                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Billing Address</legend>
+              <div className="card mb-3">
+                <div className="card-header">
+                  <h5 className="mb-0">Billing Address</h5>
+                </div>
+                <div className="card-body">
                 
                 <div className="form-check mb-3">
                   <input 
@@ -1578,15 +1537,19 @@ export const DirectQuoteCreationClient: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </fieldset>
+                </div>
+              </div>
 
-              <fieldset className="border p-3 rounded mb-4">
-                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">
-                  {quoteType === 'material_only' ? 'Material Pickup/Delivery Address' : 'Shipping Address'}
-                  <small className="text-muted fw-light"> 
-                    ({quoteType === 'material_only' ? 'For pickup coordination or customer-arranged delivery' : 'Required for quote & shipping calculation'})
+              <div className="card mb-3">
+                <div className="card-header">
+                  <h5 className="mb-1">
+                    {quoteType === 'material_only' ? 'Material Pickup/Delivery Address' : 'Shipping Address'}
+                  </h5>
+                  <small className="text-body-secondary"> 
+                    {quoteType === 'material_only' ? 'For pickup coordination or customer-arranged delivery' : 'Required for quote & shipping calculation'}
                   </small>
-                </legend>
+                </div>
+                <div className="card-body">
                 <div className="row g-3">
                   <div className="col-md-6">
                     <label htmlFor="shipCompany" className="form-label">Company</label>
@@ -1633,50 +1596,109 @@ export const DirectQuoteCreationClient: React.FC = () => {
                   </div>
                   <div className="col-md-4">
                     <label htmlFor="shipPhone" className="form-label">Shipping Phone</label>
-                    <input type="tel" className="form-control" id="shipPhone" name="phone" value={shippingAddress.phone || ''} onChange={handleShippingAddressChange} placeholder="For delivery purposes"/>
+                    <input type="tel" className="form-control" id="shipPhone" name="phone" value={shippingAddress.phone || ''} onChange={handleShippingAddressChange} placeholder="Phone number for delivery coordination"/>
+                    <div className="form-text text-secondary">Optional - for delivery coordination</div>
                   </div>
                   
-                  <div className="col-12 mt-3">
-                    <button 
-                      type="button" 
-                      className="btn btn-outline-info" 
-                      onClick={calculateShipping}
-                      disabled={
-                        isCalculatingShipping || 
-                        !lineItems.some(item => item.numericVariantIdShopify && item.quantity > 0) ||
-                        !shippingAddress.address1 || 
-                        !shippingAddress.city || 
-                        !shippingAddress.zip || 
-                        !shippingAddress.province || 
-                        !shippingAddress.country
-                      }
-                    >
-                      {isCalculatingShipping ? (
-                        <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Calculating Shipping...
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-shipping-fast me-2"></i> Calculate Shipping Costs
-                        </>
-                      )}
-                    </button>
+                  <div className="col-12 mt-2">
+                    <div className="d-grid">
+                      <button 
+                        type="button" 
+                        className="btn btn-primary" 
+                        onClick={calculateShipping}
+                        disabled={
+                          isCalculatingShipping || 
+                          !lineItems.some(item => item.numericVariantIdShopify && item.quantity > 0) ||
+                          !shippingAddress.address1 || 
+                          !shippingAddress.city || 
+                          !shippingAddress.zip || 
+                          !shippingAddress.province || 
+                          !shippingAddress.country
+                        }
+                      >
+                        {isCalculatingShipping ? (
+                          <>
+                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            Calculating Shipping...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fas fa-shipping-fast me-2"></i> Calculate Shipping Costs
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    
+                    {/* Shipping Options - Directly below the button */}
+                    {isCalculatingShipping && (
+                      <div className="mt-3 p-3 bg-light rounded">
+                        <div className="d-flex align-items-center">
+                          <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                          <span className="text-muted">Calculating shipping rates...</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!isCalculatingShipping && shippingRates.length > 0 && (
+                      <div className="mt-3">
+                        <h6 className="text-primary mb-3">
+                          <i className="fas fa-shipping-fast me-2"></i>
+                          Available Shipping Options
+                        </h6>
+                        <div className="row g-2">
+                          {shippingRates.map((rate, index) => (
+                            <div key={rate.handle || index} className="col-md-6">
+                              <div 
+                                className={`card h-100 ${selectedShippingRateIndex === index ? 'border-primary bg-primary bg-opacity-10' : 'border-light'}`}
+                                onClick={() => selectShippingRate(index)}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                <div className="card-body p-3">
+                                  <div className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                      <h6 className="card-title mb-1">{rate.title}</h6>
+                                      <small className="text-muted">Shipping method</small>
+                                    </div>
+                                    <div className="text-end">
+                                      <div className={`fw-bold ${selectedShippingRateIndex === index ? 'text-primary' : ''}`}>
+                                        ${rate.price ? rate.price.toFixed(2) : '0.00'}
+                                      </div>
+                                      <small className="text-muted">{rate.currencyCode || 'USD'}</small>
+                                    </div>
+                                  </div>
+                                  {selectedShippingRateIndex === index && (
+                                    <div className="mt-2">
+                                      <i className="fas fa-check-circle text-primary me-1"></i>
+                                      <small className="text-primary fw-medium">Selected</small>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    </div>
                   </div>
                 </div>
-              </fieldset>
+              </div>
 
               {(priceSummary.subtotal !== null || priceSummary.shipping !== null || priceSummary.total !== null) && (
-                <div className="card my-4 border">
-                  <div className="card-body p-3">
-                    <h5 className="card-title h6 text-muted mb-2">Price Estimate</h5>
+                <div className="card mb-3 border-primary">
+                  <div className="card-header bg-primary text-white">
+                    <h5 className="mb-0"><i className="fas fa-calculator me-2"></i>Price Estimate</h5>
+                  </div>
+                  <div className="card-body">
                     <div className="row">
-                      <div className="col-lg-6 offset-lg-6 col-md-8 offset-md-4">
-                        <table className="table table-sm mb-0">
+                      <div className="col-lg-6 offset-lg-6">
+                        <table className="table table-borderless mb-0">
                           <tbody>
                             <tr>
                               <td>Subtotal:</td>
-                              <td className="text-end">
+                              <td className="text-end fw-medium">
                                 {priceSummary.subtotal !== null && priceSummary.subtotal !== undefined ? 
                                   `$${priceSummary.subtotal.toFixed(2)} ${priceSummary.currencyCode}` : 
                                   <span className="text-muted">N/A</span>}
@@ -1691,19 +1713,10 @@ export const DirectQuoteCreationClient: React.FC = () => {
                                   </small>
                                 )}
                               </td>
-                              <td className="text-end">
+                              <td className="text-end fw-medium">
                                 {priceSummary.shipping !== null ? (
                                   <>
                                     ${typeof priceSummary.shipping === 'number' ? priceSummary.shipping.toFixed(2) : '0.00'} {priceSummary.currencyCode}
-                                    {shippingRates.length > 1 && (
-                                      <button
-                                        className="btn btn-sm btn-link p-0 ms-2"
-                                        onClick={() => setShowShippingRatesModal(true)}
-                                        type="button"
-                                      >
-                                        <i className="fas fa-edit"></i>
-                                      </button>
-                                    )}
                                   </>
                                 ) : (
                                   isCalculatingShipping ? 'Calculating...' : <span className="text-muted">Not calculated</span>
@@ -1713,14 +1726,14 @@ export const DirectQuoteCreationClient: React.FC = () => {
                             {priceSummary.tax !== null && (
                               <tr>
                                 <td>Tax:</td>
-                                <td className="text-end">
+                                <td className="text-end fw-medium">
                                   ${priceSummary.tax.toFixed(2)} {priceSummary.currencyCode}
                                 </td>
                               </tr>
                             )}
-                            <tr className="fw-bold border-top">
-                              <td>Estimated Total:</td>
-                              <td className="text-end">
+                            <tr className="fw-bold border-top border-2 border-primary">
+                              <td className="h6 mb-0">Estimated Total:</td>
+                              <td className="text-end h6 mb-0 text-primary">
                                 {priceSummary.total !== null ? 
                                   `$${priceSummary.total.toFixed(2)} ${priceSummary.currencyCode}` : 
                                   (isCalculatingShipping ? 'Calculating...' : <span className="text-muted">N/A</span>)}
@@ -1734,8 +1747,11 @@ export const DirectQuoteCreationClient: React.FC = () => {
                 </div>
               )}
               
-              <fieldset className="border p-3 rounded mb-4">
-                <legend className="h5 fw-normal mb-3 float-none w-auto px-2">Quote Options</legend>
+              <div className="card mb-3">
+                <div className="card-header">
+                  <h5 className="mb-0">Quote Options</h5>
+                </div>
+                <div className="card-body">
                 <div className="mb-3">
                   <label htmlFor="note" className="form-label">Notes for Quote</label>
                   <textarea 
@@ -1759,20 +1775,21 @@ export const DirectQuoteCreationClient: React.FC = () => {
                     Send Shopify invoice to customer&apos;s email
                   </label>
                 </div>
-              </fieldset>
+                </div>
+              </div>
 
-              <div className="d-grid gap-2 d-md-flex justify-content-md-end mt-4 pt-3 border-top">
+              <div className="d-flex justify-content-end gap-2 mt-3 pt-3 border-top">
                  <button 
                     type="button" 
-                    className="btn btn-outline-secondary me-md-2" 
-                    onClick={() => router.back()} // Or router.push('/admin/quotes') etc.
+                    className="btn btn-outline-secondary" 
+                    onClick={() => router.back()}
                     disabled={isLoading}
                   >
-                    Cancel
+                    <i className="fas fa-times me-2"></i>Cancel
                   </button>
                 <button 
                   type="submit" 
-                  className="btn btn-primary btn-lg" 
+                  className="btn btn-primary" 
                   disabled={isLoading || successMessage !== null}
                 >
                   {isLoading ? (
@@ -1793,22 +1810,22 @@ export const DirectQuoteCreationClient: React.FC = () => {
             
             {/* Previous Orders Sidebar */}
             {showPreviousOrders && shipStationOrders.length > 0 && (
-              <div className="col-lg-4">
-                <div className="card h-100 border-start-0 border-top-0 border-bottom-0 border-end border-primary">
-                  <div className="card-header bg-light d-flex justify-content-between align-items-center">
+              <div className="col-xl-4 col-lg-4">
+                <div className="card sticky-top" style={{ top: '20px' }}>
+                  <div className="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h6 className="mb-0">
-                      <i className="fas fa-history me-2 text-primary"></i>
+                      <i className="fas fa-history me-2"></i>
                       Previous Orders
                     </h6>
                     <button
-                      className="btn btn-sm btn-outline-secondary"
+                      className="btn btn-sm btn-outline-light"
                       onClick={() => setShowPreviousOrders(false)}
                       title="Hide previous orders"
                     >
                       <i className="fas fa-times"></i>
                     </button>
                   </div>
-                  <div className="card-body p-0" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+                  <div className="card-body p-0" style={{ maxHeight: '500px', overflowY: 'auto' }}>
                     {isLoadingOrders && (
                       <div className="text-center py-3">
                         <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
@@ -1928,64 +1945,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
           </div>
         </div>
 
-        {/* Shipping Rates Modal */}
-        {showShippingRatesModal && shippingRates.length > 0 && (
-          <div className="modal fade show" 
-               style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }} 
-               tabIndex={-1} 
-               role="dialog"
-               onClick={() => setShowShippingRatesModal(false)}>
-            <div className="modal-dialog modal-dialog-centered" 
-                 role="document"
-                 onClick={e => e.stopPropagation()}>
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h5 className="modal-title">Select Shipping Option</h5>
-                  <button type="button" 
-                          className="btn-close" 
-                          onClick={() => setShowShippingRatesModal(false)}
-                          aria-label="Close"></button>
-                </div>
-                <div className="modal-body">
-                  <div className="list-group">
-                    {shippingRates.map((rate, index) => (
-                      <button key={rate.handle || index} 
-                              type="button"
-                            className={`list-group-item list-group-item-action ${selectedShippingRateIndex === index ? 'active' : ''}`}
-                            onClick={() => selectShippingRate(index)}>
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <div className="fw-bold">{rate.title}</div>
-                          <small className="text-muted">Shipping method</small>
-                        </div>
-                        <span className={`badge ${selectedShippingRateIndex === index ? 'bg-light text-dark' : 'bg-primary'}`}>
-                          ${rate.price ? rate.price.toFixed(2) : '0.00'} {rate.currencyCode || 'USD'}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" 
-                        className="btn btn-secondary" 
-                        onClick={() => setShowShippingRatesModal(false)}>
-                  Cancel
-                </button>
-                <button type="button" 
-                        className="btn btn-primary"
-                        onClick={() => {
-                          if (selectedShippingRateIndex !== null) {
-                            selectShippingRate(selectedShippingRateIndex);
-                          }
-                        }}>
-                  Confirm Selection
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };

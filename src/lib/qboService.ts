@@ -85,7 +85,7 @@ export const getQboClient = async (): Promise<QuickBooks> => {
         token.realmId,
         qboConfig.environment === 'sandbox', // useSandbox
         false, // enable debugging
-        4, // minorversion
+        null, // minorversion
         '2.0', // oauthversion
         token.refresh_token
     );
