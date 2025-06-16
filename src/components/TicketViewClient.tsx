@@ -19,7 +19,7 @@ import TicketDetailsSidebar from './ticket-view/TicketDetailsSidebar';
 import ShippingInfoSidebar from './ticket-view/ShippingInfoSidebar';
 import MergeTicketModal from './ticket-view/MergeTicketModal';
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
-import '@/styles/ticket-view.css';
+// Ticket view styles are now integrated in globals.css
 
 // Types (keep existing types)
 type BaseUser = {
@@ -325,119 +325,113 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         hasInvoiceInfo={!!invoiceInfo}
       />
 
-      {/* Main Content Area - Improved layout */}
+      {/* Main Content Area - New Flexbox Layout */}
       <main className="ticket-content-wrapper">
-        <div className="container-fluid px-4">
-          <div className="row g-4">
-            {/* Left Column - Main Content */}
-            <div className="col-xl-8 col-lg-7">
-              <div className="ticket-main-content">
-                {/* Merged Tickets Notice */}
-                {ticket.mergedTickets && ticket.mergedTickets.length > 0 && (
-                  <div className="card mb-4 glass-effect">
-                    <div className="card-header d-flex align-items-center">
-                      <i className="fas fa-code-branch me-3 text-info"></i>
-                      <div>
-                        <h6 className="mb-1">Merged Tickets</h6>
-                        <p className="mb-0 small">
-                          This ticket contains {ticket.mergedTickets.length} merged ticket(s): {' '}
-                          {ticket.mergedTickets.map((merged, index) => (
-                            <span key={merged.id}>
-                              <Link href={`/tickets/${merged.id}`} className="text-info fw-medium">
-                                #{merged.id}
-                              </Link>
-                              {index < ticket.mergedTickets!.length - 1 && ', '}
-                            </span>
-                          ))}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Related Quote Notice */}
-                {relatedQuote && (
-                  <div className="card mb-4 glass-effect">
-                    <div className="card-header d-flex justify-content-between align-items-center">
-                      <h6 className="mb-0 text-success"><i className="fas fa-file-invoice-dollar me-2"></i>Related Quote</h6>
-                      {quoteAdminUrl && (
-                        <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success">
-                          <i className="fab fa-shopify me-1"></i>
-                          View in Shopify
-                        </a>
-                      )}
-                    </div>
-                    <div className="card-body">
-                      <p className="mb-1"><strong>Quote:</strong> {relatedQuote.name}</p>
-                      <p className="mb-1"><strong>Status:</strong> {relatedQuote.status}</p>
-                      <p className="mb-0"><strong>Total:</strong> {relatedQuote.totalPriceSet.shopMoney.amount} {relatedQuote.totalPriceSet.shopMoney.currencyCode}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Ticket Description */}
-                <TicketDescription
-                  ticket={{
-                    title: ticket.title,
-                    description: ticket.description,
-                    createdAt: ticket.createdAt,
-                    attachments: ticket.attachments?.filter(a => !a.commentId),
-                  }}
-                />
-
-                {/* Communication History */}
-                <CommunicationHistory
-                  comments={ticket.comments}
-                  ticket={{
-                    id: ticket.id,
-                    senderName: ticket.senderName,
-                    senderEmail: ticket.senderEmail,
-                  }}
-                  handleApproveAndSendDraft={handleApproveAndSendDraft}
-                  isSubmittingComment={isSubmittingComment}
-                />
-
-                {/* Reply Form */}
-                <ReplyForm
-                  ticketId={ticket.id}
-                  senderEmail={ticket.senderEmail}
-                  orderNumber={ticket.orderNumber}
-                  extractedStatus={extractedStatus}
-                  extractedCarrier={extractedCarrier}
-                  extractedTracking={extractedTracking}
-                  extractedShipDate={extractedShipDate}
-                  extractedOrderDate={extractedOrderDate}
-                  isSubmittingComment={isSubmittingComment}
-                  newComment={newComment}
-                  setNewComment={setNewComment}
-                  isInternalNote={isInternalNote}
-                  setIsInternalNote={setIsInternalNote}
-                  sendAsEmail={sendAsEmail}
-                  setSendAsEmail={setSendAsEmail}
-                  files={files}
-                  setFiles={setFiles}
-                  handleCommentSubmit={handleCommentSubmit}
-                  insertSuggestedResponse={insertSuggestedResponse}
-                />
+        {/* Left Pane - Main Conversation */}
+        <div className="ticket-main-pane">
+          {/* Merged Tickets Notice */}
+          {ticket.mergedTickets && ticket.mergedTickets.length > 0 && (
+            <div className="card mb-4 glass-effect">
+              <div className="card-header d-flex align-items-center">
+                <i className="fas fa-code-branch me-3 text-info"></i>
+                <div>
+                  <h6 className="mb-1">Merged Tickets</h6>
+                  <p className="mb-0 small">
+                    This ticket contains {ticket.mergedTickets.length} merged ticket(s): {' '}
+                    {ticket.mergedTickets.map((merged, index) => (
+                      <span key={merged.id}>
+                        <Link href={`/tickets/${merged.id}`} className="text-info fw-medium">
+                          #{merged.id}
+                        </Link>
+                        {index < ticket.mergedTickets!.length - 1 && ', '}
+                      </span>
+                    ))}
+                  </p>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Right Column - Sidebar */}
-            <div className="col-xl-4 col-lg-5">
-              <div className="ticket-sidebar">
-                <TicketDetailsSidebar ticket={ticket} />
-                
-                {(extractedStatus || extractedCarrier || extractedTracking) && (
-                  <ShippingInfoSidebar
-                    extractedStatus={extractedStatus}
-                    extractedCarrier={extractedCarrier}
-                    extractedTracking={extractedTracking}
-                    extractedShipDate={extractedShipDate}
-                    extractedOrderDate={extractedOrderDate}
-                  />
+          {/* Related Quote Notice */}
+          {relatedQuote && (
+            <div className="card mb-4 glass-effect">
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <h6 className="mb-0 text-success"><i className="fas fa-file-invoice-dollar me-2"></i>Related Quote</h6>
+                {quoteAdminUrl && (
+                  <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success">
+                    <i className="fab fa-shopify me-1"></i>
+                    View in Shopify
+                  </a>
                 )}
               </div>
+              <div className="card-body">
+                <p className="mb-1"><strong>Quote:</strong> {relatedQuote.name}</p>
+                <p className="mb-1"><strong>Status:</strong> {relatedQuote.status}</p>
+                <p className="mb-0"><strong>Total:</strong> {relatedQuote.totalPriceSet.shopMoney.amount} {relatedQuote.totalPriceSet.shopMoney.currencyCode}</p>
+              </div>
             </div>
+          )}
+
+          {/* Ticket Description */}
+          <TicketDescription
+            ticket={{
+              title: ticket.title,
+              description: ticket.description,
+              createdAt: ticket.createdAt,
+              attachments: ticket.attachments?.filter(a => !a.commentId),
+            }}
+          />
+
+          {/* Communication History */}
+          <CommunicationHistory
+            comments={ticket.comments}
+            ticket={{
+              id: ticket.id,
+              senderName: ticket.senderName,
+              senderEmail: ticket.senderEmail,
+            }}
+            handleApproveAndSendDraft={handleApproveAndSendDraft}
+            isSubmittingComment={isSubmittingComment}
+          />
+        </div>
+
+        {/* Right Pane - Sidebar */}
+        <div className="ticket-sidebar-pane">
+          <TicketDetailsSidebar ticket={ticket} />
+          
+          {(extractedStatus || extractedCarrier || extractedTracking) && (
+            <ShippingInfoSidebar
+              extractedStatus={extractedStatus}
+              extractedCarrier={extractedCarrier}
+              extractedTracking={extractedTracking}
+              extractedShipDate={extractedShipDate}
+              extractedOrderDate={extractedOrderDate}
+            />
+          )}
+
+          {/* Reply Form is now at the bottom of the right sidebar */}
+          <div className="reply-form-wrapper">
+             <ReplyForm
+                ticketId={ticket.id}
+                senderEmail={ticket.senderEmail}
+                orderNumber={ticket.orderNumber}
+                extractedStatus={extractedStatus}
+                extractedCarrier={extractedCarrier}
+                extractedTracking={extractedTracking}
+                extractedShipDate={extractedShipDate}
+                extractedOrderDate={extractedOrderDate}
+                isSubmittingComment={isSubmittingComment}
+                newComment={newComment}
+                setNewComment={setNewComment}
+                isInternalNote={isInternalNote}
+                setIsInternalNote={setIsInternalNote}
+                sendAsEmail={sendAsEmail}
+                setSendAsEmail={setSendAsEmail}
+                files={files}
+                setFiles={setFiles}
+                handleCommentSubmit={handleCommentSubmit}
+                insertSuggestedResponse={insertSuggestedResponse}
+              />
           </div>
         </div>
       </main>

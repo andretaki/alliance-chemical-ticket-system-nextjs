@@ -141,220 +141,261 @@ export default function TicketHeaderBar({
   };
 
   return (
-    <div className="ticket-header-wrapper sticky-top shadow-sm">
-      <div className="ticket-header-bar bg-white border-bottom">
-        <div className="container-fluid py-3">
-          {/* Main Header Content */}
-          <div className="row align-items-center g-3">
-            {/* Title Section */}
-            <div className="col-lg-7">
-              <div className="ticket-title-section">
-                <div className="d-flex align-items-start gap-3">
-                  {/* Ticket Icon */}
-                  <div className="ticket-icon-wrapper">
-                    <div className="ticket-icon bg-primary bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center">
-                      <i className="fas fa-ticket-alt text-primary"></i>
-                    </div>
-                  </div>
-                  
-                  {/* Title and Status */}
-                  <div className="ticket-title-content flex-grow-1 min-w-0">
-                    <div className="d-flex align-items-center flex-wrap gap-2 mb-1">
-                      <h1 className="ticket-title h5 mb-0 text-dark fw-bold">
-                        <span className="ticket-id text-muted me-2">#{ticket.id}</span>
-                        <span className="title-text">{ticket.title}</span>
-                      </h1>
-                    </div>
-                    
-                    {/* Status and Action Indicators */}
-                    <div className="ticket-indicators d-flex align-items-center flex-wrap gap-2">
-                      <span className={`status-badge badge ${statusConfig.class}`}>
-                        <i className={`${statusConfig.icon} me-1`}></i>
-                        {statusConfig.label}
-                      </span>
-                      
-                      {showAiSuggestionIndicator && (
-                        <span className="ai-indicator badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25">
-                          <i className="fas fa-robot me-1"></i>
-                          AI Suggestion Available
-                        </span>
-                      )}
-                      
-                      {getActionIndicator(ticket.status, ticket.lastCommenterIsCustomer)}
-                    </div>
-                  </div>
-                </div>
+    <div className="ticket-header-wrapper" style={{ borderBottom: '1px solid var(--card-border)' }}>
+      {/* Single Compact Header Bar */}
+      <div className="ticket-header-bar" style={{ background: 'var(--card-bg)', backdropFilter: 'blur(20px)' }}>
+        <div className="container-fluid" style={{ padding: '0.75rem 1.5rem' }}>
+          <div className="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+            
+            {/* Left Side - Title + Status */}
+            <div className="d-flex align-items-center gap-3 flex-grow-1 min-w-0">
+              {/* Compact Title */}
+              <div className="ticket-title-compact">
+                <h1 className="mb-0" style={{ 
+                  fontSize: '1.1rem', 
+                  fontWeight: '600',
+                  color: 'var(--color-foreground)',
+                  lineHeight: '1.3'
+                }}>
+                  <span style={{ color: 'var(--color-foreground-muted)', fontSize: '0.9rem' }}>#{ticket.id}</span>
+                  <span className="mx-2" style={{ color: 'var(--color-foreground-muted)' }}>•</span>
+                  <span className="title-text">{ticket.title}</span>
+                </h1>
               </div>
-            </div>
-
-            {/* Controls Section */}
-            <div className="col-lg-5">
-              <div className="ticket-controls d-flex align-items-center justify-content-lg-end gap-2 flex-wrap">
-                {/* Status Control */}
-                <div className="control-group d-flex align-items-center">
-                  <label htmlFor="statusSelect" className="control-label text-muted small fw-medium me-2">
-                    Status:
-                  </label>
-                  <div className="select-wrapper position-relative">
-                    <select 
-                      id="statusSelect" 
-                      className="form-select form-select-sm border-0 bg-light" 
-                      value={ticket.status} 
-                      onChange={handleStatusSelectChange} 
-                      disabled={isUpdatingStatus}
-                      style={{ minWidth: '130px' }}
-                    >
-                      {ticketStatusEnum.enumValues.map(s => (
-                        <option key={s} value={s}>
-                          {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </option>
-                      ))}
-                    </select>
-                    {isUpdatingStatus && (
-                      <div className="position-absolute top-50 end-0 translate-middle-y me-2">
-                        <div className="spinner-border spinner-border-sm text-primary"></div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              
+              {/* Inline Status Badges */}
+              <div className="d-flex align-items-center gap-2">
+                <span className={`badge ${statusConfig.class}`} style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}>
+                  <i className={`${statusConfig.icon} me-1`}></i>
+                  {statusConfig.label}
+                </span>
                 
-                {/* Assignee Control */}
-                <div className="control-group d-flex align-items-center">
-                  <label htmlFor="assigneeSelect" className="control-label text-muted small fw-medium me-2">
-                    Assignee:
-                  </label>
-                  <div className="select-wrapper position-relative">
-                    <select 
-                      id="assigneeSelect" 
-                      className="form-select form-select-sm border-0 bg-light" 
-                      value={ticket.assignee?.id || ''} 
-                      onChange={handleAssigneeChange} 
-                      disabled={isUpdatingAssignee}
-                      style={{ minWidth: '130px' }}
-                    >
-                      <option value="">Unassigned</option>
-                      {users.map(user => (
-                        <option key={user.id} value={user.id}>
-                          {user.name || user.email}
-                        </option>
-                      ))}
-                    </select>
-                    {isUpdatingAssignee && (
-                      <div className="position-absolute top-50 end-0 translate-middle-y me-2">
-                        <div className="spinner-border spinner-border-sm text-primary"></div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {showAiSuggestionIndicator && (
+                  <span className="badge" style={{ 
+                    background: 'var(--color-primary-light)', 
+                    color: 'var(--color-primary)',
+                    border: '1px solid var(--color-primary-border)',
+                    fontSize: '0.7rem',
+                    padding: '0.25rem 0.5rem'
+                  }}>
+                    <i className="fas fa-robot me-1"></i>
+                    AI
+                  </span>
+                )}
+                
+                {getActionIndicator(ticket.status, ticket.lastCommenterIsCustomer)}
               </div>
             </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Action Bar */}
-      <div className="action-bar bg-light border-bottom">
-        <div className="container-fluid py-2">
-          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            {/* Left Actions */}
-            <div className="action-group d-flex align-items-center gap-2 flex-wrap">
-              {/* Order Status Button */}
+            {/* Center - Quick Controls */}
+            <div className="d-flex align-items-center gap-2">
+              {/* Compact Status Select */}
+              <div className="d-flex align-items-center">
+                <select 
+                  className="form-select"
+                  value={ticket.status} 
+                  onChange={handleStatusSelectChange} 
+                  disabled={isUpdatingStatus}
+                  style={{ 
+                    fontSize: '0.75rem',
+                    padding: '0.375rem 0.75rem',
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass-bg)',
+                    color: 'var(--color-foreground)',
+                    minWidth: '110px'
+                  }}
+                >
+                  {ticketStatusEnum.enumValues.map(s => (
+                    <option key={s} value={s} style={{ background: '#1a1a2e', color: 'var(--color-foreground)' }}>
+                      {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </option>
+                  ))}
+                </select>
+                {isUpdatingStatus && (
+                  <div className="spinner-border spinner-border-sm ms-2" style={{ 
+                    color: 'var(--color-primary)', 
+                    width: '1rem', 
+                    height: '1rem' 
+                  }}></div>
+                )}
+              </div>
+
+              {/* Compact Assignee Select */}
+              <div className="d-flex align-items-center">
+                <select 
+                  className="form-select"
+                  value={ticket.assignee?.id || ''} 
+                  onChange={handleAssigneeChange} 
+                  disabled={isUpdatingAssignee}
+                  style={{ 
+                    fontSize: '0.75rem',
+                    padding: '0.375rem 0.75rem',
+                    border: '1px solid var(--glass-border)',
+                    background: 'var(--glass-bg)',
+                    color: 'var(--color-foreground)',
+                    minWidth: '120px'
+                  }}
+                >
+                  <option value="" style={{ background: '#1a1a2e', color: 'var(--color-foreground)' }}>Unassigned</option>
+                  {users.map(user => (
+                    <option key={user.id} value={user.id} style={{ background: '#1a1a2e', color: 'var(--color-foreground)' }}>
+                      {user.name?.split(' ')[0] || user.email?.split('@')[0] || 'User'}
+                    </option>
+                  ))}
+                </select>
+                {isUpdatingAssignee && (
+                  <div className="spinner-border spinner-border-sm ms-2" style={{ 
+                    color: 'var(--color-primary)', 
+                    width: '1rem', 
+                    height: '1rem' 
+                  }}></div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Side - Action Buttons */}
+            <div className="d-flex align-items-center gap-1">
+              {/* Special Action Buttons */}
               {orderNumberForStatus && (
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-info border-0 bg-info bg-opacity-10 text-info"
+                  className="btn btn-sm"
+                  style={{ 
+                    background: 'var(--color-info-light)', 
+                    border: '1px solid var(--color-info-border)', 
+                    color: 'var(--color-info)',
+                    fontSize: '0.75rem',
+                    padding: '0.375rem 0.75rem'
+                  }}
                   onClick={onGetOrderStatusDraft}
                   disabled={isLoadingOrderStatusDraft}
+                  title="Get Order Status"
                 >
                   {isLoadingOrderStatusDraft ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-1"></span>
-                      Fetching Status...
-                    </>
+                    <span className="spinner-border spinner-border-sm"></span>
                   ) : (
-                    <>
-                      <i className="fas fa-truck me-1"></i>
-                      Get Order Status
-                    </>
+                    <i className="fas fa-truck"></i>
                   )}
                 </button>
               )}
 
-              {/* Resend Invoice Button */}
               {hasInvoiceInfo && onResendInvoice && (
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-warning border-0 bg-warning bg-opacity-10 text-warning"
+                  className="btn btn-sm"
+                  style={{ 
+                    background: 'var(--color-warning-light)', 
+                    border: '1px solid var(--color-warning-border)', 
+                    color: 'var(--color-warning)',
+                    fontSize: '0.75rem',
+                    padding: '0.375rem 0.75rem'
+                  }}
                   onClick={onResendInvoice}
                   disabled={isResendingInvoice}
+                  title="Resend Invoice"
                 >
                   {isResendingInvoice ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-1"></span>
-                      Sending...
-                    </>
+                    <span className="spinner-border spinner-border-sm"></span>
                   ) : (
-                    <>
-                      <i className="fas fa-envelope me-1"></i>
-                      Resend Invoice
-                    </>
+                    <i className="fas fa-envelope"></i>
                   )}
                 </button>
               )}
 
-              {/* Reopen Button */}
               {ticket.status === 'closed' && (
                 <button 
                   onClick={onReopenTicket} 
-                  className="btn btn-sm btn-warning border-0 bg-warning bg-opacity-10 text-warning"
+                  className="btn btn-sm"
+                  style={{ 
+                    background: 'var(--color-warning-light)', 
+                    border: '1px solid var(--color-warning-border)', 
+                    color: 'var(--color-warning)',
+                    fontSize: '0.75rem',
+                    padding: '0.375rem 0.75rem'
+                  }}
+                  title="Reopen Ticket"
                 >
-                  <i className="fas fa-folder-open me-1"></i>
-                  Reopen Ticket
+                  <i className="fas fa-folder-open"></i>
                 </button>
               )}
-            </div>
 
-            {/* Right Actions */}
-            <div className="action-group d-flex align-items-center gap-2 flex-wrap">
-              <button
-                className="btn btn-sm btn-outline-secondary border-0 bg-secondary bg-opacity-10 text-secondary"
-                onClick={onMergeClick}
-                title="Merge other tickets into this one"
-              >
-                <i className="fas fa-code-branch me-1"></i>
-                Merge
-              </button>
+              {/* Core Action Buttons */}
               <Link 
                 href={`/tickets/${ticket.id}/create-quote`} 
-                className="btn btn-sm btn-success border-0 bg-success bg-opacity-10 text-success"
+                className="btn btn-sm"
+                style={{ 
+                  background: 'var(--color-success-light)', 
+                  border: '1px solid var(--color-success-border)', 
+                  color: 'var(--color-success)',
+                  textDecoration: 'none',
+                  fontSize: '0.75rem',
+                  padding: '0.375rem 0.75rem'
+                }}
+                title="Create Quote"
               >
-                <i className="fas fa-file-invoice-dollar me-1"></i>
-                Create Quote
+                <i className="fas fa-file-invoice-dollar"></i>
               </Link>
 
-              <button 
-                className="btn btn-sm btn-outline-secondary border-0 bg-secondary bg-opacity-10 text-secondary" 
-                onClick={handleCopyLink}
-                title="Copy ticket link"
+              <button
+                className="btn btn-sm"
+                style={{ 
+                  background: 'var(--glass-bg)', 
+                  border: '1px solid var(--glass-border)', 
+                  color: 'var(--color-foreground-secondary)',
+                  fontSize: '0.75rem',
+                  padding: '0.375rem 0.75rem'
+                }}
+                onClick={onMergeClick}
+                title="Merge Tickets"
               >
-                <i className="fas fa-link me-1"></i>
-                Copy Link
+                <i className="fas fa-code-branch"></i>
+              </button>
+
+              <button 
+                className="btn btn-sm"
+                style={{ 
+                  background: 'var(--glass-bg)', 
+                  border: '1px solid var(--glass-border)', 
+                  color: 'var(--color-foreground-secondary)',
+                  fontSize: '0.75rem',
+                  padding: '0.375rem 0.75rem'
+                }}
+                onClick={handleCopyLink}
+                title="Copy Link"
+              >
+                <i className="fas fa-link"></i>
               </button>
 
               <Link 
                 href={`/tickets/${ticket.id}/edit`} 
-                className="btn btn-sm btn-outline-secondary border-0 bg-secondary bg-opacity-10 text-secondary"
+                className="btn btn-sm"
+                style={{ 
+                  background: 'var(--glass-bg)', 
+                  border: '1px solid var(--glass-border)', 
+                  color: 'var(--color-foreground-secondary)',
+                  textDecoration: 'none',
+                  fontSize: '0.75rem',
+                  padding: '0.375rem 0.75rem'
+                }}
+                title="Edit Ticket"
               >
-                <i className="fas fa-edit me-1"></i>
-                Edit
+                <i className="fas fa-edit"></i>
               </Link>
               
               <Link 
                 href="/tickets" 
-                className="btn btn-sm btn-outline-secondary border-0 bg-secondary bg-opacity-10 text-secondary"
+                className="btn btn-sm"
+                style={{ 
+                  background: 'var(--glass-bg)', 
+                  border: '1px solid var(--glass-border)', 
+                  color: 'var(--color-foreground-secondary)',
+                  textDecoration: 'none',
+                  fontSize: '0.75rem',
+                  padding: '0.375rem 0.75rem'
+                }}
+                title="Back to List"
               >
-                <i className="fas fa-arrow-left me-1"></i>
-                Back to List
+                <i className="fas fa-arrow-left"></i>
               </Link>
             </div>
           </div>

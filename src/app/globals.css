@@ -1327,27 +1327,280 @@ font-size: 0.8rem;
 
 /* Print Styles for Layout */
 @media print {
-  .app-layout {
-    background: white;
-  }
-  
-  .main-content {
-    margin-left: 0;
-  }
-  
-  .background-effects,
-  .app-footer,
-  .toast-container {
-    display: none !important;
-  }
-  
-  .page-content {
-    padding: 0;
-  }
-  
-  .global-loading {
-    display: none !important;
-  }
+.app-layout {
+background: white;
+}
+
+.main-content {
+margin-left: 0;
+}
+
+.background-effects,
+.app-footer,
+.toast-container {
+display: none !important;
+}
+
+.page-content {
+padding: 0;
+}
+
+.global-loading {
+display: none !important;
+}
+}
+
+/* =================================================================
+OUTLOOK-STYLE TICKET VIEW - ENTERPRISE LAYOUT SYSTEM
+================================================================= */
+.ticket-view-page {
+display: flex;
+flex-direction: column;
+height: calc(100vh - 64px); /* Full viewport height minus navbar */
+overflow: hidden;
+background: var(--background);
+}
+
+.ticket-header-wrapper {
+flex-shrink: 0;
+z-index: 1020;
+border-bottom: 1px solid var(--card-border);
+box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.ticket-content-wrapper {
+flex-grow: 1;
+display: flex;
+overflow: hidden;
+gap: 0; /* No gap for seamless panels */
+background: var(--background-secondary);
+}
+
+/* Main Conversation Panel - Outlook Style */
+.ticket-main-pane {
+flex: 1;
+display: flex;
+flex-direction: column;
+overflow: hidden;
+background: var(--card-bg);
+border-right: 1px solid var(--card-border);
+}
+
+.conversation-header {
+padding: 1.5rem 2rem 1rem 2rem;
+border-bottom: 1px solid var(--card-border);
+background: rgba(255, 255, 255, 0.02);
+flex-shrink: 0;
+}
+
+.conversation-content {
+flex: 1;
+overflow-y: auto;
+padding: 0;
+}
+
+.conversation-messages {
+padding: 1.5rem 2rem;
+max-width: none;
+}
+
+/* Right Details Panel - Outlook Style */
+.ticket-sidebar-pane {
+width: 380px;
+flex-shrink: 0;
+display: flex;
+flex-direction: column;
+background: var(--background-tertiary);
+border-left: 1px solid var(--card-border);
+overflow: hidden;
+}
+
+.sidebar-content {
+flex: 1;
+overflow-y: auto;
+padding: 1.5rem;
+}
+
+.reply-form-wrapper {
+flex-shrink: 0;
+border-top: 1px solid var(--card-border);
+background: rgba(255, 255, 255, 0.02);
+}
+
+@media (max-width: 1024px) {
+.ticket-content-wrapper {
+flex-direction: column;
+padding: 1rem;
+gap: 1rem;
+}
+.ticket-main-pane,
+.ticket-sidebar-pane {
+width: 100%;
+overflow-y: visible; /* no separate scroll on mobile */
+padding-right: 0;
+}
+}
+
+/* Custom Scrollbar */
+.ticket-main-pane::-webkit-scrollbar,
+.ticket-sidebar-pane::-webkit-scrollbar {
+width: 8px;
+}
+.ticket-main-pane::-webkit-scrollbar-track,
+.ticket-sidebar-pane::-webkit-scrollbar-track {
+background: rgba(255,255,255,0.05);
+border-radius: 4px;
+}
+.ticket-main-pane::-webkit-scrollbar-thumb,
+.ticket-sidebar-pane::-webkit-scrollbar-thumb {
+background: var(--color-primary-border);
+border-radius: 4px;
+}
+.ticket-main-pane::-webkit-scrollbar-thumb:hover,
+.ticket-sidebar-pane::-webkit-scrollbar-thumb:hover {
+background: var(--color-primary);
+}
+
+/* Communication History Styling */
+.communication-history .message-bubble {
+display: flex;
+gap: 0.75rem;
+max-width: 90%;
+margin-bottom: 1.5rem;
+}
+
+.communication-history .message-avatar {
+flex-shrink: 0;
+}
+
+.communication-history .avatar-circle {
+width: 40px;
+height: 40px;
+border-radius: 50%;
+box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.communication-history .message-content {
+background: var(--card-bg);
+border: 1px solid var(--card-border);
+border-radius: var(--radius-lg);
+padding: 0.75rem 1.25rem;
+width: 100%;
+}
+
+.communication-history .sender-name {
+color: var(--color-foreground) !important;
+}
+
+.communication-history .message-timestamp {
+font-size: 0.75rem;
+}
+
+.communication-history .message-text {
+font-size: 0.95rem;
+line-height: 1.6;
+color: var(--color-foreground-secondary) !important;
+word-wrap: break-word;
+}
+
+.communication-history .message-text * {
+color: var(--color-foreground-secondary) !important;
+}
+
+.communication-history .message-text a {
+color: var(--color-primary) !important;
+}
+
+/* Specific Message Bubble Types */
+.communication-history .outgoing-message {
+margin-left: auto;
+flex-direction: row-reverse;
+}
+
+.communication-history .outgoing-message .message-content {
+background: var(--color-primary);
+border-color: var(--color-primary-border);
+}
+.communication-history .outgoing-message .message-content * {
+color: white !important;
+}
+
+.communication-history .internal-message,
+.communication-history .ai-message {
+max-width: 100%;
+}
+
+.communication-history .internal-message .message-content {
+background: var(--color-warning-light);
+border-color: var(--color-warning-border);
+}
+
+.communication-history .internal-message .message-content *,
+.communication-history .internal-message .sender-name {
+color: var(--color-warning) !important;
+}
+
+.communication-history .ai-message .message-content {
+background: var(--color-info-light);
+border-color: var(--color-info-border);
+}
+
+.communication-history .ai-suggestion-card {
+background: none;
+border: none;
+padding: 0;
+}
+
+.communication-history .ai-suggestion-content .suggested-text {
+background: rgba(255,255,255,0.05);
+border: 1px solid var(--glass-border);
+}
+
+/* Reply Form */
+.reply-form-wrapper {
+position: sticky;
+bottom: 0;
+z-index: 1000;
+margin-top: auto; /* Push to bottom of flex container */
+}
+
+.reply-form-container {
+background: rgba(20, 20, 35, 0.8);
+backdrop-filter: blur(20px);
+border-top: 1px solid var(--glass-border);
+box-shadow: 0 -8px 32px rgba(0,0,0,0.3);
+}
+
+.reply-header, .reply-footer {
+background: transparent;
+}
+
+.reply-form .editor-wrapper textarea {
+background: var(--glass-bg);
+border: 1px solid var(--glass-border);
+color: var(--color-foreground);
+}
+
+.reply-form .file-item {
+background: var(--glass-bg);
+border-color: var(--glass-border);
+}
+
+.reply-form .form-check-label {
+color: var(--color-foreground-muted) !important;
+}
+.reply-form .form-check-input:checked {
+background-color: var(--color-primary);
+border-color: var(--color-primary);
+}
+
+/* Animation improvements */
+.animate__animated {
+animation-duration: 0.5s;
+}
+
+.animate__fadeInDown {
+animation-name: fadeInDown;
 }
 
 /* Custom styling for improved Create Quote form usability */
