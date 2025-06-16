@@ -5,6 +5,7 @@ import Script from 'next/script';
 import Sidebar from '@/components/Sidebar';
 import AuthSessionProvider from '@/components/AuthSessionProvider';
 import { Toaster } from 'react-hot-toast';
+import AppFooter from '@/components/AppFooter';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://alliance-chemical-ticket-sy.vercel.app'),
   title: 'Alliance Chemical Ticket System',
   description: 'Modern ticket management system for Alliance Chemical - Premium Enterprise SaaS Platform',
   icons: {
@@ -46,7 +48,6 @@ export default function RootLayout({
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        suppressHydrationWarning={true}
       >
         <AuthSessionProvider>
           {/* Premium Toast System */}
@@ -121,22 +122,8 @@ export default function RootLayout({
                   {children}
                 </div>
                 
-                {/* Footer */}
-                <footer className="app-footer">
-                  <div className="footer-content">
-                    <div className="footer-left">
-                      <span className="footer-brand">Alliance Chemical</span>
-                      <span className="footer-separator">•</span>
-                      <span className="footer-title">Premium Ticket System</span>
-                    </div>
-                    <div className="footer-right">
-                      <span className="footer-version">v2.0</span>
-                      <span className="footer-separator">•</span>
-                      <span className="footer-year">{new Date().getFullYear()}</span>
-                    </div>
-                  </div>
-                  <div className="footer-glow"></div>
-                </footer>
+                {/* Footer is now a Client Component to prevent hydration errors */}
+                <AppFooter />
               </div>
             </main>
           </div>

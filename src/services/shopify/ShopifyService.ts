@@ -305,8 +305,14 @@ export class ShopifyService {
     return products;
   }
 
+  /**
+   * Fetches draft orders by a given query string, with full details.
+   * @param query - The Shopify search query string (e.g., "tag:'TicketID-123'").
+   * @param limit - The maximum number of results to return.
+   * @returns An array of draft order GQL response objects.
+   */
   public async getDraftOrdersByQuery(query: string, limit: number = 1): Promise<ShopifyDraftOrderGQLResponse[]> {
-    const draftOrderQuery = `
+    const gqlQuery = `
       query GetDraftOrders($query: String!, $first: Int!) {
         draftOrders(query: $query, first: $first, sortKey: UPDATED_AT, reverse: true) {
           edges {
@@ -318,16 +324,61 @@ export class ShopifyService {
               invoiceUrl
               createdAt
               updatedAt
-              totalPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
+              totalPriceSet { shopMoney { amount currencyCode } }
+              subtotalPriceSet { shopMoney { amount currencyCode } }
+              totalTaxSet { shopMoney { amount currencyCode } }
+              totalShippingPriceSet { shopMoney { amount currencyCode } }
               customer {
                 id
                 displayName
                 email
+                firstName
+                lastName
+                phone
+                company
+              }
+              shippingAddress {
+                firstName
+                lastName
+                address1
+                address2
+                city
+                province
+                zip
+                country
+                company
+                phone
+              }
+              billingAddress {
+                firstName
+                lastName
+                address1
+                address2
+                city
+                province
+                zip
+                country
+                company
+                phone
+              }
+              lineItems(first: 50) {
+                edges {
+                  node {
+                    id
+                    quantity
+                    title
+                    originalUnitPriceSet { shopMoney { amount currencyCode } }
+                    product {
+                      id
+                      title
+                    }
+                    variant {
+                      id
+                      title
+                      sku
+                    }
+                  }
+                }
               }
               tags
             }
@@ -339,7 +390,7 @@ export class ShopifyService {
     try {
       console.log(`[ShopifyService] Searching for draft orders with query: ${query}`);
       const response: any = await this.graphqlClient.request(
-        draftOrderQuery,
+        gqlQuery,
         {
           variables: { query: query, first: limit },
           retries: 2
@@ -355,7 +406,7 @@ export class ShopifyService {
       console.log(`[ShopifyService] Found ${draftOrders.length} draft orders.`);
       return draftOrders;
     } catch (error) {
-      console.error('[ShopifyService] Error getting draft orders by query:', error);
+      console.error(`[ShopifyService] Error searching draft orders by query "${query}":`, error);
       throw error;
     }
   }

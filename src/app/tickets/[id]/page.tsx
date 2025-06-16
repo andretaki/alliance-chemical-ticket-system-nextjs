@@ -32,107 +32,6 @@ export async function generateMetadata({ params: paramsPromise }: TicketViewPage
     };
 }
 
-async function getDraftOrdersByQuery(shopifyService: ShopifyService, query: string, limit: number = 1): Promise<ShopifyDraftOrderGQLResponse[]> {
-  const gqlQuery = `
-    query GetDraftOrders($query: String!, $first: Int!) {
-      draftOrders(query: $query, first: $first, sortKey: UPDATED_AT, reverse: true) {
-        edges {
-          node {
-            id
-            legacyResourceId
-            name
-            status
-            invoiceUrl
-            createdAt
-            updatedAt
-            totalPriceSet { shopMoney { amount currencyCode } }
-            subtotalPriceSet { shopMoney { amount currencyCode } }
-            totalTaxSet { shopMoney { amount currencyCode } }
-            totalShippingPriceSet { shopMoney { amount currencyCode } }
-            customer {
-              id
-              displayName
-              email
-              firstName
-              lastName
-              phone
-              company
-            }
-            shippingAddress {
-              firstName
-              lastName
-              address1
-              address2
-              city
-              province
-              zip
-              country
-              company
-              phone
-            }
-            billingAddress {
-              firstName
-              lastName
-              address1
-              address2
-              city
-              province
-              zip
-              country
-              company
-              phone
-            }
-            lineItems(first: 50) {
-              edges {
-                node {
-                  id
-                  quantity
-                  title
-                  originalUnitPriceSet { shopMoney { amount currencyCode } }
-                  product {
-                    id
-                    title
-                  }
-                  variant {
-                    id
-                    title
-                    sku
-                  }
-                }
-              }
-            }
-            tags
-          }
-        }
-      }
-    }
-  `;
-
-  try {
-    console.log(`[ShopifyService] Searching for draft orders with query: ${query}`);
-    // @ts-expect-error - private property
-    const response: any = await shopifyService.graphqlClient.request(
-      gqlQuery,
-      {
-        variables: { query: query, first: limit },
-        retries: 2
-      }
-    );
-
-    if (response.errors) {
-      console.error('[ShopifyService] GraphQL errors when searching draft orders:', response.errors);
-      throw new Error('Failed to search draft orders in Shopify.');
-    }
-
-    const draftOrders = response.data?.draftOrders?.edges?.map((edge: any) => edge.node) || [];
-    console.log(`[ShopifyService] Found ${draftOrders.length} draft orders.`);
-    return draftOrders;
-  } catch (error) {
-    console.error(`[ShopifyService] Error searching draft orders by query "${query}":`, error);
-    throw error;
-  }
-}
-
 async function getTicketDetails(id: number, userRole: string, userId: string) {
   const ticket = await db.query.tickets.findFirst({
     where: eq(tickets.id, id),
@@ -191,7 +90,7 @@ export default async function TicketViewPage({ params: paramsPromise }: TicketVi
   let quoteAdminUrl: string | null = null;
   try {
     const shopifyService = new ShopifyService();
-    const quotes = await getDraftOrdersByQuery(shopifyService, `tag:'TicketID-${ticketId}'`, 1);
+    const quotes = await shopifyService.getDraftOrdersByQuery(`tag:'TicketID-${ticketId}'`, 1);
     if (quotes && quotes.length > 0) {
       relatedQuote = quotes[0];
       if (relatedQuote.legacyResourceId) {
