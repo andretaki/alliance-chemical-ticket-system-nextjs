@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
-import { sendEmailWithGraph } from '@/lib/graphService';
+import { sendEmail } from '@/lib/graphService';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { db } from '@/db';
+import { db } from '@/lib/db';
 import { ticketComments } from '@/db/schema';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -49,7 +49,17 @@ export async function POST(request: Request) {
 
     const pdfBuffer = await PDFGenerator.generateInvoice(draftOrder);
 
-    await sendEmailWithGraph(recipientEmail, draftOrder, pdfBuffer);
+    const messageContent = `<p>Hello,</p><p>Please find your invoice for order ${draftOrder.name} attached.</p><p>Thank you for your business!</p>`;
+    const subject = `Invoice for Order ${draftOrder.name}`;
+    const attachments = [
+      {
+        name: `Invoice-${draftOrder.name}.pdf`,
+        contentType: 'application/pdf',
+        contentBytes: pdfBuffer.toString('base64'),
+      },
+    ];
+    
+    await sendEmail(recipientEmail, subject, messageContent, undefined, attachments, session.user.id);
 
     if (ticketId) {
       await db.insert(ticketComments).values({
