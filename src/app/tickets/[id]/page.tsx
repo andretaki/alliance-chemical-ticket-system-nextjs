@@ -214,7 +214,7 @@ export default async function TicketViewPage({ params: paramsPromise }: TicketVi
   };
 
   return (
-      <div className="container-fluid py-4">
+      <div className="ticket-page-wrapper">
           <TicketViewClient initialTicket={serializedTicket as any} relatedQuote={relatedQuote} quoteAdminUrl={quoteAdminUrl} />
       </div>
   );

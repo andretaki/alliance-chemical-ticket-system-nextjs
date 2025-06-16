@@ -745,17 +745,30 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   // --- Render Logic ---
   if (isUsersLoading) {
      return (
-       <div className="glass-container">
-         <div className="glass-card loading-state">
-           <div className="loading-spinner"></div>
-           <p>Loading ticket details...</p>
+       <div className="ticket-view-layout">
+         <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+           <div className="text-center">
+             <div className="spinner-border text-primary mb-3" role="status">
+               <span className="visually-hidden">Loading...</span>
+             </div>
+             <p className="text-muted">Loading ticket details...</p>
+           </div>
          </div>
        </div>
      );
   }
 
   if (!ticket && !isLoading) {
-      return <div className="glass-alert glass-alert-danger">Ticket not found or could not be loaded.</div>;
+      return (
+        <div className="ticket-view-layout">
+          <div className="container-fluid pt-4">
+            <div className="alert alert-danger" role="alert">
+              <i className="fas fa-exclamation-triangle me-2"></i>
+              Ticket not found or could not be loaded.
+            </div>
+          </div>
+        </div>
+      );
   }
 
   const createdAtDate = parseDate(ticket.createdAt);
@@ -764,23 +777,20 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   const priorityConfig = getPriorityConfig(ticket.priority);
 
   return (
-    <div className="ticket-view-container">
+    <div className="ticket-view-layout">
       <MergeTicketModal
         show={showMergeModal}
         onHide={() => setShowMergeModal(false)}
         primaryTicketId={ticket.id}
         onMergeSuccess={onMergeSuccess}
       />
+      
       {/* Error Alert */}
       {error && (
-        <div className="glass-alert glass-alert-danger">
-          <div className="alert-content">
-            <i className="fas fa-exclamation-triangle"></i>
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="alert-close">
-              <i className="fas fa-times"></i>
-            </button>
-          </div>
+        <div className="alert alert-danger alert-dismissible fade show mx-3 mt-3" role="alert">
+          <i className="fas fa-exclamation-triangle me-2"></i>
+          {error}
+          <button type="button" className="btn-close" onClick={() => setError(null)} aria-label="Close"></button>
         </div>
       )}
       
@@ -808,67 +818,69 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         hasInvoiceInfo={!!invoiceInfo}
       />
 
-      {/* Main Content Grid */}
-      <div className="container-fluid mt-4">
-        <div className="row g-4">
-          {/* Main Content */}
-          <div className="col-lg-8">
-            <div className="d-flex flex-column gap-4">
-              <TicketDescription
-                ticket={{
-                  title: ticket.title,
-                  description: ticket.description,
-                  createdAt: ticket.createdAt,
-                  attachments: ticket.attachments?.filter(a => !a.commentId),
-                }}
-              />
-              <CommunicationHistory
-                comments={ticket.comments}
-                ticket={{
-                  id: ticket.id,
-                  senderName: ticket.senderName,
-                  senderEmail: ticket.senderEmail,
-                }}
-                handleApproveAndSendDraft={handleApproveAndSendDraft}
-                isSubmittingComment={isSubmittingComment}
-              />
-              <ReplyForm
-                ticketId={ticket.id}
-                senderEmail={ticket.senderEmail}
-                orderNumber={ticket.orderNumber}
-                extractedStatus={extractedStatus}
-                extractedCarrier={extractedCarrier}
-                extractedTracking={extractedTracking}
-                extractedShipDate={extractedShipDate}
-                extractedOrderDate={extractedOrderDate}
-                isSubmittingComment={isSubmittingComment}
-                newComment={newComment}
-                setNewComment={setNewComment}
-                isInternalNote={isInternalNote}
-                setIsInternalNote={setIsInternalNote}
-                sendAsEmail={sendAsEmail}
-                setSendAsEmail={setSendAsEmail}
-                files={files}
-                setFiles={setFiles}
-                handleCommentSubmit={handleCommentSubmit}
-                insertSuggestedResponse={insertSuggestedResponse}
-              />
+      {/* Main Content */}
+      <div className="ticket-content-wrapper">
+        <div className="container-fluid">
+          <div className="row g-3">
+            {/* Main Content Column */}
+            <div className="col-lg-8">
+              <div className="ticket-main-content">
+                <TicketDescription
+                  ticket={{
+                    title: ticket.title,
+                    description: ticket.description,
+                    createdAt: ticket.createdAt,
+                    attachments: ticket.attachments?.filter(a => !a.commentId),
+                  }}
+                />
+                <CommunicationHistory
+                  comments={ticket.comments}
+                  ticket={{
+                    id: ticket.id,
+                    senderName: ticket.senderName,
+                    senderEmail: ticket.senderEmail,
+                  }}
+                  handleApproveAndSendDraft={handleApproveAndSendDraft}
+                  isSubmittingComment={isSubmittingComment}
+                />
+                <ReplyForm
+                  ticketId={ticket.id}
+                  senderEmail={ticket.senderEmail}
+                  orderNumber={ticket.orderNumber}
+                  extractedStatus={extractedStatus}
+                  extractedCarrier={extractedCarrier}
+                  extractedTracking={extractedTracking}
+                  extractedShipDate={extractedShipDate}
+                  extractedOrderDate={extractedOrderDate}
+                  isSubmittingComment={isSubmittingComment}
+                  newComment={newComment}
+                  setNewComment={setNewComment}
+                  isInternalNote={isInternalNote}
+                  setIsInternalNote={setIsInternalNote}
+                  sendAsEmail={sendAsEmail}
+                  setSendAsEmail={setSendAsEmail}
+                  files={files}
+                  setFiles={setFiles}
+                  handleCommentSubmit={handleCommentSubmit}
+                  insertSuggestedResponse={insertSuggestedResponse}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Sidebar */}
-          <div className="col-lg-4">
-            <div className="d-flex flex-column gap-4">
-              <TicketDetailsSidebar
-                ticket={ticket}
-              />
-              <ShippingInfoSidebar
-                extractedStatus={extractedStatus}
-                extractedCarrier={extractedCarrier}
-                extractedTracking={extractedTracking}
-                extractedShipDate={extractedShipDate}
-                extractedOrderDate={extractedOrderDate}
-              />
+            {/* Sidebar Column */}
+            <div className="col-lg-4">
+              <div className="ticket-sidebar">
+                <TicketDetailsSidebar
+                  ticket={ticket}
+                />
+                <ShippingInfoSidebar
+                  extractedStatus={extractedStatus}
+                  extractedCarrier={extractedCarrier}
+                  extractedTracking={extractedTracking}
+                  extractedShipDate={extractedShipDate}
+                  extractedOrderDate={extractedOrderDate}
+                />
+              </div>
             </div>
           </div>
         </div>
