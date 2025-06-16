@@ -217,7 +217,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   // Loading state
   if (isUsersLoading) {
     return (
-      <div className="ticket-view-layout">
+      <div className="ticket-view-page">
         <div className="d-flex justify-content-center align-items-center vh-100">
           <div className="text-center">
             <div className="spinner-border text-primary mb-3" role="status" style={{ width: '3rem', height: '3rem' }}>
@@ -234,7 +234,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   // Error state
   if (!ticket && !isLoading) {
     return (
-      <div className="ticket-view-layout">
+      <div className="ticket-view-page">
         <div className="container-fluid py-5">
           <div className="row justify-content-center">
             <div className="col-md-6">
@@ -265,7 +265,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   const hasAiSuggestions = ticket.comments.some(comment => isAISuggestionNote(comment.commentText));
 
   return (
-    <div className="ticket-view-layout">
+    <div className="ticket-view-page">
       {/* Merge Modal */}
       <MergeTicketModal
         show={showMergeModal}
@@ -334,11 +334,11 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
               <div className="ticket-main-content">
                 {/* Merged Tickets Notice */}
                 {ticket.mergedTickets && ticket.mergedTickets.length > 0 && (
-                  <div className="alert alert-info border-0 shadow-sm mb-4">
-                    <div className="d-flex align-items-center">
+                  <div className="card mb-4 glass-effect">
+                    <div className="card-header d-flex align-items-center">
                       <i className="fas fa-code-branch me-3 text-info"></i>
                       <div>
-                        <h6 className="alert-heading mb-1">Merged Tickets</h6>
+                        <h6 className="mb-1">Merged Tickets</h6>
                         <p className="mb-0 small">
                           This ticket contains {ticket.mergedTickets.length} merged ticket(s): {' '}
                           {ticket.mergedTickets.map((merged, index) => (
@@ -357,25 +357,20 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
 
                 {/* Related Quote Notice */}
                 {relatedQuote && (
-                  <div className="alert alert-success border-0 shadow-sm mb-4">
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center">
-                        <i className="fas fa-file-invoice-dollar me-3 text-success"></i>
-                        <div>
-                          <h6 className="alert-heading mb-1">Related Quote</h6>
-                          <p className="mb-0 small">
-                            Quote <strong>{relatedQuote.name}</strong> found for this ticket
-                          </p>
-                        </div>
-                      </div>
-                      <div className="d-flex gap-2">
-                        {quoteAdminUrl && (
-                          <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success">
-                            <i className="fab fa-shopify me-1"></i>
-                            View in Shopify
-                          </a>
-                        )}
-                      </div>
+                  <div className="card mb-4 glass-effect">
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                      <h6 className="mb-0 text-success"><i className="fas fa-file-invoice-dollar me-2"></i>Related Quote</h6>
+                      {quoteAdminUrl && (
+                        <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success">
+                          <i className="fab fa-shopify me-1"></i>
+                          View in Shopify
+                        </a>
+                      )}
+                    </div>
+                    <div className="card-body">
+                      <p className="mb-1"><strong>Quote:</strong> {relatedQuote.name}</p>
+                      <p className="mb-1"><strong>Status:</strong> {relatedQuote.status}</p>
+                      <p className="mb-0"><strong>Total:</strong> {relatedQuote.totalPriceSet.shopMoney.amount} {relatedQuote.totalPriceSet.shopMoney.currencyCode}</p>
                     </div>
                   </div>
                 )}

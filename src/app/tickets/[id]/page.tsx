@@ -7,6 +7,7 @@ import { Metadata } from 'next';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
+import '@/styles/ticket-view.css';
 
 interface TicketViewPageProps {
   params: Promise<{
@@ -113,8 +114,8 @@ export default async function TicketViewPage({ params: paramsPromise }: TicketVi
   };
 
   return (
-      <div className="ticket-page-wrapper">
-          <TicketViewClient initialTicket={serializedTicket as any} relatedQuote={relatedQuote} quoteAdminUrl={quoteAdminUrl} />
-      </div>
+    <div className="ticket-view-container">
+      <TicketViewClient initialTicket={serializedTicket as any} relatedQuote={relatedQuote} quoteAdminUrl={quoteAdminUrl} />
+    </div>
   );
 }
