@@ -245,7 +245,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
                   </div>
                   <h4 className="card-title text-dark mb-3">Ticket Not Found</h4>
                   <p className="card-text text-muted mb-4">
-                    The ticket you're looking for could not be found or loaded. 
+                    The ticket you&apos;re looking for could not be found or loaded. 
                     This might be due to a network issue or the ticket may have been deleted.
                   </p>
                   <Link href="/tickets" className="btn btn-primary">
