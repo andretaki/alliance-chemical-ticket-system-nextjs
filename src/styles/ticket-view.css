@@ -364,27 +364,209 @@
   }
 }
 
-/* Dark mode support (if needed) */
+/* ===================================================================
+   CRITICAL READABILITY FIXES - FORCE HIGH CONTRAST
+=================================================================== */
+
+/* Force proper text colors throughout ticket view */
+.ticket-view-layout,
+.ticket-view-layout * {
+  color: #212529 !important;
+}
+
+/* Specific text element overrides */
+.ticket-view-layout h1,
+.ticket-view-layout h2,
+.ticket-view-layout h3,
+.ticket-view-layout h4,
+.ticket-view-layout h5,
+.ticket-view-layout h6,
+.ticket-view-layout p,
+.ticket-view-layout span,
+.ticket-view-layout div:not(.badge):not(.btn),
+.ticket-view-layout label,
+.ticket-view-layout strong,
+.ticket-view-layout small,
+.ticket-view-layout td,
+.ticket-view-layout th {
+  color: #212529 !important;
+}
+
+/* Override all background colors to be light */
+.ticket-view-layout .card,
+.ticket-view-layout .message-bubble,
+.ticket-view-layout .reply-form-container,
+.ticket-view-layout .ticket-sidebar .card,
+.ticket-view-layout .ticket-main-content,
+.ticket-view-layout .list-group-item {
+  background: white !important;
+  border-color: #e9ecef !important;
+}
+
+/* Override headers and special sections */
+.ticket-view-layout .card-header,
+.ticket-view-layout .reply-header,
+.ticket-view-layout .reply-footer,
+.ticket-view-layout .ticket-sidebar .card-header,
+.ticket-view-layout .ticket-header-bar,
+.ticket-view-layout .ticket-header-wrapper {
+  background: #f8f9fa !important;
+  border-color: #e9ecef !important;
+  color: #212529 !important;
+}
+
+/* Muted text should still be readable */
+.ticket-view-layout .text-muted,
+.ticket-view-layout .text-secondary {
+  color: #6c757d !important;
+}
+
+/* Form controls */
+.ticket-view-layout .form-control,
+.ticket-view-layout .form-select,
+.ticket-view-layout textarea,
+.ticket-view-layout input[type="text"],
+.ticket-view-layout input[type="email"] {
+  background: white !important;
+  border: 1px solid #ced4da !important;
+  color: #212529 !important;
+}
+
+.ticket-view-layout .form-control::placeholder,
+.ticket-view-layout textarea::placeholder,
+.ticket-view-layout input::placeholder {
+  color: #6c757d !important;
+}
+
+/* Button text fixes */
+.ticket-view-layout .btn-outline-primary {
+  color: #0d6efd !important;
+  border-color: #0d6efd !important;
+}
+
+.ticket-view-layout .btn-outline-secondary {
+  color: #6c757d !important;
+  border-color: #6c757d !important;
+}
+
+.ticket-view-layout .btn-outline-danger {
+  color: #dc3545 !important;
+  border-color: #dc3545 !important;
+}
+
+/* Alert boxes with proper contrast */
+.ticket-view-layout .alert-info {
+  background: #cff4fc !important;
+  border-color: #0dcaf0 !important;
+  color: #055160 !important;
+}
+
+.ticket-view-layout .alert-success {
+  background: #d1e7dd !important;
+  border-color: #198754 !important;
+  color: #0a3622 !important;
+}
+
+.ticket-view-layout .alert-warning {
+  background: #fff3cd !important;
+  border-color: #ffc107 !important;
+  color: #664d03 !important;
+}
+
+.ticket-view-layout .alert-danger {
+  background: #f8d7da !important;
+  border-color: #dc3545 !important;
+  color: #58151c !important;
+}
+
+/* Dropdown menus */
+.ticket-view-layout .dropdown-menu {
+  background: white !important;
+  border: 1px solid #e9ecef !important;
+}
+
+.ticket-view-layout .dropdown-item {
+  color: #212529 !important;
+}
+
+.ticket-view-layout .dropdown-item:hover {
+  background: #f8f9fa !important;
+  color: #212529 !important;
+}
+
+/* Table elements */
+.ticket-view-layout table,
+.ticket-view-layout .table {
+  color: #212529 !important;
+}
+
+.ticket-view-layout .table th {
+  background: #f8f9fa !important;
+  border-color: #e9ecef !important;
+  color: #212529 !important;
+}
+
+.ticket-view-layout .table td {
+  border-color: #e9ecef !important;
+  color: #212529 !important;
+}
+
+/* Badge elements keep their colors for visibility */
+.ticket-view-layout .badge {
+  color: white !important;
+}
+
+/* Attachment items */
+.ticket-view-layout .attachment-item,
+.ticket-view-layout .file-item {
+  background: #f8f9fa !important;
+  border: 1px solid #e9ecef !important;
+  color: #212529 !important;
+}
+
+.ticket-view-layout .attachment-item:hover,
+.ticket-view-layout .file-item:hover {
+  background: #e9ecef !important;
+  color: #212529 !important;
+}
+
+/* Links should be visible */
+.ticket-view-layout a {
+  color: #0d6efd !important;
+}
+
+.ticket-view-layout a:hover {
+  color: #0a58ca !important;
+}
+
+/* Force override dark mode - ALWAYS use light theme */
 @media (prefers-color-scheme: dark) {
   .ticket-view-layout {
-    background: #212529;
-    color: #fff;
+    background: #f8f9fa !important;
+    color: #212529 !important;
   }
   
-  .ticket-main-content,
-  .message-bubble,
-  .reply-form-container,
-  .ticket-sidebar .card {
-    background: #343a40;
-    border-color: #495057;
-    color: #fff;
+  .ticket-view-layout * {
+    color: #212529 !important;
   }
   
-  .reply-header,
-  .reply-footer,
-  .ticket-sidebar .card-header {
-    background: #495057;
-    border-color: #6c757d;
+  .ticket-view-layout .ticket-main-content,
+  .ticket-view-layout .message-bubble,
+  .ticket-view-layout .reply-form-container,
+  .ticket-view-layout .ticket-sidebar .card,
+  .ticket-view-layout .card {
+    background: white !important;
+    border-color: #e9ecef !important;
+    color: #212529 !important;
+  }
+  
+  .ticket-view-layout .reply-header,
+  .ticket-view-layout .reply-footer,
+  .ticket-view-layout .ticket-sidebar .card-header,
+  .ticket-view-layout .card-header {
+    background: #f8f9fa !important;
+    border-color: #e9ecef !important;
+    color: #212529 !important;
   }
 }
 
