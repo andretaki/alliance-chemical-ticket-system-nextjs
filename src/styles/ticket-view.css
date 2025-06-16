@@ -234,12 +234,11 @@ It replaces the previous light-themed overrides.
   border: 1px solid var(--glass-border);
 }
 
-/* General Cleanup */
-body {
-  overflow-y: hidden; /* Prevent body scroll, allow main content to scroll */
-}
-.main-content {
-  overflow-y: hidden;
+/* General Cleanup - Apply specific overflow controls */
+.ticket-view-page .main-content,
+.ticket-view-container .main-content {
+  overflow-y: auto; /* Allow scrolling within main content */
+  height: calc(100vh - 100px); /* Adjust based on your header height */
 }
 
 /* Animation improvements */
