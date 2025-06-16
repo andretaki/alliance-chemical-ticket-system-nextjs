@@ -1,0 +1,139 @@
+{
+  "totalFetched": 1000,
+  "totalAnalyzed": 180,
+  "internalEmails": 308,
+  "externalEmails": 692,
+  "deepAnalyzed": 100,
+  "triageCounts": {
+    "CUSTOMER_SUPPORT_REQUEST": 56,
+    "SYSTEM_NOTIFICATION": 277,
+    "MARKETING_PROMOTIONAL": 58,
+    "VENDOR_BUSINESS": 147,
+    "CUSTOMER_REPLY": 124,
+    "OUT_OF_OFFICE": 9,
+    "UNCLEAR_NEEDS_REVIEW": 14,
+    "PERSONAL_INTERNAL": 4,
+    "SPAM_PHISHING": 3
+  },
+  "sentimentCounts": {
+    "negative": 34,
+    "neutral": 126,
+    "positive": 20
+  },
+  "orderNumberMentions": 76,
+  "trackingNumberMentions": 7,
+  "avgBodyLength": 22271.416666666668,
+  "dailyVolume": {
+    "2025-05-13": 33,
+    "2025-05-12": 72,
+    "2025-05-11": 20,
+    "2025-05-10": 14,
+    "2025-05-09": 60,
+    "2025-05-08": 45,
+    "2025-05-07": 48,
+    "2025-05-06": 36,
+    "2025-05-05": 41,
+    "2025-05-04": 9,
+    "2025-05-03": 7,
+    "2025-05-02": 28,
+    "2025-05-01": 30,
+    "2025-04-30": 45,
+    "2025-04-29": 33,
+    "2025-04-28": 52,
+    "2025-04-26": 8,
+    "2025-04-25": 29,
+    "2025-04-24": 45,
+    "2025-04-23": 37
+  },
+  "weekdayDistribution": {
+    "Sunday": 29,
+    "Monday": 165,
+    "Tuesday": 102,
+    "Wednesday": 130,
+    "Thursday": 120,
+    "Friday": 117,
+    "Saturday": 29
+  },
+  "hourlyDistribution": {
+    "0": 12,
+    "1": 10,
+    "2": 4,
+    "3": 12,
+    "4": 6,
+    "5": 12,
+    "6": 15,
+    "7": 35,
+    "8": 42,
+    "9": 68,
+    "10": 87,
+    "11": 53,
+    "12": 57,
+    "13": 62,
+    "14": 57,
+    "15": 53,
+    "16": 22,
+    "17": 21,
+    "18": 10,
+    "19": 7,
+    "20": 11,
+    "21": 17,
+    "22": 4,
+    "23": 15
+  },
+  "primaryIntents": {
+    "Need to determine...": 100
+  },
+  "subIntents": {
+    "Need to determine...": 100
+  },
+  "customCategories": {},
+  "productMentions": {},
+  "locationMentions": {},
+  "entityTypes": {},
+  "urgencyLevels": {},
+  "complexityLevels": {},
+  "questionTypes": {},
+  "responseTimeNeeded": {},
+  "automationPotential": {},
+  "commonPhrases": {},
+  "commonFollowups": {},
+  "examplesByIntent": {
+    "Need to determine...": [
+      {
+        "subject": "Re: Pay invoice 35217 from Alliance Chemical with a few clicks",
+        "snippet": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n-->\r\n</style></head><body di...",
+        "intent": "Need to determine...",
+        "subIntent": "Need to determine...",
+        "entities": {}
+      },
+      {
+        "subject": "Re: Re. status of order #3637",
+        "snippet": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><style type=\"text/css\" style=\"display:none\">\r\n<!--\r\np\r\n\t{margin-top:0;\r\n\tmargin-bottom:0}\r\n-->\r\n</style></head><body di...",
+        "intent": "Need to determine...",
+        "subIntent": "Need to determine...",
+        "entities": {}
+      },
+      {
+        "subject": "NDA rush shipment!!",
+        "snippet": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"><meta name=\"Generator\" content=\"Microsoft Word 15 (filtered medium)\"><style>\r\n<!--\r\n@font-face\r\n\t{font-family:\"Cambria ...",
+        "intent": "Need to determine...",
+        "subIntent": "Need to determine...",
+        "entities": {}
+      },
+      {
+        "subject": "2061003120 - 00100 Grainger Sourcing RFQ",
+        "snippet": "Grainger Sourcing\r\n100 Grainger Pkwy, Lake Forest, IL 60045\r\n\r\n                           REQUEST FOR QUOTATION\r\n\r\nPlease review and complete entire form within 4 hours or less. No further action shou...",
+        "intent": "Need to determine...",
+        "subIntent": "Need to determine...",
+        "entities": {}
+      },
+      {
+        "subject": "Re: Order #4514 confirmed",
+        "snippet": "<html><head>\r\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\"></head><body>Thank you for your email. I am currently out of the office and will be back on 5/12/25. If your inquiry is...",
+        "intent": "Need to determine...",
+        "subIntent": "Need to determine...",
+        "entities": {}
+      }
+    ]
+  }
+}

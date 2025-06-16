@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1749854923753,
+      "tag": "0000_happy_thunderball",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1749855000001,
+      "tag": "0001_add_user_approval_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1749855000002,
+      "tag": "0002_add_ticket_merging",
+      "breakpoints": true
+    }
+  ]
+}

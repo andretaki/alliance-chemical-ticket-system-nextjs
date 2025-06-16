@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/process-queued-emails",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/renew-subscriptions",
+      "schedule": "0 0 */2 * *"
+    },
+    {
+      "path": "/api/cron/sync-products",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/process-resolutions",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/update-metrics",
+      "schedule": "0 4 * * *"
+    }
+  ]
+}
