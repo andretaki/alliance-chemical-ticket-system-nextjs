@@ -325,91 +325,159 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         hasInvoiceInfo={!!invoiceInfo}
       />
 
-      {/* Main Content Area - New Flexbox Layout */}
+      {/* Main Content Area - Outlook-Style Layout */}
       <main className="ticket-content-wrapper">
-        {/* Left Pane - Main Conversation */}
+        {/* Left Panel - Conversation View */}
         <div className="ticket-main-pane">
-          {/* Merged Tickets Notice */}
-          {ticket.mergedTickets && ticket.mergedTickets.length > 0 && (
-            <div className="card mb-4 glass-effect">
-              <div className="card-header d-flex align-items-center">
-                <i className="fas fa-code-branch me-3 text-info"></i>
-                <div>
-                  <h6 className="mb-1">Merged Tickets</h6>
-                  <p className="mb-0 small">
-                    This ticket contains {ticket.mergedTickets.length} merged ticket(s): {' '}
+          {/* Conversation Header */}
+          <div className="conversation-header">
+            {/* Notices Row */}
+            <div className="d-flex flex-wrap gap-3 mb-3">
+              {/* Merged Tickets Notice */}
+              {ticket.mergedTickets && ticket.mergedTickets.length > 0 && (
+                <div className="alert alert-info d-flex align-items-center mb-0 py-2 px-3" style={{ 
+                  background: 'var(--color-info-light)', 
+                  border: '1px solid var(--color-info-border)',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem'
+                }}>
+                  <i className="fas fa-code-branch me-2" style={{ color: 'var(--color-info)' }}></i>
+                  <span style={{ color: 'var(--color-info)' }}>
+                    Merged with {ticket.mergedTickets.length} ticket(s): {' '}
                     {ticket.mergedTickets.map((merged, index) => (
                       <span key={merged.id}>
-                        <Link href={`/tickets/${merged.id}`} className="text-info fw-medium">
+                        <Link href={`/tickets/${merged.id}`} style={{ color: 'var(--color-info)', fontWeight: '500' }}>
                           #{merged.id}
                         </Link>
                         {index < ticket.mergedTickets!.length - 1 && ', '}
                       </span>
                     ))}
-                  </p>
+                  </span>
+                </div>
+              )}
+
+              {/* Related Quote Notice */}
+              {relatedQuote && (
+                <div className="alert alert-success d-flex align-items-center justify-content-between mb-0 py-2 px-3" style={{ 
+                  background: 'var(--color-success-light)', 
+                  border: '1px solid var(--color-success-border)',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem'
+                }}>
+                  <div className="d-flex align-items-center">
+                    <i className="fas fa-file-invoice-dollar me-2" style={{ color: 'var(--color-success)' }}></i>
+                    <span style={{ color: 'var(--color-success)' }}>
+                      Quote: {relatedQuote.name} • {relatedQuote.totalPriceSet.shopMoney.amount} {relatedQuote.totalPriceSet.shopMoney.currencyCode}
+                    </span>
+                  </div>
+                  {quoteAdminUrl && (
+                    <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" 
+                       className="btn btn-sm ms-2"
+                       style={{ 
+                         background: 'var(--color-success)', 
+                         color: 'white', 
+                         fontSize: '0.7rem',
+                         padding: '0.25rem 0.5rem',
+                         textDecoration: 'none'
+                       }}>
+                      <i className="fab fa-shopify me-1"></i>
+                      View
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Ticket Description Header */}
+            <div className="ticket-description-compact">
+              <div className="d-flex align-items-start gap-3">
+                <div className="description-icon" style={{
+                  width: '40px',
+                  height: '40px',
+                  background: 'var(--color-primary-light)',
+                  border: '1px solid var(--color-primary-border)',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <i className="fas fa-file-alt" style={{ color: 'var(--color-primary)', fontSize: '1.1rem' }}></i>
+                </div>
+                <div className="flex-grow-1 min-w-0">
+                  <h2 className="mb-1" style={{ 
+                    fontSize: '1.2rem', 
+                    fontWeight: '600', 
+                    color: 'var(--color-foreground)',
+                    lineHeight: '1.3'
+                  }}>
+                    Initial Request
+                  </h2>
+                  <div className="description-text" style={{ 
+                    color: 'var(--color-foreground-muted)', 
+                    fontSize: '0.9rem',
+                    lineHeight: '1.5'
+                  }}>
+                    {ticket.description ? (
+                      <div dangerouslySetInnerHTML={{ 
+                        __html: ticket.description.replace(/\n/g, '<br/>').substring(0, 200) + 
+                               (ticket.description.length > 200 ? '...' : '')
+                      }} />
+                    ) : (
+                      <em>No description provided</em>
+                    )}
+                  </div>
+                                     <div className="description-meta mt-2" style={{ 
+                     fontSize: '0.75rem', 
+                     color: 'var(--color-foreground-subtle)' 
+                   }}>
+                     Created {format(new Date(ticket.createdAt), 'MMM d, yyyy • h:mm a')}
+                     {ticket.attachments && ticket.attachments.filter(a => !a.commentId).length > 0 && (
+                       <span className="ms-2">
+                         <i className="fas fa-paperclip me-1"></i>
+                         {ticket.attachments.filter(a => !a.commentId).length} attachment(s)
+                       </span>
+                     )}
+                   </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Related Quote Notice */}
-          {relatedQuote && (
-            <div className="card mb-4 glass-effect">
-              <div className="card-header d-flex justify-content-between align-items-center">
-                <h6 className="mb-0 text-success"><i className="fas fa-file-invoice-dollar me-2"></i>Related Quote</h6>
-                {quoteAdminUrl && (
-                  <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success">
-                    <i className="fab fa-shopify me-1"></i>
-                    View in Shopify
-                  </a>
-                )}
-              </div>
-              <div className="card-body">
-                <p className="mb-1"><strong>Quote:</strong> {relatedQuote.name}</p>
-                <p className="mb-1"><strong>Status:</strong> {relatedQuote.status}</p>
-                <p className="mb-0"><strong>Total:</strong> {relatedQuote.totalPriceSet.shopMoney.amount} {relatedQuote.totalPriceSet.shopMoney.currencyCode}</p>
-              </div>
+          {/* Conversation Content */}
+          <div className="conversation-content">
+            <div className="conversation-messages">
+              <CommunicationHistory
+                comments={ticket.comments}
+                ticket={{
+                  id: ticket.id,
+                  senderName: ticket.senderName,
+                  senderEmail: ticket.senderEmail,
+                }}
+                handleApproveAndSendDraft={handleApproveAndSendDraft}
+                isSubmittingComment={isSubmittingComment}
+              />
             </div>
-          )}
-
-          {/* Ticket Description */}
-          <TicketDescription
-            ticket={{
-              title: ticket.title,
-              description: ticket.description,
-              createdAt: ticket.createdAt,
-              attachments: ticket.attachments?.filter(a => !a.commentId),
-            }}
-          />
-
-          {/* Communication History */}
-          <CommunicationHistory
-            comments={ticket.comments}
-            ticket={{
-              id: ticket.id,
-              senderName: ticket.senderName,
-              senderEmail: ticket.senderEmail,
-            }}
-            handleApproveAndSendDraft={handleApproveAndSendDraft}
-            isSubmittingComment={isSubmittingComment}
-          />
+          </div>
         </div>
 
-        {/* Right Pane - Sidebar */}
+        {/* Right Panel - Details & Actions */}
         <div className="ticket-sidebar-pane">
-          <TicketDetailsSidebar ticket={ticket} />
-          
-          {(extractedStatus || extractedCarrier || extractedTracking) && (
-            <ShippingInfoSidebar
-              extractedStatus={extractedStatus}
-              extractedCarrier={extractedCarrier}
-              extractedTracking={extractedTracking}
-              extractedShipDate={extractedShipDate}
-              extractedOrderDate={extractedOrderDate}
-            />
-          )}
+          <div className="sidebar-content">
+            <TicketDetailsSidebar ticket={ticket} />
+            
+            {(extractedStatus || extractedCarrier || extractedTracking) && (
+              <ShippingInfoSidebar
+                extractedStatus={extractedStatus}
+                extractedCarrier={extractedCarrier}
+                extractedTracking={extractedTracking}
+                extractedShipDate={extractedShipDate}
+                extractedOrderDate={extractedOrderDate}
+              />
+            )}
+          </div>
 
-          {/* Reply Form is now at the bottom of the right sidebar */}
+          {/* Reply Form - Fixed at bottom */}
           <div className="reply-form-wrapper">
              <ReplyForm
                 ticketId={ticket.id}
