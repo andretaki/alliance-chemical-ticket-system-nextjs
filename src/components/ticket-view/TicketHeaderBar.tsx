@@ -159,18 +159,18 @@ export default function TicketHeaderBar({
                 }}>
                   <span style={{ color: 'var(--color-foreground-muted)', fontSize: '0.9rem' }}>#{ticket.id}</span>
                   <span className="mx-2" style={{ color: 'var(--color-foreground-muted)' }}>•</span>
-                  <span className="title-text">{ticket.title}</span>
-                </h1>
-              </div>
-              
+                        <span className="title-text">{ticket.title}</span>
+                      </h1>
+                    </div>
+                    
               {/* Inline Status Badges */}
               <div className="d-flex align-items-center gap-2">
                 <span className={`badge ${statusConfig.class}`} style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem' }}>
-                  <i className={`${statusConfig.icon} me-1`}></i>
-                  {statusConfig.label}
-                </span>
-                
-                {showAiSuggestionIndicator && (
+                        <i className={`${statusConfig.icon} me-1`}></i>
+                        {statusConfig.label}
+                      </span>
+                      
+                      {showAiSuggestionIndicator && (
                   <span className="badge" style={{ 
                     background: 'var(--color-primary-light)', 
                     color: 'var(--color-primary)',
@@ -178,12 +178,12 @@ export default function TicketHeaderBar({
                     fontSize: '0.7rem',
                     padding: '0.25rem 0.5rem'
                   }}>
-                    <i className="fas fa-robot me-1"></i>
+                          <i className="fas fa-robot me-1"></i>
                     AI
-                  </span>
-                )}
-                
-                {getActionIndicator(ticket.status, ticket.lastCommenterIsCustomer)}
+                        </span>
+                      )}
+                      
+                      {getActionIndicator(ticket.status, ticket.lastCommenterIsCustomer)}
               </div>
             </div>
 
@@ -191,11 +191,11 @@ export default function TicketHeaderBar({
             <div className="d-flex align-items-center gap-2">
               {/* Compact Status Select */}
               <div className="d-flex align-items-center">
-                <select 
+                    <select 
                   className="form-select"
-                  value={ticket.status} 
-                  onChange={handleStatusSelectChange} 
-                  disabled={isUpdatingStatus}
+                      value={ticket.status} 
+                      onChange={handleStatusSelectChange} 
+                      disabled={isUpdatingStatus}
                   style={{ 
                     fontSize: '0.75rem',
                     padding: '0.375rem 0.75rem',
@@ -204,29 +204,29 @@ export default function TicketHeaderBar({
                     color: 'var(--color-foreground)',
                     minWidth: '110px'
                   }}
-                >
-                  {ticketStatusEnum.enumValues.map(s => (
+                    >
+                      {ticketStatusEnum.enumValues.map(s => (
                     <option key={s} value={s} style={{ background: '#1a1a2e', color: 'var(--color-foreground)' }}>
-                      {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </option>
-                  ))}
-                </select>
-                {isUpdatingStatus && (
+                          {s.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </option>
+                      ))}
+                    </select>
+                    {isUpdatingStatus && (
                   <div className="spinner-border spinner-border-sm ms-2" style={{ 
                     color: 'var(--color-primary)', 
                     width: '1rem', 
                     height: '1rem' 
                   }}></div>
-                )}
-              </div>
-
+                    )}
+                </div>
+                
               {/* Compact Assignee Select */}
               <div className="d-flex align-items-center">
-                <select 
+                    <select 
                   className="form-select"
-                  value={ticket.assignee?.id || ''} 
-                  onChange={handleAssigneeChange} 
-                  disabled={isUpdatingAssignee}
+                      value={ticket.assignee?.id || ''} 
+                      onChange={handleAssigneeChange} 
+                      disabled={isUpdatingAssignee}
                   style={{ 
                     fontSize: '0.75rem',
                     padding: '0.375rem 0.75rem',
@@ -235,23 +235,23 @@ export default function TicketHeaderBar({
                     color: 'var(--color-foreground)',
                     minWidth: '120px'
                   }}
-                >
+                    >
                   <option value="" style={{ background: '#1a1a2e', color: 'var(--color-foreground)' }}>Unassigned</option>
-                  {users.map(user => (
+                      {users.map(user => (
                     <option key={user.id} value={user.id} style={{ background: '#1a1a2e', color: 'var(--color-foreground)' }}>
                       {user.name?.split(' ')[0] || user.email?.split('@')[0] || 'User'}
-                    </option>
-                  ))}
-                </select>
-                {isUpdatingAssignee && (
+                        </option>
+                      ))}
+                    </select>
+                    {isUpdatingAssignee && (
                   <div className="spinner-border spinner-border-sm ms-2" style={{ 
                     color: 'var(--color-primary)', 
                     width: '1rem', 
                     height: '1rem' 
                   }}></div>
-                )}
-              </div>
-            </div>
+                    )}
+        </div>
+      </div>
 
             {/* Right Side - Action Buttons */}
             <div className="d-flex align-items-center gap-1">

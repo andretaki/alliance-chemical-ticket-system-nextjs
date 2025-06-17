@@ -1,7 +1,7 @@
 // src/components/TicketViewClient.tsx
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, ChangeEvent, FormEvent } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, ChangeEvent, FormEvent } from 'react';
 import axios, { AxiosError } from 'axios';
 import { format, formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
@@ -264,6 +264,29 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   // Check if there are AI suggestions
   const hasAiSuggestions = ticket.comments.some(comment => isAISuggestionNote(comment.commentText));
 
+  const conversationHistory = useMemo(() => {
+    const history: CommentData[] = [];
+
+    // Add the initial ticket description as the first message
+    if (ticket.description) {
+      history.push({
+        id: -1, // Use a unique negative ID for the description
+        commentText: ticket.description,
+        createdAt: ticket.createdAt,
+        commenter: ticket.reporter,
+        isInternalNote: false,
+        isFromCustomer: true, // Assume the reporter is the customer
+        isOutgoingReply: false, // This was the missing property
+        attachments: ticket.attachments?.filter(a => !a.commentId) || [],
+      });
+    }
+
+    // Add all subsequent comments
+    history.push(...ticket.comments);
+
+    return history;
+  }, [ticket]);
+
   return (
     <div className="ticket-view-page">
       {/* Merge Modal */}
@@ -448,7 +471,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
           <div className="conversation-content">
             <div className="conversation-messages">
               <CommunicationHistory
-                comments={ticket.comments}
+                comments={conversationHistory}
                 ticket={{
                   id: ticket.id,
                   senderName: ticket.senderName,

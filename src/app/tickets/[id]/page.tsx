@@ -114,6 +114,6 @@ export default async function TicketViewPage({ params: paramsPromise }: TicketVi
   };
 
   return (
-    <TicketViewClient initialTicket={serializedTicket as any} relatedQuote={relatedQuote} quoteAdminUrl={quoteAdminUrl} />
+      <TicketViewClient initialTicket={serializedTicket as any} relatedQuote={relatedQuote} quoteAdminUrl={quoteAdminUrl} />
   );
 }
