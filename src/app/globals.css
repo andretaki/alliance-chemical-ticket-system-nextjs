@@ -1351,834 +1351,138 @@ MODERN FORM SYSTEM - Scoped to avoid conflicts
 }
 
 /* =================================================================
-OUTLOOK-STYLE TICKET VIEW - ENTERPRISE LAYOUT SYSTEM
+   OUTLOOK-STYLE TICKET VIEW - ENTERPRISE LAYOUT SYSTEM
 ================================================================= */
 .ticket-view-page {
-display: flex;
-flex-direction: column;
-height: calc(100vh - 64px); /* Full viewport height minus navbar */
-overflow: hidden;
-background: var(--background);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 64px); /* Full viewport height minus navbar */
+  overflow: hidden;
+  background: var(--background);
 }
 
 .ticket-header-wrapper {
-flex-shrink: 0;
-z-index: 1020;
-border-bottom: 1px solid var(--card-border);
-box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  z-index: 1020;
+  border-bottom: 1px solid var(--card-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .ticket-content-wrapper {
-flex-grow: 1;
-display: flex;
-overflow: hidden;
-gap: 0; /* No gap for seamless panels */
-background: var(--background-secondary);
+  flex-grow: 1;
+  display: flex;
+  overflow: hidden;
+  gap: 0; /* No gap for seamless panels */
+  background: var(--background-secondary);
 }
 
-/* Main Conversation Panel - Outlook Style */
 .ticket-main-pane {
-flex: 1;
-display: flex;
-flex-direction: column;
-overflow: hidden;
-background: var(--card-bg);
-border-right: 1px solid var(--card-border);
-}
-
-.conversation-header {
-padding: 1.5rem 2rem 1rem 2rem;
-border-bottom: 1px solid var(--card-border);
-background: rgba(255, 255, 255, 0.02);
-flex-shrink: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--card-bg);
+  border-right: 1px solid var(--card-border);
 }
 
 .conversation-content {
-flex: 1;
-overflow-y: auto;
-padding: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
 }
 
 .conversation-messages {
-padding: 1.5rem 2rem;
-max-width: none;
+  padding: 1.5rem 2rem;
+  max-width: none;
 }
 
-/* Right Details Panel - Outlook Style */
 .ticket-sidebar-pane {
-width: 380px;
-flex-shrink: 0;
-display: flex;
-flex-direction: column;
-background: var(--background-tertiary);
-border-left: 1px solid var(--card-border);
-overflow: hidden;
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--background-tertiary);
+  border-left: 1px solid var(--card-border);
+  overflow: hidden;
 }
 
 .sidebar-content {
-flex: 1;
-overflow-y: auto;
-padding: 1.5rem;
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
 }
 
 .reply-form-wrapper {
-flex-shrink: 0;
-border-top: 1px solid var(--card-border);
-background: rgba(255, 255, 255, 0.02);
+  flex-shrink: 0;
+  border-top: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 /* Responsive Design - Outlook Style */
 @media (max-width: 1200px) {
-.ticket-sidebar-pane {
-width: 320px;
-}
+  .ticket-sidebar-pane {
+    width: 320px;
+  }
 }
 
 @media (max-width: 1024px) {
-.ticket-content-wrapper {
-flex-direction: column;
-gap: 0;
-}
-
-.ticket-main-pane,
-.ticket-sidebar-pane {
-width: 100%;
-overflow-y: visible;
-}
-
-.ticket-sidebar-pane {
-border-left: none;
-border-top: 1px solid var(--card-border);
-max-height: 50vh;
-}
-
-.conversation-header {
-padding: 1rem 1.5rem 0.75rem 1.5rem;
-}
-
-.conversation-messages {
-padding: 1rem 1.5rem;
-}
-
-.sidebar-content {
-padding: 1rem;
-}
-
-.communication-history .outgoing-message {
-margin-left: 1rem;
-}
+  .ticket-content-wrapper { flex-direction: column; gap: 0; }
+  .ticket-main-pane, .ticket-sidebar-pane { width: 100%; overflow-y: visible; }
+  .ticket-sidebar-pane { border-left: none; border-top: 1px solid var(--card-border); max-height: 50vh; }
+  .conversation-messages { padding: 1rem 1.5rem; }
+  .sidebar-content { padding: 1rem; }
 }
 
 @media (max-width: 768px) {
-.ticket-header-wrapper .container-fluid {
-padding: 0.5rem 1rem !important;
-}
-
-.conversation-header {
-padding: 0.75rem 1rem 0.5rem 1rem;
-}
-
-.conversation-messages {
-padding: 0.75rem 1rem;
-}
-
-.communication-history .message-bubble {
-gap: 0.75rem;
-}
-
-.communication-history .avatar-circle {
-width: 32px;
-height: 32px;
-}
-
-.communication-history .outgoing-message {
-margin-left: 0.5rem;
-}
+  .ticket-header-wrapper .container-fluid { padding: 0.5rem 1rem !important; }
+  .conversation-messages { padding: 0.75rem 1rem; }
 }
 
 /* Custom Scrollbar - Outlook Style */
-.conversation-content::-webkit-scrollbar,
-.sidebar-content::-webkit-scrollbar {
-width: 6px;
-}
-.conversation-content::-webkit-scrollbar-track,
-.sidebar-content::-webkit-scrollbar-track {
-background: rgba(255,255,255,0.02);
-border-radius: 3px;
-}
-.conversation-content::-webkit-scrollbar-thumb,
-.sidebar-content::-webkit-scrollbar-thumb {
-background: rgba(255,255,255,0.1);
-border-radius: 3px;
-}
-.conversation-content::-webkit-scrollbar-thumb:hover,
-.sidebar-content::-webkit-scrollbar-thumb:hover {
-background: rgba(255,255,255,0.2);
-}
+.conversation-content::-webkit-scrollbar, .sidebar-content::-webkit-scrollbar { width: 6px; }
+.conversation-content::-webkit-scrollbar-track, .sidebar-content::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+.conversation-content::-webkit-scrollbar-thumb, .sidebar-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.conversation-content::-webkit-scrollbar-thumb:hover, .sidebar-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
 /* Outlook-Style Message Bubbles */
-.communication-history .message-bubble {
-display: flex;
-gap: 1rem;
-margin-bottom: 1.5rem;
-padding: 0;
-max-width: none;
-}
+.communication-history .message-bubble { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+.communication-history .message-avatar { flex-shrink: 0; margin-top: 0.25rem; }
+.communication-history .avatar-circle { width: 36px; height: 36px; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.15); border: 2px solid var(--card-border); display:flex; align-items:center; justify-content:center; font-weight:600; background:var(--color-secondary); color:white; font-size: 0.9rem; }
+.communication-history .message-content { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 1rem 1.25rem; width: 100%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: var(--transition-fast); }
+.communication-history .message-content:hover { border-color: var(--color-primary-border); }
+.communication-history .message-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--card-border); }
+.communication-history .sender-name { color: var(--color-foreground) !important; font-weight: 600; font-size: 0.9rem; }
+.communication-history .message-timestamp { font-size: 0.75rem; color: var(--color-foreground-subtle); }
+.communication-history .message-text { font-size: 0.9rem; line-height: 1.6; color: var(--color-foreground-secondary) !important; word-wrap: break-word; margin: 0; }
+.communication-history .message-text * { color: var(--color-foreground-secondary) !important; }
+.communication-history .message-text a { color: var(--color-primary) !important; }
 
-.communication-history .message-avatar {
-flex-shrink: 0;
-margin-top: 0.25rem;
-}
+/* Message Bubble Variants */
+.communication-history .outgoing-message { flex-direction: row-reverse; }
+.communication-history .outgoing-message .avatar-circle { background:var(--color-primary); }
+.communication-history .outgoing-message .message-content { background: var(--color-primary-light); border-color: var(--color-primary-border); }
+.communication-history .internal-message .avatar-circle { background:var(--color-warning); }
+.communication-history .internal-message .message-content { background: var(--color-warning-light); border-color: var(--color-warning-border); }
+.communication-history .ai-message .avatar-circle { background:var(--color-info); }
+.communication-history .ai-message .message-content { background: var(--color-info-light); border-color: var(--color-info-border); }
+.communication-history .ai-suggestion-card .suggested-text { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); padding: 0.75rem; border-radius: 8px; margin-bottom: 0.75rem; }
 
-.communication-history .avatar-circle {
-width: 36px;
-height: 36px;
-border-radius: 50%;
-box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-border: 2px solid var(--card-border);
-}
-
-.communication-history .message-content {
-background: var(--card-bg);
-border: 1px solid var(--card-border);
-border-radius: 12px;
-padding: 1rem 1.25rem;
-width: 100%;
-box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-transition: var(--transition-fast);
-}
-
-.communication-history .message-content:hover {
-border-color: var(--color-primary-border);
-box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-
-.communication-history .message-header {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-bottom: 0.75rem;
-padding-bottom: 0.5rem;
-border-bottom: 1px solid var(--card-border);
-}
-
-.communication-history .sender-name {
-color: var(--color-foreground) !important;
-font-weight: 600;
-font-size: 0.9rem;
-}
-
-.communication-history .message-timestamp {
-font-size: 0.75rem;
-color: var(--color-foreground-subtle);
-}
-
-.communication-history .message-text {
-font-size: 0.9rem;
-line-height: 1.6;
-color: var(--color-foreground-secondary) !important;
-word-wrap: break-word;
-margin: 0;
-}
-
-.communication-history .message-text * {
-color: var(--color-foreground-secondary) !important;
-}
-
-.communication-history .message-text a {
-color: var(--color-primary) !important;
-}
-
-/* Special Message Types - Outlook Style */
-.communication-history .outgoing-message {
-margin-left: 3rem;
-flex-direction: row-reverse;
-}
-
-.communication-history .outgoing-message .message-content {
-background: var(--color-primary-light);
-border-color: var(--color-primary-border);
-}
-
-.communication-history .outgoing-message .message-content *,
-.communication-history .outgoing-message .sender-name {
-color: var(--color-primary) !important;
-}
-
-.communication-history .internal-message .message-content {
-background: var(--color-warning-light);
-border-color: var(--color-warning-border);
-border-left: 4px solid var(--color-warning);
-}
-
-.communication-history .internal-message .message-content *,
-.communication-history .internal-message .sender-name {
-color: var(--color-warning) !important;
-}
-
-.communication-history .ai-message .message-content {
-background: var(--color-info-light);
-border-color: var(--color-info-border);
-border-left: 4px solid var(--color-info);
-}
-
-.communication-history .ai-message .message-content *,
-.communication-history .ai-message .sender-name {
-color: var(--color-info) !important;
-}
-
-/* Communication History Styling */
-.communication-history .message-bubble {
-display: flex;
-gap: 0.75rem;
-max-width: 90%;
-margin-bottom: 1.5rem;
-}
-
-.communication-history .message-avatar {
-flex-shrink: 0;
-}
-
-.communication-history .avatar-circle {
-width: 40px;
-height: 40px;
-border-radius: 50%;
-box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
-
-.communication-history .message-content {
-background: var(--card-bg);
-border: 1px solid var(--card-border);
-border-radius: var(--radius-lg);
-padding: 0.75rem 1.25rem;
-width: 100%;
-}
-
-.communication-history .sender-name {
-color: var(--color-foreground) !important;
-}
-
-.communication-history .message-timestamp {
-font-size: 0.75rem;
-}
-
-.communication-history .message-text {
-font-size: 0.95rem;
-line-height: 1.6;
-color: var(--color-foreground-secondary) !important;
-word-wrap: break-word;
-}
-
-.communication-history .message-text * {
-color: var(--color-foreground-secondary) !important;
-}
-
-.communication-history .message-text a {
-color: var(--color-primary) !important;
-}
-
-/* Specific Message Bubble Types */
-.communication-history .outgoing-message {
-margin-left: auto;
-flex-direction: row-reverse;
-}
-
-.communication-history .outgoing-message .message-content {
-background: var(--color-primary);
-border-color: var(--color-primary-border);
-}
-.communication-history .outgoing-message .message-content * {
-color: white !important;
-}
-
-.communication-history .internal-message,
-.communication-history .ai-message {
-max-width: 100%;
-}
-
-.communication-history .internal-message .message-content {
-background: var(--color-warning-light);
-border-color: var(--color-warning-border);
-}
-
-.communication-history .internal-message .message-content *,
-.communication-history .internal-message .sender-name {
-color: var(--color-warning) !important;
-}
-
-.communication-history .ai-message .message-content {
-background: var(--color-info-light);
-border-color: var(--color-info-border);
-}
-
-.communication-history .ai-suggestion-card {
-background: none;
-border: none;
-padding: 0;
-}
-
-.communication-history .ai-suggestion-content .suggested-text {
-background: rgba(255,255,255,0.05);
-border: 1px solid var(--glass-border);
-}
-
-/* Reply Form */
+/* Reply Form Theming */
 .reply-form-wrapper {
-position: sticky;
-bottom: 0;
-z-index: 1000;
-margin-top: auto; /* Push to bottom of flex container */
+  position: sticky;
+  bottom: 0;
+  z-index: 1000;
+  margin-top: auto;
 }
-
 .reply-form-container {
-background: rgba(20, 20, 35, 0.8);
-backdrop-filter: blur(20px);
-border-top: 1px solid var(--glass-border);
-box-shadow: 0 -8px 32px rgba(0,0,0,0.3);
-}
-
-.reply-header, .reply-footer {
-background: transparent;
-}
-
-.reply-form .editor-wrapper textarea {
-background: var(--glass-bg);
-border: 1px solid var(--glass-border);
-color: var(--color-foreground);
-}
-
-.reply-form .file-item {
-background: var(--glass-bg);
-border-color: var(--glass-border);
-}
-
-.reply-form .form-check-label {
-color: var(--color-foreground-muted) !important;
-}
-.reply-form .form-check-input:checked {
-background-color: var(--color-primary);
-border-color: var(--color-primary);
-}
-
-/* Animation improvements */
-.animate__animated {
-animation-duration: 0.5s;
-}
-
-.animate__fadeInDown {
-animation-name: fadeInDown;
-}
-
-/* Custom styling for improved Create Quote form usability */
-.create-quote-form .form-control,
-.create-quote-form .form-select {
-  font-size: 0.95rem;
-  padding: 0.6rem 0.75rem;
-  border-radius: 0.375rem;
-  transition: all 0.15s ease-in-out;
-}
-
-.create-quote-form .form-control:focus,
-.create-quote-form .form-select:focus {
-  border-color: #0d6efd;
-  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
-}
-
-.create-quote-form .form-label {
-  font-weight: 500;
-  margin-bottom: 0.5rem;
-  color: #374151;
-}
-
-.create-quote-form fieldset {
-  position: relative;
-  overflow: hidden;
-}
-
-.create-quote-form fieldset.bg-light {
-  background-color: #f8f9fa !important;
-  border: 2px solid #e9ecef !important;
-}
-
-.create-quote-form legend {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #1f2937;
-  padding: 0.5rem 1rem;
-  margin-bottom: 1rem;
-  border-radius: 0.375rem;
-}
-
-.create-quote-form .btn-lg {
-  padding: 0.75rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 500;
-}
-
-/* Better spacing for form sections */
-.create-quote-form .row.g-3 > * {
-  margin-bottom: 0.75rem;
-}
-
-/* Improved line item cards */
-.create-quote-form .line-item-card {
-  border: 2px solid #e5e7eb;
-  border-radius: 0.5rem;
-  transition: all 0.15s ease-in-out;
-}
-
-.create-quote-form .line-item-card:hover {
-  border-color: #d1d5db;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-/* Better product search styling */
-.create-quote-form .product-search-container .form-control {
-  font-size: 1rem;
-  padding: 0.75rem;
-}
-
-/* Responsive improvements */
-@media (max-width: 768px) {
-  .create-quote-form .col-lg-6 {
-    width: 100%;
-  }
-  
-  .create-quote-form .row.g-3 {
-    margin: 0;
-  }
-  
-  .create-quote-form .row.g-3 > * {
-    padding-left: 0;
-    padding-right: 0;
-  }
-}
-
-/* Better visual hierarchy */
-.create-quote-form h6.text-primary {
-  color: #0d6efd !important;
-  border-bottom: 2px solid #e9ecef;
-  padding-bottom: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-/* Fix contrast issues in dropdown search results */
-.create-quote-form .list-group-item.active {
-  background-color: #0d6efd !important;
-  border-color: #0d6efd !important;
-}
-
-.create-quote-form .list-group-item.active .text-white-75 {
-  color: #ffffff !important;
-  opacity: 0.9;
-}
-
-.create-quote-form .list-group-item.active .text-muted {
-  color: #f8f9fa !important;
-  opacity: 0.9;
-}
-
-/* Better search result styling */
-.create-quote-form .dropdown-menu {
-  border: 2px solid #e9ecef;
-  border-radius: 0.5rem;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-}
-
-.create-quote-form .list-group-item {
-  border: none;
-  border-bottom: 1px solid #f1f3f4;
-  transition: all 0.15s ease-in-out;
-}
-
-.create-quote-form .list-group-item:hover {
-  background-color: #f8f9fa !important;
-}
-
-.create-quote-form .list-group-item:last-child {
-  border-bottom: none;
-}
-
-/* Adjust main content when sidebar collapsed */
-.app-layout .sidebar-container.collapsed + .main-content {
-  margin-left: 80px;
-}
-
-/* ---------- Create Quote Readability Fixes ---------- */
-/* Override dark theme for better readability in quote creation form */
-.create-quote-form {
-  background: #ffffff !important;
-  color: #1f2937 !important;
-  border-radius: var(--radius-DEFAULT);
-  padding: 2rem;
-  box-shadow: var(--card-shadow);
-}
-
-/* Fix all text colors within the quote form */
-.create-quote-form h1,
-.create-quote-form h2,
-.create-quote-form h3,
-.create-quote-form h4,
-.create-quote-form h5,
-.create-quote-form h6 {
-  color: #1f2937 !important;
-}
-
-.create-quote-form .form-label {
-  color: #374151 !important;
-  font-weight: 600;
-}
-
-.create-quote-form .form-text {
-  color: #6b7280 !important;
-}
-
-/* Fix form controls */
-.create-quote-form .form-control,
-.create-quote-form .form-select {
-  background-color: #ffffff !important;
-  color: #1f2937 !important;
-  border-color: #d1d5db !important;
-}
-
-.create-quote-form .form-control::placeholder {
-  color: #9ca3af !important;
-}
-
-.create-quote-form .form-control:focus,
-.create-quote-form .form-select:focus {
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.25) !important;
-  background-color: #ffffff !important;
-  color: #1f2937 !important;
-}
-
-/* Fix cards */
-.create-quote-form .card {
-  background: #f9fafb !important;
-  border-color: #e5e7eb !important;
-  color: #1f2937 !important;
-}
-
-.create-quote-form .card-header {
-  background: #f3f4f6 !important;
-  border-color: #e5e7eb !important;
-  color: #1f2937 !important;
-}
-
-.create-quote-form .card-body {
-  background: #ffffff !important;
-  color: #1f2937 !important;
-}
-
-/* Fix table styling */
-.create-quote-form .table {
-  color: #1f2937 !important;
-}
-
-.create-quote-form .table th {
-  background: #f3f4f6 !important;
-  color: #374151 !important;
-  border-color: #e5e7eb !important;
-}
-
-.create-quote-form .table td {
-  color: #1f2937 !important;
-  border-color: #e5e7eb !important;
-}
-
-/* Fix muted text - make it readable but still secondary */
-.create-quote-form .text-muted,
-.create-quote-form .text-secondary {
-  color: #6b7280 !important;
-}
-
-.create-quote-form small.text-muted {
-  color: #9ca3af !important;
-}
-
-/* Fix badges */
-.create-quote-form .badge {
-  color: #ffffff !important;
-}
-
-/* Fix dropdown styling */
-.create-quote-form .dropdown-menu {
-  background: #ffffff !important;
-  border-color: #e5e7eb !important;
-  color: #1f2937 !important;
-}
-
-.create-quote-form .dropdown-item {
-  color: #1f2937 !important;
-}
-
-.create-quote-form .dropdown-item:hover {
-  background-color: #f3f4f6 !important;
-  color: #1f2937 !important;
-}
-
-.create-quote-form .dropdown-item.active {
-  background-color: #3b82f6 !important;
-  color: #ffffff !important;
-}
-
-/* Fix list group items */
-.create-quote-form .list-group-item {
-  background: #ffffff !important;
-  color: #1f2937 !important;
-  border-color: #e5e7eb !important;
-}
-
-.create-quote-form .list-group-item:hover {
-  background-color: #f8fafc !important;
-  color: #1f2937 !important;
-}
-
-.create-quote-form .list-group-item.active {
-  background-color: #3b82f6 !important;
-  color: #ffffff !important;
-  border-color: #3b82f6 !important;
-}
-
-/* Fix alert styling */
-.create-quote-form .text-danger {
-  color: #dc2626 !important;
-}
-
-.create-quote-form .text-success {
-  color: #059669 !important;
-}
-
-.create-quote-form .text-primary {
-  color: #2563eb !important;
-}
-
-/* Fix light background sections */
-.create-quote-form .bg-light {
-  background-color: #f8f9fa !important;
-  color: #1f2937 !important;
-}
-
-/* Fix button text colors */
-.create-quote-form .btn {
-  font-weight: 500;
-}
-
-.create-quote-form .btn-outline-primary {
-  color: #2563eb !important;
-  border-color: #2563eb !important;
-}
-
-.create-quote-form .btn-outline-primary:hover {
-  background-color: #2563eb !important;
-  color: #ffffff !important;
-}
-
-/* Fix input group text */
-.create-quote-form .input-group-text {
-  background-color: #f3f4f6 !important;
-  color: #374151 !important;
-  border-color: #d1d5db !important;
-}
-
-/* Fix any remaining gray/muted text issues */
-.create-quote-form * {
-  color: inherit;
-}
-
-.create-quote-form .text-body-secondary {
-  color: #6b7280 !important;
-}
-
-/* Additional overrides for specific elements that might still inherit dark theme colors */
-.create-quote-form .card-header h5,
-.create-quote-form .card-header h3 {
-  color: #1f2937 !important;
-}
-
-.create-quote-form .table thead th {
-  color: #374151 !important;
-}
-
-.create-quote-form .table-light {
-  background-color: #f8f9fa !important;
-}
-
-.create-quote-form .border-bottom {
-  border-color: #e5e7eb !important;
-}
-
-.create-quote-form .fw-medium,
-.create-quote-form .fw-bold {
-  color: inherit !important;
-}
-
-.create-quote-form span,
-.create-quote-form div,
-.create-quote-form p {
-  color: inherit;
-}
-
-/* Fix the specific elements mentioned in the layout */
-.create-quote-form hr {
-  border-color: #e5e7eb !important;
-  opacity: 0.5;
-}
-
-.create-quote-form .form-check-label {
-  color: #374151 !important;
-}
-
-.create-quote-form .input-group-text {
-  color: #374151 !important;
-  background-color: #f3f4f6 !important;
-  border-color: #d1d5db !important;
-}
-
-/* Ensure proper contrast for all interactive elements */
-.create-quote-form .btn-outline-danger {
-  color: #dc2626 !important;
-  border-color: #dc2626 !important;
-}
-
-.create-quote-form .btn-outline-danger:hover {
-  background-color: #dc2626 !important;
-  color: #ffffff !important;
-}
-
-/* Fix header with blue background */
-.create-quote-form .card-header.bg-primary {
-  background-color: #2563eb !important;
-  color: #ffffff !important;
-}
-
-.create-quote-form .card-header.bg-primary h3,
-.create-quote-form .card-header.bg-primary h5 {
-  color: #ffffff !important;
-}
-
-.create-quote-form .card-header.bg-primary .btn-outline-light {
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.5) !important;
-}
-
-.create-quote-form .card-header.bg-primary .btn-outline-light:hover {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  border-color: #ffffff !important;
-  color: #ffffff !important;
-}
-
-/* Ensure the page container around the quote form has proper background */
-.container-fluid:has(.create-quote-form) {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
-  min-height: 100vh;
-  padding: 2rem;
-}
-
-/* Alternative approach for browsers that don't support :has() */
-.quote-page-container {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
-  min-height: 100vh;
-  padding: 2rem;
-}
+  background: rgba(20, 20, 35, 0.8) !important;
+  backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border) !important;
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.3);
+}
+
+.reply-header, .reply-footer { background: transparent !important; }
+.reply-form .editor-wrapper textarea { background: var(--glass-bg); border: 1px solid var(--glass-border); color: var(--color-foreground); }
+.reply-form .file-item { background: var(--glass-bg); border-color: var(--glass-border); }
+.reply-form .form-check-label { color: var(--color-foreground-muted) !important; }
+.reply-form .form-check-input:checked { background-color: var(--color-primary); border-color: var(--color-primary); }

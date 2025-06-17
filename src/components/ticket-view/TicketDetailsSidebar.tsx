@@ -4,37 +4,21 @@ import React from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { RagSearchInterface } from '@/components/RagSearchInterface';
 import CustomerOrderHistory from './CustomerOrderHistory';
-
-// Type definitions
-type BaseUser = {
-  id: string;
-  name: string | null;
-  email: string | null;
-};
-
-interface TicketData {
-  id: number;
-  title: string;
-  priority: string;
-  type: string | null;
-  reporter: BaseUser | null;
-  senderName: string | null;
-  senderEmail: string | null;
-  senderPhone?: string | null;
-  orderNumber: string | null;
-  trackingNumber: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
+import type { Ticket, TicketUser } from '@/types/ticket';
 
 interface TicketDetailsSidebarProps {
-  ticket: TicketData;
+  ticket: Ticket;
+  relatedQuote?: ShopifyDraftOrderGQLResponse | null;
+  quoteAdminUrl?: string | null;
 }
 
 // Helper function to get priority class
 const getPriorityClass = (priority: string): string => {
   switch (priority?.toLowerCase()) {
-    case 'high': return 'badge bg-danger';
+    case 'high':
+    case 'urgent':
+      return 'badge bg-danger';
     case 'medium': return 'badge bg-warning text-dark';
     case 'low': return 'badge bg-info text-dark';
     default: return 'badge bg-secondary';
@@ -51,149 +35,130 @@ const parseDate = (dateString: string | null): Date | null => {
   }
 };
 
-export default function TicketDetailsSidebar({ ticket }: TicketDetailsSidebarProps) {
+export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminUrl }: TicketDetailsSidebarProps) {
   const createdAtDate = parseDate(ticket.createdAt);
   const updatedAtDate = parseDate(ticket.updatedAt);
 
   return (
     <div className="ticket-details-sidebar">
+      {/* Ticket Details Card */}
       <div className="card shadow-sm mb-4">
         <div className="card-header bg-light">
-          <h3 className="h6 mb-0">Ticket Details</h3>
+          <h6 className="mb-0">Ticket Details</h6>
         </div>
-        <div className="card-body p-0">
-          <ul className="list-group list-group-flush">
-            {/* Priority */}
+        <ul className="list-group list-group-flush">
+          <li className="list-group-item d-flex justify-content-between align-items-center">
+            <span className="text-muted">Priority</span>
+            <span className={getPriorityClass(ticket.priority)}>{ticket.priority?.toUpperCase() || 'NONE'}</span>
+          </li>
+          {ticket.type && (
             <li className="list-group-item d-flex justify-content-between align-items-center">
-              <span className="text-muted">Priority</span>
-              <span className={getPriorityClass(ticket.priority)}>
-                {ticket.priority?.toUpperCase() || 'NONE'}
-              </span>
+              <span className="text-muted">Type</span>
+              <span>{ticket.type}</span>
             </li>
-            
-            {/* Type if available */}
-            {ticket.type && (
-              <li className="list-group-item d-flex justify-content-between align-items-center">
-                <span className="text-muted">Type</span>
-                <span>{ticket.type}</span>
-              </li>
-            )}
-            
-            {/* Created */}
-            <li className="list-group-item d-flex justify-content-between align-items-center">
-              <span className="text-muted">Created</span>
-              <span 
-                className="text-end small" 
-                title={createdAtDate ? format(createdAtDate, 'PPpp') : 'Unknown'}
-              >
-                {createdAtDate ? formatDistanceToNow(createdAtDate, { addSuffix: true }) : 'N/A'}
-              </span>
-            </li>
-            
-            {/* Updated */}
-            <li className="list-group-item d-flex justify-content-between align-items-center">
-              <span className="text-muted">Updated</span>
-              <span 
-                className="text-end small" 
-                title={updatedAtDate ? format(updatedAtDate, 'PPpp') : 'Unknown'}
-              >
-                {updatedAtDate ? formatDistanceToNow(updatedAtDate, { addSuffix: true }) : 'N/A'}
-              </span>
-            </li>
-          </ul>
-        </div>
+          )}
+          <li className="list-group-item d-flex justify-content-between align-items-center">
+            <span className="text-muted">Created</span>
+            <span className="text-end small" title={createdAtDate ? format(createdAtDate, 'PPpp') : 'Unknown'}>
+              {createdAtDate ? formatDistanceToNow(createdAtDate, { addSuffix: true }) : 'N/A'}
+            </span>
+          </li>
+          <li className="list-group-item d-flex justify-content-between align-items-center">
+            <span className="text-muted">Updated</span>
+            <span className="text-end small" title={updatedAtDate ? format(updatedAtDate, 'PPpp') : 'Unknown'}>
+              {updatedAtDate ? formatDistanceToNow(updatedAtDate, { addSuffix: true }) : 'N/A'}
+            </span>
+          </li>
+        </ul>
       </div>
       
       {/* Customer Information Card */}
       <div className="card shadow-sm mb-4">
         <div className="card-header bg-light">
-          <h3 className="h6 mb-0">Customer Information</h3>
+          <h6 className="mb-0">Customer Information</h6>
         </div>
         <div className="card-body">
-          {/* Name */}
-          <div className="mb-2">
-            <div className="d-flex align-items-center">
-              <i className="fas fa-user-circle fa-fw me-2 text-secondary"></i>
-              <span className="fw-medium">
-                {ticket.senderName || ticket.reporter?.name || <span className='fst-italic text-muted'>Not Provided</span>}
-              </span>
-            </div>
-          </div>
-          
-          {/* Email */}
+          <p className="mb-1">
+            <i className="fas fa-user-circle fa-fw me-2 text-muted"></i>
+            {ticket.senderName || ticket.reporter?.name || 'N/A'}
+          </p>
           {(ticket.senderEmail || ticket.reporter?.email) && (
-            <div className="mb-2">
-              <div className="d-flex align-items-center">
-                <i className="fas fa-envelope fa-fw me-2 text-secondary"></i>
-                <span className="text-break small">
-                  {ticket.senderEmail || ticket.reporter?.email}
-                </span>
-              </div>
-            </div>
+            <p className="mb-1 small">
+              <i className="fas fa-envelope fa-fw me-2 text-muted"></i>
+              <a href={`mailto:${ticket.senderEmail || ticket.reporter?.email}`} className="text-primary">
+                {ticket.senderEmail || ticket.reporter?.email}
+              </a>
+            </p>
           )}
-          
-          {/* Phone */}
           {ticket.senderPhone && (
-            <div className="mb-2">
-              <div className="d-flex align-items-center">
-                <i className="fas fa-phone fa-fw me-2 text-secondary"></i>
-                <span className="small">{ticket.senderPhone}</span>
-              </div>
-            </div>
+            <p className="mb-1 small">
+              <i className="fas fa-phone fa-fw me-2 text-muted"></i>
+              {ticket.senderPhone}
+            </p>
           )}
-          
-          {/* Order/Tracking */}
-          {(ticket.orderNumber || ticket.trackingNumber) && (
-            <>
-              <hr className="my-3" />
-              
-              {ticket.orderNumber && (
-                <div className="mb-2">
-                  <div className="d-flex align-items-start">
-                    <i className="fas fa-shopping-cart fa-fw me-2 mt-1 text-secondary"></i>
-                    <div>
-                      <div className="text-muted small text-uppercase">Order Number</div>
-                      <strong>{ticket.orderNumber}</strong>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {ticket.trackingNumber && (
-                <div className="mb-0">
-                  <div className="d-flex align-items-start">
-                    <i className="fas fa-truck fa-fw me-2 mt-1 text-secondary"></i>
-                    <div>
-                      <div className="text-muted small text-uppercase">Tracking Number</div>
-                      <span className="text-break">{ticket.trackingNumber}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
+          {(ticket.orderNumber || ticket.trackingNumber) && <hr className="my-2" />}
+          {ticket.orderNumber && (
+            <p className="mb-1">
+              <i className="fas fa-shopping-cart fa-fw me-2 text-muted"></i>
+              <strong>Order:</strong> {ticket.orderNumber}
+            </p>
+          )}
+          {ticket.trackingNumber && (
+            <p className="mb-0">
+              <i className="fas fa-truck fa-fw me-2 text-muted"></i>
+              <strong>Tracking:</strong> {ticket.trackingNumber}
+            </p>
           )}
         </div>
       </div>
 
+      {/* Related Quote Card */}
+      {relatedQuote && (
+        <div className="card shadow-sm mb-4">
+          <div className="card-header bg-light">
+            <h6 className="mb-0">
+              <i className="fas fa-file-invoice-dollar me-2 text-success"></i>
+              Related Quote
+            </h6>
+          </div>
+          <div className="card-body">
+            <p className="mb-1">
+              <strong>Quote:</strong> {relatedQuote.name || 'Draft Order'}
+            </p>
+            <p className="mb-1 small">
+              <strong>Total:</strong> ${relatedQuote.subtotalPriceSet?.shopMoney?.amount || '0.00'}
+            </p>
+            <p className="mb-1 small">
+              <strong>Items:</strong> {relatedQuote.lineItems?.nodes?.length || 0}
+            </p>
+            {quoteAdminUrl && (
+              <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success">
+                <i className="fas fa-external-link-alt me-1"></i>
+                View in Shopify
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Customer Order History */}
       <CustomerOrderHistory
         customerEmail={ticket.senderEmail || ticket.reporter?.email || undefined}
+        className="mb-4"
       />
-
-      {/* RAG Search Interface - Proactive Knowledge Base */}
+      
+      {/* AI Knowledge Search */}
       <div className="card shadow-sm">
-        <div className="card-header bg-light d-flex align-items-center">
-          <i className="fas fa-brain me-2 text-info"></i>
-          <h3 className="h6 mb-0">AI Knowledge Search</h3>
+        <div className="card-header bg-light">
+          <h6 className="mb-0">
+            <i className="fas fa-brain me-2 text-info"></i>
+            AI Knowledge Search
+          </h6>
         </div>
-        <div className="card-body p-0">
+        <div className="card-body p-2">
           <RagSearchInterface
             customerEmail={ticket.senderEmail || ticket.reporter?.email || undefined}
             orderNumber={ticket.orderNumber}
-            onResultSelect={(result) => {
-              // Handle result selection - you can add this functionality later
-              console.log('Selected RAG result:', result);
-            }}
           />
         </div>
       </div>
