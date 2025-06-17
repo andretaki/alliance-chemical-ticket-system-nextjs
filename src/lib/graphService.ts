@@ -19,6 +19,8 @@ if (!tenantId || !clientId || !clientSecret || !userEmail) {
   throw new Error('Microsoft Graph configuration is incomplete. Check your .env file.');
 }
 
+const selectProps = 'id,subject,body,sender,from,toRecipients,ccRecipients,isRead,createdDateTime,receivedDateTime,sentDateTime,lastModifiedDateTime,parentFolderId,conversationId,internetMessageId,internetMessageHeaders';
+
 const RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
 const TIMEOUT_MS = 30000; // 30 seconds timeout
@@ -70,6 +72,7 @@ export async function getUnreadEmails(limit = 50): Promise<Message[]> {
   try {
     const response = await graphClient
       .api(`/users/${userEmail}/mailFolders/inbox/messages`)
+      .select(selectProps)
       .filter('isRead eq false')
       .top(limit)
       .get();
@@ -422,6 +425,7 @@ export async function getMessageByInternetId(internetMessageId: string): Promise
     const encodedId = encodeURIComponent(internetMessageId).replace(/'/g, "''"); // Proper escaping
     const response = await graphClient
       .api(`/users/${userEmail}/messages`)
+      .select(selectProps)
       .filter(`internetMessageId eq '${encodedId}'`)
       .get();
 
@@ -456,6 +460,7 @@ export async function getMessageById(messageId: string): Promise<Message | null>
     // This new API call searches ALL folders for the message ID.
     const response = await graphClient
       .api(`/users/${userEmail}/messages`)
+      .select(selectProps)
       .filter(`id eq '${messageId}'`)
       .get();
 
@@ -658,7 +663,7 @@ export async function unflagEmail(messageId: string): Promise<void> {
 
 export async function getMessage(messageId: string): Promise<Message> {
   return withRetry(
-    () => graphClient.api(`/users/${userEmail}/messages/${messageId}`).get(),
+    () => graphClient.api(`/users/${userEmail}/messages/${messageId}`).select(selectProps).get(),
     `getMessage(${messageId})`
   );
 }
