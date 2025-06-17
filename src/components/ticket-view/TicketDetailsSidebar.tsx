@@ -129,7 +129,7 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
               <strong>Total:</strong> ${relatedQuote.subtotalPriceSet?.shopMoney?.amount || '0.00'}
             </p>
             <p className="mb-1 small">
-              <strong>Items:</strong> {relatedQuote.lineItems?.nodes?.length || 0}
+              <strong>Items:</strong> {relatedQuote.lineItems?.edges?.length || 0}
             </p>
             {quoteAdminUrl && (
               <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success">

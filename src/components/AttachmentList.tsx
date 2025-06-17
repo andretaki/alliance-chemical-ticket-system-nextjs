@@ -1,5 +1,5 @@
 import React from 'react';
-import { AttachmentData } from './TicketViewClient';
+import type { AttachmentData } from '@/types/ticket';
 
 interface AttachmentListProps {
   attachments: AttachmentData[];
@@ -20,7 +20,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) => {
         {attachments.map((attachment, index) => (
           <a
             key={index}
-            href={attachment.url}
+            href={`/api/attachments/${attachment.id}/download`}
             target="_blank"
             rel="noopener noreferrer"
             className="list-group-item list-group-item-action d-flex align-items-center"

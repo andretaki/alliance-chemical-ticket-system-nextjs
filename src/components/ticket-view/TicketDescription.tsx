@@ -3,18 +3,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import DOMPurify from 'dompurify';
-
-interface AttachmentData {
-  id: number;
-  filename?: string;
-  originalFilename: string;
-  fileSize: number;
-  mimeType: string;
-  uploadedAt: string;
-  url?: string;
-  commentId?: number | null;
-  ticketId?: number | null;
-}
+import type { AttachmentData } from '@/types/ticket';
 
 interface TicketDescriptionProps {
   ticket: {

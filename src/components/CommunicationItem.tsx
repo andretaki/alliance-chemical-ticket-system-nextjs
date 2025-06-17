@@ -1,6 +1,6 @@
 import React from 'react';
 import { format } from 'date-fns';
-import { AttachmentData } from './TicketViewClient'; // Assuming AttachmentData type is exported or defined here
+import type { AttachmentData } from '@/types/ticket';
 import AttachmentList from './AttachmentList'; // Import the AttachmentList component
 
 interface CommunicationItemProps {
@@ -107,5 +107,4 @@ const CommunicationItem: React.FC<CommunicationItemProps> = ({
 
 export default CommunicationItem;
 
-// Add helper types to TicketViewClient or a shared types file if needed
-export type { AttachmentData }; // Exporting for use in TicketViewClient 
+// AttachmentData is imported from shared types; no need to re-export here 

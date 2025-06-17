@@ -3,7 +3,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import DOMPurify from 'dompurify';
-import { AttachmentData } from '@/components/TicketViewClient'; // Ensure AttachmentData is exported or defined here
+import type { AttachmentData } from '@/types/ticket';
 
 // Helper function for formatting file size
 const formatFileSize = (bytes?: number): string => {
