@@ -5,7 +5,20 @@ import { db } from '@/lib/db';
 import { tickets, ticketComments as ticketCommentsSchema } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { aiGeneralReplyService } from '@/services/aiGeneralReplyService';
-import type { Ticket, TicketComment } from '@/types/ticket';
+import type { Ticket, TicketComment, TicketUser, AttachmentData } from '@/types/ticket';
+
+// Helper to convert DB user to TicketUser
+const toTicketUser = (user: any): TicketUser | null => {
+  if (!user) return null;
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    approvalStatus: user.approvalStatus,
+    image: user.image,
+  };
+};
 
 export async function POST(
   request: NextRequest,
@@ -22,14 +35,14 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
     }
 
-    // 1. Fetch the ticket and its comments
-    const ticket = await db.query.tickets.findFirst({
+    const ticketFromDb = await db.query.tickets.findFirst({
       where: eq(tickets.id, ticketId),
       with: {
         comments: {
           orderBy: [desc(ticketCommentsSchema.createdAt)],
           with: {
-            commenter: true
+            commenter: true,
+            attachments: true,
           }
         },
         attachments: true,
@@ -38,42 +51,62 @@ export async function POST(
       }
     });
 
-    if (!ticket) {
+    if (!ticketFromDb) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
     }
+    
+    // --- Start Type Conversion ---
+    const ticketForAI: Ticket = {
+      ...ticketFromDb,
+      createdAt: ticketFromDb.createdAt.toISOString(),
+      updatedAt: ticketFromDb.updatedAt.toISOString(),
+      assignee: toTicketUser(ticketFromDb.assignee),
+      reporter: toTicketUser(ticketFromDb.reporter)!,
+      comments: ticketFromDb.comments.map(c => ({
+        ...c,
+        createdAt: c.createdAt.toISOString(),
+        commenter: toTicketUser(c.commenter),
+        attachments: (c.attachments || []).map(a => ({
+          ...a,
+          uploadedAt: a.uploadedAt.toISOString(),
+        })) as AttachmentData[],
+      })) as TicketComment[],
+       attachments: (ticketFromDb.attachments || []).map(a => ({
+        ...a,
+        uploadedAt: a.uploadedAt.toISOString(),
+      })) as AttachmentData[],
+    };
+    // --- End Type Conversion ---
 
-    // 2. Find the last substantive comment from the customer
-    const customerComments = ticket.comments.filter(c => c.isFromCustomer);
+    const customerComments = ticketForAI.comments.filter(c => c.isFromCustomer);
     
     let messageToReplyTo: TicketComment | null = null;
 
     if (customerComments.length > 0) {
-      // Check last few comments for substance
-      for (const comment of customerComments) { // Already sorted descending
+      for (const comment of customerComments) {
         if (await aiGeneralReplyService.isSubstantive(comment.commentText)) {
-          messageToReplyTo = comment as unknown as TicketComment;
-          break; // Found the first substantive comment from the end
+          messageToReplyTo = comment;
+          break;
         }
       }
     }
 
-    // If no substantive comment is found, or there are no comments, check the description
     if (!messageToReplyTo) {
-      if (await aiGeneralReplyService.isSubstantive(ticket.description)) {
+      if (await aiGeneralReplyService.isSubstantive(ticketForAI.description)) {
         messageToReplyTo = {
           id: -1,
-          commentText: ticket.description,
-          createdAt: ticket.createdAt.toISOString(),
+          commentText: ticketForAI.description,
+          createdAt: ticketForAI.createdAt,
           isFromCustomer: true,
-          ticketId: ticket.id,
-          commenterId: ticket.reporterId,
+          ticketId: ticketForAI.id,
+          commenterId: ticketForAI.reporterId,
           isInternalNote: false,
           isOutgoingReply: false,
           externalMessageId: null,
-          updatedAt: ticket.createdAt.toISOString(),
-          commenter: ticket.reporter,
-          attachments: ticket.attachments?.filter(a => !a.commentId) || [],
-        } as TicketComment;
+          updatedAt: ticketForAI.updatedAt,
+          commenter: ticketForAI.reporter,
+          attachments: ticketForAI.attachments?.filter(a => !a.commentId) || [],
+        };
       }
     }
 
@@ -81,14 +114,12 @@ export async function POST(
       return NextResponse.json({ error: 'No substantive customer message found to reply to.' }, { status: 400 });
     }
 
-    // 3. Generate the AI reply
-    const draftedReply = await aiGeneralReplyService.generateReply(ticket as unknown as Ticket, messageToReplyTo);
+    const draftedReply = await aiGeneralReplyService.generateReply(ticketForAI, messageToReplyTo);
 
     if (!draftedReply) {
       return NextResponse.json({ error: 'Failed to generate AI reply.' }, { status: 500 });
     }
 
-    // 4. Return the drafted reply
     return NextResponse.json({ draftMessage: draftedReply });
 
   } catch (error: any) {
