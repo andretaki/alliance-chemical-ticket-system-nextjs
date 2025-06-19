@@ -65,17 +65,31 @@ export async function POST(request: NextRequest) {
       };
 
       // Use the Shopify GraphQL API to calculate shipping
-      const calculationResult: ShippingRateResponse = await shopifyService.calculateShippingRates(
+      const rawRates: any[] = await shopifyService.calculateShippingRates(
         lineItems.filter((item: DraftOrderLineItemInput) => 
           item.numericVariantIdShopify && item.quantity > 0
         ),
         addressWithCodes
       );
 
-      // Return the array of rates directly
-      return NextResponse.json(calculationResult);
+      // Transform rates to the format expected by the client
+      const transformedRates = rawRates.map(rate => ({
+        handle: rate.handle,
+        title: rate.title,
+        price: parseFloat(rate.price.amount),
+        currencyCode: rate.price.currencyCode,
+      }));
+
+      // Return the transformed rates
+      return NextResponse.json({ rates: transformedRates });
     } catch (error: any) {
       console.error('Error calculating shipping rates:', error);
+      
+      let errorMessage = 'Failed to calculate shipping rates';
+      if(error.message) {
+        errorMessage += `: ${error.message}`;
+      }
+
       return NextResponse.json(
         { 
           error: 'Failed to calculate shipping rates',

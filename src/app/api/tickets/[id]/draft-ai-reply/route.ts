@@ -14,29 +14,27 @@ const toTicketUser = (user: any): TicketUser | null => {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role,
-    approvalStatus: user.approvalStatus,
-    image: user.image,
   };
 };
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const ticketId = parseInt(params.id, 10);
-    if (isNaN(ticketId)) {
+    const ticketIdInt = parseInt(id, 10);
+    if (isNaN(ticketIdInt)) {
       return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
     }
 
     const ticketFromDb = await db.query.tickets.findFirst({
-      where: eq(tickets.id, ticketId),
+      where: eq(tickets.id, ticketIdInt),
       with: {
         comments: {
           orderBy: [desc(ticketCommentsSchema.createdAt)],
@@ -58,14 +56,18 @@ export async function POST(
     // --- Start Type Conversion ---
     const ticketForAI: Ticket = {
       ...ticketFromDb,
+      // Ensure reporterId is present if it's part of the Ticket type definition
+      // reporterId: ticketFromDb.reporterId, // Assuming ticketFromDb has reporterId
       createdAt: ticketFromDb.createdAt.toISOString(),
       updatedAt: ticketFromDb.updatedAt.toISOString(),
       assignee: toTicketUser(ticketFromDb.assignee),
-      reporter: toTicketUser(ticketFromDb.reporter)!,
+      reporter: toTicketUser(ticketFromDb.reporter)!, // This is TicketUser
       comments: ticketFromDb.comments.map(c => ({
         ...c,
+        // If 'c' from DB has 'commenterId' and TicketComment type defines it, ensure it's mapped.
+        // commenterId: c.commenterId, // Example if TicketComment expects it
         createdAt: c.createdAt.toISOString(),
-        commenter: toTicketUser(c.commenter),
+        commenter: toTicketUser(c.commenter), // This is TicketUser
         attachments: (c.attachments || []).map(a => ({
           ...a,
           uploadedAt: a.uploadedAt.toISOString(),
@@ -94,17 +96,17 @@ export async function POST(
     if (!messageToReplyTo) {
       if (await aiGeneralReplyService.isSubstantive(ticketForAI.description)) {
         messageToReplyTo = {
-          id: -1,
+          id: -1, // Using a temporary ID for this pseudo-comment
           commentText: ticketForAI.description,
           createdAt: ticketForAI.createdAt,
           isFromCustomer: true,
-          ticketId: ticketForAI.id,
-          commenterId: ticketForAI.reporterId,
+          // ticketId: ticketForAI.id, // Removed: This property is not defined in TicketComment type
+          // commenterId: ticketForAI.reporterId, // Removed: This property is not defined in TicketComment type
           isInternalNote: false,
           isOutgoingReply: false,
           externalMessageId: null,
           updatedAt: ticketForAI.updatedAt,
-          commenter: ticketForAI.reporter,
+          commenter: ticketForAI.reporter, // This is a TicketUser, contains id, name, email
           attachments: ticketForAI.attachments?.filter(a => !a.commentId) || [],
         };
       }
@@ -123,10 +125,10 @@ export async function POST(
     return NextResponse.json({ draftMessage: draftedReply });
 
   } catch (error: any) {
-    console.error(`[DraftAIReply] Error drafting AI reply for ticket ${params.id}:`, error);
+    console.error(`[DraftAIReply] Error drafting AI reply for ticket ${id}:`, error);
     return NextResponse.json({
       error: 'An unexpected error occurred while drafting the AI reply.',
       details: error.message
     }, { status: 500 });
   }
-} 
+}

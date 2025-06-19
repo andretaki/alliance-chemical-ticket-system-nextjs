@@ -443,7 +443,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
     setSelectedShippingRateIndex(null);
 
     try {
-      const response = await axios.post('/api/shipping/calculate', {
+      const response = await axios.post('/api/shipping-rates/calculate', {
         lineItems: lineItems.filter(item => item.numericVariantIdShopify && item.quantity > 0),
         shippingAddress
       });
