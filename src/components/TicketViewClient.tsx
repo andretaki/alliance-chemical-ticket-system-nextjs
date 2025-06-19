@@ -75,8 +75,8 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   } = useCommentBox({ ticketId: ticket.id, refreshTicket, comments: ticket.comments });
 
   const {
-    isUpdatingAssignee, isUpdatingStatus, isLoadingOrderStatusDraft, isResendingInvoice,
-    handleAssigneeChange, handleStatusSelectChange, onReopenTicket, onGetOrderStatusDraft, onResendInvoice
+    isUpdatingAssignee, isUpdatingStatus, isLoadingOrderStatusDraft, isResendingInvoice, isDraftingAIReply,
+    handleAssigneeChange, handleStatusSelectChange, onReopenTicket, onGetOrderStatusDraft, onResendInvoice, onDraftAIReply
   } = useTicketActions({ ticket, setTicket, users, refreshTicket, relatedQuote });
 
   const handleGetOrderStatusDraft = useCallback(async () => {
@@ -87,6 +87,15 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         setIsInternalNote(false);
     }
   }, [onGetOrderStatusDraft, setNewComment, setSendAsEmail, setIsInternalNote]);
+
+  const handleDraftAIReply = useCallback(async () => {
+    const draftMessage = await onDraftAIReply();
+    if (draftMessage) {
+        setNewComment(draftMessage);
+        setSendAsEmail(true); // Default to sending as email for AI replies
+        setIsInternalNote(false);
+    }
+  }, [onDraftAIReply, setNewComment, setSendAsEmail, setIsInternalNote]);
 
   // Keyboard shortcuts (Outlook-like)
   useEffect(() => {
@@ -183,6 +192,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         orderNumberForStatus={ticket.orderNumber} onGetOrderStatusDraft={handleGetOrderStatusDraft}
         isLoadingOrderStatusDraft={isLoadingOrderStatusDraft} onResendInvoice={onResendInvoice}
         isResendingInvoice={isResendingInvoice} hasInvoiceInfo={!!relatedQuote}
+        onDraftAIReply={handleDraftAIReply} isDraftingAIReply={isDraftingAIReply}
       />
 
       {/* View Mode Toggle */}

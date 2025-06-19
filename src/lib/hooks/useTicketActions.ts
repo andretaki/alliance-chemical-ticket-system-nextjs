@@ -3,6 +3,7 @@ import axios, { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
 import type { Ticket as TicketData, TicketUser as BaseUser } from '@/types/ticket';
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
+import { useRouter } from 'next/router';
 
 interface UseTicketActionsProps {
   ticket: TicketData;
@@ -17,6 +18,8 @@ export function useTicketActions({ ticket, setTicket, users, refreshTicket, rela
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [isLoadingOrderStatusDraft, setIsLoadingOrderStatusDraft] = useState(false);
     const [isResendingInvoice, setIsResendingInvoice] = useState(false);
+    const [isDraftingAIReply, setIsDraftingAIReply] = useState(false);
+    const router = useRouter();
     
     const handleAssigneeChange = useCallback(async (e: ChangeEvent<HTMLSelectElement>) => {
         const newAssigneeId = e.target.value || null;
@@ -91,15 +94,41 @@ export function useTicketActions({ ticket, setTicket, users, refreshTicket, rela
         }
     }, [relatedQuote, ticket.id, ticket.senderEmail, refreshTicket]);
 
+    const onDraftAIReply = useCallback(async (): Promise<string | null> => {
+        setIsDraftingAIReply(true);
+        try {
+            const response = await fetch(`/api/tickets/${ticket.id}/draft-ai-reply`, {
+                method: 'POST',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to fetch AI reply draft');
+            }
+
+            const data = await response.json();
+            toast.success('AI reply drafted successfully!');
+            return data.draftMessage;
+        } catch (error: any) {
+            console.error('Failed to get AI reply draft', error);
+            toast.error(`Failed to draft AI reply: ${error.message}`);
+            return null;
+        } finally {
+            setIsDraftingAIReply(false);
+        }
+    }, [ticket.id]);
+
     return {
         isUpdatingAssignee,
         isUpdatingStatus,
         isLoadingOrderStatusDraft,
         isResendingInvoice,
+        isDraftingAIReply,
         handleAssigneeChange,
         handleStatusSelectChange,
         onReopenTicket,
         onGetOrderStatusDraft,
         onResendInvoice,
+        onDraftAIReply,
     };
 } 

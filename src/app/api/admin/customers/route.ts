@@ -150,29 +150,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate AI suggestions for customer communication
-    let aiSuggestions = null;
-    try {
-      const customerProfile: CustomerProfile = {
-        firstName: customerData.firstName,
-        lastName: customerData.lastName,
-        email: customerData.email,
-        company: customerData.company,
-        customerType: customerData.customerType,
-        shippingAddress: {
-          city: customerData.shippingAddress.city,
-          province: customerData.shippingAddress.province || '',
-          country: customerData.shippingAddress.country,
-        }
-      };
-      
-      aiSuggestions = await aiCustomerCommunicationService.generateCustomerCommunicationSuggestions(customerProfile);
-      console.log(`[AdminCustomerCreation] AI suggestions ${aiSuggestions ? 'generated' : 'failed'} for ${customerData.email}`);
-    } catch (aiError) {
-      console.error('[AdminCustomerCreation] AI suggestion generation error:', aiError);
-      // Don't fail customer creation if AI suggestions fail
-    }
-
     // Log the successful creation
     console.log(`[AdminCustomerCreation] Customer ${shopifyResult.alreadyExists ? 'found' : 'created'}: ${customerData.email} (ID: ${shopifyResult.customerId})`);
 
@@ -180,8 +157,7 @@ export async function POST(request: NextRequest) {
       success: true,
       customerId: shopifyResult.customerId,
       customer: shopifyResult.customer,
-      alreadyExists: shopifyResult.alreadyExists,
-      aiSuggestions: aiSuggestions
+      alreadyExists: shopifyResult.alreadyExists
     });
 
   } catch (error: any) {

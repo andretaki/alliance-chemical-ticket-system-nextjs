@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Alert, Button, Card, Form, Row, Col, Spinner, Modal, Badge, Tab, Tabs } from 'react-bootstrap';
+import { Alert, Button, Card, Form, Row, Col, Spinner, Modal, Badge, Accordion } from 'react-bootstrap';
 import Link from 'next/link';
-import { CustomerCommunicationSuggestion } from '@/services/aiCustomerCommunicationService';
 
 interface CustomerFormData {
   firstName: string;
@@ -48,7 +47,27 @@ interface CreateCustomerResponse {
   customer?: any;
   alreadyExists?: boolean;
   error?: string;
-  aiSuggestions?: CustomerCommunicationSuggestion | null;
+}
+
+interface CustomerCommunicationSuggestion {
+  welcomeEmail: {
+    subject: string;
+    body: string;
+    personalizedGreeting: string;
+  };
+  followUpActions: string[];
+  onboardingChecklist: string[];
+  commonResponseTemplates: {
+    quotingProcess: string;
+    shippingInquiry: string;
+    productAvailability: string;
+    technicalSupport: string;
+  };
+  customerServiceTips: string[];
+  estimatedCostSavings: {
+    timeInMinutes: number;
+    description: string;
+  };
 }
 
 const CreateCustomerClient: React.FC = () => {
@@ -94,11 +113,35 @@ const CreateCustomerClient: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // AI Suggestions State
   const [aiSuggestions, setAiSuggestions] = useState<CustomerCommunicationSuggestion | null>(null);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [showAiModal, setShowAiModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('welcome');
-  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
-  const [quickPreview, setQuickPreview] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [selectedSuggestions, setSelectedSuggestions] = useState<{
+    welcomeEmail: boolean;
+    followUpActions: boolean[];
+    onboardingChecklist: boolean[];
+    responseTemplates: {
+      quotingProcess: boolean;
+      shippingInquiry: boolean;
+      productAvailability: boolean;
+      technicalSupport: boolean;
+    };
+    customerServiceTips: boolean[];
+  }>({
+    welcomeEmail: false,
+    followUpActions: [],
+    onboardingChecklist: [],
+    responseTemplates: {
+      quotingProcess: false,
+      shippingInquiry: false,
+      productAvailability: false,
+      technicalSupport: false,
+    },
+    customerServiceTips: [],
+  });
 
   // Copy personal info to addresses when they change
   useEffect(() => {
@@ -207,16 +250,10 @@ const CreateCustomerClient: React.FC = () => {
           setSuccessMessage(`Customer created successfully! Customer ID: ${result.customerId}`);
         }
         
-        // Handle AI suggestions
-        if (result.aiSuggestions) {
-          setAiSuggestions(result.aiSuggestions);
-          setShowAiModal(true);
-        } else {
-          // If no AI suggestions, redirect after a delay
-          setTimeout(() => {
-            router.push('/admin');
-          }, 2000);
-        }
+        // Reset form
+        setTimeout(() => {
+          router.push('/admin');
+        }, 2000);
       } else {
         setError(result.error || 'Failed to create customer');
       }
@@ -227,39 +264,139 @@ const CreateCustomerClient: React.FC = () => {
     }
   };
 
-  const generateQuickPreview = async () => {
-    if (!formData.firstName || !formData.lastName || !formData.customerType) {
-      setError('Please fill in at least the customer name and type to generate a preview');
+  const generateAISuggestions = async () => {
+    // Validate required fields for AI generation
+    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
+      setAiError('Please fill in customer name and email before generating AI suggestions');
       return;
     }
 
-    setIsGeneratingPreview(true);
-    setQuickPreview(null);
+    setIsGeneratingAI(true);
+    setAiError(null);
 
     try {
-      const response = await fetch('/api/admin/customers/preview', {
+      const customerProfile = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        company: formData.company,
+        customerType: formData.customerType,
+        shippingAddress: {
+          city: formData.shippingAddress.city || 'Not specified',
+          province: formData.shippingAddress.province || 'Not specified',
+          country: formData.shippingAddress.country || 'United States',
+        }
+      };
+
+      const response = await fetch('/api/admin/customers/ai-suggestions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          customerType: formData.customerType,
-        }),
+        body: JSON.stringify({ customerProfile }),
       });
 
-      const result = await response.json();
-      if (result.success && result.preview) {
-        setQuickPreview(result.preview);
-      } else {
-        setQuickPreview('Unable to generate preview at this time.');
+      if (!response.ok) {
+        throw new Error('Failed to generate AI suggestions');
       }
-    } catch (err) {
-      setQuickPreview('Unable to generate preview at this time.');
+
+      const result = await response.json();
+      
+      if (result.success && result.suggestions) {
+        setAiSuggestions(result.suggestions);
+        // Initialize selection states
+        setSelectedSuggestions({
+          welcomeEmail: false,
+          followUpActions: new Array(result.suggestions.followUpActions.length).fill(false),
+          onboardingChecklist: new Array(result.suggestions.onboardingChecklist.length).fill(false),
+          responseTemplates: {
+            quotingProcess: false,
+            shippingInquiry: false,
+            productAvailability: false,
+            technicalSupport: false,
+          },
+          customerServiceTips: new Array(result.suggestions.customerServiceTips.length).fill(false),
+        });
+        setShowAiModal(true);
+      } else {
+        setAiError(result.error || 'Failed to generate AI suggestions');
+      }
+    } catch (err: any) {
+      setAiError(err.message || 'An error occurred while generating AI suggestions');
     } finally {
-      setIsGeneratingPreview(false);
+      setIsGeneratingAI(false);
     }
+  };
+
+  const applySelectedSuggestions = () => {
+    if (!aiSuggestions) return;
+
+    let notesAddition = '';
+
+    // Add AI suggestions to notes
+    if (selectedSuggestions.welcomeEmail) {
+      notesAddition += `\n\n**AI Welcome Email Suggestion:**\nSubject: ${aiSuggestions.welcomeEmail.subject}\n\n${aiSuggestions.welcomeEmail.body}\n`;
+    }
+
+    if (selectedSuggestions.followUpActions.some(selected => selected)) {
+      notesAddition += '\n\n**AI Follow-Up Actions:**\n';
+      selectedSuggestions.followUpActions.forEach((selected, index) => {
+        if (selected) {
+          notesAddition += `• ${aiSuggestions.followUpActions[index]}\n`;
+        }
+      });
+    }
+
+    if (selectedSuggestions.onboardingChecklist.some(selected => selected)) {
+      notesAddition += '\n\n**AI Onboarding Checklist:**\n';
+      selectedSuggestions.onboardingChecklist.forEach((selected, index) => {
+        if (selected) {
+          notesAddition += `• ${aiSuggestions.onboardingChecklist[index]}\n`;
+        }
+      });
+    }
+
+    const responseTemplateEntries = Object.entries(selectedSuggestions.responseTemplates);
+    if (responseTemplateEntries.some(([_, selected]) => selected)) {
+      notesAddition += '\n\n**AI Response Templates:**\n';
+      responseTemplateEntries.forEach(([key, selected]) => {
+        if (selected) {
+          const templateKey = key as keyof typeof aiSuggestions.commonResponseTemplates;
+          notesAddition += `• ${key.charAt(0).toUpperCase() + key.slice(1)}: ${aiSuggestions.commonResponseTemplates[templateKey]}\n\n`;
+        }
+      });
+    }
+
+    if (selectedSuggestions.customerServiceTips.some(selected => selected)) {
+      notesAddition += '\n\n**AI Customer Service Tips:**\n';
+      selectedSuggestions.customerServiceTips.forEach((selected, index) => {
+        if (selected) {
+          notesAddition += `• ${aiSuggestions.customerServiceTips[index]}\n`;
+        }
+      });
+    }
+
+    // Add cost savings info if any suggestions were selected
+    const hasSelections = selectedSuggestions.welcomeEmail || 
+      selectedSuggestions.followUpActions.some(s => s) ||
+      selectedSuggestions.onboardingChecklist.some(s => s) ||
+      Object.values(selectedSuggestions.responseTemplates).some(s => s) ||
+      selectedSuggestions.customerServiceTips.some(s => s);
+
+    if (hasSelections) {
+      notesAddition += `\n\n**AI Cost Savings:** ${aiSuggestions.estimatedCostSavings.description} (Est. ${aiSuggestions.estimatedCostSavings.timeInMinutes} minutes saved)`;
+    }
+
+    // Update form data
+    setFormData(prev => ({
+      ...prev,
+      notes: prev.notes + notesAddition
+    }));
+
+    setShowAiModal(false);
+    
+    // Show success message
+    alert('AI suggestions have been added to the customer notes. You can edit them before saving.');
   };
 
   return (
@@ -278,14 +415,41 @@ const CreateCustomerClient: React.FC = () => {
         </Alert>
       )}
 
+      {aiError && (
+        <Alert variant="warning" dismissible onClose={() => setAiError(null)} className="mb-4">
+          <Alert.Heading>AI Suggestions</Alert.Heading>
+          {aiError}
+        </Alert>
+      )}
+
       <Form onSubmit={handleSubmit}>
         {/* Personal Information */}
         <Card className="mb-4">
-          <Card.Header>
-            <h5 className="mb-0">
-              <i className="fas fa-user me-2 text-primary"></i>
-              Personal Information
-            </h5>
+          <Card.Header className="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 className="mb-0">
+                <i className="fas fa-user me-2 text-primary"></i>
+                Personal Information
+              </h5>
+            </div>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={generateAISuggestions}
+              disabled={isGeneratingAI || !formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()}
+            >
+              {isGeneratingAI ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" className="me-2" />
+                  Generating AI Suggestions...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-magic me-2"></i>
+                  Generate AI Suggestions
+                </>
+              )}
+            </Button>
           </Card.Header>
           <Card.Body>
             <Row className="g-3">
@@ -379,56 +543,6 @@ const CreateCustomerClient: React.FC = () => {
                 </Form.Group>
               </Col>
             </Row>
-
-            {/* AI Preview Section */}
-            <div className="mt-4 pt-3 border-top">
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <h6 className="mb-1">
-                    <i className="fas fa-magic text-primary me-2"></i>
-                    AI Welcome Message Preview
-                  </h6>
-                  <small className="text-muted">
-                    Get a preview of AI-generated customer communications
-                  </small>
-                </div>
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={generateQuickPreview}
-                  disabled={isGeneratingPreview || !formData.firstName || !formData.lastName || !formData.customerType}
-                >
-                  {isGeneratingPreview ? (
-                    <>
-                      <Spinner as="span" animation="border" size="sm" className="me-1" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <i className="fas fa-wand-magic-sparkles me-1"></i>
-                      Generate Preview
-                    </>
-                  )}
-                </Button>
-              </div>
-              
-              {quickPreview && (
-                <Alert variant="info" className="mb-0">
-                  <div className="d-flex align-items-start">
-                    <i className="fas fa-quote-left text-primary me-2 mt-1"></i>
-                    <div className="flex-grow-1">
-                      <em>{quickPreview}</em>
-                      <div className="mt-2">
-                        <small className="text-muted">
-                          💡 Complete the form to get full AI suggestions including welcome emails, 
-                          response templates, and onboarding checklists!
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                </Alert>
-              )}
-            </div>
           </Card.Body>
         </Card>
 
@@ -626,6 +740,12 @@ const CreateCustomerClient: React.FC = () => {
             <h5 className="mb-0">
               <i className="fas fa-sticky-note me-2 text-primary"></i>
               Additional Information
+              {formData.notes.includes('**AI') && (
+                <Badge bg="success" className="ms-2">
+                  <i className="fas fa-robot me-1"></i>
+                  AI Enhanced
+                </Badge>
+              )}
             </h5>
           </Card.Header>
           <Card.Body>
@@ -633,11 +753,16 @@ const CreateCustomerClient: React.FC = () => {
               <Form.Label>Notes</Form.Label>
               <Form.Control
                 as="textarea"
-                rows={3}
+                rows={formData.notes.includes('**AI') ? 10 : 3}
                 value={formData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 placeholder="Add any additional notes about this customer..."
               />
+              <Form.Text className="text-muted">
+                {formData.notes.includes('**AI') && (
+                  <><i className="fas fa-info-circle me-1"></i>This section contains AI-generated suggestions. You can edit them before saving.</>
+                )}
+              </Form.Text>
             </Form.Group>
           </Card.Body>
         </Card>
@@ -671,171 +796,172 @@ const CreateCustomerClient: React.FC = () => {
       </Form>
 
       {/* AI Suggestions Modal */}
-      <Modal 
-        show={showAiModal} 
-        onHide={() => setShowAiModal(false)} 
-        size="xl" 
-        backdrop="static"
-        keyboard={false}
-      >
-        <Modal.Header>
-          <Modal.Title className="d-flex align-items-center">
-            <i className="fas fa-magic text-primary me-2"></i>
+      <Modal show={showAiModal} onHide={() => setShowAiModal(false)} size="xl">
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <i className="fas fa-robot me-2 text-primary"></i>
             AI Customer Communication Suggestions
-            {aiSuggestions?.estimatedCostSavings && (
-              <Badge bg="success" className="ms-2">
-                Save {aiSuggestions.estimatedCostSavings.timeInMinutes} min
-              </Badge>
-            )}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
           {aiSuggestions && (
-            <Tabs activeKey={activeTab} onSelect={(k) => setActiveTab(k || 'welcome')} className="mb-3">
-              {/* Welcome Email Tab */}
-              <Tab eventKey="welcome" title={<><i className="fas fa-envelope me-1"></i>Welcome Email</>}>
-                <Card className="mb-3">
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <h6 className="mb-0">📧 Welcome Email</h6>
-                    <Button 
-                      size="sm" 
-                      variant="outline-primary"
-                      onClick={() => navigator.clipboard.writeText(`Subject: ${aiSuggestions.welcomeEmail.subject}\n\n${aiSuggestions.welcomeEmail.body}`)}
-                    >
-                      <i className="fas fa-copy me-1"></i>Copy
-                    </Button>
-                  </Card.Header>
-                  <Card.Body>
-                    <div className="mb-2">
-                      <strong>Subject:</strong> {aiSuggestions.welcomeEmail.subject}
-                    </div>
-                    <div className="border p-3 bg-light rounded">
-                      <div style={{ whiteSpace: 'pre-line' }}>
-                        {aiSuggestions.welcomeEmail.body}
-                      </div>
-                    </div>
-                  </Card.Body>
-                </Card>
-              </Tab>
-
-              {/* Follow-up Actions Tab */}
-              <Tab eventKey="actions" title={<><i className="fas fa-tasks me-1"></i>Follow-up Actions</>}>
-                <Card className="mb-3">
-                  <Card.Header className="d-flex justify-content-between align-items-center">
-                    <h6 className="mb-0">🎯 Recommended Follow-up Actions</h6>
-                    <Button 
-                      size="sm" 
-                      variant="outline-primary"
-                      onClick={() => navigator.clipboard.writeText(aiSuggestions.followUpActions.join('\n'))}
-                    >
-                      <i className="fas fa-copy me-1"></i>Copy List
-                    </Button>
-                  </Card.Header>
-                  <Card.Body>
-                    {aiSuggestions.followUpActions.map((action, index) => (
-                      <div key={index} className="d-flex align-items-start mb-2">
-                        <Badge bg="primary" className="me-2 mt-1">{index + 1}</Badge>
-                        <span>{action}</span>
-                      </div>
-                    ))}
-                  </Card.Body>
-                </Card>
-              </Tab>
-
-              {/* Response Templates Tab */}
-              <Tab eventKey="templates" title={<><i className="fas fa-reply me-1"></i>Response Templates</>}>
-                <Row className="g-3">
-                  {Object.entries(aiSuggestions.commonResponseTemplates).map(([key, template]) => (
-                    <Col md={6} key={key}>
-                      <Card className="h-100">
-                        <Card.Header className="d-flex justify-content-between align-items-center">
-                          <h6 className="mb-0 text-capitalize">
-                            {key.replace(/([A-Z])/g, ' $1').trim()}
-                          </h6>
-                          <Button 
-                            size="sm" 
-                            variant="outline-primary"
-                            onClick={() => navigator.clipboard.writeText(template)}
-                          >
-                            <i className="fas fa-copy"></i>
-                          </Button>
-                        </Card.Header>
-                        <Card.Body>
-                          <div style={{ whiteSpace: 'pre-line', fontSize: '0.9rem' }}>
-                            {template}
-                          </div>
-                        </Card.Body>
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </Tab>
-
-              {/* Customer Service Tips Tab */}
-              <Tab eventKey="tips" title={<><i className="fas fa-lightbulb me-1"></i>Service Tips</>}>
-                <Card className="mb-3">
-                  <Card.Header>
-                    <h6 className="mb-0">💡 Customer Service Tips</h6>
-                  </Card.Header>
-                  <Card.Body>
-                    {aiSuggestions.customerServiceTips.map((tip, index) => (
-                      <div key={index} className="d-flex align-items-start mb-3">
-                        <i className="fas fa-star text-warning me-2 mt-1"></i>
-                        <span>{tip}</span>
-                      </div>
-                    ))}
-                  </Card.Body>
-                </Card>
-
-                <Card>
-                  <Card.Header>
-                    <h6 className="mb-0">📋 Onboarding Checklist</h6>
-                  </Card.Header>
-                  <Card.Body>
-                    {aiSuggestions.onboardingChecklist.map((item, index) => (
-                      <div key={index} className="d-flex align-items-start mb-2">
-                        <Form.Check 
-                          type="checkbox" 
-                          className="me-2" 
-                          id={`checklist-${index}`}
-                        />
-                        <label htmlFor={`checklist-${index}`} className="form-check-label">
-                          {item}
-                        </label>
-                      </div>
-                    ))}
-                  </Card.Body>
-                </Card>
-              </Tab>
-            </Tabs>
-          )}
-
-          {aiSuggestions?.estimatedCostSavings && (
-            <Alert variant="success" className="mt-3">
-              <div className="d-flex align-items-center">
-                <i className="fas fa-dollar-sign me-2"></i>
-                <div>
-                  <strong>Estimated Cost Savings:</strong> {aiSuggestions.estimatedCostSavings.timeInMinutes} minutes
-                  <br />
-                  <small>{aiSuggestions.estimatedCostSavings.description}</small>
+            <>
+              <Alert variant="info" className="mb-4">
+                <div className="d-flex align-items-center">
+                  <i className="fas fa-clock me-2"></i>
+                  <div>
+                    <strong>Estimated Time Savings: {aiSuggestions.estimatedCostSavings.timeInMinutes} minutes</strong>
+                    <br />
+                    <small>{aiSuggestions.estimatedCostSavings.description}</small>
+                  </div>
                 </div>
-              </div>
-            </Alert>
+              </Alert>
+
+              <Accordion defaultActiveKey={['0']} alwaysOpen>
+                {/* Welcome Email */}
+                <Accordion.Item eventKey="0">
+                  <Accordion.Header>
+                    <Form.Check
+                      type="checkbox"
+                      checked={selectedSuggestions.welcomeEmail}
+                      onChange={(e) => setSelectedSuggestions(prev => ({
+                        ...prev,
+                        welcomeEmail: e.target.checked
+                      }))}
+                      className="me-2"
+                    />
+                    <strong>Welcome Email Template</strong>
+                  </Accordion.Header>
+                  <Accordion.Body>
+                    <div className="border rounded p-3 bg-light">
+                      <h6><strong>Subject:</strong> {aiSuggestions.welcomeEmail.subject}</h6>
+                      <div className="mt-2">
+                        <strong>Body:</strong>
+                        <div className="mt-1" style={{ whiteSpace: 'pre-line' }}>
+                          {aiSuggestions.welcomeEmail.body}
+                        </div>
+                      </div>
+                    </div>
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                {/* Follow-up Actions */}
+                <Accordion.Item eventKey="1">
+                  <Accordion.Header>
+                    <strong>Follow-up Actions ({selectedSuggestions.followUpActions.filter(Boolean).length} selected)</strong>
+                  </Accordion.Header>
+                  <Accordion.Body>
+                    {aiSuggestions.followUpActions.map((action, index) => (
+                      <Form.Check
+                        key={index}
+                        type="checkbox"
+                        label={action}
+                        checked={selectedSuggestions.followUpActions[index] || false}
+                        onChange={(e) => {
+                          const newActions = [...selectedSuggestions.followUpActions];
+                          newActions[index] = e.target.checked;
+                          setSelectedSuggestions(prev => ({
+                            ...prev,
+                            followUpActions: newActions
+                          }));
+                        }}
+                        className="mb-2"
+                      />
+                    ))}
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                {/* Onboarding Checklist */}
+                <Accordion.Item eventKey="2">
+                  <Accordion.Header>
+                    <strong>Onboarding Checklist ({selectedSuggestions.onboardingChecklist.filter(Boolean).length} selected)</strong>
+                  </Accordion.Header>
+                  <Accordion.Body>
+                    {aiSuggestions.onboardingChecklist.map((item, index) => (
+                      <Form.Check
+                        key={index}
+                        type="checkbox"
+                        label={item}
+                        checked={selectedSuggestions.onboardingChecklist[index] || false}
+                        onChange={(e) => {
+                          const newChecklist = [...selectedSuggestions.onboardingChecklist];
+                          newChecklist[index] = e.target.checked;
+                          setSelectedSuggestions(prev => ({
+                            ...prev,
+                            onboardingChecklist: newChecklist
+                          }));
+                        }}
+                        className="mb-2"
+                      />
+                    ))}
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                {/* Response Templates */}
+                <Accordion.Item eventKey="3">
+                  <Accordion.Header>
+                    <strong>Response Templates ({Object.values(selectedSuggestions.responseTemplates).filter(Boolean).length} selected)</strong>
+                  </Accordion.Header>
+                  <Accordion.Body>
+                    {Object.entries(aiSuggestions.commonResponseTemplates).map(([key, template]) => (
+                      <div key={key} className="mb-3">
+                        <Form.Check
+                          type="checkbox"
+                          label={<strong>{key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}</strong>}
+                          checked={selectedSuggestions.responseTemplates[key as keyof typeof selectedSuggestions.responseTemplates]}
+                          onChange={(e) => setSelectedSuggestions(prev => ({
+                            ...prev,
+                            responseTemplates: {
+                              ...prev.responseTemplates,
+                              [key]: e.target.checked
+                            }
+                          }))}
+                          className="mb-2"
+                        />
+                        <div className="ms-4 text-muted small">
+                          {template.substring(0, 100)}...
+                        </div>
+                      </div>
+                    ))}
+                  </Accordion.Body>
+                </Accordion.Item>
+
+                {/* Customer Service Tips */}
+                <Accordion.Item eventKey="4">
+                  <Accordion.Header>
+                    <strong>Customer Service Tips ({selectedSuggestions.customerServiceTips.filter(Boolean).length} selected)</strong>
+                  </Accordion.Header>
+                  <Accordion.Body>
+                    {aiSuggestions.customerServiceTips.map((tip, index) => (
+                      <Form.Check
+                        key={index}
+                        type="checkbox"
+                        label={tip}
+                        checked={selectedSuggestions.customerServiceTips[index] || false}
+                        onChange={(e) => {
+                          const newTips = [...selectedSuggestions.customerServiceTips];
+                          newTips[index] = e.target.checked;
+                          setSelectedSuggestions(prev => ({
+                            ...prev,
+                            customerServiceTips: newTips
+                          }));
+                        }}
+                        className="mb-2"
+                      />
+                    ))}
+                  </Accordion.Body>
+                </Accordion.Item>
+              </Accordion>
+            </>
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => setShowAiModal(false)}>
-            Close
+          <Button variant="secondary" onClick={() => setShowAiModal(false)}>
+            Cancel
           </Button>
-          <Button 
-            variant="primary" 
-            onClick={() => {
-              setShowAiModal(false);
-              router.push('/admin');
-            }}
-          >
-            <i className="fas fa-check me-1"></i>
-            Continue to Admin Dashboard
+          <Button variant="primary" onClick={applySelectedSuggestions}>
+            <i className="fas fa-check me-2"></i>
+            Apply Selected Suggestions
           </Button>
         </Modal.Footer>
       </Modal>

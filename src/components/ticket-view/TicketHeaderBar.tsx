@@ -24,6 +24,8 @@ interface TicketHeaderBarProps {
   onResendInvoice: () => void;
   isResendingInvoice: boolean;
   hasInvoiceInfo: boolean;
+  onDraftAIReply: () => void;
+  isDraftingAIReply: boolean;
 }
 
 interface Notification {
@@ -56,7 +58,9 @@ export default function TicketHeaderBar({
   isLoadingOrderStatusDraft,
   onResendInvoice,
   isResendingInvoice,
-  hasInvoiceInfo
+  hasInvoiceInfo,
+  onDraftAIReply,
+  isDraftingAIReply
 }: TicketHeaderBarProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
@@ -179,6 +183,32 @@ export default function TicketHeaderBar({
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="ms-auto align-items-center gap-2">
             
+            {/* AI General Reply Button */}
+            <OverlayTrigger
+              placement="bottom"
+              overlay={<Tooltip>Draft a contextual AI-powered reply to the last customer message.</Tooltip>}
+            >
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={onDraftAIReply}
+                disabled={isDraftingAIReply || isClosed}
+                className="d-flex align-items-center"
+              >
+                {isDraftingAIReply ? (
+                  <>
+                    <Spinner as="span" animation="border" size="sm" className="me-2" />
+                    <span>Drafting...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-magic me-2"></i>
+                    <span>Draft AI Reply</span>
+                  </>
+                )}
+              </Button>
+            </OverlayTrigger>
+
             {/* Active Users Indicator */}
             {activeUsers.length > 0 && (
               <OverlayTrigger
