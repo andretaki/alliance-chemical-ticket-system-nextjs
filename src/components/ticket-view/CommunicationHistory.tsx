@@ -4,6 +4,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import DOMPurify from 'dompurify';
 import AttachmentListDisplay from './AttachmentListDisplay';
+import { isAISuggestionNote, extractAISuggestionContent } from '@/utils/aiSuggestionHelpers';
 import type { TicketComment, Ticket as TicketData, AttachmentData, TicketUser as BaseUser } from '@/types/ticket';
 
 // Type definitions
@@ -11,7 +12,7 @@ import type { TicketComment, Ticket as TicketData, AttachmentData, TicketUser as
 // interface AttachmentData { id: number; filename?: string; originalFilename: string; fileSize: number; mimeType: string; uploadedAt: string; url?: string; commentId?: number | null; ticketId?: number | null; }
 // interface CommentData { id: number; commentText: string | null; createdAt: string; commenter: BaseUser | null; isInternalNote: boolean; isFromCustomer: boolean; isOutgoingReply: boolean; attachments?: AttachmentData[]; externalMessageId?: string | null; }
 // interface TicketData { id: number; senderName: string | null; senderEmail: string | null; }
-interface CommunicationHistoryProps { comments: TicketComment[]; ticket: TicketData; handleApproveAndSendDraft: (draftText: string) => Promise<void>; isSubmittingComment?: boolean; }
+interface CommunicationHistoryProps { comments: TicketComment[]; ticket: TicketData; handleApproveAndSendDraft: (draftText: string) => void; isSubmittingComment?: boolean; }
 
 // Helper Functions
 const getFileIconClass = (mimeType?: string | null): string => {
@@ -36,28 +37,6 @@ const formatFileSize = (bytes?: number): string => {
 };
 
 // AI Suggestion Detection
-const AI_SUGGESTION_MARKERS = [
-  "**AI Suggested Reply:**",
-  "**Order Status Found - Suggested Reply:**",
-  "**Suggested Reply (Request for Lot #):**",
-  "**Order Status Reply:**",
-  "**Suggested Reply (SDS Document):**",
-  "**Suggested Reply (COC Information):**",
-  "**Suggested Reply (Document Request):**",
-  "**AI Order Status Reply:**",
-  "**AI COA Reply:**"
-];
-
-const isAISuggestionNote = (text: string | null): boolean => !!text && AI_SUGGESTION_MARKERS.some(marker => text.startsWith(marker));
-
-const extractAISuggestionContent = (text: string | null): string => {
-  if (!text) return '';
-  for (const marker of AI_SUGGESTION_MARKERS) {
-    if (text.startsWith(marker)) return text.substring(marker.length).trim();
-  }
-  return text;
-};
-
 const getAISuggestionTitle = (text: string | null): string => {
   if (!text) return "AI Suggestion";
   if (text.includes("Order Status")) return "AI Order Status Reply";

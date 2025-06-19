@@ -21,6 +21,8 @@
   "dependencies": {
     "@auth/drizzle-adapter": "^1.4.0",
     "@azure/identity": "^4.10.0",
+    "@fortawesome/free-solid-svg-icons": "^6.7.2",
+    "@fortawesome/react-fontawesome": "^0.2.2",
     "@google/generative-ai": "^0.24.1",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@microsoft/microsoft-graph-types": "^2.40.0",
