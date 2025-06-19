@@ -75,6 +75,16 @@ export default async function AdminPage() {
             <div className="col-md-4">
               <div className="card h-100">
                 <div className="card-body">
+                  <h5 className="card-title">Customer Management</h5>
+                  <p className="card-text">Create and manage customers in the system.</p>
+                  <Link href="/admin/customers/create" className="btn btn-primary">Create Customer</Link>
+                </div>
+              </div>
+            </div>
+            
+            <div className="col-md-4">
+              <div className="card h-100">
+                <div className="card-body">
                   <h5 className="card-title">Email Processing</h5>
                   <p className="card-text">Configure and monitor automated email processing.</p>
                   <Link href="/admin/email-processing" className="btn btn-primary">Email Settings</Link>

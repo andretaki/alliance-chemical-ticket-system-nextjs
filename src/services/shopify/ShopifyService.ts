@@ -1193,4 +1193,159 @@ export class ShopifyService {
         return { success: false, alreadyExists: false, error: 'An unexpected error occurred during customer creation.' };
     }
   }
+
+  public async addCustomerAddress(
+    customerId: string,
+    addressData: {
+      firstName: string;
+      lastName: string;
+      company?: string;
+      address1: string;
+      address2?: string;
+      city: string;
+      province?: string;
+      country: string;
+      zip: string;
+      phone?: string;
+    },
+    setAsDefault: boolean = false
+  ): Promise<{ success: boolean; addressId?: string; error?: string; }> {
+    
+    const mutation = `
+      mutation customerAddressCreate($customerId: ID!, $address: MailingAddressInput!) {
+        customerAddressCreate(customerId: $customerId, address: $address) {
+          customerAddress {
+            id
+            firstName
+            lastName
+            address1
+            address2
+            city
+            province
+            country
+            zip
+            phone
+            company
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    // Ensure customerId is in GID format
+    const gid = customerId.includes('gid://') ? customerId : `gid://shopify/Customer/${customerId}`;
+
+    const variables = {
+      customerId: gid,
+      address: {
+        firstName: addressData.firstName,
+        lastName: addressData.lastName,
+        company: addressData.company || '',
+        address1: addressData.address1,
+        address2: addressData.address2 || '',
+        city: addressData.city,
+        province: addressData.province || '',
+        country: addressData.country,
+        zip: addressData.zip,
+        phone: addressData.phone || '',
+      }
+    };
+
+    try {
+      console.log(`[ShopifyService] Adding address to customer ${customerId}`);
+      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors adding customer address:', JSON.stringify(response.errors, null, 2));
+        return { success: false, error: 'GraphQL query failed' };
+      }
+
+      const userErrors = response.data?.customerAddressCreate?.userErrors;
+      if (userErrors && userErrors.length > 0) {
+        const errorMessages = userErrors.map((e: any) => e.message).join(', ');
+        console.error(`[ShopifyService] UserErrors adding customer address: ${errorMessages}`);
+        return { success: false, error: errorMessages };
+      }
+
+      const customerAddress = response.data?.customerAddressCreate?.customerAddress;
+      if (!customerAddress) {
+        return { success: false, error: 'No address data returned' };
+      }
+
+      console.log(`[ShopifyService] Customer address added successfully with ID: ${customerAddress.id}`);
+
+      // If this should be the default address, set it as default
+      if (setAsDefault) {
+        await this.setCustomerDefaultAddress(gid, customerAddress.id);
+      }
+
+      return {
+        success: true,
+        addressId: customerAddress.id
+      };
+
+    } catch (error: any) {
+      console.error('[ShopifyService] Error adding customer address:', error);
+      return { success: false, error: error.message || 'An unexpected error occurred' };
+    }
+  }
+
+  public async setCustomerDefaultAddress(
+    customerId: string,
+    addressId: string
+  ): Promise<{ success: boolean; error?: string; }> {
+    
+    const mutation = `
+      mutation customerDefaultAddressUpdate($customerId: ID!, $addressId: ID!) {
+        customerDefaultAddressUpdate(customerId: $customerId, addressId: $addressId) {
+          customer {
+            id
+            defaultAddress {
+              id
+            }
+          }
+          userErrors {
+            field
+            message
+          }
+        }
+      }
+    `;
+
+    // Ensure IDs are in GID format
+    const customerGid = customerId.includes('gid://') ? customerId : `gid://shopify/Customer/${customerId}`;
+    const addressGid = addressId.includes('gid://') ? addressId : `gid://shopify/MailingAddress/${addressId}`;
+
+    const variables = {
+      customerId: customerGid,
+      addressId: addressGid
+    };
+
+    try {
+      console.log(`[ShopifyService] Setting default address for customer ${customerId}`);
+      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL Errors setting default address:', JSON.stringify(response.errors, null, 2));
+        return { success: false, error: 'GraphQL query failed' };
+      }
+
+      const userErrors = response.data?.customerDefaultAddressUpdate?.userErrors;
+      if (userErrors && userErrors.length > 0) {
+        const errorMessages = userErrors.map((e: any) => e.message).join(', ');
+        console.error(`[ShopifyService] UserErrors setting default address: ${errorMessages}`);
+        return { success: false, error: errorMessages };
+      }
+
+      console.log(`[ShopifyService] Default address set successfully for customer ${customerId}`);
+      return { success: true };
+
+    } catch (error: any) {
+      console.error('[ShopifyService] Error setting default address:', error);
+      return { success: false, error: error.message || 'An unexpected error occurred' };
+    }
+  }
 }

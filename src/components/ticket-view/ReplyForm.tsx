@@ -11,6 +11,14 @@ interface CannedResponse {
   category?: string;
 }
 
+interface QuickAction {
+  id: string;
+  label: string;
+  content: string;
+  icon: string;
+  variant: string;
+}
+
 interface ReplyFormProps {
   ticketId: number;
   senderEmail?: string | null;
@@ -32,6 +40,15 @@ interface ReplyFormProps {
   handleCommentSubmit: (e: FormEvent) => Promise<void>;
   insertSuggestedResponse?: () => void;
 }
+
+// Quick action templates
+const QUICK_ACTIONS: QuickAction[] = [
+  { id: 'acknowledge', label: 'Acknowledge', content: 'Thank you for contacting us. I have received your message and will get back to you shortly.', icon: 'fa-check-circle', variant: 'outline-success' },
+  { id: 'investigating', label: 'Investigating', content: 'I am currently investigating this issue and will update you as soon as I have more information.', icon: 'fa-search', variant: 'outline-info' },
+  { id: 'escalate', label: 'Escalating', content: 'I am escalating this to our specialist team who will be in touch with you shortly.', icon: 'fa-arrow-up', variant: 'outline-warning' },
+  { id: 'resolved', label: 'Resolved', content: 'This issue has been resolved. Please let me know if you need any further assistance.', icon: 'fa-check', variant: 'outline-success' },
+  { id: 'followup', label: 'Follow Up', content: 'I wanted to follow up on your recent inquiry. Is there anything else I can help you with?', icon: 'fa-clock', variant: 'outline-primary' },
+];
 
 // Helper functions
 const formatFileSize = (bytes?: number): string => {
@@ -76,21 +93,30 @@ export default function ReplyForm({
   const [cannedResponsesList, setCannedResponsesList] = useState<CannedResponse[]>([]);
   const [isLoadingCanned, setIsLoadingCanned] = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(true);
+  const [priority, setPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
+  const [scheduleFor, setScheduleFor] = useState<string>('');
+  const [signature, setSignature] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Fetch canned responses
+  // Fetch canned responses and user signature
   useEffect(() => {
-    const fetchCannedResponses = async () => {
+    const fetchData = async () => {
       setIsLoadingCanned(true);
       try {
-        const res = await axios.get<CannedResponse[]>('/api/canned-responses');
-        setCannedResponsesList(res.data);
+        const [cannedRes, signatureRes] = await Promise.all([
+          axios.get<CannedResponse[]>('/api/canned-responses'),
+          axios.get<{signature: string}>('/api/users/me/signature').catch(() => ({ data: { signature: '' } }))
+        ]);
+        setCannedResponsesList(cannedRes.data);
+        setSignature(signatureRes.data.signature);
       } catch (err) {
-        console.error("Failed to fetch canned responses:", err);
+        console.error("Failed to fetch data:", err);
       } finally {
         setIsLoadingCanned(false);
       }
     };
-    fetchCannedResponses();
+    fetchData();
   }, []);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -121,6 +147,19 @@ export default function ReplyForm({
       setNewComment((prev: string) => `${prev}<p>${selectedContent}</p>`);
       e.target.value = "";
     }
+  };
+
+  const handleQuickAction = (action: QuickAction) => {
+    setNewComment((prev: string) => {
+      const content = signature ? `<p>${action.content}</p><br/><p>${signature}</p>` : `<p>${action.content}</p>`;
+      return prev ? `${prev}<br/>${content}` : content;
+    });
+    setShowQuickActions(false);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    setNewComment((prev: string) => `${prev}${emoji}`);
+    setShowEmojiPicker(false);
   };
 
   // Drag and drop handlers
@@ -160,13 +199,12 @@ export default function ReplyForm({
       icon: 'fas fa-paper-plane',
       label: 'Email Reply',
       description: `Will be sent to ${senderEmail}`,
-      buttonText: 'Send Email',
-      buttonClass: 'btn-primary'
+      buttonText: scheduleFor ? 'Schedule Send' : priority === 'urgent' ? 'Send Urgent' : 'Send Email',
+      buttonClass: priority === 'urgent' ? 'btn-danger' : 'btn-primary'
     };
   };
 
   const replyMode = getReplyModeConfig();
-  
   const canSubmit = newComment.replace(/<[^>]+>/g, '').trim() !== '' || files.length > 0;
 
   return (
@@ -176,25 +214,83 @@ export default function ReplyForm({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Quick Actions Bar */}
+      {showQuickActions && !isInternalNote && (
+        <div className="quick-actions-bar p-2 bg-white border-bottom">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex gap-1 flex-wrap">
+              <small className="text-muted me-2 align-self-center">Quick replies:</small>
+              {QUICK_ACTIONS.map(action => (
+                <button
+                  key={action.id}
+                  type="button"
+                  className={`btn btn-sm ${action.variant}`}
+                  onClick={() => handleQuickAction(action)}
+                  disabled={isSubmittingComment}
+                >
+                  <i className={`fas ${action.icon} me-1`}></i>
+                  {action.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline-secondary"
+              onClick={() => setShowQuickActions(false)}
+            >
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleCommentSubmit} className="reply-form">
         <div className="reply-body p-3">
-          {/* "To" Field and Canned Responses */}
+          {/* Enhanced Header with Priority and Scheduling */}
           {!isInternalNote && (
             <div className="d-flex align-items-center justify-content-between mb-2">
               <div className="input-group input-group-sm flex-grow-1 me-2">
                 <span className="input-group-text bg-light border-0" id="to-addon">To:</span>
                 <input type="text" className="form-control form-control-sm bg-white border-0" value={senderEmail || ''} readOnly />
+                
+                {/* Priority Selector */}
+                <select
+                  className={`form-select form-select-sm ${priority === 'urgent' ? 'text-danger' : priority === 'high' ? 'text-warning' : ''}`}
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value as 'normal' | 'high' | 'urgent')}
+                  disabled={isSubmittingComment}
+                  style={{ maxWidth: '100px' }}
+                >
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
               </div>
-              <div className="template-selector">
+              
+              <div className="d-flex gap-1">
+                {/* Schedule Send */}
+                <input
+                  type="datetime-local"
+                  className="form-control form-control-sm"
+                  value={scheduleFor}
+                  onChange={(e) => setScheduleFor(e.target.value)}
+                  min={new Date().toISOString().slice(0, 16)}
+                  disabled={isSubmittingComment}
+                  title="Schedule send"
+                  style={{ maxWidth: '150px' }}
+                />
+                
+                {/* Template Selector */}
                 <select
                   className="form-select form-select-sm"
                   onChange={handleCannedResponseSelect}
                   value=""
                   disabled={isLoadingCanned || isSubmittingComment}
                   title="Insert a pre-written response"
+                  style={{ maxWidth: '120px' }}
                 >
                   <option value="" disabled>
-                    {isLoadingCanned ? 'Loading...' : 'Insert template'}
+                    {isLoadingCanned ? 'Loading...' : 'Templates'}
                   </option>
                   {cannedResponsesList.map(resp => (
                     <option key={resp.id} value={resp.content}>
@@ -206,8 +302,59 @@ export default function ReplyForm({
             </div>
           )}
 
-          {/* Rich Text Editor */}
-          <div className="editor-wrapper mb-2">
+          {/* Rich Text Editor with Enhanced Toolbar */}
+          <div className="editor-wrapper mb-2 position-relative">
+            <div className="editor-toolbar d-flex align-items-center gap-2 p-2 bg-white border-bottom">
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                disabled={isSubmittingComment}
+              >
+                <i className="fas fa-smile"></i>
+              </button>
+              
+              {insertSuggestedResponse && (
+                <button 
+                  type="button" 
+                  className="btn btn-sm btn-outline-info" 
+                  onClick={insertSuggestedResponse} 
+                  disabled={isSubmittingComment}
+                  title="Insert AI suggested reply"
+                >
+                  <i className="fas fa-magic me-1"></i> AI
+                </button>
+              )}
+              
+              {!showQuickActions && !isInternalNote && (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-primary"
+                  onClick={() => setShowQuickActions(true)}
+                >
+                  <i className="fas fa-bolt me-1"></i> Quick Actions
+                </button>
+              )}
+            </div>
+            
+            {/* Emoji Picker */}
+            {showEmojiPicker && (
+              <div className="position-absolute bg-white border rounded shadow p-2" style={{ zIndex: 1000, top: '100%' }}>
+                <div className="d-flex flex-wrap gap-1">
+                  {['😊', '👍', '👎', '❤️', '😅', '🤔', '👋', '🙏', '✅', '❌', '⚠️', '🎉'].map(emoji => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      className="btn btn-sm btn-outline-light"
+                      onClick={() => handleEmojiSelect(emoji)}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <RichTextEditor
               value={newComment}
               onChange={setNewComment}
@@ -253,39 +400,44 @@ export default function ReplyForm({
           </div>
         </div>
 
-        {/* Footer Actions */}
+        {/* Enhanced Footer */}
         <div className="reply-footer d-flex justify-content-between align-items-center p-3 border-top bg-light">
-          <div className="form-check form-switch">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              role="switch"
-              id="internalNoteSwitch"
-              checked={isInternalNote}
-              onChange={(e) => {
-                setIsInternalNote(e.target.checked);
-                // When switching to internal note, "send as email" is not applicable
-                if(e.target.checked) setSendAsEmail(false);
-              }}
-              disabled={isSubmittingComment}
-            />
-            <label className="form-check-label" htmlFor="internalNoteSwitch">
-              Internal Note
-            </label>
+          <div className="d-flex align-items-center gap-3">
+            <div className="form-check form-switch">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                role="switch"
+                id="internalNoteSwitch"
+                checked={isInternalNote}
+                onChange={(e) => {
+                  setIsInternalNote(e.target.checked);
+                  if(e.target.checked) setSendAsEmail(false);
+                }}
+                disabled={isSubmittingComment}
+              />
+              <label className="form-check-label" htmlFor="internalNoteSwitch">
+                Internal Note
+              </label>
+            </div>
+            
+            {/* Status Indicators */}
+            {scheduleFor && (
+              <small className="text-info">
+                <i className="fas fa-clock me-1"></i>
+                Scheduled for {new Date(scheduleFor).toLocaleString()}
+              </small>
+            )}
+            
+            {priority !== 'normal' && (
+              <small className={`text-${priority === 'urgent' ? 'danger' : 'warning'}`}>
+                <i className="fas fa-exclamation-triangle me-1"></i>
+                {priority.toUpperCase()} Priority
+              </small>
+            )}
           </div>
 
           <div className="d-flex align-items-center gap-2">
-            {insertSuggestedResponse && (
-              <button 
-                type="button" 
-                className="btn btn-sm btn-outline-info" 
-                onClick={insertSuggestedResponse} 
-                disabled={isSubmittingComment}
-                title="Insert AI suggested reply"
-              >
-                <i className="fas fa-magic"></i> AI Suggestion
-              </button>
-            )}
             <button
               type="submit"
               className={`btn btn-sm ${replyMode.buttonClass}`}

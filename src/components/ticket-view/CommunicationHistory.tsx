@@ -12,7 +12,13 @@ import type { TicketComment, Ticket as TicketData, AttachmentData, TicketUser as
 // interface AttachmentData { id: number; filename?: string; originalFilename: string; fileSize: number; mimeType: string; uploadedAt: string; url?: string; commentId?: number | null; ticketId?: number | null; }
 // interface CommentData { id: number; commentText: string | null; createdAt: string; commenter: BaseUser | null; isInternalNote: boolean; isFromCustomer: boolean; isOutgoingReply: boolean; attachments?: AttachmentData[]; externalMessageId?: string | null; }
 // interface TicketData { id: number; senderName: string | null; senderEmail: string | null; }
-interface CommunicationHistoryProps { comments: TicketComment[]; ticket: TicketData; handleApproveAndSendDraft: (draftText: string) => void; isSubmittingComment?: boolean; }
+interface CommunicationHistoryProps {
+  comments: TicketComment[];
+  ticket: TicketData;
+  handleApproveAndSendDraft: (draftText: string) => void;
+  isSubmittingComment?: boolean;
+  viewMode?: 'conversation' | 'thread';
+}
 
 // Helper Functions
 const getFileIconClass = (mimeType?: string | null): string => {
@@ -52,7 +58,8 @@ export default function CommunicationHistory({
   comments,
   ticket,
   handleApproveAndSendDraft,
-  isSubmittingComment = false
+  isSubmittingComment = false,
+  viewMode = 'conversation'
 }: CommunicationHistoryProps) {
   if (comments.length === 0) {
     return (
