@@ -1,15 +1,15 @@
 import { Metadata } from 'next';
-import DirectQuoteCreationClient from '@/components/DirectQuoteCreationClient';
+import QuoteCreationWizard from '@/components/quote-creation-wizard/QuoteCreationWizard';
 
 export const metadata: Metadata = {
   title: 'Create Quote - Alliance Chemical',
-  description: 'Create a new quote directly, without requiring a pre-existing ticket.',
+  description: 'Create a new quote for a customer.',
 };
 
 export default function CreateQuotePage() {
   return (
     <div className="container py-4">
-      <DirectQuoteCreationClient />
+      <QuoteCreationWizard />
     </div>
   );
 } 

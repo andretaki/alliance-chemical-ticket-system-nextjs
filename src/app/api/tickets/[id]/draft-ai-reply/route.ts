@@ -105,7 +105,6 @@ export async function POST(
           isInternalNote: false,
           isOutgoingReply: false,
           externalMessageId: null,
-          updatedAt: ticketForAI.updatedAt,
           commenter: ticketForAI.reporter, // This is a TicketUser, contains id, name, email
           attachments: ticketForAI.attachments?.filter(a => !a.commentId) || [],
         };

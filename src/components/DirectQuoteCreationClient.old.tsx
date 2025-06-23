@@ -474,7 +474,7 @@ export const DirectQuoteCreationClient: React.FC = () => {
     } finally {
       setIsCalculatingShipping(false);
     }
-  }, [lineItems, shippingAddress, priceSummary.subtotal]);
+  }, [lineItems, shippingAddress]);
 
   // Optimized shipping rate selection
   const selectShippingRate = useCallback((index: number) => {
