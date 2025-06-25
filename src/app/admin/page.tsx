@@ -6,6 +6,8 @@ import Link from 'next/link';
 import WebhookStatus from '@/components/admin/WebhookStatus';
 import SubscriptionManager from '@/components/admin/SubscriptionManager';
 import GraphApiTester from '@/components/admin/GraphApiTester';
+import CustomerAutoCreateManager from '@/components/admin/CustomerAutoCreateManager';
+import SlaPolicyManager from '@/components/admin/SlaPolicyManager';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard - Alliance Chemical Support',
@@ -59,6 +61,26 @@ export default async function AdminPage() {
                 <div className="card-body"><SubscriptionManager /></div>
               </div>
             </div>
+          </div>
+
+          {/* Customer Auto-Create Manager */}
+          <div className="row mb-4">
+              <div className="col-12">
+                  <div className="card">
+                      <div className="card-body">
+                          <CustomerAutoCreateManager />
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          {/* SLA Policy Manager */}
+          <div className="row mb-4">
+              <div className="col-12">
+                  <div className="card">
+                      <SlaPolicyManager />
+                  </div>
+              </div>
           </div>
           
           <div className="row g-4">

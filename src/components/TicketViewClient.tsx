@@ -17,12 +17,13 @@ import TicketHeaderBar from './ticket-view/TicketHeaderBar';
 import CommunicationHistory from './ticket-view/CommunicationHistory';
 import ReplyForm from './ticket-view/ReplyForm';
 import TicketDetailsSidebar from './ticket-view/TicketDetailsSidebar';
-import ShippingInfoSidebar from './ticket-view/ShippingInfoSidebar';
+import AiNextActionCard from './ticket-view/AiNextActionCard';
+import AIMessageSuggestion from './ticket-view/AIMessageSuggestion';
 import MergeTicketModal from './ticket-view/MergeTicketModal';
 
 // Types
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
-import type { Ticket as TicketData, TicketComment as CommentData } from '@/types/ticket';
+import type { Ticket as TicketData, TicketComment as CommentData, TicketUser } from '@/types/ticket';
 
 interface TicketViewClientProps {
   initialTicket: TicketData;
@@ -42,16 +43,7 @@ const LoadingSpinner = () => (
 export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdminUrl }: TicketViewClientProps) {
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [showQuickReply, setShowQuickReply] = useState(false);
-  const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [draftAutoSaved, setDraftAutoSaved] = useState(false);
-  const [viewMode, setViewMode] = useState<'conversation' | 'thread'>('conversation');
-  
-  // Extracted shipping info state (could be moved to a separate hook if it grows)
-  const [extractedStatus, setExtractedStatus] = useState<string | null>(null);
-  const [extractedCarrier, setExtractedCarrier] = useState<string | null>(null);
-  const [extractedTracking, setExtractedTracking] = useState<string | null>(null);
-  const [extractedShipDate, setExtractedShipDate] = useState<string | null>(null);
-  const [extractedOrderDate, setExtractedOrderDate] = useState<string | null>(null);
 
   const { ticket, setTicket, refreshTicket } = useTicketData(initialTicket);
   const { users, isUsersLoading, error: usersError, setError: setUsersError } = useTicketUsers();
@@ -69,10 +61,25 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     return history;
   }, [ticket]);
 
+  // --- State for AI reply drafts ---
+  const [aiDraft, setAiDraft] = useState<{ content: string; sourceId: number | string } | null>(null);
+
   const {
     newComment, setNewComment, isInternalNote, setIsInternalNote, sendAsEmail, setSendAsEmail,
-    isSubmittingComment, files, setFiles, handleCommentSubmit, handleApproveAndSendDraft, insertSuggestedResponse
-  } = useCommentBox({ ticketId: ticket.id, refreshTicket, comments: ticket.comments });
+    isSubmittingComment, files, setFiles, handleCommentSubmit
+  } = useCommentBox({
+      ticketId: ticket.id,
+      refreshTicket
+  });
+
+  const handleApproveAndSendDraft = (draftText: string) => {
+    setNewComment(draftText);
+    setIsInternalNote(false);
+    setSendAsEmail(true);
+    setAiDraft(null); // Clear the suggestion card once it's used
+    // TODO: Add toast notification for better UX
+    console.log('AI suggestion moved to reply box. Review and send.');
+  };
 
   const {
     isUpdatingAssignee, isUpdatingStatus, isLoadingOrderStatusDraft, isResendingInvoice, isDraftingAIReply,
@@ -82,37 +89,31 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   const handleGetOrderStatusDraft = useCallback(async () => {
     const draftMessage = await onGetOrderStatusDraft();
     if (draftMessage) {
-        setNewComment(draftMessage);
-        setSendAsEmail(true);
-        setIsInternalNote(false);
+        setAiDraft({ content: draftMessage, sourceId: `order-status-${Date.now()}`});
     }
-  }, [onGetOrderStatusDraft, setNewComment, setSendAsEmail, setIsInternalNote]);
-
+  }, [onGetOrderStatusDraft]);
+  
   const handleDraftAIReply = useCallback(async () => {
     const draftMessage = await onDraftAIReply();
     if (draftMessage) {
-        setNewComment(draftMessage);
+        setAiDraft({ content: draftMessage, sourceId: `general-${Date.now()}` });
         setSendAsEmail(true); // Default to sending as email for AI replies
         setIsInternalNote(false);
     }
-  }, [onDraftAIReply, setNewComment, setSendAsEmail, setIsInternalNote]);
+  }, [onDraftAIReply, setSendAsEmail, setIsInternalNote]);
+
+  const handleActionClick = (action: string) => {
+    if (action === 'CHECK_ORDER_STATUS') {
+      handleGetOrderStatusDraft();
+    }
+    // Add handlers for other actions like DOCUMENT_REQUEST here
+  };
 
   // Keyboard shortcuts (Outlook-like)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
-          case 'r':
-            if (e.shiftKey) {
-                             // Ctrl+Shift+R - Reply All (focus reply form)
-               e.preventDefault();
-               (document.querySelector('textarea, [contenteditable]') as HTMLElement)?.focus();
-            } else {
-                             // Ctrl+R - Reply (focus reply form)
-               e.preventDefault();
-               (document.querySelector('textarea, [contenteditable]') as HTMLElement)?.focus();
-            }
-            break;
           case 'Enter':
             // Ctrl+Enter - Send reply
             if (newComment.trim() || files.length > 0) {
@@ -133,17 +134,6 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [newComment, files, handleCommentSubmit]);
-
-  // Scroll detection for floating reply button
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrolled = window.scrollY > 300;
-      setIsScrolledDown(scrolled);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   // Auto-save draft every 30 seconds
   useEffect(() => {
@@ -171,7 +161,7 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
   }
 
   return (
-    <div className="ticket-view-page">
+    <>
       <MergeTicketModal show={showMergeModal} onHide={() => setShowMergeModal(false)} primaryTicketId={ticket.id} onMergeSuccess={refreshTicket} />
       {usersError && <Alert variant="danger" onClose={() => setUsersError(null)} dismissible className="m-3">{usersError}</Alert>}
       
@@ -184,97 +174,65 @@ export default function TicketViewClient({ initialTicket, relatedQuote, quoteAdm
         </div>
       )}
 
-      <TicketHeaderBar
-        ticket={ticket} users={users} isUpdatingAssignee={isUpdatingAssignee} isUpdatingStatus={isUpdatingStatus}
-        handleAssigneeChange={handleAssigneeChange} handleStatusSelectChange={handleStatusSelectChange}
-        showAiSuggestionIndicator={conversationHistory.some(c => isAISuggestionNote(c.commentText))}
-        onReopenTicket={onReopenTicket} onMergeClick={() => setShowMergeModal(true)}
-        orderNumberForStatus={ticket.orderNumber} onGetOrderStatusDraft={handleGetOrderStatusDraft}
-        isLoadingOrderStatusDraft={isLoadingOrderStatusDraft} onResendInvoice={onResendInvoice}
-        isResendingInvoice={isResendingInvoice} hasInvoiceInfo={!!relatedQuote}
-        onDraftAIReply={handleDraftAIReply} isDraftingAIReply={isDraftingAIReply}
-      />
-
-      {/* View Mode Toggle */}
-      <div className="d-flex justify-content-between align-items-center p-3 bg-light border-bottom">
-        <div className="btn-group btn-group-sm" role="group">
-          <button
-            type="button"
-            className={`btn ${viewMode === 'conversation' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setViewMode('conversation')}
-          >
-            <i className="fas fa-comments me-1"></i>Conversation
-          </button>
-          <button
-            type="button"
-            className={`btn ${viewMode === 'thread' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setViewMode('thread')}
-          >
-            <i className="fas fa-list me-1"></i>Thread
-          </button>
-        </div>
-        
-        <div className="text-muted small">
-          <i className="fas fa-keyboard me-1"></i>
-          <span className="me-3">Ctrl+R: Reply</span>
-          <span className="me-3">Ctrl+Enter: Send</span>
-          <span>Ctrl+S: Save Draft</span>
-        </div>
-      </div>
-
-      <main className="ticket-content-wrapper">
-        <div className="ticket-main-pane">
-          <div className="conversation-content">
-            <div className="conversation-messages">
+      {/* Center Pane: Main Conversation */}
+      <main className="inbox-main-pane">
+        <TicketHeaderBar
+          ticket={ticket} 
+          users={users} 
+          isUpdatingAssignee={isUpdatingAssignee} 
+          isUpdatingStatus={isUpdatingStatus}
+          handleAssigneeChange={handleAssigneeChange} 
+          handleStatusSelectChange={handleStatusSelectChange}
+          showAiSuggestionIndicator={conversationHistory.some(c => isAISuggestionNote(c.commentText))}
+          onReopenTicket={onReopenTicket} 
+          onMergeClick={() => setShowMergeModal(true)}
+          orderNumberForStatus={ticket.orderNumber}
+          onGetOrderStatusDraft={handleGetOrderStatusDraft}
+          isLoadingOrderStatusDraft={isLoadingOrderStatusDraft}
+          onResendInvoice={onResendInvoice}
+          isResendingInvoice={isResendingInvoice}
+          hasInvoiceInfo={!!relatedQuote}
+          onDraftAIReply={handleDraftAIReply} 
+          isDraftingAIReply={isDraftingAIReply}
+        />
+        <div className="conversation-content flex-grow-1">
+          <div className="conversation-messages p-4">
+              <AiNextActionCard
+                action={ticket.aiSuggestedAction}
+                ticketId={ticket.id}
+                onActionClick={handleActionClick}
+                isLoading={isLoadingOrderStatusDraft}
+              />
+              {aiDraft && (
+                  <AIMessageSuggestion
+                      draftContent={aiDraft.content}
+                      onApproveAndSendDraft={handleApproveAndSendDraft}
+                      onDiscard={() => setAiDraft(null)}
+                      isSubmitting={isSubmittingComment}
+                  />
+              )}
               <CommunicationHistory 
                 comments={conversationHistory} 
                 ticket={ticket} 
                 handleApproveAndSendDraft={handleApproveAndSendDraft} 
                 isSubmittingComment={isSubmittingComment}
-                viewMode={viewMode}
-              />
-            </div>
-          </div>
-          <div className="reply-form-wrapper">
-             <ReplyForm ticketId={ticket.id} senderEmail={ticket.senderEmail} orderNumber={ticket.orderNumber}
-                extractedStatus={extractedStatus} isSubmittingComment={isSubmittingComment} newComment={newComment}
-                setNewComment={setNewComment} isInternalNote={isInternalNote} setIsInternalNote={setIsInternalNote}
-                sendAsEmail={sendAsEmail} setSendAsEmail={setSendAsEmail} files={files} setFiles={setFiles}
-                handleCommentSubmit={handleCommentSubmit} insertSuggestedResponse={insertSuggestedResponse}
               />
           </div>
         </div>
-
-        <div className="ticket-sidebar-pane">
-          <div className="sidebar-content">
-            <TicketDetailsSidebar ticket={ticket} relatedQuote={relatedQuote} quoteAdminUrl={quoteAdminUrl} />
-            {(extractedStatus || extractedCarrier || extractedTracking) && (
-              <ShippingInfoSidebar 
-                extractedStatus={extractedStatus} 
-                extractedCarrier={extractedCarrier} 
-                extractedTracking={extractedTracking} 
-                extractedShipDate={extractedShipDate} 
-                extractedOrderDate={extractedOrderDate} 
+        <div className="reply-form-wrapper mt-auto">
+          <ReplyForm ticketId={ticket.id} senderEmail={ticket.senderEmail}
+              isSubmittingComment={isSubmittingComment} newComment={newComment}
+                setNewComment={setNewComment} isInternalNote={isInternalNote} setIsInternalNote={setIsInternalNote}
+                sendAsEmail={sendAsEmail} setSendAsEmail={setSendAsEmail} files={files} setFiles={setFiles}
+                handleCommentSubmit={handleCommentSubmit}
               />
-            )}
-          </div>
         </div>
       </main>
 
-      {/* Floating Quick Reply Button */}
-      {isScrolledDown && (
-        <Button
-          className="position-fixed bottom-0 end-0 m-4 rounded-circle shadow-lg"
-          style={{ zIndex: 1040, width: '60px', height: '60px' }}
-          variant="primary"
-                     onClick={() => {
-             (document.querySelector('textarea, [contenteditable]') as HTMLElement)?.focus();
-             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-           }}
-        >
-          <i className="fas fa-reply fa-lg"></i>
-        </Button>
-      )}
-    </div>
+      {/* Right Pane: Contextual Information */}
+      <aside className="inbox-context-pane">
+        <TicketDetailsSidebar ticket={ticket} relatedQuote={relatedQuote} quoteAdminUrl={quoteAdminUrl} />
+      </aside>
+    </>
   );
 }

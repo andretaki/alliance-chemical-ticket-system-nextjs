@@ -60,6 +60,8 @@ export async function POST(
       // reporterId: ticketFromDb.reporterId, // Assuming ticketFromDb has reporterId
       createdAt: ticketFromDb.createdAt.toISOString(),
       updatedAt: ticketFromDb.updatedAt.toISOString(),
+      firstResponseDueAt: ticketFromDb.firstResponseDueAt?.toISOString() || null,
+      resolutionDueAt: ticketFromDb.resolutionDueAt?.toISOString() || null,
       assignee: toTicketUser(ticketFromDb.assignee),
       reporter: toTicketUser(ticketFromDb.reporter)!, // This is TicketUser
       comments: ticketFromDb.comments.map(c => ({

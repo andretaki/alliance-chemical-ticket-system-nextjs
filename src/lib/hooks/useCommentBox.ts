@@ -1,25 +1,23 @@
 import { useState, useCallback, FormEvent } from 'react';
 import axios, { AxiosError } from 'axios';
 import toast from 'react-hot-toast';
-import { extractAISuggestionContent, isAISuggestionNote } from '@/utils/aiSuggestionHelpers';
 import type { AttachmentData, TicketComment as CommentData } from '@/types/ticket';
-
 
 interface UseCommentBoxProps {
     ticketId: number;
     refreshTicket: () => Promise<void>;
-    comments: CommentData[];
+    onSuccess?: () => void;
 }
 
-export function useCommentBox({ ticketId, refreshTicket, comments }: UseCommentBoxProps) {
+export function useCommentBox({ ticketId, refreshTicket, onSuccess }: UseCommentBoxProps) {
     const [newComment, setNewComment] = useState('');
     const [isInternalNote, setIsInternalNote] = useState(false);
     const [sendAsEmail, setSendAsEmail] = useState(true);
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
 
-    const handleCommentSubmit = useCallback(async (event: FormEvent) => {
-        event.preventDefault();
+    const handleCommentSubmit = useCallback(async (event?: FormEvent) => {
+        event?.preventDefault();
         if (!newComment.trim() && files.length === 0) return;
 
         setIsSubmittingComment(true);
@@ -50,6 +48,7 @@ export function useCommentBox({ ticketId, refreshTicket, comments }: UseCommentB
             setNewComment('');
             setFiles([]);
             refreshTicket();
+            onSuccess?.();
         } catch (error) {
             const errorMessage = error instanceof AxiosError
                 ? error.response?.data?.error || 'An unexpected error occurred.'
@@ -58,25 +57,14 @@ export function useCommentBox({ ticketId, refreshTicket, comments }: UseCommentB
         } finally {
             setIsSubmittingComment(false);
         }
-    }, [newComment, files, ticketId, isInternalNote, sendAsEmail, refreshTicket]);
+    }, [newComment, files, ticketId, isInternalNote, sendAsEmail, refreshTicket, onSuccess]);
 
     const handleApproveAndSendDraft = useCallback((draftText: string) => {
         setNewComment(draftText);
         setIsInternalNote(false);
         setSendAsEmail(true);
-        toast.success('AI suggestion moved to reply box. Review and send.');
-    }, []);
-    
-    const insertSuggestedResponse = useCallback(() => {
-        const aiSuggestion = [...comments].reverse().find(c => isAISuggestionNote(c.commentText));
-        if (aiSuggestion?.commentText) {
-          setNewComment(extractAISuggestionContent(aiSuggestion.commentText));
-          setIsInternalNote(false);
-          setSendAsEmail(true);
-          toast.success('AI suggestion added to reply box.');
-        }
-    }, [comments]);
-
+        toast.success('AI suggestion moved to reply box. Review and send.'); // This toast remains as it's a direct user action
+    }, [setNewComment, setIsInternalNote, setSendAsEmail]);
 
     return {
         newComment,
@@ -90,6 +78,5 @@ export function useCommentBox({ ticketId, refreshTicket, comments }: UseCommentB
         setFiles,
         handleCommentSubmit,
         handleApproveAndSendDraft,
-        insertSuggestedResponse,
     };
 } 

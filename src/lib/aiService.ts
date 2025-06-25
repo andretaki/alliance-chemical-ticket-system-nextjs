@@ -62,7 +62,7 @@ export interface EmailAnalysisResult {
     intent: 'order_status_inquiry' | 'tracking_request' | 'return_request' | 'order_issue' | 'documentation_request' | 'quote_request' | 'purchase_order_submission' | 'general_inquiry' | 'other' | null;
     suggestedRoleOrKeywords: string | null; // NEW: For assignee suggestion
     suggestedReply?: string | null; // NEW: Field for AI suggested reply
-    suggestedAction?: "CREATE_QUOTE" | "CHECK_ORDER_STATUS" | "DOCUMENT_REQUEST" | "GENERAL_REPLY";
+    suggestedAction?: "CREATE_QUOTE" | "CHECK_ORDER_STATUS" | "DOCUMENT_REQUEST" | "GENERAL_REPLY" | null;
 }
 
 // --- Configure Generation Settings ---
@@ -231,7 +231,7 @@ export async function analyzeEmailContent(subject: string, body: string): Promis
         10. For documentation requests, determine the specific **documentType** (SDS, COA, COC):
             * SDS = Safety Data Sheet, MSDS, Material Safety Data Sheet, safety documentation
             * COA = Certificate of Analysis, Analysis Certificate, Lab Results, Test Results
-            * COC = Certificate of Conformity, Certificate of Compliance, Conformity Certificate
+            * COC = Certificate of Conformity, Certificate of Conformance, Conformity Certificate
             * For any other document type, set documentType to "OTHER" and extract the specific document name into documentName field
             * Provide your confidence level in this determination as "documentRequestConfidence" (high, medium, low)
         11. Identify keywords or the user role best suited to handle this request (e.g., 'shipping', 'billing', 'coa_request', 'sds_request', 'technical_support', 'sales'). Return this as **suggestedRoleOrKeywords** (string or null).
@@ -262,7 +262,7 @@ export async function analyzeEmailContent(subject: string, body: string): Promis
           "documentName": "..." | null,
           "suggestedRoleOrKeywords": "..." | null,
           "suggestedReply": "..." | null,
-          "suggestedAction": "..." | null
+          "suggestedAction": "CREATE_QUOTE" | "CHECK_ORDER_STATUS" | "DOCUMENT_REQUEST" | "GENERAL_REPLY" | null
         }
     `;
 

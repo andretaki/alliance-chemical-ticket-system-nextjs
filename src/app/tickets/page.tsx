@@ -22,7 +22,7 @@ export default async function TicketsPage() {
       <div className="pt-3 pb-2 mb-3">
         <h1 className="h2 fw-bold">All Tickets</h1>
       </div>
-      <TicketListClient />
+      <TicketListClient showSearch={true} />
     </main>
   );
 } 

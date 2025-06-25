@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef } from 'react';
 import axios, { AxiosError } from 'axios';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import TicketDisplay from './TicketDisplay';
 import { ticketStatusEnum, ticketPriorityEnum } from '@/db/schema';
@@ -38,6 +39,7 @@ interface TicketListClientProps {
 }
 
 interface DebounceTimeoutRef extends NodeJS.Timeout {}
+type FilterPreset = 'all' | 'my_tickets' | 'unassigned';
 
 export default function TicketListClient({ limit, showSearch = true }: TicketListClientProps) {
   const [tickets, setTickets] = useState<TicketListEntry[]>([]);
@@ -45,12 +47,14 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   const [isApplyingFilters, setIsApplyingFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
+  const { data: session } = useSession();
   const [realtimeStatus, setRealtimeStatus] = useState<'polling' | 'sse' | 'disabled'>('polling');
 
   // Filter states
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
+  const [activeFilterPreset, setActiveFilterPreset] = useState<FilterPreset>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Sorting states
@@ -78,7 +82,14 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
       const params = new URLSearchParams();
       if (statusFilter) params.append('status', statusFilter);
       if (priorityFilter) params.append('priority', priorityFilter);
-      if (assigneeFilter) params.append('assigneeId', assigneeFilter);
+      if (activeFilterPreset === 'my_tickets' && session?.user?.id) {
+        params.append('assigneeId', session.user.id);
+      } else if (activeFilterPreset === 'unassigned') {
+        params.append('assigneeId', 'unassigned');
+      } else if (assigneeFilter) {
+        params.append('assigneeId', assigneeFilter);
+      }
+
       if (searchTerm.trim()) params.append('search', searchTerm.trim());
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
@@ -99,7 +110,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
         setIsApplyingFilters(false);
       }
     }
-  }, [statusFilter, priorityFilter, assigneeFilter, searchTerm, sortBy, sortOrder, limit]);
+  }, [statusFilter, priorityFilter, assigneeFilter, activeFilterPreset, session, searchTerm, sortBy, sortOrder, limit]);
 
   const fetchTicketsRef = useRef(fetchTickets);
   fetchTicketsRef.current = fetchTickets;

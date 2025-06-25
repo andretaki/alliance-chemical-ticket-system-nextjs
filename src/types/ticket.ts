@@ -55,7 +55,14 @@ export interface Ticket {
   sentiment?: 'positive' | 'neutral' | 'negative' | null;
   ai_summary?: string | null;
   ai_suggested_assignee_id?: string | null;
+  aiSuggestedAction?: 'CREATE_QUOTE' | 'CHECK_ORDER_STATUS' | 'DOCUMENT_REQUEST' | 'GENERAL_REPLY' | null;
   aiSuggestedAssignee?: TicketUser | null;
+
+  // SLA related fields (optional)
+  slaPolicyId?: number | null;
+  firstResponseDueAt?: string | null;
+  resolutionDueAt?: string | null;
+  slaBreached?: boolean;
 
   // Relational data
   comments: TicketComment[];

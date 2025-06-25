@@ -147,6 +147,9 @@ export const tickets = ticketingProdSchema.table('tickets', {
   ai_summary: text('ai_summary'),
   ai_suggested_assignee_id: text('ai_suggested_assignee_id').references(() => users.id, { onDelete: 'set null' }),
   sendercompany: varchar('sender_company', { length: 255 }),
+
+  // --- NEW AI-related field ---
+  aiSuggestedAction: aiSuggestedActionEnum('ai_suggested_action'),
   // Shipping address fields
   shippingName: varchar('shipping_name', { length: 255 }),
   shippingCompany: varchar('shipping_company', { length: 255 }),
@@ -169,9 +172,6 @@ export const tickets = ticketingProdSchema.table('tickets', {
   resolutionDueAt: timestamp('resolution_due_at', { withTimezone: true }),
   slaBreached: boolean('sla_breached').default(false).notNull(),
   slaNotified: boolean('sla_notified').default(false).notNull(), // To prevent multiple notifications
-
-  // --- NEW AI-related field ---
-  aiSuggestedAction: aiSuggestedActionEnum('ai_suggested_action'),
 
 }, (table) => {
   return {

@@ -1351,8 +1351,73 @@ MODERN FORM SYSTEM - Scoped to avoid conflicts
 }
 
 /* =================================================================
-   OUTLOOK-STYLE TICKET VIEW - ENTERPRISE LAYOUT SYSTEM
+   ENTERPRISE INBOX LAYOUT (3-Pane)
 ================================================================= */
+.inbox-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr 380px; /* Sidebar, Main, Context */
+  grid-template-rows: 1fr;
+  height: calc(100vh - 64px); /* Full height minus navbar */
+  width: 100%;
+  overflow: hidden;
+  gap: 0;
+}
+
+.inbox-sidebar-pane {
+  background: var(--background-secondary);
+  border-right: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.inbox-main-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Main pane manages its own scroll */
+}
+
+.inbox-context-pane {
+  background: var(--background-tertiary);
+  border-left: 1px solid var(--card-border);
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* Responsive adjustments for inbox layout */
+@media (max-width: 1400px) {
+  .inbox-layout {
+    grid-template-columns: 280px 1fr 340px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .inbox-layout {
+    grid-template-columns: 250px 1fr; /* Hide context pane */
+  }
+  .inbox-context-pane {
+    display: none; /* Or implement as a slide-over panel */
+  }
+}
+
+@media (max-width: 768px) {
+  .inbox-layout {
+    grid-template-columns: 1fr; /* Single column */
+    height: auto;
+  }
+  .inbox-sidebar-pane {
+    /* This would be hidden by default and shown via a button on mobile */
+    display: none; 
+  }
+  .inbox-main-pane {
+    height: auto;
+    overflow-y: visible;
+  }
+}
+
+/* =================================================================
+   OUTLOOK-STYLE TICKET VIEW - ENTERPRISE LAYOUT SYSTEM
+ ================================================================= */
 .ticket-view-page {
   display: flex;
   flex-direction: column;
