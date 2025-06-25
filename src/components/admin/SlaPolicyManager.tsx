@@ -22,7 +22,7 @@ export default function SlaPolicyManager() {
   const [editingPolicy, setEditingPolicy] = useState<SlaPolicy | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    priority: 'medium' as const,
+    priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
     firstResponseMinutes: 60,
     resolutionMinutes: 480,
     isActive: true
@@ -92,7 +92,7 @@ export default function SlaPolicyManager() {
   const resetForm = () => {
     setFormData({
       name: '',
-      priority: 'medium',
+      priority: 'medium' as 'low' | 'medium' | 'high' | 'urgent',
       firstResponseMinutes: 60,
       resolutionMinutes: 480,
       isActive: true
