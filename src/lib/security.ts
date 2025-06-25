@@ -1,5 +1,6 @@
 import DOMPurify from 'isomorphic-dompurify';
 import { z } from 'zod';
+import crypto from 'crypto';
 
 // Input validation schemas
 export const securitySchemas = {
@@ -52,6 +53,39 @@ export class SecurityValidator {
       ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'u', 'br', 'p'],
       ALLOWED_ATTR: [],
       KEEP_CONTENT: true,
+    });
+  }
+
+  /**
+   * Strict HTML sanitization for AI-generated content and untrusted sources
+   */
+  static strictSanitizeHtml(input: string): string {
+    return DOMPurify.sanitize(input, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em'],
+      ALLOWED_ATTR: [],
+      KEEP_CONTENT: true,
+      FORBID_ATTR: ['style', 'class', 'id'],
+      FORBID_TAGS: ['script', 'object', 'embed', 'link', 'style', 'img'],
+      USE_PROFILES: { html: true }
+    });
+  }
+
+  /**
+   * Sanitize email content with balanced security and functionality
+   */
+  static sanitizeEmailContent(input: string): string {
+    return DOMPurify.sanitize(input, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'b', 'i', 'ul', 'ol', 'li', 'div', 'span'],
+      ALLOWED_ATTR: ['class'],
+      KEEP_CONTENT: true,
+      FORBID_ATTR: ['style', 'id', 'onclick', 'onload', 'onerror'],
+      FORBID_TAGS: ['script', 'object', 'embed', 'link', 'style', 'img', 'iframe'],
+      ADD_ATTR: ['target'],
+      ADD_TAGS: ['a'],
+      CUSTOM_ELEMENT_HANDLING: {
+        tagNameCheck: /^[a-z][a-z0-9]*$/,
+        attributeNameCheck: /^[a-z][a-z0-9]*$/,
+      }
     });
   }
 
@@ -211,6 +245,64 @@ export class SecurityValidator {
   }
 
   /**
+   * Advanced file validation with signature checking
+   */
+  static async validateFileSignature(file: File): Promise<{ isValid: boolean; detectedType?: string; errors: string[] }> {
+    const errors: string[] = [];
+    
+    try {
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      
+      // Check file signatures (magic numbers)
+      const signatures = {
+        'image/jpeg': [0xFF, 0xD8, 0xFF],
+        'image/png': [0x89, 0x50, 0x4E, 0x47],
+        'image/gif': [0x47, 0x49, 0x46],
+        'application/pdf': [0x25, 0x50, 0x44, 0x46],
+        'application/zip': [0x50, 0x4B], // Also covers Office docs
+      };
+
+      let detectedType: string | undefined;
+      
+      for (const [mimeType, signature] of Object.entries(signatures)) {
+        if (signature.every((byte, index) => bytes[index] === byte)) {
+          detectedType = mimeType;
+          break;
+        }
+      }
+
+      // Special handling for Office documents (they're ZIP files)
+      if (detectedType === 'application/zip' && file.name.match(/\.(docx|xlsx|pptx)$/i)) {
+        detectedType = file.type; // Trust the declared type for Office docs
+      }
+
+      // Validate that detected type matches declared type
+      if (detectedType && detectedType !== file.type && !file.type.includes('officedocument')) {
+        errors.push(`File signature mismatch: detected ${detectedType}, declared ${file.type}`);
+      }
+
+      // Check for potentially dangerous embedded content
+      const fileContent = new TextDecoder('utf-8', { fatal: false }).decode(bytes.slice(0, 1024));
+      if (fileContent.includes('<script') || fileContent.includes('javascript:') || fileContent.includes('data:')) {
+        errors.push('File contains potentially malicious content');
+      }
+
+      return {
+        isValid: errors.length === 0,
+        detectedType,
+        errors
+      };
+    } catch (error) {
+      errors.push('Failed to validate file signature');
+      return {
+        isValid: false,
+        errors
+      };
+    }
+  }
+
+  /**
    * Generate secure random token
    */
   static generateSecureToken(length: number = 32): string {
@@ -257,6 +349,169 @@ export class SecurityValidator {
   static generateRateLimitKey(ip: string, endpoint: string, userId?: string): string {
     const baseKey = `${ip}:${endpoint}`;
     return userId ? `${baseKey}:${userId}` : baseKey;
+  }
+
+  /**
+   * Generate CSRF token
+   */
+  static generateCSRFToken(): string {
+    return this.generateSecureToken(32);
+  }
+
+  /**
+   * Validate CSRF token from request headers
+   */
+  static validateCSRFToken(request: Request, expectedToken: string): boolean {
+    const tokenFromHeader = request.headers.get('x-csrf-token');
+    const tokenFromForm = request.headers.get('x-requested-with');
+    
+    // Check for explicit CSRF token or XHR header
+    return (tokenFromHeader === expectedToken) || (tokenFromForm === 'XMLHttpRequest');
+  }
+
+  /**
+   * CSRF protection middleware for API routes
+   */
+  static withCSRFProtection(handler: (req: Request) => Promise<Response>) {
+    return async (request: Request): Promise<Response> => {
+      // Skip CSRF for GET, HEAD, OPTIONS requests
+      if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+        return handler(request);
+      }
+
+      // Check for CSRF token or XHR header
+      const hasCSRFToken = request.headers.get('x-csrf-token');
+      const isXHR = request.headers.get('x-requested-with') === 'XMLHttpRequest';
+      const hasOrigin = request.headers.get('origin');
+
+      if (!hasCSRFToken && !isXHR && hasOrigin) {
+        return new Response('CSRF token required', { status: 403 });
+      }
+
+      return handler(request);
+    };
+  }
+
+  /**
+   * Validate email content for processing
+   */
+  static validateEmailContent(content: string): { isValid: boolean; sanitized: string; errors: string[] } {
+    const errors: string[] = [];
+    let sanitized = content;
+
+    // Check for suspicious patterns in email content
+    const suspiciousPatterns = [
+      /eval\s*\(/gi,
+      /function\s*\(/gi,
+      /onclick\s*=/gi,
+      /onload\s*=/gi,
+      /onerror\s*=/gi,
+      /javascript:/gi,
+      /<script[\s\S]*?>[\s\S]*?<\/script>/gi,
+      /<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi,
+      /data:text\/html/gi,
+      /vbscript:/gi
+    ];
+
+    for (const pattern of suspiciousPatterns) {
+      if (pattern.test(content)) {
+        errors.push(`Suspicious pattern detected: ${pattern.source}`);
+      }
+    }
+
+    // Sanitize the content
+    sanitized = this.sanitizeEmailContent(content);
+
+    // Additional length check to prevent DoS
+    if (content.length > 100000) { // 100KB limit
+      errors.push('Email content exceeds maximum length');
+      sanitized = content.substring(0, 100000) + '... [truncated]';
+    }
+
+    return {
+      isValid: errors.length === 0,
+      sanitized,
+      errors
+    };
+  }
+
+  /**
+   * Generate secure webhook signature
+   */
+  static generateWebhookSignature(payload: string, secret: string): string {
+    return crypto.createHmac('sha256', secret).update(payload).digest('hex');
+  }
+
+  /**
+   * Verify webhook signature
+   */
+  static verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
+    const expectedSignature = this.generateWebhookSignature(payload, secret);
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
+    );
+  }
+
+  /**
+   * Secure token comparison to prevent timing attacks
+   */
+  static secureCompare(a: string, b: string): boolean {
+    if (a.length !== b.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  }
+
+  /**
+   * Validate cron job authentication with enhanced security
+   */
+  static validateCronAuth(request: Request): { isValid: boolean; error?: string } {
+    const authHeader = request.headers.get('authorization');
+    const expectedToken = process.env.CRON_SECRET;
+    
+    if (!expectedToken) {
+      return { isValid: false, error: 'CRON_SECRET not configured' };
+    }
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { isValid: false, error: 'Invalid authorization header format' };
+    }
+    
+    const token = authHeader.substring(7);
+    
+    if (!this.secureCompare(token, expectedToken)) {
+      return { isValid: false, error: 'Invalid cron token' };
+    }
+    
+    return { isValid: true };
+  }
+
+  /**
+   * Enhanced API key validation with security features
+   */
+  static validateApiKeyWithAuth(
+    request: Request, 
+    expectedKey: string | undefined,
+    identifier: string = 'api-key-validation'
+  ): { isValid: boolean; error?: string } {
+    if (!expectedKey) {
+      return { isValid: false, error: 'API key not configured' };
+    }
+    
+    const providedKey = request.headers.get('x-api-key');
+    
+    if (!providedKey) {
+      return { isValid: false, error: 'API key header missing' };
+    }
+    
+    if (!this.secureCompare(providedKey, expectedKey)) {
+      // Log failed attempts for security monitoring
+      console.warn(`[Security] Failed API key validation from ${request.headers.get('x-forwarded-for')} for ${identifier}`);
+      return { isValid: false, error: 'Invalid API key' };
+    }
+    
+    return { isValid: true };
   }
 }
 

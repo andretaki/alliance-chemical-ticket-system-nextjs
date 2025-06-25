@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { kv } from '@vercel/kv';
 import { processSingleEmail } from '@/lib/emailProcessor';
 import * as graphService from '@/lib/graphService';
+import { SecurityValidator } from '@/lib/security';
 
 const EMAIL_QUEUE_KEY = 'email-processing-queue';
 const BATCH_SIZE = 10; // Number of emails to process per cron run
@@ -21,9 +22,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Security check for cron job
-  const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Enhanced security check for cron job
+  const authResult = SecurityValidator.validateCronAuth(request);
+  if (!authResult.isValid) {
+    console.warn(`[Security] Unauthorized cron access attempt: ${authResult.error}`);
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   }
 

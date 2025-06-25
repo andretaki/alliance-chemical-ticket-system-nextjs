@@ -113,32 +113,22 @@ export const authOptions: AuthOptions = {
       name: process.env.NODE_ENV === 'production' ? `__Secure-next-auth.session-token` : `next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',
+        sameSite: 'strict',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // domain: process.env.NODE_ENV === 'production' ? '.yourproductiondomain.com' : undefined,
+        domain: process.env.NODE_ENV === 'production' ? '.alliancechemical.com' : undefined,
+        maxAge: 30 * 24 * 60 * 60,
       },
     },
-    // Example for callbackUrl cookie, if you want to customize it
-    // callbackUrl: {
-    //   name: process.env.NODE_ENV === 'production' ? `__Secure-next-auth.callback-url` : `next-auth.callback-url`,
-    //   options: {
-    //     httpOnly: true,
-    //     sameSite: 'lax',
-    //     path: '/',
-    //     secure: process.env.NODE_ENV === 'production',
-    //   }
-    // },
-    // Example for CSRF token cookie, if you want to customize it
-    // csrfToken: {
-    //   name: process.env.NODE_ENV === 'production' ? `__Host-next-auth.csrf-token` : `next-auth.csrf-token`,
-    //   options: {
-    //     httpOnly: true,
-    //     sameSite: 'lax',
-    //     path: '/',
-    //     secure: process.env.NODE_ENV === 'production',
-    //   }
-    // }
+    csrfToken: {
+      name: process.env.NODE_ENV === 'production' ? `__Host-next-auth.csrf-token` : `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'strict',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      }
+    },
   },
   session: {
     strategy: 'jwt' as SessionStrategy,

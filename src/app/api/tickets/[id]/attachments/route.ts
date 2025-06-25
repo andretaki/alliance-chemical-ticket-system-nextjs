@@ -8,6 +8,7 @@ import { authOptions } from '@/lib/authOptions';
 import path from 'path';
 import crypto from 'crypto';
 import { put } from '@vercel/blob';
+import { SecurityValidator } from '@/lib/security';
 
 // Vercel serverless limits
 const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (Vercel payload limit)
@@ -62,26 +63,44 @@ export async function POST(
     const validationErrors: string[] = [];
     let totalSize = 0;
 
-    for (const [index, file] of files.entries()) {
+    for (const file of files) {
       // Check individual file size
       if (file.size > MAX_FILE_SIZE) {
-        validationErrors.push(`File ${index + 1} (${file.name}) exceeds maximum size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+        validationErrors.push(`File ${file.name} exceeds maximum size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
         continue;
       }
 
       // Check MIME type
       if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-        validationErrors.push(`File ${index + 1} (${file.name}) has unsupported type: ${file.type}`);
+        validationErrors.push(`File ${file.name} has unsupported type: ${file.type}`);
         continue;
       }
 
       // Check filename
       if (!file.name || file.name.length > 255) {
-        validationErrors.push(`File ${index + 1} has invalid name`);
+        validationErrors.push(`File ${file.name} has invalid name`);
         continue;
       }
 
       totalSize += file.size;
+
+      // Validate each file with signature checking
+      const basicValidation = SecurityValidator.validateFileUpload(file, {
+        maxSize: MAX_FILE_SIZE,
+        allowedTypes: ALLOWED_MIME_TYPES,
+        allowedExtensions: ['.jpg', '.jpeg', '.png', '.gif', '.pdf', '.docx', '.xlsx']
+      });
+      
+      if (!basicValidation.isValid) {
+        validationErrors.push(...basicValidation.errors);
+        continue;
+      }
+      
+      const signatureValidation = await SecurityValidator.validateFileSignature(file);
+      if (!signatureValidation.isValid) {
+        validationErrors.push(...signatureValidation.errors);
+        continue;
+      }
     }
 
     // Check total size for batch
