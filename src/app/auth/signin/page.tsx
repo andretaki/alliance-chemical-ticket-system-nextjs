@@ -21,7 +21,7 @@ function SignInForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [signInError, setSignInError] = useState<string | null>(error);
+  const [signInError, setSignInError] = useState<string | null>(error || null);
 
   // To handle other providers like Google, GitHub, etc., if you add them later
   const [providers, setProviders] = useState<Record<string, Provider> | null>(null);
