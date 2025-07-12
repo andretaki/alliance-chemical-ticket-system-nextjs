@@ -1,18 +1,50 @@
 import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
+import { auth } from '@/lib/auth';
 
-interface AppToken {
+interface AppUser {
+  id: string;
   role?: string;
   email?: string;
-  // Add other properties from your token as needed
+  approvalStatus?: string;
 }
 
-// Simpler direct middleware implementation without withAuth wrapper
+// Better Auth middleware implementation
 export async function middleware(req: NextRequest) {
-  const token = await getToken({ req }) as AppToken | null; // Cast to AppToken
-  const isAuthenticated = !!token;
   const pathname = req.nextUrl.pathname;
+
+  // Skip auth check for API routes and static files
+  if (pathname.startsWith('/api/auth') || 
+      pathname.startsWith('/_next') || 
+      pathname.startsWith('/favicon.ico') ||
+      pathname.startsWith('/assets') ||
+      pathname.startsWith('/public')) {
+    return NextResponse.next();
+  }
+
+  // Get session from Better Auth
+  let user: AppUser | null = null;
+  let isAuthenticated = false;
+
+  try {
+    // Better Auth session validation
+    const sessionToken = req.cookies.get('better-auth.session_token')?.value;
+    if (sessionToken) {
+      // Validate session with Better Auth
+      const session = await auth.api.getSession({
+        headers: {
+          'cookie': req.headers.get('cookie') || '',
+        },
+      });
+      
+      if (session?.user) {
+        user = session.user as AppUser;
+        isAuthenticated = true;
+      }
+    }
+  } catch (error) {
+    console.error('Session validation error:', error);
+  }
 
   console.log(`Middleware running for ${pathname}, auth status: ${isAuthenticated}`);
 
@@ -45,9 +77,9 @@ export async function middleware(req: NextRequest) {
   const isQuoteCreatorRoute = pathname.startsWith('/quotes/create');
 
   // Check admin access
-  if (isAdminRoute && isAuthenticated && token) {
-    if (token.role !== 'admin') {
-      console.log(`RBAC: User '${token.email}' (role: '${token.role}') denied access to admin route '${pathname}'.`);
+  if (isAdminRoute && isAuthenticated && user) {
+    if (user.role !== 'admin') {
+      console.log(`RBAC: User '${user.email}' (role: '${user.role}') denied access to admin route '${pathname}'.`);
       const homeUrl = new URL('/', req.url);
       homeUrl.searchParams.set('error', 'AccessDenied');
       return NextResponse.redirect(homeUrl);
@@ -55,10 +87,10 @@ export async function middleware(req: NextRequest) {
   }
 
   // Check quote creator access
-  if (isQuoteCreatorRoute && isAuthenticated && token) {
+  if (isQuoteCreatorRoute && isAuthenticated && user) {
     const allowedRoles = ['admin', 'user'];
-    if (!token.role || !allowedRoles.includes(token.role)) {
-      console.log(`RBAC: User '${token.email}' (role: '${token.role}') denied access to quote creator route '${pathname}'.`);
+    if (!user.role || !allowedRoles.includes(user.role)) {
+      console.log(`RBAC: User '${user.email}' (role: '${user.role}') denied access to quote creator route '${pathname}'.`);
       const homeUrl = new URL('/', req.url);
       homeUrl.searchParams.set('error', 'AccessDenied');
       return NextResponse.redirect(homeUrl);

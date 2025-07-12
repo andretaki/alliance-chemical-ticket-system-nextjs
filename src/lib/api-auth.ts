@@ -1,6 +1,6 @@
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 
 /**
  * Helper function to handle authentication for API routes
@@ -9,7 +9,14 @@ import { NextResponse } from 'next/server';
  */
 export async function getAuthenticatedSession() {
   try {
-    const session = await getServerSession(authOptions);
+    const headersList = headers();
+    const cookieHeader = headersList.get('cookie');
+    
+    const session = await auth.api.getSession({
+      headers: {
+        'cookie': cookieHeader || '',
+      },
+    });
     
     if (!session?.user?.id) {
       return { 
@@ -32,6 +39,26 @@ export async function getAuthenticatedSession() {
       error 
     };
   }
+}
+
+/**
+ * Helper function to require authentication for API routes
+ * Returns a NextResponse with 401 if not authenticated
+ */
+export async function requireAuth() {
+  const { authenticated, session, error } = await getAuthenticatedSession();
+  
+  if (!authenticated) {
+    return {
+      response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+      session: null
+    };
+  }
+  
+  return {
+    response: null,
+    session
+  };
 }
 
 /**

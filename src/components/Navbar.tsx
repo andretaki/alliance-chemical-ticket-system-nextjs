@@ -3,27 +3,29 @@
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation'; // Added for programmatic navigation after logout
 
 export default function Navbar() {
-    const { data: session, status } = useSession();
-    const isAuthenticated = status === 'authenticated';
+    const { data: session, isPending } = useSession();
+    const isAuthenticated = !!session?.user;
     const router = useRouter(); // Added for programmatic navigation
 
     useEffect(() => {
-        // console.log('Navbar Session State:', { status, session }); // Keep for debugging if needed
-    }, [status, session]);
+        // console.log('Navbar Session State:', { isPending, session }); // Keep for debugging if needed
+    }, [isPending, session]);
 
     const handleLogout = async () => {
         try {
             // console.log('Logout clicked'); // Keep for debugging if needed
-            await signOut({ 
-                redirect: false, // Handle redirect manually to ensure it works in all environments
-                // callbackUrl: '/' // Can be set, but manual redirect offers more control
+            await signOut({
+                fetchOptions: {
+                    onSuccess: () => {
+                        router.push('/'); // Redirect to home page after logout
+                    },
+                },
             });
             // console.log('Sign out successful, redirecting to /'); // Keep for debugging
-            router.push('/'); // Redirect to home page after logout
         } catch (error) {
             console.error('Error during logout:', error);
         }

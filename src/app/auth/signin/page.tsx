@@ -1,15 +1,9 @@
 'use client'; // This will be a client component to handle form submission
 
-import { signIn, getProviders } from 'next-auth/react';
+import { signIn } from '@/lib/auth-client';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-
-// Fix provider types
-type Provider = {
-  id: string;
-  name: string;
-};
 
 // Create a separate component for the sign-in form that uses useSearchParams
 function SignInForm() {
@@ -22,17 +16,6 @@ function SignInForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(error || null);
-
-  // To handle other providers like Google, GitHub, etc., if you add them later
-  const [providers, setProviders] = useState<Record<string, Provider> | null>(null);
-
-  useEffect(() => {
-    const fetchProviders = async () => {
-      const res = await getProviders();
-      setProviders(res);
-    };
-    fetchProviders();
-  }, []);
 
   const getErrorMessage = (errorType: string) => {
     switch (errorType) {
@@ -49,6 +32,7 @@ function SignInForm() {
           message: 'Your account access has been denied. Please contact andre@alliancechemical.com for assistance.'
         };
       case 'CredentialsSignin':
+      case 'INVALID_CREDENTIALS':
         return {
           type: 'danger',
           title: 'Invalid Credentials',
@@ -68,23 +52,25 @@ function SignInForm() {
     setLoading(true);
     setSignInError(null);
 
-    const result = await signIn('credentials', {
-      redirect: false, // We'll handle redirect manually
-      email,
-      password,
-      callbackUrl: callbackUrl,
-    });
+    try {
+      const result = await signIn.email({
+        email,
+        password,
+        callbackURL: callbackUrl,
+      });
 
-    setLoading(false);
-
-    if (result?.error) {
-      setSignInError(result.error);
-      console.error("Sign-in error:", result.error);
-    } else if (result?.ok && result.url) {
-      // Successfully signed in
-      router.push(result.url); // Redirect to callbackUrl or dashboard
-    } else if (result?.ok) {
+      if (result.error) {
+        setSignInError(result.error.message || 'INVALID_CREDENTIALS');
+        console.error("Sign-in error:", result.error);
+      } else {
+        // Successfully signed in
         router.push(callbackUrl);
+      }
+    } catch (error: any) {
+      setSignInError(error.message || 'An unexpected error occurred');
+      console.error("Sign-in error:", error);
+    } finally {
+      setLoading(false);
     }
   };
 

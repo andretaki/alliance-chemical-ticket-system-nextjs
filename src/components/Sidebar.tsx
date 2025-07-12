@@ -3,18 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession, signOut } from '@/lib/auth-client';
 import { usePathname, useRouter } from 'next/navigation';
 
 export default function Sidebar() {
-    const { data: session, status } = useSession();
+    const { data: session, isPending } = useSession();
     const pathname = usePathname();
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
 
-    const isAdmin = status === 'authenticated' && session?.user?.role === 'admin';
-    const isAuthenticated = status === 'authenticated';
+    const isAdmin = session?.user?.role === 'admin';
+    const isAuthenticated = !!session?.user;
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -26,8 +26,13 @@ export default function Sidebar() {
 
     const handleLogout = async () => {
         try {
-            await signOut({ redirect: false, callbackUrl: '/' });
-            router.push('/');
+            await signOut({
+                fetchOptions: {
+                    onSuccess: () => {
+                        router.push('/');
+                    },
+                },
+            });
         } catch (error) {
             console.error('Error during logout:', error);
         }
@@ -63,7 +68,7 @@ export default function Sidebar() {
         );
     };
 
-    if (status === 'loading') {
+    if (isPending) {
         return (
             <div className={`sticky top-0 h-screen flex-shrink-0 bg-background-secondary border-r border-white/10 z-50 flex items-center justify-center transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-72'}`}>
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

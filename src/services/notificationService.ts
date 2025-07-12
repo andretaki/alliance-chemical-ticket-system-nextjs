@@ -1,4 +1,5 @@
 import type { SimpleQuoteEmailData } from '@/types/quoteInterfaces';
+import { sendNotificationEmail } from '@/lib/email';
 
 interface EmailParams {
   to: string;
@@ -14,28 +15,34 @@ export class NotificationService {
   private readonly agentSenderEmail = process.env.AGENT_SENDER_EMAIL || 'quotes@alliancechemical.com';
 
   constructor() {
-    // Initialize email client
+    // Email client is handled by the Microsoft Graph integration
   }
 
   private async sendEmail(params: EmailParams): Promise<void> {
-    const { to, subject, text, html, from = this.agentSenderEmail, headers } = params;
+    const { to, subject, text, html } = params;
     
-    console.log(`[NotificationService] Sending email to: ${to}`);
+    console.log(`[NotificationService] Sending email via Microsoft Graph to: ${to}`);
     console.log(`  Subject: ${subject}`);
-    console.log(`  From: ${from}`);
     console.log(`  Body Preview: ${text.substring(0, 200)}...`);
 
-    // TODO: Implement actual email sending logic here
-    // For now, we'll just log it
-    // Example implementation:
-    // await this.emailClient.send({
-    //   to,
-    //   from,
-    //   subject,
-    //   text,
-    //   html,
-    //   headers
-    // });
+    try {
+      // Use the Microsoft Graph email infrastructure
+      const success = await sendNotificationEmail({
+        recipientEmail: to,
+        subject,
+        htmlBody: html || text.replace(/\n/g, '<br>'),
+        senderName: 'Alliance Chemical'
+      });
+
+      if (!success) {
+        throw new Error('Failed to send email via Microsoft Graph');
+      }
+
+      console.log(`[NotificationService] Email sent successfully via Microsoft Graph to: ${to}`);
+    } catch (error) {
+      console.error(`[NotificationService] Failed to send email via Microsoft Graph to ${to}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -73,20 +80,30 @@ export class NotificationService {
     body += `If you have any questions, please reply to this email or contact us at ${this.salesTeamEmail}.\n\n`;
     body += `Sincerely,\nAlliance Chemical Automated Quoting Assistant`;
 
-    console.log(`[NotificationService] STUB: Sending Simple Quote Email to: ${recipientEmail}`);
+    console.log(`[NotificationService] Sending Simple Quote Email to: ${recipientEmail}`);
     console.log(`  Subject: ${subject}`);
     console.log(`  Body Preview: ${body.substring(0, 200)}...`);
 
-    // Actual email sending logic here:
-    // await this.emailClient.send({
-    //   to: recipientEmail,
-    //   from: this.agentSenderEmail,
-    //   subject,
-    //   text: body,
-    //   // html: this.generateHtmlQuoteEmail(quoteData) // Optional HTML version
-    //   // headers: originalEmailIdToThread ? { 'In-Reply-To': `<${originalEmailIdToThread}>`, 'References': `<${originalEmailIdToThread}>` } : {}
-    // });
-    return true;
+    try {
+      // Generate HTML version of the quote
+      const htmlBody = this.generateHtmlQuoteEmail(quoteData);
+      
+      await this.sendEmail({
+        to: recipientEmail,
+        subject,
+        text: body,
+        html: htmlBody,
+        headers: originalEmailIdToThread ? { 
+          'In-Reply-To': `<${originalEmailIdToThread}>`, 
+          'References': `<${originalEmailIdToThread}>` 
+        } : {}
+      });
+      
+      return true;
+    } catch (error) {
+      console.error(`[NotificationService] Failed to send simple quote email to ${recipientEmail}:`, error);
+      return false;
+    }
   }
 
   /**
@@ -157,5 +174,83 @@ Alliance Chemical Credit Department
 
   public async handleCreditApplicationRequest(email: string, customerName?: string): Promise<void> {
     await this.sendCreditApplicationEmail(email, customerName);
+  }
+
+  /**
+   * Generates HTML version of quote email for better formatting
+   */
+  private generateHtmlQuoteEmail(quoteData: SimpleQuoteEmailData): string {
+    const items = quoteData.items.map(item => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #eee;">
+          <strong>${item.productName}</strong>
+          ${item.sku ? `<br><small>SKU: ${item.sku}</small>` : ''}
+          ${item.pageUrl ? `<br><a href="${item.pageUrl}" style="color: #0066cc;">View Product</a>` : ''}
+        </td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">
+          ${item.quantity} ${item.unit}
+        </td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">
+          ${item.currency} ${item.unitPrice.toFixed(2)}
+        </td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">
+          <strong>${item.currency} ${item.totalPrice.toFixed(2)}</strong>
+        </td>
+      </tr>
+    `).join('');
+
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+          <h2 style="color: #333; margin-top: 0;">Your Quote from Alliance Chemical</h2>
+          <p style="color: #666; margin-bottom: 0;">
+            Reference: ${quoteData.quoteId || Date.now()}
+          </p>
+        </div>
+        
+        <p>Dear ${quoteData.customer.name || 'Valued Customer'},</p>
+        <p>Thank you for your inquiry. Here is the quote you requested:</p>
+        
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <thead>
+            <tr style="background-color: #f8f9fa;">
+              <th style="padding: 12px; text-align: left; border-bottom: 2px solid #dee2e6;">Product</th>
+              <th style="padding: 12px; text-align: center; border-bottom: 2px solid #dee2e6;">Quantity</th>
+              <th style="padding: 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Unit Price</th>
+              <th style="padding: 12px; text-align: right; border-bottom: 2px solid #dee2e6;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${items}
+          </tbody>
+        </table>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          ${quoteData.items.length > 1 || quoteData.subtotal !== quoteData.grandTotal ? 
+            `<div style="margin-bottom: 10px;">Subtotal: <strong>${quoteData.currency} ${quoteData.subtotal.toFixed(2)}</strong></div>` : ''}
+          ${quoteData.shippingInfo ? 
+            `<div style="margin-bottom: 10px;">Shipping: <strong>${quoteData.shippingInfo}</strong></div>` : ''}
+          <div style="font-size: 18px; color: #0066cc;">
+            <strong>Grand Total: ${quoteData.currency} ${quoteData.grandTotal.toFixed(2)}</strong>
+          </div>
+        </div>
+        
+        <div style="background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p style="margin: 0 0 10px 0;"><strong>Quote Validity:</strong></p>
+          <p style="margin: 0 0 15px 0;">${quoteData.validityMessage}</p>
+          <p style="margin: 0;"><strong>Next Steps:</strong></p>
+          <p style="margin: 0;">${quoteData.nextStepsMessage}</p>
+        </div>
+        
+        <p>If you have any questions, please reply to this email or contact us at 
+          <a href="mailto:${this.salesTeamEmail}" style="color: #0066cc;">${this.salesTeamEmail}</a>
+        </p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+          <p style="margin: 0;">Sincerely,</p>
+          <p style="margin: 0; font-weight: bold;">Alliance Chemical Automated Quoting Assistant</p>
+        </div>
+      </div>
+    `;
   }
 } 

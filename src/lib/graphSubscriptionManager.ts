@@ -26,6 +26,11 @@ export async function createMailSubscription(expirationMinutes = 4000): Promise<
     return null;
   }
 
+  if (!process.env.MICROSOFT_GRAPH_WEBHOOK_SECRET) {
+    console.error('Subscription Manager: Cannot create subscription - MICROSOFT_GRAPH_WEBHOOK_SECRET not set');
+    return null;
+  }
+
   try {
     // Calculate expiration time (max ~3 days for mail resources)
     const expirationDateTime = new Date();
@@ -36,7 +41,7 @@ export async function createMailSubscription(expirationMinutes = 4000): Promise<
       notificationUrl: NOTIFICATION_URL,
       resource: `/users/${userEmail}/messages`,
       expirationDateTime: expirationDateTime.toISOString(),
-      clientState: process.env.MICROSOFT_GRAPH_WEBHOOK_SECRET || 'defaultSecretChangeThis',
+      clientState: process.env.MICROSOFT_GRAPH_WEBHOOK_SECRET,
     };
 
     console.log(`Subscription Manager: Creating mail subscription with webhook URL: ${NOTIFICATION_URL}`);
