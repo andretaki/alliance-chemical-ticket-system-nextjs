@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, ChangeEvent, FormEvent, useRef } from 'react';
 import axios, { AxiosError } from 'axios';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/auth-client';
 import Link from 'next/link';
 import TicketDisplay from './TicketDisplay';
 import { ticketStatusEnum, ticketPriorityEnum } from '@/db/schema';
@@ -47,7 +47,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   const [isApplyingFilters, setIsApplyingFilters] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const { data: session } = useSession();
+  const session = useSession();
   const [realtimeStatus, setRealtimeStatus] = useState<'polling' | 'sse' | 'disabled'>('polling');
 
   // Filter states
@@ -82,8 +82,8 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
       const params = new URLSearchParams();
       if (statusFilter) params.append('status', statusFilter);
       if (priorityFilter) params.append('priority', priorityFilter);
-      if (activeFilterPreset === 'my_tickets' && session?.user?.id) {
-        params.append('assigneeId', session.user.id);
+      if (activeFilterPreset === 'my_tickets' && session?.data?.user?.id) {
+        params.append('assigneeId', session.data.user.id);
       } else if (activeFilterPreset === 'unassigned') {
         params.append('assigneeId', 'unassigned');
       } else if (assigneeFilter) {

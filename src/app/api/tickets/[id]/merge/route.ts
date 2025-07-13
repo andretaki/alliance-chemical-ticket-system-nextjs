@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, tickets, ticketComments, ticketAttachments } from '@/lib/db';
 import { eq, inArray, and, ne, isNull } from 'drizzle-orm';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { z } from 'zod';
 
 const mergeTicketsSchema = z.object({
@@ -15,7 +14,10 @@ export async function POST(
 ) {
   const resolvedParams = await params;
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user || !['admin', 'manager'].includes(session.user.role)) {
       return NextResponse.json({ error: 'Forbidden: You do not have permission to merge tickets.' }, { status: 403 });
     }

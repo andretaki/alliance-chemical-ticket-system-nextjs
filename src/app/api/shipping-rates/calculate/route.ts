@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 import type { DraftOrderLineItemInput, DraftOrderAddressInput, ShopifyMoney } from '@/agents/quoteAssistant/quoteInterfaces';
 
@@ -28,7 +27,10 @@ interface ShippingRate {
 export async function POST(request: NextRequest) {
   try {
     // Authenticate the request
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

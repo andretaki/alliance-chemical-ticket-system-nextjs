@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 
 // API endpoint to search products directly from Shopify
 export async function GET(request: NextRequest) {
   try {
     // Authenticate the request
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { db } from '@/lib/db';
 import { tickets, ticketComments as ticketCommentsSchema } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
@@ -23,7 +22,10 @@ export async function POST(
 ) {
   const { id } = await params;
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { db, tickets, users } from '@/lib/db';
 import { and, isNotNull, gte, eq, sql, count } from 'drizzle-orm';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
@@ -9,7 +8,10 @@ import { customerAutoCreateService } from '@/services/customerAutoCreateService'
 export async function POST(request: NextRequest) {
   try {
     // Check authentication and admin permissions
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id || !['admin', 'manager'].includes(session.user.role || '')) {
       return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
     }
@@ -128,7 +130,10 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

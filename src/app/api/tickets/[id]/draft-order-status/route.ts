@@ -4,8 +4,7 @@ import { eq } from 'drizzle-orm';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
 import { AIOrderStatusService } from '@/services/aiOrderStatusService';
 import { extractOrderIds } from '@/lib/orderResponseService';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 
 export async function GET(
     request: NextRequest,
@@ -16,8 +15,11 @@ export async function GET(
 
     try {
         // Authenticate the user (agent)
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const { session, error } = await getServerSession();
+            if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
+    if (!session?.user) {
             return new NextResponse('Unauthorized', { status: 401 });
         }
 

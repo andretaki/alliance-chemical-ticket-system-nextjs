@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db, userSignatures, users } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { z } from 'zod';
 import { NextRequest } from 'next/server';
 
@@ -15,7 +14,10 @@ const signatureSchema = z.object({
 // GET /api/signatures - Get all signatures for the current user
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -38,7 +40,10 @@ export async function GET() {
 // POST /api/signatures - Create a new signature
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

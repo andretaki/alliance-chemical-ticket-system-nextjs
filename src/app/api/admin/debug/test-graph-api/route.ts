@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { graphClient, userEmail } from '@/lib/graphService';
 
 export async function POST(request: Request) {
   try {
     // Security Check: Ensure only an admin can run this test
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
     if (session?.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }

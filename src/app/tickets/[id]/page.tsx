@@ -8,8 +8,7 @@ import { ShopifyService } from '@/services/shopify/ShopifyService'; // Keep this
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
 import Link from 'next/link';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import type { Ticket as TicketData } from '@/types/ticket';
 
 interface TicketViewPageProps {
@@ -76,7 +75,7 @@ export default async function TicketViewPage({ params: paramsPromise }: TicketVi
   // --- Data Fetching ---
   const params = await paramsPromise;
   const ticketId = parseInt(params.id, 10);
-  const session = await getServerSession(authOptions);
+  const { session, error } = await getServerSession();
 
   if (isNaN(ticketId)) {
     notFound();

@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server';
 import { db, cannedResponses } from '@/lib/db';
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 
 export async function GET(request: Request) {
   try {
     // Basic authentication check
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from '@/lib/auth-helpers';
 import type { Metadata } from 'next';
-import { authOptions } from '@/lib/authOptions';
 import CreateCustomerClient from '@/components/admin/CreateCustomerClient';
 
 export const metadata: Metadata = {
@@ -11,9 +10,9 @@ export const metadata: Metadata = {
 
 export default async function CreateCustomerPage() {
   // Server-side authentication and role check
-  const session = await getServerSession(authOptions);
+  const { session, error } = await getServerSession();
   
-  if (!session) {
+  if (error || !session) {
     redirect('/auth/signin?callbackUrl=/admin/customers/create');
   }
   

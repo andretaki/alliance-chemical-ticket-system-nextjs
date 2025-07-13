@@ -2,8 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { db, tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum, ticketTypeEcommerceEnum } from '@/lib/db';
 import { eq, desc, asc, and, or, ilike, sql, isNull, inArray, count, SQL, AnyColumn } from 'drizzle-orm';
 import { z } from 'zod';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
 
 // --- Zod Schema for Validation ---
@@ -224,7 +223,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     // --- Authentication Check ---
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+    if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session || !session.user || !session.user.id) {
       return NextResponse.json({ error: 'Unauthorized. Please sign in to create a ticket.' }, { status: 401 });
     }

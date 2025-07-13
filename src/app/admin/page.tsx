@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from '@/lib/auth-helpers';
 import type { Metadata } from 'next';
-import { authOptions } from '@/lib/authOptions';
 import Link from 'next/link';
 import WebhookStatus from '@/components/admin/WebhookStatus';
 import SubscriptionManager from '@/components/admin/SubscriptionManager';
@@ -16,9 +15,9 @@ export const metadata: Metadata = {
 
 export default async function AdminPage() {
   // Server-side authentication and role check
-  const session = await getServerSession(authOptions);
+  const { session, error } = await getServerSession();
   
-  if (!session) {
+  if (error || !session) {
     redirect('/auth/signin?callbackUrl=/admin');
   }
   

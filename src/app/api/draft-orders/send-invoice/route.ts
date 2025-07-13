@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 import { z } from 'zod';
 
@@ -10,7 +9,10 @@ const sendInvoiceSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id || (session.user.role !== 'admin' && session.user.role !== 'manager')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

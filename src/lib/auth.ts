@@ -10,6 +10,7 @@ import {
   userApprovalStatusEnum 
 } from "@/db/schema";
 import bcrypt from "bcryptjs";
+import "../types/auth"; // Import the type extensions
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {

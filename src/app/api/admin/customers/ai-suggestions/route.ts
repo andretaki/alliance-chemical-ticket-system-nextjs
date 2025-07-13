@@ -1,12 +1,14 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { aiCustomerCommunicationService, CustomerProfile } from '@/services/aiCustomerCommunicationService';
 
 export async function POST(request: NextRequest) {
   try {
     // Authentication check
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -77,7 +79,10 @@ export async function POST(request: NextRequest) {
 // Optional: Add a GET endpoint for testing/health check
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session || session.user?.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

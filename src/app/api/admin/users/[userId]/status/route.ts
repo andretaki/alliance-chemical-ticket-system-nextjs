@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { db } from '@/lib/db';
 import { users, userApprovalStatusEnum } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -14,7 +13,10 @@ export async function POST(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session || !session.user || (session.user.role !== 'admin' && session.user.role !== 'manager')) {
       return new NextResponse('Unauthorized', { status: 401 });
     }

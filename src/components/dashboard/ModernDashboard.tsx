@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, StatusBadge, PriorityBadge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui';
 import { cn } from '@/utils/cn';
 
@@ -199,7 +200,7 @@ const ModernDashboard: React.FC = () => {
       {/* Welcome Section */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">Welcome back! 👋</h1>
-        <p className="text-white/70">Here's what's happening with your tickets today.</p>
+        <p className="text-white/70">Here&apos;s what&apos;s happening with your tickets today.</p>
       </div>
 
       {/* Stats Grid */}
@@ -252,7 +253,7 @@ const ModernDashboard: React.FC = () => {
           <div className="flex items-center justify-between">
             <CardTitle level={2}>Recent Tickets</CardTitle>
             <Button variant="ghost" size="sm" asChild>
-              <a href="/tickets">View All</a>
+              <Link href="/tickets">View All</Link>
             </Button>
           </div>
         </CardHeader>

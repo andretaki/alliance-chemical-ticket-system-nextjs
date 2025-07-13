@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from '@/lib/auth-helpers';
 import { kv } from '@vercel/kv';
-import { authOptions } from '@/lib/authOptions';
 import { ResolutionConfig, DEFAULT_RESOLUTION_CONFIG } from '@/types/resolution';
 
 // KV storage key
@@ -13,7 +12,10 @@ const RESOLUTION_CONFIG_KEY = 'ticket:resolution:config';
 export async function GET(req: NextRequest) {
   try {
     // Check authentication and admin status
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -44,7 +46,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     // Check authentication and admin status
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

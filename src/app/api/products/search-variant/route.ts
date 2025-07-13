@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService'; // Import ShopifyService
 import { Config } from '@/config/appConfig'; // For default currency and store URL
 import type { ProductVariantData, ParentProductData } from '@/agents/quoteAssistant/quoteInterfaces';
@@ -13,7 +12,7 @@ interface ProductVariantSearchResult {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
     console.log('[API /api/products/search-variant] Session check:', !!session?.user, 'User:', session?.user?.email);
     
     if (!session?.user) {

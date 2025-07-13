@@ -13,7 +13,7 @@ export default function Sidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
 
-    const isAdmin = session?.user?.role === 'admin';
+    const isAdmin = false; // TODO: Add role checking when Better Auth types are extended
     const isAuthenticated = !!session?.user;
 
     useEffect(() => {
@@ -111,7 +111,7 @@ export default function Sidebar() {
                                 {!isCollapsed && (
                                     <div className="truncate">
                                         <p className="font-semibold text-white truncate">{session?.user?.name || session?.user?.email}</p>
-                                        <p className="text-xs text-foreground-muted capitalize">{session?.user?.role}</p>
+                                        <p className="text-xs text-foreground-muted capitalize">User</p>
                                     </div>
                                 )}
                             </Link>

@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import Link from 'next/link';
 
 // This page will immediately redirect users to the dashboard
 export default async function RootPage() {
-  const session = await getServerSession(authOptions);
+  const { session } = await getServerSession();
 
   // If user is authenticated and approved, redirect to dashboard
   if (session?.user) {

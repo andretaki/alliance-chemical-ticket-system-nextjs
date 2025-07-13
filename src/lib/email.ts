@@ -3,8 +3,7 @@ import { Message } from '@microsoft/microsoft-graph-types';
 import { ticketAttachments } from '@/db/schema';
 import { InferSelectModel } from 'drizzle-orm';
 import fs from 'fs/promises'; // Import fs.promises for async file reading
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 
 // Define the type based on the schema
 type TicketAttachment = InferSelectModel<typeof ticketAttachments>;
@@ -43,7 +42,7 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
     } = options;
 
     // Get the current user's session
-    const session = await getServerSession(authOptions);
+    const { session } = await getServerSession();
     const userEmail = session?.user?.email || 'sales@alliancechemical.com';
 
     // Create message object for threading
@@ -121,7 +120,7 @@ export async function sendNotificationEmail(options: NotificationEmailOptions): 
     } = options;
 
     // Get the current user's session
-    const session = await getServerSession(authOptions);
+    const { session } = await getServerSession();
     const userEmail = session?.user?.email || 'sales@alliancechemical.com';
 
     // Prepare the email content with a simple wrapper

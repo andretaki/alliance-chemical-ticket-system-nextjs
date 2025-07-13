@@ -1,8 +1,7 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from '@/lib/auth-helpers';
 import type { Metadata } from 'next';
 import TicketListClient from '@/components/TicketListClient';
-import { authOptions } from '@/lib/authOptions';
 
 export const metadata: Metadata = {
   title: 'All Tickets - Alliance Chemical Support',
@@ -11,9 +10,9 @@ export const metadata: Metadata = {
 
 export default async function TicketsPage() {
   // Server-side authentication check
-  const session = await getServerSession(authOptions);
+  const { session, error } = await getServerSession();
   
-  if (!session) {
+  if (error || !session) {
     redirect('/auth/signin?callbackUrl=/tickets');
   }
   

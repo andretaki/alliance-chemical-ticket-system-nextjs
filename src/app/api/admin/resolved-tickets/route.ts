@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from '@/lib/auth-helpers';
 import { db, tickets, ticketComments } from '@/lib/db';
 import { eq, and, desc, sql, like } from 'drizzle-orm';
-import { authOptions } from '@/lib/authOptions';
 
 /**
  * GET handler to retrieve resolved tickets with pagination
@@ -10,7 +9,10 @@ import { authOptions } from '@/lib/authOptions';
 export async function GET(req: NextRequest) {
   try {
     // Check authentication and admin status
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

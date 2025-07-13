@@ -1,11 +1,13 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { processUnreadEmails } from '@/lib/emailProcessor';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 
 // Helper to verify admin permissions
 async function verifyAdmin() {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id) {
         throw new Error('Unauthorized: Authentication required');
     }

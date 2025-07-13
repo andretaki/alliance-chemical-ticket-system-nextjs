@@ -1,24 +1,24 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useEffect } from 'react';
 import { SignatureManager } from '@/components/SignatureManager';
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const session = useSession();
   const router = useRouter();
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (status === 'unauthenticated') {
+    if (!session?.data?.user) {
       router.push('/auth/signin?callbackUrl=/profile');
     }
-  }, [status, router]);
+  }, [session, router]);
 
   // Show loading state
-  if (status === 'loading') {
+  if (session?.isPending) {
     return (
       <div className="container mt-5">
         <div className="text-center">
@@ -32,7 +32,7 @@ export default function ProfilePage() {
   }
 
   // Show profile if authenticated
-  if (session?.user) {
+  if (session?.data?.user) {
     return (
       <div className="container mt-5">
         <div className="card mb-4">
@@ -42,10 +42,10 @@ export default function ProfilePage() {
           <div className="card-body">
             <div className="row">
               <div className="col-md-3 text-center mb-4">
-                {session.user.image ? (
+                {session.data.user.image ? (
                   <Image
-                    src={session.user.image} 
-                    alt={session.user.name || 'User'} 
+                    src={session.data.user.image} 
+                    alt={session.data.user.name || 'User'} 
                     className="img-thumbnail rounded-circle" 
                     width="150"
                     height="150"
@@ -53,13 +53,13 @@ export default function ProfilePage() {
                 ) : (
                   <div className="bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center" 
                        style={{width: '150px', height: '150px', fontSize: '4rem'}}>
-                    {session.user.name?.charAt(0) || session.user.email?.charAt(0) || 'U'}
+                    {session.data.user.name?.charAt(0) || session.data.user.email?.charAt(0) || 'U'}
                   </div>
                 )}
               </div>
               <div className="col-md-9">
-                <h3>{session.user.name || 'User'}</h3>
-                <p className="text-muted">{session.user.email}</p>
+                <h3>{session.data.user.name || 'User'}</h3>
+                <p className="text-muted">{session.data.user.email}</p>
                 
                 <div className="mt-3">
                   <h5>Account Details</h5>
@@ -67,12 +67,12 @@ export default function ProfilePage() {
                     <tbody>
                       <tr>
                         <th style={{width: '150px'}}>User ID:</th>
-                        <td>{session.user.id}</td>
+                        <td>{session.data.user.id}</td>
                       </tr>
                       <tr>
                         <th>Role:</th>
                         <td>
-                          <span className="badge bg-primary">{session.user.role}</span>
+                          <span className="badge bg-primary">User</span>
                         </td>
                       </tr>
                     </tbody>

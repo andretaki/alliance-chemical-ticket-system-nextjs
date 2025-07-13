@@ -1,28 +1,16 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from '@/lib/authOptions';
+import { requireAdmin } from '@/lib/auth-helpers';
 import * as subscriptionManager from '@/lib/graphSubscriptionManager';
 import { db, subscriptions } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 
-// Helper to verify admin permissions
-async function verifyAdmin() {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-        throw new Error('Unauthorized: Authentication required');
-    }
-    
-    // Check if the user has admin role
-    if (session.user.role !== 'admin') {
-        throw new Error('Forbidden: Admin permissions required');
-    }
-    
-    return session.user;
-}
 
 export async function GET(request: NextRequest) {
     try {
-        await verifyAdmin();
+        const { session, error } = await requireAdmin();
+        if (error) {
+            return NextResponse.json({ error }, { status: error === 'Admin access required' ? 403 : 401 });
+        }
         
         // List all subscriptions
         const subscriptions = await subscriptionManager.listSubscriptions();
@@ -42,7 +30,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
     try {
-        const user = await verifyAdmin();
+        const { session, error } = await requireAdmin();
+        if (error) {
+            return NextResponse.json({ error }, { status: error === 'Admin access required' ? 403 : 401 });
+        }
+        const user = session!.user;
         const body = await request.json();
         const action = body.action;
         

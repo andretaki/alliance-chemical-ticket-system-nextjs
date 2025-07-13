@@ -4,8 +4,7 @@ import { sendEmail } from '@/lib/graphService';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { db } from '@/lib/db';
 import { ticketComments } from '@/db/schema';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 
 class PDFGenerator {
   static async generateInvoice(draftOrder: any): Promise<Buffer> {
@@ -28,7 +27,10 @@ class PDFGenerator {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized: You must be logged in to send an invoice.' }, { status: 401 });
     }

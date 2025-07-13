@@ -7,9 +7,8 @@ import TypeChartClient from '@/components/charts/TypeChartClient';
 import TicketListClient from '@/components/TicketListClient';
 import EmailProcessingButton from '@/components/EmailProcessingButton';
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from '@/lib/auth-helpers';
 import DashboardClient from '@/components/DashboardClient';
-import { authOptions } from '@/lib/authOptions';
 
 export const metadata: Metadata = {
   title: 'Dashboard - Issue Tracker',
@@ -18,9 +17,9 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   // Server-side authentication check
-  const session = await getServerSession(authOptions);
+  const { session, error } = await getServerSession();
   
-  if (!session) {
+  if (error || !session) {
     redirect('/auth/signin?callbackUrl=/dashboard');
   }
   

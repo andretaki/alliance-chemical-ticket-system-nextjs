@@ -9,13 +9,11 @@ import { headers } from 'next/headers';
  */
 export async function getAuthenticatedSession() {
   try {
-    const headersList = headers();
+    const headersList = await headers();
     const cookieHeader = headersList.get('cookie');
     
     const session = await auth.api.getSession({
-      headers: {
-        'cookie': cookieHeader || '',
-      },
+      headers: headersList,
     });
     
     if (!session?.user?.id) {

@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 
 export async function GET(request: NextRequest) {
   try {
     // Get session information
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+    
+    if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     
     // Check environment variables (without exposing sensitive values)
     const envCheck = {

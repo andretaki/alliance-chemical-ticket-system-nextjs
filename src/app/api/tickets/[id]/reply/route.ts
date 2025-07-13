@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ticketComments, tickets, users, ticketAttachments } from '@/lib/db';
 import { and, eq, or, isNull, desc, sql } from 'drizzle-orm';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { sendTicketReplyEmail } from '@/lib/email';
 import { InferSelectModel } from 'drizzle-orm';
 
@@ -28,7 +27,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user) {
       return new NextResponse('Unauthorized', { status: 401 });
     }

@@ -2,8 +2,7 @@
 import { NextResponse } from 'next/server';
 import { db, userSignatures } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from '@/lib/authOptions';
+import { getServerSession } from '@/lib/auth-helpers';
 import { z } from 'zod';
 import { NextRequest } from 'next/server';
 
@@ -17,8 +16,11 @@ const signatureSchema = z.object({
 // PUT /api/signatures/:id - Update a signature
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
     
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -74,7 +76,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 // DELETE /api/signatures/:id - Delete a signature
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

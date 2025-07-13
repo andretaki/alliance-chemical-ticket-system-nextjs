@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
+import { getServerSession } from '@/lib/auth-helpers';
 import { kv } from '@vercel/kv';
 import { db } from '@/lib/db';
 import { tickets, ticketComments } from '@/db/schema';
 import { count, eq, and, sql, desc, gte, lt, between } from 'drizzle-orm';
-import { authOptions } from '@/lib/authOptions';
 
 // KV storage key for last run time
 const LAST_RESOLUTION_RUN_KEY = 'ticket:resolution:last_run';
@@ -15,7 +14,10 @@ const LAST_RESOLUTION_RUN_KEY = 'ticket:resolution:last_run';
 export async function GET(req: NextRequest) {
   try {
     // Check authentication and admin status
-    const session = await getServerSession(authOptions);
+    const { session, error } = await getServerSession();
+        if (error) {
+      return NextResponse.json({ error }, { status: 401 });
+    }
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
