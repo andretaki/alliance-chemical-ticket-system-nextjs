@@ -26,8 +26,28 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const isAdmin = false; // TODO: Add role checking when Better Auth types are extended
-  const isManager = false; // TODO: Add role checking when Better Auth types are extended
+  const [userRole, setUserRole] = useState<'admin' | 'manager' | 'user' | null>(null);
+  const isAdmin = userRole === 'admin';
+  const isManager = userRole === 'manager' || userRole === 'admin';
+
+  // Fetch user role from database
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      if (session?.user?.id) {
+        try {
+          const response = await fetch('/api/auth/user-role');
+          if (response.ok) {
+            const data = await response.json();
+            setUserRole(data.role);
+          }
+        } catch (error) {
+          console.error('Failed to fetch user role:', error);
+        }
+      }
+    };
+
+    fetchUserRole();
+  }, [session?.user?.id]);
 
   const sidebarItems: SidebarItem[] = [
     {

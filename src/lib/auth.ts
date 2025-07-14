@@ -28,7 +28,7 @@ export const auth = betterAuth({
     requireEmailVerification: false, // Set to true if you want email verification
     async sendResetPassword(data) {
       // TODO: Implement password reset email sending
-      console.log("Password reset requested for:", data.email);
+      console.log("Password reset requested for user:", data);
     },
   },
   
@@ -59,6 +59,7 @@ export const auth = betterAuth({
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24, // 1 day
+    cookieName: "better-auth.session_token",
   },
   
   plugins: [

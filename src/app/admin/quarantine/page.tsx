@@ -35,13 +35,27 @@ export default function QuarantineReviewPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!session?.data?.user) {
-      router.push('/auth/signin?callbackUrl=/admin/quarantine');
-    }
-    // TODO: Add role-based access control when Better Auth types are properly extended
-    // } else if (session.data.user.role !== 'admin') {
-    //   router.push('/?error=AccessDenied');
-    // }
+    const checkAccess = async () => {
+      if (!session?.data?.user) {
+        router.push('/auth/signin?callbackUrl=/admin/quarantine');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/user-role');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.role !== 'admin') {
+            router.push('/?error=AccessDenied');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to check user role:', error);
+        router.push('/?error=AccessDenied');
+      }
+    };
+
+    checkAccess();
   }, [session, router]);
 
   const fetchQuarantinedEmails = async () => {

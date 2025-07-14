@@ -13,8 +13,29 @@ export default function Sidebar() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [currentTime, setCurrentTime] = useState(new Date());
 
-    const isAdmin = false; // TODO: Add role checking when Better Auth types are extended
+    const [userRole, setUserRole] = useState<'admin' | 'manager' | 'user' | null>(null);
+    const isAdmin = userRole === 'admin';
+    const isManager = userRole === 'manager' || userRole === 'admin';
     const isAuthenticated = !!session?.user;
+
+    // Fetch user role from database
+    useEffect(() => {
+        const fetchUserRole = async () => {
+            if (session?.user?.id) {
+                try {
+                    const response = await fetch('/api/auth/user-role');
+                    if (response.ok) {
+                        const data = await response.json();
+                        setUserRole(data.role);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch user role:', error);
+                }
+            }
+        };
+
+        fetchUserRole();
+    }, [session?.user?.id]);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 60000);
@@ -111,7 +132,7 @@ export default function Sidebar() {
                                 {!isCollapsed && (
                                     <div className="truncate">
                                         <p className="font-semibold text-white truncate">{session?.user?.name || session?.user?.email}</p>
-                                        <p className="text-xs text-foreground-muted capitalize">User</p>
+                                        <p className="text-xs text-foreground-muted capitalize">{userRole || 'User'}</p>
                                     </div>
                                 )}
                             </Link>

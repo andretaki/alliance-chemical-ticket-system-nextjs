@@ -32,9 +32,7 @@ export async function middleware(req: NextRequest) {
     if (sessionToken) {
       // Validate session with Better Auth
       const session = await auth.api.getSession({
-        headers: {
-          'cookie': req.headers.get('cookie') || '',
-        },
+        headers: req.headers,
       });
       
       if (session?.user) {
