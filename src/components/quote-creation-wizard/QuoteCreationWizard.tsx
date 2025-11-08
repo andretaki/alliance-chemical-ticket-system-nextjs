@@ -5,8 +5,9 @@ import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import axios, { AxiosError } from 'axios';
 import { toast } from 'react-hot-toast';
-// import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { quoteFormSchema, QuoteFormData, defaultValues } from './types';
+import { SHOPIFY_TAGS, SHOPIFY_CUSTOM_ATTRIBUTES } from '@/config/constants';
 import CustomerStep from './steps/CustomerStep';
 import ProductsStep from './steps/ProductsStep';
 import AddressStep from './steps/AddressStep';
@@ -32,7 +33,7 @@ const QuoteCreationWizard = () => {
   const router = useRouter();
 
   const methods = useForm<QuoteFormData>({
-    // resolver: zodResolver(quoteFormSchema), // Temporarily disabled for troubleshooting
+    resolver: zodResolver(quoteFormSchema),
     mode: 'onBlur',
     defaultValues,
   });
@@ -91,29 +92,29 @@ const QuoteCreationWizard = () => {
         noteText += ` ${data.note}`;
       }
       
-      // Prepare tags
-      const quoteTags = ['QuoteWizard'];
+      // Prepare tags using constants
+      const quoteTags = [SHOPIFY_TAGS.QUOTE_WIZARD];
       if (ticketId) {
-        quoteTags.push(`TicketID-${ticketId}`);
-      }
-      
-      // Add quote type tag
-      if (data.quoteType === 'material_only') {
-        quoteTags.push('MaterialOnly');
-      } else if (data.quoteType === 'material_and_delivery') {
-        quoteTags.push('MaterialAndDelivery');
+        quoteTags.push(SHOPIFY_TAGS.createTicketIdTag(ticketId));
       }
 
-      // Prepare custom attributes for quote metadata
+      // Add quote type tag
+      if (data.quoteType === 'material_only') {
+        quoteTags.push(SHOPIFY_TAGS.MATERIAL_ONLY);
+      } else if (data.quoteType === 'material_and_delivery') {
+        quoteTags.push(SHOPIFY_TAGS.MATERIAL_AND_DELIVERY);
+      }
+
+      // Prepare custom attributes for quote metadata using constants
       const customAttributes: Array<{ key: string; value: string }> = [
-        { key: 'quoteType', value: data.quoteType },
-        { key: 'createdVia', value: 'QuoteWizard' }
+        { key: SHOPIFY_CUSTOM_ATTRIBUTES.QUOTE_TYPE, value: data.quoteType },
+        { key: SHOPIFY_CUSTOM_ATTRIBUTES.CREATED_VIA, value: 'QuoteWizard' }
       ];
-      
+
       if (data.quoteType === 'material_only') {
         customAttributes.push(
-          { key: 'materialOnlyDisclaimer', value: data.materialOnlyDisclaimer || '' },
-          { key: 'deliveryTerms', value: data.deliveryTerms || '' }
+          { key: SHOPIFY_CUSTOM_ATTRIBUTES.MATERIAL_ONLY_DISCLAIMER, value: data.materialOnlyDisclaimer || '' },
+          { key: SHOPIFY_CUSTOM_ATTRIBUTES.DELIVERY_TERMS, value: data.deliveryTerms || '' }
         );
       }
 
@@ -163,19 +164,61 @@ const QuoteCreationWizard = () => {
     } catch (err) {
       console.error('❌ Error in quote creation process:', err);
       const axiosError = err as AxiosError<{ error?: string }>;
-      let errorMessage = axiosError.response?.data?.error || (err instanceof Error ? err.message : 'Failed to create quote');
-      
+
+      // Provide user-friendly error messages based on error type
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      let userFriendlyMessage = '';
+
+      if (axiosError.response) {
+        // Server responded with error
+        const statusCode = axiosError.response.status;
+        const serverError = axiosError.response.data?.error;
+
+        switch (statusCode) {
+          case 400:
+            errorMessage = serverError || 'Invalid quote data. Please check all fields and try again.';
+            userFriendlyMessage = 'Please verify that all required fields are filled out correctly.';
+            break;
+          case 401:
+            errorMessage = 'Your session has expired. Please log in again.';
+            userFriendlyMessage = 'For security, you need to log in again to create quotes.';
+            break;
+          case 403:
+            errorMessage = 'You do not have permission to create quotes.';
+            userFriendlyMessage = 'Please contact your administrator for access.';
+            break;
+          case 500:
+            errorMessage = 'Server error. Our team has been notified.';
+            userFriendlyMessage = 'Please try again in a few minutes. If the problem persists, contact support.';
+            break;
+          default:
+            errorMessage = serverError || `Server error (${statusCode})`;
+        }
+      } else if (axiosError.request) {
+        // Request made but no response
+        errorMessage = 'Unable to reach the server. Please check your internet connection.';
+        userFriendlyMessage = 'Make sure you are connected to the internet and try again.';
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
       // Check for GraphQL errors if applicable
       if (axiosError.response?.data && (axiosError.response.data as any).errors) {
-        errorMessage = (axiosError.response.data as any).errors.map((e: any) => e.message).join(', ');
+        const graphQLErrors = (axiosError.response.data as any).errors.map((e: any) => e.message).join(', ');
+        errorMessage = `Shopify Error: ${graphQLErrors}`;
+        userFriendlyMessage = 'There was an issue communicating with Shopify. Please verify the product and customer information.';
       }
 
       setSubmissionResult({
         success: false,
-        error: errorMessage
-      });
+        error: errorMessage,
+        details: userFriendlyMessage
+      } as any);
 
-      toast.error(`❌ ${errorMessage}`);
+      toast.error(errorMessage, { duration: 5000 });
+      if (userFriendlyMessage) {
+        toast.error(userFriendlyMessage, { duration: 7000 });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -277,24 +320,44 @@ const QuoteCreationWizard = () => {
   // Show error state
   if (submissionResult?.success === false) {
     return (
-      <div className="card shadow-sm">
+      <div className="card shadow-sm border-danger">
         <div className="card-header bg-danger text-white text-center">
-          <h4 className="mb-0">❌ Quote Creation Failed</h4>
+          <h4 className="mb-0"><i className="fas fa-exclamation-triangle me-2"></i>Quote Creation Failed</h4>
         </div>
         <div className="card-body text-center">
           <div className="mb-4">
-            <i className="fas fa-exclamation-triangle fa-4x text-danger mb-3"></i>
-            <h5>Something went wrong</h5>
-            <p className="text-muted">We encountered an error while creating your quote.</p>
-          </div>
-          
-          <div className="alert alert-danger">
-            <strong>Error:</strong> {submissionResult.error}
+            <i className="fas fa-exclamation-circle fa-4x text-danger mb-3"></i>
+            <h5>We couldn't create your quote</h5>
+            <p className="text-muted">Don't worry - your information is safe. Let's figure out what went wrong.</p>
           </div>
 
-          <div className="mt-4">
-            <button 
-              className="btn btn-primary me-3"
+          <div className="alert alert-danger text-start">
+            <h6 className="alert-heading"><i className="fas fa-bug me-2"></i>Error Details:</h6>
+            <p className="mb-0"><strong>{submissionResult.error}</strong></p>
+            {(submissionResult as any).details && (
+              <p className="mb-0 mt-2 text-muted">
+                <i className="fas fa-info-circle me-1"></i>
+                {(submissionResult as any).details}
+              </p>
+            )}
+          </div>
+
+          <div className="card bg-light mb-4">
+            <div className="card-body text-start">
+              <h6><i className="fas fa-lightbulb me-2 text-warning"></i>What to try next:</h6>
+              <ul className="mb-0">
+                <li>Click "Try Again" to go back and review your quote</li>
+                <li>Check that all required fields are filled correctly</li>
+                <li>Verify the customer email address is valid</li>
+                <li>Make sure all products are selected and have quantities</li>
+                <li>If the problem persists, contact support for assistance</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="mt-4 d-flex justify-content-center gap-3">
+            <button
+              className="btn btn-primary btn-lg"
               onClick={() => {
                 setSubmissionResult(null);
                 setCurrentStep(steps.length); // Go back to review step
@@ -302,12 +365,12 @@ const QuoteCreationWizard = () => {
             >
               <i className="fas fa-arrow-left me-2"></i>Try Again
             </button>
-            
-            <button 
-              className="btn btn-outline-secondary"
+
+            <button
+              className="btn btn-outline-secondary btn-lg"
               onClick={() => window.location.reload()}
             >
-              <i className="fas fa-refresh me-2"></i>Start Over
+              <i className="fas fa-redo me-2"></i>Start Over
             </button>
           </div>
         </div>

@@ -66,4 +66,36 @@ export const AI_CONFIG = {
     
     // Confidence levels
     CONFIDENCE_LEVELS: ['high', 'medium', 'low'] as const
-}; 
+};
+
+// Shopify Integration Constants
+export const SHOPIFY_TAGS = {
+    // System tags
+    TICKET_SYSTEM: 'TicketSystem',
+    TICKET_SYSTEM_QUOTE: 'TicketSystemQuote',
+    QUOTE_WIZARD: 'QuoteWizard',
+
+    // Quote type tags
+    MATERIAL_ONLY: 'MaterialOnly',
+    MATERIAL_AND_DELIVERY: 'MaterialAndDelivery',
+
+    // Source tags
+    SOURCE_PREFIX: 'Source:',
+    TICKET_ID_PREFIX: 'TicketID-',
+
+    // Helper functions
+    createSourceTag: (source: string) => `Source:${source}`,
+    createTicketIdTag: (ticketId: number) => `TicketID-${ticketId}`,
+} as const;
+
+export const SHOPIFY_CUSTOM_ATTRIBUTES = {
+    QUOTE_TYPE: 'quoteType',
+    CREATED_VIA: 'createdVia',
+    MATERIAL_ONLY_DISCLAIMER: 'materialOnlyDisclaimer',
+    DELIVERY_TERMS: 'deliveryTerms',
+} as const;
+
+// UI/UX Constants
+export const SEARCH_DEBOUNCE_MS = 300; // Standard debounce delay for all search inputs
+export const MIN_SEARCH_LENGTH = 3; // Minimum characters required for customer search
+export const MIN_PRODUCT_SEARCH_LENGTH = 2; // Minimum characters required for product search 

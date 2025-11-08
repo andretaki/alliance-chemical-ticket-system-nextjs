@@ -5,6 +5,7 @@ import { useFormContext, useFieldArray } from 'react-hook-form';
 import axios from 'axios';
 import Image from 'next/image';
 import { QuoteFormData, createNewLineItem } from '../types';
+import { SEARCH_DEBOUNCE_MS, MIN_PRODUCT_SEARCH_LENGTH } from '@/config/constants';
 
 // Interfaces from the old component, adapted for this step
 interface ProductVariantData {
@@ -63,7 +64,7 @@ const ProductsStep = () => {
         setSearchStates(newSearchStates);
         setActiveDropdown(index);
 
-        if (term.trim().length < 2) {
+        if (term.trim().length < MIN_PRODUCT_SEARCH_LENGTH) {
             newSearchStates[index] = { ...newSearchStates[index], results: [], isLoading: false };
             setSearchStates(newSearchStates);
             return;
@@ -82,7 +83,7 @@ const ProductsStep = () => {
                 updatedStates[index] = { ...updatedStates[index], results: [], isLoading: false };
                 setSearchStates(updatedStates);
             }
-        }, 500);
+        }, SEARCH_DEBOUNCE_MS);
     }, [searchStates]);
 
     const handleProductSelect = (index: number, product: SearchResult) => {
@@ -100,15 +101,37 @@ const ProductsStep = () => {
 
     return (
         <div>
-            <h5 className="mb-3">Product Selection</h5>
+            <h5 className="mb-3">
+                Product Selection
+                <i className="fas fa-info-circle ms-2 text-muted"
+                   data-bs-toggle="tooltip"
+                   title="Search for products by name or SKU code. You can add multiple products to your quote."
+                   style={{ fontSize: '0.9rem', cursor: 'help' }}></i>
+            </h5>
+            <div className="alert alert-info alert-dismissible fade show" role="alert">
+                <i className="fas fa-lightbulb me-2"></i>
+                <strong>Tip:</strong> Type at least 2 characters of a product name or SKU to search.
+                Click a product from the dropdown to add it, then set the quantity you need.
+                <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
             <div className="table-responsive">
                 <table className="table table-bordered">
                     <thead className="table-light">
                         <tr>
-                            <th style={{ width: '45%' }}>Product Search</th>
-                            <th style={{ width: '35%' }}>Selected Product</th>
-                            <th style={{ width: '10%' }}>Qty</th>
-                            <th style={{ width: '5%' }}>Action</th>
+                            <th style={{ width: '45%' }}>
+                                <i className="fas fa-search me-2"></i>Product Search
+                                <small className="d-block text-muted fw-normal">Type to search by name or SKU</small>
+                            </th>
+                            <th style={{ width: '35%' }}>
+                                <i className="fas fa-box me-2"></i>Selected Product
+                                <small className="d-block text-muted fw-normal">Product details will appear here</small>
+                            </th>
+                            <th style={{ width: '10%' }}>
+                                <i className="fas fa-hashtag me-2"></i>Quantity
+                            </th>
+                            <th style={{ width: '5%' }} className="text-center">
+                                <i className="fas fa-cog"></i>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -184,9 +207,13 @@ const ProductsStep = () => {
                     </tbody>
                 </table>
             </div>
-            <button type="button" className="btn btn-outline-primary" onClick={() => append(createNewLineItem())}>
-                <i className="fas fa-plus me-2"></i>Add Another Product
+            <button type="button" className="btn btn-outline-primary btn-lg" onClick={() => append(createNewLineItem())}>
+                <i className="fas fa-plus-circle me-2"></i>Add Another Product
             </button>
+            <small className="d-block text-muted mt-2">
+                <i className="fas fa-info-circle me-1"></i>
+                Need multiple products? Click here to add more lines to your quote.
+            </small>
              {errors.lineItems?.root && (
                 <div className="text-danger small mt-2">{errors.lineItems.root.message}</div>
             )}

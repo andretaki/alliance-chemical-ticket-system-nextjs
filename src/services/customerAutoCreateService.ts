@@ -1,4 +1,5 @@
 import { ShopifyService } from './shopify/ShopifyService';
+import { SHOPIFY_TAGS } from '@/config/constants';
 
 export interface CustomerCreateData {
   email: string;
@@ -97,12 +98,12 @@ export class CustomerAutoCreateService {
     }
 
     // Prepare tags to track where this customer came from
-    const tags = ['TicketSystem'];
+    const tags = [SHOPIFY_TAGS.TICKET_SYSTEM];
     if (data.source) {
-      tags.push(`Source:${data.source}`);
+      tags.push(SHOPIFY_TAGS.createSourceTag(data.source));
     }
     if (data.ticketId) {
-      tags.push(`Ticket:${data.ticketId}`);
+      tags.push(SHOPIFY_TAGS.createTicketIdTag(data.ticketId));
     }
 
     // Prepare note with context

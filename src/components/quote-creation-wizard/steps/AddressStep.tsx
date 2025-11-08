@@ -62,24 +62,44 @@ const AddressStep = () => {
 
   return (
     <div>
-      <h5 className="mb-3">Shipping & Billing Addresses</h5>
-      
+      <h5 className="mb-3">
+        Shipping & Billing Addresses
+        <i className="fas fa-info-circle ms-2 text-muted"
+           data-bs-toggle="tooltip"
+           title="Enter the shipping and billing addresses for this quote"
+           style={{ fontSize: '0.9rem', cursor: 'help' }}></i>
+      </h5>
+      <div className="alert alert-info alert-dismissible fade show" role="alert">
+        <i className="fas fa-lightbulb me-2"></i>
+        <strong>Tip:</strong> Choose whether this quote includes delivery or if the customer will arrange pickup.
+        The shipping address will be used to calculate shipping costs if applicable.
+        <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+
       {/* Quote Type Selection */}
       <div className="card mb-4">
-        <div className="card-header">
-          <h6 className="mb-0">Quote Type</h6>
+        <div className="card-header bg-primary text-white">
+          <h6 className="mb-0">
+            <i className="fas fa-shipping-fast me-2"></i>Quote Type
+          </h6>
         </div>
         <div className="card-body">
           <div className="mb-3">
-            <label htmlFor="quoteType" className="form-label">Quote Type <span className="text-danger">*</span></label>
-            <select 
+            <label htmlFor="quoteType" className="form-label">
+              Quote Type <span className="text-danger">*</span>
+            </label>
+            <select
               {...register('quoteType')}
               className="form-select"
               id="quoteType"
             >
-              <option value="material_and_delivery">Material and Delivery</option>
-              <option value="material_only">Material Only (Customer arranges pickup)</option>
+              <option value="material_and_delivery">📦 Material and Delivery (We ship to customer)</option>
+              <option value="material_only">🏭 Material Only (Customer arranges pickup)</option>
             </select>
+            <small className="form-text text-muted">
+              <i className="fas fa-info-circle me-1"></i>
+              Choose whether we're including delivery or if the customer will pick up the materials
+            </small>
           </div>
           
           <div className="mb-3">

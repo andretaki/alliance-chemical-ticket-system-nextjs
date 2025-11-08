@@ -6,6 +6,7 @@ import { ShopifyService } from '@/services/shopify/ShopifyService';
 import type { AppDraftOrderInput, DraftOrderOutput, ShopifyDraftOrderGQLResponse, ShopifyMoney, DraftOrderAddressInput, DraftOrderLineItemInput } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
+import { SHOPIFY_TAGS, SHOPIFY_CUSTOM_ATTRIBUTES } from '@/config/constants';
 
 function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): DraftOrderOutput {
   const getPrice = (moneySet?: { shopMoney: ShopifyMoney }): number | undefined => {
@@ -149,26 +150,26 @@ export async function POST(request: NextRequest) {
 
     // Ensure 'TicketSystemQuote' is present without duplicating if already there
     const currentTags = new Set(body.tags || []);
-    currentTags.add('TicketSystemQuote');
+    currentTags.add(SHOPIFY_TAGS.TICKET_SYSTEM_QUOTE);
     body.tags = Array.from(currentTags);
 
     if (!body.email && body.customer?.email) {
         body.email = body.customer.email; // Ensure draft order email is set for invoice
     }
 
-    // Prepare custom attributes for quote metadata
+    // Prepare custom attributes for quote metadata using constants
     const customAttributes: Array<{ key: string; value: string }> = [];
-    
+
     if (body.quoteType) {
-      customAttributes.push({ key: 'quoteType', value: body.quoteType });
+      customAttributes.push({ key: SHOPIFY_CUSTOM_ATTRIBUTES.QUOTE_TYPE, value: body.quoteType });
     }
-    
+
     if (body.quoteType === 'material_only') {
       if (body.materialOnlyDisclaimer) {
-        customAttributes.push({ key: 'materialOnlyDisclaimer', value: body.materialOnlyDisclaimer });
+        customAttributes.push({ key: SHOPIFY_CUSTOM_ATTRIBUTES.MATERIAL_ONLY_DISCLAIMER, value: body.materialOnlyDisclaimer });
       }
       if (body.deliveryTerms) {
-        customAttributes.push({ key: 'deliveryTerms', value: body.deliveryTerms });
+        customAttributes.push({ key: SHOPIFY_CUSTOM_ATTRIBUTES.DELIVERY_TERMS, value: body.deliveryTerms });
       }
     }
     
