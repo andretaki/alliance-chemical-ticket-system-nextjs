@@ -115,7 +115,134 @@ const ProductsStep = () => {
                 Click a product from the dropdown to add it, then set the quantity you need.
                 <button type="button" className="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
-            <div className="table-responsive">
+
+            {/* Mobile Card Layout - Shows on screens < md (768px) */}
+            <div className="d-md-none">
+                {fields.map((field, index) => (
+                    <div key={field.id} className="card mb-3 shadow-sm">
+                        <div className="card-header bg-light d-flex justify-content-between align-items-center">
+                            <span className="fw-medium">
+                                <i className="fas fa-box me-2"></i>Product #{index + 1}
+                            </span>
+                            {fields.length > 1 && (
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-danger"
+                                    onClick={() => remove(index)}
+                                >
+                                    <i className="fas fa-trash-alt"></i>
+                                </button>
+                            )}
+                        </div>
+                        <div className="card-body">
+                            <div className="mb-3">
+                                <label className="form-label small text-muted">
+                                    <i className="fas fa-search me-1"></i>Product Search
+                                </label>
+                                <div className="position-relative" ref={el => { searchContainerRefs.current[index] = el; }}>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="Search by name, SKU..."
+                                        value={searchStates[index]?.term || ''}
+                                        onChange={(e) => handleSearchChange(index, e.target.value)}
+                                        onFocus={() => setActiveDropdown(index)}
+                                    />
+                                    {searchStates[index]?.isLoading && (
+                                        <div className="spinner-border spinner-border-sm position-absolute top-50 end-0 me-2" role="status"></div>
+                                    )}
+                                    {activeDropdown === index && searchStates[index]?.results.length > 0 && (
+                                        <div className="dropdown-menu d-block position-absolute start-0 w-100 mt-1 shadow-lg" style={{ zIndex: 1050 }}>
+                                            <div className="list-group list-group-flush" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                                                {searchStates[index].results.map((result) => (
+                                                    <button
+                                                        type="button"
+                                                        key={result.variant.numericVariantIdShopify}
+                                                        className="list-group-item list-group-item-action py-2 px-3 text-start"
+                                                        onClick={() => handleProductSelect(index, result)}
+                                                    >
+                                                        <div className="d-flex align-items-center justify-content-between w-100">
+                                                            <div className="d-flex align-items-center flex-grow-1">
+                                                                {result.parentProduct.primaryImageUrl ? (
+                                                                    <Image src={result.parentProduct.primaryImageUrl} alt={result.parentProduct.name} width={30} height={30} className="object-fit-contain me-2 rounded border"/>
+                                                                ) : (
+                                                                    <div className="bg-light d-flex align-items-center justify-content-center rounded border me-2" style={{ width: '30px', height: '30px' }}>
+                                                                        <i className="fas fa-image text-muted"></i>
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex-grow-1">
+                                                                    <div className="fw-medium small">{result.parentProduct.name}</div>
+                                                                    <div className="small text-muted">
+                                                                        {result.variant.variantTitle} (SKU: {result.variant.sku})
+                                                                        <span className="d-block mt-1">${result.variant.price.toFixed(2)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="ms-2">
+                                                                {result.variant.inventoryQuantity !== undefined && result.variant.inventoryQuantity !== null ? (
+                                                                    <span className={`badge ${
+                                                                        result.variant.inventoryQuantity > 10 ? 'bg-success' :
+                                                                        result.variant.inventoryQuantity > 0 ? 'bg-warning text-dark' :
+                                                                        'bg-danger'
+                                                                    }`}>
+                                                                        {result.variant.inventoryQuantity > 0 ? (
+                                                                            <><i className="fas fa-check-circle me-1"></i>{result.variant.inventoryQuantity}</>
+                                                                        ) : (
+                                                                            <><i className="fas fa-exclamation-triangle me-1"></i>Out</>
+                                                                        )}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="badge bg-secondary">
+                                                                        <i className="fas fa-question-circle"></i>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label small text-muted">
+                                    <i className="fas fa-box me-1"></i>Selected Product
+                                </label>
+                                <input
+                                    type="text"
+                                    className="form-control bg-light"
+                                    readOnly
+                                    value={fields[index].productDisplay || 'Product details appear here'}
+                                    tabIndex={-1}
+                                />
+                                {errors.lineItems?.[index]?.numericVariantIdShopify && (
+                                    <div className="text-danger small mt-1">{errors.lineItems[index]?.numericVariantIdShopify?.message}</div>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="form-label small text-muted">
+                                    <i className="fas fa-hashtag me-1"></i>Quantity
+                                </label>
+                                <input
+                                    type="number"
+                                    {...control.register(`lineItems.${index}.quantity`, { valueAsNumber: true })}
+                                    className={`form-control ${errors.lineItems?.[index]?.quantity ? 'is-invalid' : ''}`}
+                                    min="1"
+                                />
+                                {errors.lineItems?.[index]?.quantity && (
+                                    <div className="invalid-feedback">{errors.lineItems[index]?.quantity?.message}</div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Desktop Table Layout - Shows on screens >= md (768px) */}
+            <div className="d-none d-md-block table-responsive">
                 <table className="table table-bordered">
                     <thead className="table-light">
                         <tr>

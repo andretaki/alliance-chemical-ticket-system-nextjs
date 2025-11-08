@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import axios, { AxiosError } from 'axios';
@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { quoteFormSchema, QuoteFormData, defaultValues } from './types';
 import { SHOPIFY_TAGS, SHOPIFY_CUSTOM_ATTRIBUTES } from '@/config/constants';
+import { useFormDraft } from './hooks/useFormDraft';
 import CustomerStep from './steps/CustomerStep';
 import ProductsStep from './steps/ProductsStep';
 import AddressStep from './steps/AddressStep';
@@ -20,7 +21,18 @@ const steps = [
   { id: 4, name: 'Review & Submit', component: ReviewStep, fields: [] },
 ];
 
-const QuoteCreationWizard = () => {
+interface QuoteCreationWizardProps {
+  ticketId?: number;
+  initialCustomer?: {
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    company?: string;
+  };
+}
+
+const QuoteCreationWizard: React.FC<QuoteCreationWizardProps> = ({ ticketId: providedTicketId, initialCustomer }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionResult, setSubmissionResult] = useState<{
@@ -29,50 +41,79 @@ const QuoteCreationWizard = () => {
     ticketId?: number;
     error?: string;
   } | null>(null);
+  const [showDraftNotification, setShowDraftNotification] = useState(false);
 
   const router = useRouter();
+
+  // Merge initial customer data with default values
+  const initialValues = {
+    ...defaultValues,
+    customer: {
+      ...defaultValues.customer,
+      ...initialCustomer,
+    },
+  };
 
   const methods = useForm<QuoteFormData>({
     resolver: zodResolver(quoteFormSchema),
     mode: 'onBlur',
-    defaultValues,
+    defaultValues: initialValues,
   });
 
-  const { handleSubmit, trigger, watch } = methods;
+  const { handleSubmit, trigger, watch, reset } = methods;
+
+  // Form draft management
+  const { clearDraft, restoreDraft, hasDraft, saveDraft } = useFormDraft({
+    watch,
+    reset,
+    ticketId: providedTicketId,
+  });
+
+  // Check for and offer to restore draft on mount
+  useEffect(() => {
+    if (!initialCustomer && hasDraft()) {
+      setShowDraftNotification(true);
+    }
+  }, [initialCustomer, hasDraft]);
 
   const onSubmit: SubmitHandler<QuoteFormData> = async (data) => {
     console.log('🚀 Starting quote submission with data:', data);
     setIsSubmitting(true);
-    
-    try {
-      // Step 1: Check if user is authenticated and create ticket if possible
-      let ticketId = null;
-      try {
-        const sessionResponse = await axios.get('/api/auth/session');
-        
-        if (sessionResponse.data && sessionResponse.data.user) {
-          console.log('✅ User authenticated, creating ticket...');
-          const ticketResponse = await axios.post('/api/tickets', {
-            title: `Quote Request - ${data.customer.company || `${data.customer.firstName} ${data.customer.lastName}`.trim() || data.customer.email}`,
-            description: `Quote request created from the quote creation wizard.\n\nCustomer: ${data.customer.firstName} ${data.customer.lastName}\nEmail: ${data.customer.email}\nPhone: ${data.customer.phone}\nCompany: ${data.customer.company}\n\nNote: ${data.note || 'No additional notes'}`,
-            type: 'Quote Request',
-            priority: 'medium',
-            status: 'new',
-            senderEmail: data.customer.email,
-            senderPhone: data.customer.phone,
-            senderName: `${data.customer.firstName} ${data.customer.lastName}`.trim(),
-            sendercompany: data.customer.company
-          });
 
-          ticketId = ticketResponse.data.ticket.id;
-          console.log(`✅ Ticket #${ticketId} created successfully`);
-          toast.success(`Ticket #${ticketId} created!`);
-        } else {
-          console.log('ℹ️ User not authenticated, skipping ticket creation');
+    try {
+      // Step 1: Use provided ticketId or create a new ticket if authenticated
+      let ticketId = providedTicketId || null;
+
+      if (!providedTicketId) {
+        try {
+          const sessionResponse = await axios.get('/api/auth/session');
+
+          if (sessionResponse.data && sessionResponse.data.user) {
+            console.log('✅ User authenticated, creating ticket...');
+            const ticketResponse = await axios.post('/api/tickets', {
+              title: `Quote Request - ${data.customer.company || `${data.customer.firstName} ${data.customer.lastName}`.trim() || data.customer.email}`,
+              description: `Quote request created from the quote creation wizard.\n\nCustomer: ${data.customer.firstName} ${data.customer.lastName}\nEmail: ${data.customer.email}\nPhone: ${data.customer.phone}\nCompany: ${data.customer.company}\n\nNote: ${data.note || 'No additional notes'}`,
+              type: 'Quote Request',
+              priority: 'medium',
+              status: 'new',
+              senderEmail: data.customer.email,
+              senderPhone: data.customer.phone,
+              senderName: `${data.customer.firstName} ${data.customer.lastName}`.trim(),
+              sendercompany: data.customer.company
+            });
+
+            ticketId = ticketResponse.data.ticket.id;
+            console.log(`✅ Ticket #${ticketId} created successfully`);
+            toast.success(`Ticket #${ticketId} created!`);
+          } else {
+            console.log('ℹ️ User not authenticated, skipping ticket creation');
+          }
+        } catch (ticketError) {
+          console.error('⚠️ Error creating ticket (continuing with quote):', ticketError);
+          toast.error('Could not create ticket, but continuing with quote...');
         }
-      } catch (ticketError) {
-        console.error('⚠️ Error creating ticket (continuing with quote):', ticketError);
-        toast.error('Could not create ticket, but continuing with quote...');
+      } else {
+        console.log(`ℹ️ Using provided Ticket #${providedTicketId} for quote`);
       }
 
       // Step 2: Prepare the draft order data
@@ -149,15 +190,18 @@ const QuoteCreationWizard = () => {
       const draftOrderResponse = await axios.post('/api/draft-orders', draftOrderInput);
       
       console.log('✅ Draft order created successfully:', draftOrderResponse.data);
-      
+
       setSubmissionResult({
         success: true,
         draftOrder: draftOrderResponse.data,
         ticketId
       });
 
+      // Clear the saved draft since submission was successful
+      clearDraft();
+
       toast.success(`🎉 Quote #${draftOrderResponse.data.name} created successfully!`);
-      
+
       // Optional: Auto-navigate to success state or ticket
       // router.push(`/tickets/${ticketId}`);
 
@@ -380,22 +424,71 @@ const QuoteCreationWizard = () => {
 
   return (
     <FormProvider {...methods}>
+      {/* Draft Notification Banner */}
+      {showDraftNotification && (
+        <div className="alert alert-info alert-dismissible fade show mb-3" role="alert">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              <i className="fas fa-save me-3 fs-4"></i>
+              <div>
+                <h6 className="mb-1">Saved Draft Found</h6>
+                <p className="mb-0 small">Would you like to restore your previous quote draft?</p>
+              </div>
+            </div>
+            <div className="d-flex gap-2">
+              <button
+                type="button"
+                className="btn btn-sm btn-primary"
+                onClick={() => {
+                  restoreDraft();
+                  setShowDraftNotification(false);
+                }}
+              >
+                <i className="fas fa-undo me-1"></i>Restore
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm btn-outline-secondary"
+                onClick={() => {
+                  clearDraft();
+                  setShowDraftNotification(false);
+                  toast.success('Draft discarded');
+                }}
+              >
+                <i className="fas fa-trash me-1"></i>Discard
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setShowDraftNotification(false)}
+            aria-label="Close"
+          ></button>
+        </div>
+      )}
+
       <div className="card shadow-sm">
         <div className="card-header bg-light">
           <div className="d-flex justify-content-between align-items-center">
             <div>
               <h4 className="mb-0">Create New Quote</h4>
-              <p className="mb-0 text-muted">Step {currentStep} of {steps.length}: {steps[currentStep - 1].name}</p>
+              <div className="d-flex align-items-center gap-2">
+                <p className="mb-0 text-muted">Step {currentStep} of {steps.length}: {steps[currentStep - 1].name}</p>
+                <span className="badge bg-secondary opacity-75">
+                  <i className="fas fa-cloud me-1"></i>Auto-saving
+                </span>
+              </div>
             </div>
-            
+
             {/* Progress bar */}
             <div className="progress" style={{ width: '200px', height: '8px' }}>
-              <div 
-                className="progress-bar bg-primary" 
-                role="progressbar" 
+              <div
+                className="progress-bar bg-primary"
+                role="progressbar"
                 style={{ width: `${(currentStep / steps.length) * 100}%` }}
-                aria-valuenow={currentStep} 
-                aria-valuemin={0} 
+                aria-valuenow={currentStep}
+                aria-valuemin={0}
                 aria-valuemax={steps.length}
               ></div>
             </div>

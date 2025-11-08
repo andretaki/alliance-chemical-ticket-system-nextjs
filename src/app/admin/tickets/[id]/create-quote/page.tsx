@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { tickets as ticketsSchema, users as usersSchema, agentProducts as productsSchema } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import CreateQuoteClient from '@/components/CreateQuoteClient';
+import QuoteCreationWizard from '@/components/quote-creation-wizard/QuoteCreationWizard';
 
 export const metadata: Metadata = {
   title: 'Create Quote - Alliance Chemical',
@@ -60,10 +60,21 @@ export default async function CreateQuotePage({ params }: CreateQuotePageProps) 
 
   return (
     <div className="container-fluid py-4">
-      <CreateQuoteClient 
-        ticketId={ticketId} 
-        initialCustomer={initialCustomer}
-      />
+      <div className="row justify-content-center">
+        <div className="col-12 col-xl-10">
+          <div className="mb-4">
+            <h2 className="h3">Create Quote for Ticket #{ticketId}</h2>
+            <p className="text-muted">
+              Creating a quote for {initialCustomer.firstName} {initialCustomer.lastName}
+              {initialCustomer.company && ` from ${initialCustomer.company}`}
+            </p>
+          </div>
+          <QuoteCreationWizard
+            ticketId={ticketId}
+            initialCustomer={initialCustomer}
+          />
+        </div>
+      </div>
     </div>
   );
 } 

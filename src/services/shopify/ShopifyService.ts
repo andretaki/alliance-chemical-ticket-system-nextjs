@@ -495,7 +495,7 @@ export class ShopifyService {
 
   // --- New Draft Order Methods ---
   public async createDraftOrder(appInput: AppDraftOrderInput): Promise<ShopifyDraftOrderGQLResponse | null> {
-    const { lineItems, customer, shopifyCustomerId, shippingAddress, billingAddress, note, email: emailForInvoice, tags, customAttributes } = appInput;
+    const { lineItems, customer, shopifyCustomerId, shippingAddress, billingAddress, note, email: emailForInvoice, tags, customAttributes, shippingLine } = appInput;
 
     const shopifyLineItems: ShopifyDraftOrderInput_LineItem[] = lineItems.map(item => {
       const variantId = item.numericVariantIdShopify.startsWith('gid://')
@@ -662,6 +662,14 @@ export class ShopifyService {
 
     if (customAttributes && customAttributes.length > 0) {
       draftOrderMutationInput.customAttributes = customAttributes;
+    }
+
+    // Add shipping line if provided (allows pre-calculated shipping to be included)
+    if (shippingLine) {
+      draftOrderMutationInput.shippingLine = {
+        title: shippingLine.title,
+        price: typeof shippingLine.price === 'number' ? shippingLine.price.toFixed(2) : shippingLine.price
+      };
     }
 
     const variables = {
