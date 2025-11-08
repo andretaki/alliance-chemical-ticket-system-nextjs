@@ -14,6 +14,7 @@ interface ProductVariantData {
     sku: string;
     price: number;
     currency: string;
+    inventoryQuantity?: number;
 }
 
 interface ParentProductData {
@@ -158,17 +159,41 @@ const ProductsStep = () => {
                                                             className="list-group-item list-group-item-action py-2 px-3 text-start"
                                                             onClick={() => handleProductSelect(index, result)}
                                                         >
-                                                            <div className="d-flex align-items-center">
-                                                                {result.parentProduct.primaryImageUrl ? (
-                                                                    <Image src={result.parentProduct.primaryImageUrl} alt={result.parentProduct.name} width={30} height={30} className="object-fit-contain me-2 rounded border"/>
-                                                                ) : (
-                                                                    <div className="bg-light d-flex align-items-center justify-content-center rounded border me-2" style={{ width: '30px', height: '30px' }}>
-                                                                        <i className="fas fa-image text-muted"></i>
+                                                            <div className="d-flex align-items-center justify-content-between w-100">
+                                                                <div className="d-flex align-items-center flex-grow-1">
+                                                                    {result.parentProduct.primaryImageUrl ? (
+                                                                        <Image src={result.parentProduct.primaryImageUrl} alt={result.parentProduct.name} width={30} height={30} className="object-fit-contain me-2 rounded border"/>
+                                                                    ) : (
+                                                                        <div className="bg-light d-flex align-items-center justify-content-center rounded border me-2" style={{ width: '30px', height: '30px' }}>
+                                                                            <i className="fas fa-image text-muted"></i>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex-grow-1">
+                                                                        <div className="fw-medium small">{result.parentProduct.name}</div>
+                                                                        <div className="small text-muted">
+                                                                            {result.variant.variantTitle} (SKU: {result.variant.sku})
+                                                                            <span className="ms-2">${result.variant.price.toFixed(2)}</span>
+                                                                        </div>
                                                                     </div>
-                                                                )}
-                                                                <div>
-                                                                    <div className="fw-medium small">{result.parentProduct.name}</div>
-                                                                    <div className="small text-muted">{result.variant.variantTitle} (SKU: {result.variant.sku})</div>
+                                                                </div>
+                                                                <div className="ms-2">
+                                                                    {result.variant.inventoryQuantity !== undefined && result.variant.inventoryQuantity !== null ? (
+                                                                        <span className={`badge ${
+                                                                            result.variant.inventoryQuantity > 10 ? 'bg-success' :
+                                                                            result.variant.inventoryQuantity > 0 ? 'bg-warning text-dark' :
+                                                                            'bg-danger'
+                                                                        }`}>
+                                                                            {result.variant.inventoryQuantity > 0 ? (
+                                                                                <><i className="fas fa-check-circle me-1"></i>{result.variant.inventoryQuantity} in stock</>
+                                                                            ) : (
+                                                                                <><i className="fas fa-exclamation-triangle me-1"></i>Out of stock</>
+                                                                            )}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="badge bg-secondary">
+                                                                            <i className="fas fa-question-circle me-1"></i>Stock unknown
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         </button>
