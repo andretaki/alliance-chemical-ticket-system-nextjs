@@ -1,78 +1,37 @@
 // src/app/tickets/[id]/page.tsx
 import { notFound } from 'next/navigation';
-import { db, tickets } from '@/lib/db';
-import { eq, desc, and, not } from 'drizzle-orm';
-import TicketViewClient from '@/components/TicketViewClient';
 import { Metadata } from 'next';
-import { ShopifyService } from '@/services/shopify/ShopifyService'; // Keep this for quote fetching
-import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
+import { TicketViewClient } from '@/components/ticket-view/TicketViewClient';
+import { TicketService } from '@/services/TicketService';
+import { ShopifyService } from '@/services/shopify/ShopifyService';
 import { Config } from '@/config/appConfig';
-import Link from 'next/link';
 import { getServerSession } from '@/lib/auth-helpers';
-import type { Ticket as TicketData } from '@/types/ticket';
+import { customerService } from '@/services/crm/customerService';
 
 interface TicketViewPageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
-
-interface TicketSidebarEntry {
-    id: number;
-    title: string;
-    senderName: string | null;
-    status: string;
-    updatedAt: string;
+  params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({ params: paramsPromise }: TicketViewPageProps): Promise<Metadata> {
-    const params = await paramsPromise;
-    const ticketId = parseInt(params.id, 10);
-    if (isNaN(ticketId)) {
-        return { title: 'Invalid Ticket - Issue Tracker' };
-    }
+  const params = await paramsPromise;
+  const ticketId = parseInt(params.id, 10);
 
-    const ticket = await db.query.tickets.findFirst({
-        where: eq(tickets.id, ticketId),
-        columns: { title: true },
-    });
-
-    return {
-        title: ticket ? `Ticket #${ticketId}: ${ticket.title} - Issue Tracker` : 'Ticket Not Found - Issue Tracker',
-        description: `Details and comments for ticket #${ticketId}.`,
-    };
-}
-
-async function getTicketDetails(id: number, userRole: string, userId: string) {
-  const ticket = await db.query.tickets.findFirst({
-    where: eq(tickets.id, id),
-    with: {
-      assignee: true,
-      reporter: true,
-      comments: {
-        with: {
-          commenter: true,
-        },
-        orderBy: (comments, { asc }) => [asc(comments.createdAt)],
-      },
-    },
-  });
-
-  if (!ticket) {
-    notFound();
+  if (isNaN(ticketId)) {
+    return { title: 'Invalid Ticket - Alliance Chemical Support' };
   }
 
-  const flatComments =
-    ticket.comments?.map((comment: any) => ({
-      ...comment,
-      commenterName: comment.commenter?.name || 'Unknown',
-    })) || [];
+  const ticketService = new TicketService();
+  const ticket = await ticketService.getTicketById(ticketId, { includeComments: false });
 
-  return { ...ticket, comments: flatComments, userRole, currentUserId: userId };
+  return {
+    title: ticket
+      ? `Ticket #${ticketId}: ${ticket.title} - Alliance Chemical Support`
+      : 'Ticket Not Found - Alliance Chemical Support',
+    description: ticket?.ai_summary || `Details and communication history for ticket #${ticketId}.`,
+  };
 }
 
 export default async function TicketViewPage({ params: paramsPromise }: TicketViewPageProps) {
-  // --- Data Fetching ---
   const params = await paramsPromise;
   const ticketId = parseInt(params.id, 10);
   const { session, error } = await getServerSession();
@@ -81,114 +40,102 @@ export default async function TicketViewPage({ params: paramsPromise }: TicketVi
     notFound();
   }
 
-  // Fetch the main ticket and the list for the sidebar in parallel
-  const [ticket, ticketList] = await Promise.all([
-    db.query.tickets.findFirst({
-      where: eq(tickets.id, ticketId),
-      with: {
-        assignee: { columns: { id: true, name: true, email: true } },
-        reporter: { columns: { id: true, name: true, email: true } },
-        comments: {
-          with: { 
-            commenter: { columns: { id: true, name: true, email: true } },
-            attachments: true,
-          },
-          orderBy: (comments, { asc }) => [asc(comments.createdAt)]
-        },
-        attachments: { where: (att, { isNull }) => isNull(att.commentId) }
-      }
+  if (error || !session?.user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground">Unauthorized</h1>
+          <p className="text-foreground-muted mt-2">Please sign in to view tickets.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const ticketService = new TicketService();
+
+  // Fetch all data in parallel for optimal performance
+  const [ticket, sidebarTickets, relatedQuote] = await Promise.all([
+    ticketService.getTicketById(ticketId, {
+      includeComments: true,
+      includeAttachments: true,
+      includeAssignee: true,
+      includeReporter: true,
     }),
-    db.query.tickets.findMany({
-      where: and(not(eq(tickets.status, 'closed'))),
-      columns: {
-        id: true,
-        title: true,
-        senderName: true,
-        status: true,
-        updatedAt: true
-      },
-      orderBy: [desc(tickets.updatedAt)],
-      limit: 50
-    })
+    ticketService.getActiveTicketsForSidebar({ limit: 50 }),
+    fetchRelatedQuote(ticketId),
   ]);
 
   if (!ticket) {
     notFound();
   }
 
-  // Fetch related quote from Shopify
-  const [relatedQuote, quoteAdminUrl] = await (async () => {
-    try {
-      const shopifyService = new ShopifyService();
-      const quotes = await shopifyService.getDraftOrdersByQuery(`tag:'TicketID-${ticketId}'`, 1);
-      if (quotes && quotes.length > 0) {
-        const quote = quotes[0];
-        const adminUrl = quote.legacyResourceId
-          ? `https://${Config.shopify.storeUrl.replace(/^https?:\/\//, '')}/admin/draft_orders/${quote.legacyResourceId}`
-          : null;
-        return [quote, adminUrl];
-      }
-    } catch (error) {
-      console.error(`Failed to fetch quote for ticket ${ticketId}:`, error);
-    }
-    return [null, null];
-  })();
+  // Authorization check
+  const canView = ticketService.canUserViewTicket(ticket, session.user);
+  if (!canView) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-foreground">Forbidden</h1>
+          <p className="text-foreground-muted mt-2">You do not have access to this ticket.</p>
+        </div>
+      </div>
+    );
+  }
 
-  // --- Data Serialization ---
+  // Fetch customer overview if linked
+  const customerOverview = ticket.customerId
+    ? await customerService.getOverviewById(ticket.customerId)
+    : null;
+
+  // Serialize dates for client component
   const serializedTicket = {
     ...ticket,
-    createdAt: ticket.createdAt.toISOString(),
-    updatedAt: ticket.updatedAt.toISOString(),
-    comments: ticket.comments.map((comment: any) => ({
-        ...comment,
-        createdAt: comment.createdAt.toISOString(),
-        attachments: comment.attachments?.map((att: any) => ({
-            ...att,
-            uploadedAt: att.uploadedAt.toISOString(),
-        }))
-    })),
-    attachments: ticket.attachments?.map((att: any) => ({
-        ...att,
-        uploadedAt: att.uploadedAt.toISOString(),
-    })),
+    createdAt: ticket.createdAt instanceof Date ? ticket.createdAt.toISOString() : ticket.createdAt,
+    updatedAt: ticket.updatedAt instanceof Date ? ticket.updatedAt.toISOString() : ticket.updatedAt,
+    firstResponseDueAt: ticket.firstResponseDueAt instanceof Date ? ticket.firstResponseDueAt.toISOString() : ticket.firstResponseDueAt,
+    resolutionDueAt: ticket.resolutionDueAt instanceof Date ? ticket.resolutionDueAt.toISOString() : ticket.resolutionDueAt,
+    comments: ticket.comments?.map((c: any) => ({
+      ...c,
+      createdAt: c.createdAt instanceof Date ? c.createdAt.toISOString() : c.createdAt,
+      attachments: c.attachments?.map((a: any) => ({
+        ...a,
+        uploadedAt: a.uploadedAt instanceof Date ? a.uploadedAt.toISOString() : a.uploadedAt,
+      })) || [],
+    })) || [],
+    attachments: ticket.attachments?.map((a: any) => ({
+      ...a,
+      uploadedAt: a.uploadedAt instanceof Date ? a.uploadedAt.toISOString() : a.uploadedAt,
+    })) || [],
   };
 
-  const serializedTicketList = ticketList.map(t => ({
-      ...t,
-      updatedAt: t.updatedAt.toISOString(),
-  }));
-
-  // --- Rendering ---
   return (
-    <div className="inbox-layout">
-        {/* Left Pane: Ticket List */}
-        <aside className="inbox-sidebar-pane">
-            <div className="p-4 border-b border-white/10">
-                <h4 className="text-lg font-bold text-white">Inbox</h4>
-                {/* Filter buttons will go here in a future update */}
-            </div>
-            <ul className="list-unstyled p-2">
-                {serializedTicketList.map(item => (
-                    <li key={item.id}>
-                        <Link href={`/tickets/${item.id}`} 
-                              className={`block p-3 rounded-lg transition-colors ${item.id === ticketId ? 'bg-primary/20' : 'hover:bg-white/5'}`}>
-                            <p className={`font-semibold truncate ${item.id === ticketId ? 'text-primary' : 'text-white'}`}>{item.title}</p>
-                            <div className="flex justify-between items-center text-xs text-foreground-muted">
-                                <span>{item.senderName || 'Unknown Sender'}</span>
-                                <span>{new Date(item.updatedAt).toLocaleDateString()}</span>
-                            </div>
-                        </Link>
-                    </li>
-                ))}
-            </ul>
-        </aside>
-
-        {/* Center & Right Panes managed by TicketViewClient */}
-        <TicketViewClient 
-            initialTicket={serializedTicket as TicketData} 
-            relatedQuote={relatedQuote} 
-            quoteAdminUrl={quoteAdminUrl} 
-        />
-    </div>
+    <TicketViewClient
+      initialTicket={serializedTicket as any}
+      sidebarTickets={sidebarTickets}
+      relatedQuote={relatedQuote.quote}
+      quoteAdminUrl={relatedQuote.adminUrl}
+      currentUser={session.user}
+      customerOverview={customerOverview}
+    />
   );
+}
+
+async function fetchRelatedQuote(ticketId: number) {
+  try {
+    const shopifyService = new ShopifyService();
+    const quotes = await shopifyService.getDraftOrdersByQuery(`tag:'TicketID-${ticketId}'`, 1);
+
+    if (quotes && quotes.length > 0) {
+      const quote = quotes[0];
+      const adminUrl = quote.legacyResourceId
+        ? `https://${Config.shopify.storeUrl.replace(/^https?:\/\//, '')}/admin/draft_orders/${quote.legacyResourceId}`
+        : null;
+
+      return { quote, adminUrl };
+    }
+  } catch (error) {
+    console.error(`Failed to fetch quote for ticket ${ticketId}:`, error);
+  }
+
+  return { quote: null, adminUrl: null };
 }

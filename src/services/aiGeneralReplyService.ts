@@ -1,10 +1,22 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerativeModel } from "@google/generative-ai";
 import type { Ticket, TicketComment } from '@/types/ticket';
 
-// --- Environment Variable Check ---
-const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
-    throw new Error("AI General Reply Service: GOOGLE_API_KEY is missing.");
+// --- Lazy initialization to avoid build-time errors ---
+let _model: GenerativeModel | null = null;
+
+function getModel(): GenerativeModel {
+    if (_model) return _model;
+
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+        throw new Error("AI General Reply Service: GOOGLE_API_KEY is missing.");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    _model = genAI.getGenerativeModel({
+        model: "models/gemini-2.5-flash-preview-05-20",
+    });
+    return _model;
 }
 
 // --- Local Helper Function ---
@@ -22,12 +34,6 @@ function extractFirstName(customerName: string | null | undefined): string {
   const words = customerName.trim().split(/\s+/);
   return words[0] || 'Customer';
 }
-
-// --- Initialize Google AI Client ---
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({
-    model: "models/gemini-2.5-flash-preview-05-20",
-});
 
 const safetySettings = [
     { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE },
@@ -73,7 +79,7 @@ Message: "${commentText}"
 Response:`;
 
     try {
-      const result = await model.generateContent({
+      const result = await getModel().generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         safetySettings,
         generationConfig: { temperature: 0.1, maxOutputTokens: 5 }
@@ -137,7 +143,7 @@ Customer Message:
 Category:`;
 
     try {
-      const result = await model.generateContent({
+      const result = await getModel().generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         safetySettings,
       });
@@ -146,7 +152,7 @@ Category:`;
       if (responseText && ['PRODUCT_AVAILABILITY_INQUIRY', 'TECHNICAL_SUPPORT_REQUEST', 'BILLING_INQUIRY', 'DAMAGED_OR_INCORRECT_ORDER', 'GENERAL_INQUIRY'].includes(responseText)) {
         return responseText as ReplyIntent;
       }
-      
+
       console.warn(`[AIGeneralReply] Could not determine a specific intent. Defaulting to GENERAL_INQUIRY. Raw response: "${responseText}"`);
       return 'GENERAL_INQUIRY';
 
@@ -257,7 +263,7 @@ Drafted Reply:`;
 
   private async executePrompt(prompt: string): Promise<string> {
     try {
-      const result = await model.generateContent({
+      const result = await getModel().generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         safetySettings,
         generationConfig: {

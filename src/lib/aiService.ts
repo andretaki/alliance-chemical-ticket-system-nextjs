@@ -1,22 +1,24 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig, GenerativeModel } from "@google/generative-ai";
 import { ticketTypeEcommerceEnum, ticketPriorityEnum, ticketSentimentEnum } from '@/db/schema'; // Added sentiment enum
 
-// --- Environment Variable Check ---
-const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
-    console.error("FATAL ERROR: Missing GOOGLE_API_KEY environment variable. AI Service cannot start.");
-    // In a real app, you might want to prevent the app from starting or disable AI features gracefully.
-    // For now, we throw an error during initialization.
-    throw new Error("AI Service configuration is incomplete. GOOGLE_API_KEY is missing.");
+// --- Lazy initialization to avoid build-time errors ---
+let _model: GenerativeModel | null = null;
+
+function getModel(): GenerativeModel {
+    if (_model) return _model;
+
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) {
+        console.error("FATAL ERROR: Missing GOOGLE_API_KEY environment variable. AI Service cannot start.");
+        throw new Error("AI Service configuration is incomplete. GOOGLE_API_KEY is missing.");
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+    _model = genAI.getGenerativeModel({
+        model: "models/gemini-2.5-flash-preview-05-20",
+    });
+    return _model;
 }
-
-// --- Initialize Google AI Client ---
-const genAI = new GoogleGenerativeAI(apiKey);
-
-// --- Select the Gemini 2.5 Flash Preview model ---
-const model = genAI.getGenerativeModel({
-    model: "models/gemini-2.5-flash-preview-05-20",
-});
 
 // --- Define Valid Options Based on Schema ---
 // Pass these to the AI to guide its response
@@ -134,7 +136,7 @@ Respond with ONLY this JSON format:
             topP: 0.9,
             topK: 10,
         };
-        const result = await model.generateContent({
+        const result = await getModel().generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: generationConfigTriage,
             safetySettings,
@@ -268,7 +270,7 @@ export async function analyzeEmailContent(subject: string, body: string): Promis
 
     try {
         console.log(`AI Service (Extract): Sending request for subject: "${subject.substring(0, 50)}..."`);
-        const result = await model.generateContent({
+        const result = await getModel().generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig,
             safetySettings,

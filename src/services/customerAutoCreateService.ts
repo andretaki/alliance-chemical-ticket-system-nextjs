@@ -21,10 +21,13 @@ export interface CustomerCreateResult {
 }
 
 export class CustomerAutoCreateService {
-  private shopifyService: ShopifyService;
+  private _shopifyService: ShopifyService | null = null;
 
-  constructor() {
-    this.shopifyService = new ShopifyService();
+  private get shopifyService(): ShopifyService {
+    if (!this._shopifyService) {
+      this._shopifyService = new ShopifyService();
+    }
+    return this._shopifyService;
   }
 
   /**

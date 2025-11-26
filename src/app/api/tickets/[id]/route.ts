@@ -3,6 +3,8 @@ import { db, tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentime
 import { eq, and, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { sendTicketReplyEmail, sendNotificationEmail } from '@/lib/email';
+import { checkTicketViewAccess, checkTicketModifyAccess, checkTicketDeleteAccess } from '@/lib/ticket-auth';
+import { rateLimiters } from '@/lib/rateLimiting';
 
 // --- Zod Schema for Validation ---
 const updateTicketSchema = z.object({
@@ -37,6 +39,12 @@ export async function GET(
     ticketIdStr = id;
 
     const ticketId = parseTicketIdString(ticketIdStr);
+
+    // Check authorization first
+    const authResult = await checkTicketViewAccess(ticketId);
+    if (!authResult.authorized) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status || 403 });
+    }
 
     const ticket = await db.query.tickets.findFirst({
       where: eq(tickets.id, ticketId),
@@ -84,13 +92,13 @@ export async function GET(
     return NextResponse.json(ticket);
   } catch (error) {
     console.error(`API Error [GET /api/tickets/${ticketIdStr}]:`, error);
-    
+
     if (error instanceof Error && error.message === 'Invalid ticket ID format') {
       return NextResponse.json({ error: 'Invalid ticket ID format' }, { status: 400 });
     }
-    
+
     return NextResponse.json(
-      { error: 'Failed to fetch ticket' }, 
+      { error: 'Failed to fetch ticket' },
       { status: 500 }
     );
   }
@@ -101,42 +109,53 @@ export async function PUT(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  // Rate limiting
+  const rateLimitResponse = await rateLimiters.api.middleware(request as NextRequest);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
   let ticketIdStr: string = 'unknown_id_in_PUT_handler';
   try {
     const params = await paramsPromise;
     ticketIdStr = params.id;
-    
+
     const ticketId = parseTicketIdString(ticketIdStr);
-    
+
+    // Check authorization first
+    const authResult = await checkTicketModifyAccess(ticketId);
+    if (!authResult.authorized) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status || 403 });
+    }
+
     const body = await request.json();
-    
+
     const validationResult = updateTicketSchema.safeParse(body);
     if (!validationResult.success) {
       const errors = validationResult.error.flatten().fieldErrors;
       return NextResponse.json({ error: "Invalid input", details: errors }, { status: 400 });
     }
-    
-    const { 
-      title, 
-      description, 
-      status, 
-      priority, 
-      assigneeEmail, 
+
+    const {
+      title,
+      description,
+      status,
+      priority,
+      assigneeEmail,
       assigneeId,
       sentiment,
       ai_summary,
       ai_suggested_assignee_id
     } = validationResult.data;
-    
+
     const currentTicket = await db.query.tickets.findFirst({
       where: eq(tickets.id, ticketId),
-      columns: { 
-        id: true, 
-        assigneeId: true, 
+      columns: {
+        id: true,
+        assigneeId: true,
         title: true
       }
     });
-    
+
     if (!currentTicket) {
       return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
     }
@@ -243,27 +262,29 @@ export async function DELETE(
   request: Request,
   { params: paramsPromise }: { params: Promise<{ id: string }> }
 ) {
+  // Rate limiting
+  const rateLimitResponse = await rateLimiters.api.middleware(request as NextRequest);
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
   let ticketIdStr: string = 'unknown_id_in_DELETE_handler';
   try {
     const params = await paramsPromise;
     ticketIdStr = params.id;
 
     const ticketId = parseTicketIdString(ticketIdStr);
-    
-    const existingTicket = await db.query.tickets.findFirst({
-      where: eq(tickets.id, ticketId),
-      columns: { id: true }
-    });
-    
-    if (!existingTicket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+
+    // Check authorization first (admin only)
+    const authResult = await checkTicketDeleteAccess(ticketId);
+    if (!authResult.authorized) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status || 403 });
     }
-    
+
     await db.delete(tickets).where(eq(tickets.id, ticketId));
-    
+
     console.log(`API Info [DELETE /api/tickets/${ticketIdStr}]: Ticket deleted successfully.`);
     return NextResponse.json({ message: 'Ticket deleted successfully' }, { status: 200 });
-    
+
   } catch (error) {
     console.error(`API Error [DELETE /api/tickets/${ticketIdStr}]:`, error);
     if (error instanceof Error && error.message === 'Invalid ticket ID format') {

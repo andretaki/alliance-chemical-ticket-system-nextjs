@@ -6,12 +6,25 @@ import { SecurityValidator } from '@/lib/security';
 
 const EMAIL_QUEUE_KEY = 'email-processing-queue';
 const BATCH_SIZE = 10; // Number of emails to process per cron run
+const LOCK_KEY = 'email-processing-lock';
+const LOCK_TTL_SECONDS = 120; // 2 minutes - max time to process a batch
 
 /**
 * This cron job runs every minute to process emails from the KV queue.
 * It's triggered by the configuration in vercel.json.
+*
+* DISABLED: Email integration is not currently in use.
 */
 export async function GET(request: NextRequest) {
+  // Email integration disabled - return early
+  console.log('Cron (ProcessEmails): Email integration is disabled.');
+  return NextResponse.json({
+    success: true,
+    message: 'Email integration is disabled'
+  });
+
+  /* DISABLED CODE - Email processing functionality
+  // The code below is preserved but disabled
   // Environment variable check
   if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
     const errorMessage = 'Cron (ProcessEmails): Vercel KV environment variables (KV_REST_API_URL, KV_REST_API_TOKEN) are not set.';
@@ -27,6 +40,26 @@ export async function GET(request: NextRequest) {
   if (!authResult.isValid) {
     console.warn(`[Security] Unauthorized cron access attempt: ${authResult.error}`);
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Distributed lock: Prevent overlapping cron executions
+  const lockId = `${Date.now()}-${Math.random()}`;
+  let lockAcquired = false;
+
+  try {
+    // Try to acquire lock using SET with NX (only set if not exists) and EX (expiry)
+    const lockResult = await kv.set(LOCK_KEY, lockId, { nx: true, ex: LOCK_TTL_SECONDS });
+
+    if (!lockResult) {
+      console.log('Cron (ProcessEmails): Another instance is already processing. Skipping this run.');
+      return NextResponse.json({ success: true, message: 'Skipped - another instance is processing' });
+    }
+
+    lockAcquired = true;
+    console.log(`Cron (ProcessEmails): Lock acquired with ID ${lockId}`);
+  } catch (lockError) {
+    console.error('Cron (ProcessEmails): Failed to acquire lock:', lockError);
+    return NextResponse.json({ success: false, message: 'Failed to acquire processing lock' }, { status: 500 });
   }
 
   try {
@@ -96,5 +129,23 @@ export async function GET(request: NextRequest) {
       { success: false, message: 'Internal ServerError', error: error.message },
       { status: 500 }
     );
+  } finally {
+    // Release the distributed lock
+    if (lockAcquired) {
+      try {
+        // Only delete the lock if it still has our lock ID (to avoid deleting another instance's lock)
+        const currentLockValue = await kv.get(LOCK_KEY);
+        if (currentLockValue === lockId) {
+          await kv.del(LOCK_KEY);
+          console.log(`Cron (ProcessEmails): Lock released for ID ${lockId}`);
+        } else {
+          console.warn(`Cron (ProcessEmails): Lock was already taken by another instance. Not deleting.`);
+        }
+      } catch (unlockError) {
+        console.error('Cron (ProcessEmails): Failed to release lock:', unlockError);
+        // Non-fatal: lock will expire after LOCK_TTL_SECONDS
+      }
+    }
   }
+  */
 } 

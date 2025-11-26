@@ -1,5 +1,5 @@
 // src/lib/ticketResolutionAgent.ts
-import { GoogleGenerativeAI, GenerationConfig } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerationConfig, GenerativeModel } from "@google/generative-ai";
 import { Groq } from 'groq-sdk';
 import { db, tickets, ticketComments, ticketStatusEnum } from '@/lib/db';
 import { eq, and, not, gte, lte, sql } from 'drizzle-orm';
@@ -12,16 +12,22 @@ import { ResolutionConfig, ResolutionAnalysis, DEFAULT_RESOLUTION_CONFIG } from 
 const RESOLUTION_CONFIG_KEY = 'ticket:resolution:config';
 const LAST_RESOLUTION_RUN_KEY = 'ticket:resolution:last_run';
 
-// Initialize Gemini AI
-const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
-  console.error("FATAL ERROR: Missing GOOGLE_API_KEY environment variable. Resolution Agent cannot start.");
-  throw new Error("Resolution Agent configuration is incomplete. GOOGLE_API_KEY is missing.");
-}
+// Lazy initialization to avoid build-time errors
+let _model: GenerativeModel | null = null;
 
-const genAI = new GoogleGenerativeAI(apiKey);
-// Use models/gemini-2.5-flash-preview-05-20 for enhanced performance, better reasoning, and improved cost-effectiveness.
-const model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash-preview-05-20" });
+function getModel(): GenerativeModel {
+  if (_model) return _model;
+
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    console.error("FATAL ERROR: Missing GOOGLE_API_KEY environment variable. Resolution Agent cannot start.");
+    throw new Error("Resolution Agent configuration is incomplete. GOOGLE_API_KEY is missing.");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  _model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash-preview-05-20" });
+  return _model;
+}
 
 interface TicketWithComments {
   id: number;
@@ -257,7 +263,7 @@ Respond with this exact JSON structure:
     };
 
     console.log(`Resolution Agent: Analyzing ticket ${ticketId} with Gemini (${conversationTurns} turns). Customer responded last: ${customerRespondedLast}. Days since last agent: ${daysSinceLastAgentResponse.toFixed(1)}`);
-    const result = await model.generateContent({
+    const result = await getModel().generateContent({
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig
     });

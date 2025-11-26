@@ -6,6 +6,7 @@ import { ShopifyService } from '@/services/shopify/ShopifyService';
 import type { AppDraftOrderInput, DraftOrderOutput, ShopifyDraftOrderGQLResponse, ShopifyMoney, DraftOrderAddressInput, DraftOrderLineItemInput } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
+import { rateLimiters } from '@/lib/rateLimiting';
 
 function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): DraftOrderOutput {
   const getPrice = (moneySet?: { shopMoney: ShopifyMoney }): number | undefined => {
@@ -77,6 +78,12 @@ function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): 
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting check
+    const rateLimitResponse = await rateLimiters.admin.middleware(request);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const { session, error } = await getServerSession();
         if (error) {
       return NextResponse.json({ error }, { status: 401 });
@@ -98,6 +105,33 @@ export async function POST(request: NextRequest) {
     }
     if (!body.shippingAddress) {
         return NextResponse.json({ error: 'Shipping address is required to calculate shipping rates.' }, { status: 400 });
+    }
+
+    // --- Idempotency Check: Prevent duplicate draft orders for the same ticket ---
+    const ticketTag = body.tags?.find(tag => tag.startsWith('TicketID-'));
+    if (ticketTag) {
+      const ticketId = parseInt(ticketTag.replace('TicketID-', ''));
+      console.log(`[POST /api/draft-orders] Checking for existing draft order for ticket ${ticketId}`);
+
+      try {
+        const shopifyService = new ShopifyService();
+        // Search for existing draft orders with this ticket tag
+        const existingDraftOrders = await shopifyService.searchDraftOrdersByTag(ticketTag);
+
+        if (existingDraftOrders && existingDraftOrders.length > 0) {
+          const existingDraftOrder = existingDraftOrders[0]; // Get the first matching draft order
+          console.log(`[POST /api/draft-orders] Found existing draft order for ticket ${ticketId}: ${existingDraftOrder.name}`);
+
+          // Return the existing draft order instead of creating a duplicate
+          return NextResponse.json({
+            ...existingDraftOrder,
+            _note: 'Existing draft order returned (idempotency protection)'
+          }, { status: 200 });
+        }
+      } catch (searchError) {
+        console.warn(`[POST /api/draft-orders] Could not check for existing draft orders: ${searchError}`);
+        // Continue with creation if search fails (fail open to avoid blocking legitimate requests)
+      }
     }
 
     // --- Auto-create customer in Shopify if enabled and customer info is provided ---

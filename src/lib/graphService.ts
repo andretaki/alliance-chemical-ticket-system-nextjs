@@ -9,15 +9,17 @@ import { and, eq } from 'drizzle-orm';
 import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
 import 'isomorphic-fetch'; // Required for the Graph client
 
-// Load environment variables
-const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
-const clientId = process.env.MICROSOFT_GRAPH_CLIENT_ID;
-const clientSecret = process.env.MICROSOFT_GRAPH_CLIENT_SECRET;
-export const userEmail = process.env.SHARED_MAILBOX_ADDRESS || '';
-
-if (!tenantId || !clientId || !clientSecret || !userEmail) {
-  throw new Error('Microsoft Graph configuration is incomplete. Check your .env file.');
+// Lazy-loaded user email getter
+export function getUserEmail(): string {
+  const email = process.env.SHARED_MAILBOX_ADDRESS || '';
+  if (!email) {
+    throw new Error('Microsoft Graph configuration is incomplete. SHARED_MAILBOX_ADDRESS is missing.');
+  }
+  return email;
 }
+
+// For backwards compatibility
+export const userEmail = process.env.SHARED_MAILBOX_ADDRESS || '';
 
 const selectProps = 'id,subject,body,sender,from,toRecipients,ccRecipients,isRead,createdDateTime,receivedDateTime,sentDateTime,lastModifiedDateTime,parentFolderId,conversationId,internetMessageId,internetMessageHeaders';
 
@@ -53,15 +55,35 @@ async function withRetry<T>(operation: () => Promise<T>, operationName: string):
   throw new Error(`All ${RETRY_ATTEMPTS} attempts failed for ${operationName}. Last error: ${lastError.message}`);
 }
 
-// Create credential and authentication provider
-const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+// Lazy initialization to avoid build-time errors
+let _graphClient: Client | null = null;
 
-const authProvider = new TokenCredentialAuthenticationProvider(credential, {
-  scopes: ['https://graph.microsoft.com/.default'],
+function getGraphClient(): Client {
+  if (_graphClient) return _graphClient;
+
+  const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
+  const clientId = process.env.MICROSOFT_GRAPH_CLIENT_ID;
+  const clientSecret = process.env.MICROSOFT_GRAPH_CLIENT_SECRET;
+
+  if (!tenantId || !clientId || !clientSecret) {
+    throw new Error('Microsoft Graph configuration is incomplete. Check your .env file.');
+  }
+
+  const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
+  const authProvider = new TokenCredentialAuthenticationProvider(credential, {
+    scopes: ['https://graph.microsoft.com/.default'],
+  });
+
+  _graphClient = Client.initWithMiddleware({ authProvider });
+  return _graphClient;
+}
+
+// Export a proxy for backwards compatibility
+export const graphClient = new Proxy({} as Client, {
+  get(_target, prop) {
+    return (getGraphClient() as any)[prop];
+  }
 });
-
-// Initialize the Graph client
-export const graphClient = Client.initWithMiddleware({ authProvider });
 
 /**
  * Get unread emails from the inbox

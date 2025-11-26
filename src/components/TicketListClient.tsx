@@ -54,7 +54,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [assigneeFilter, setAssigneeFilter] = useState('');
-  const [activeFilterPreset, setActiveFilterPreset] = useState<FilterPreset>('all');
+  const [activeFilterPreset, setActiveFilterPreset] = useState<FilterPreset>('my_tickets');
   const [searchTerm, setSearchTerm] = useState('');
 
   // Sorting states

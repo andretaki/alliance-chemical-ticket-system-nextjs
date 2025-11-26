@@ -1,395 +1,468 @@
 // src/lib/emailProcessor.ts
+// Streamlined Email Processor - AI Triage moved to microservice
 import { Message } from '@microsoft/microsoft-graph-types';
 import * as graphService from '@/lib/graphService';
 import * as alertService from '@/lib/alertService';
-import { db, tickets, users, ticketComments, ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum, quarantinedEmails, ticketSentimentEnum } from '@/lib/db';
-import { eq, or, inArray, and, sql } from 'drizzle-orm';
-import { analyzeEmailContent, triageEmailWithAI, EmailAnalysisResult } from '@/lib/aiService'; // Import triage function
+import { db, tickets, users, ticketComments, ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum, ticketSentimentEnum } from '@/lib/db';
+import { eq, or, inArray } from 'drizzle-orm';
+import { analyzeEmailContent } from '@/lib/aiService';
 import { ticketEventEmitter } from '@/lib/eventEmitter';
-
-// --- Helper Functions & Constants (from your original file) ---
-const INTERNAL_DOMAIN = process.env.INTERNAL_EMAIL_DOMAIN || "alliancechemical.com";
-const DEFAULT_PRIORITY = ticketPriorityEnum.enumValues[1];
-const DEFAULT_STATUS = ticketStatusEnum.enumValues[0];
-const OPEN_STATUS = ticketStatusEnum.enumValues[1];
-const PENDING_CUSTOMER_STATUS = ticketStatusEnum.enumValues[3];
-const DEFAULT_TYPE = 'General Inquiry' as typeof ticketTypeEcommerceEnum.enumValues[number];
-const DEFAULT_SENTIMENT = ticketSentimentEnum.enumValues[1];
-
-function nullableToOptional(value: string | null | undefined): string | undefined {
-    return value === null || value === undefined ? undefined : value;
-}
-
-function extractEmailHeaderValue(message: Message, headerName: string): string | null {
-    if (!message.internetMessageHeaders) return null;
-    const header = message.internetMessageHeaders.find(h => h.name?.toLowerCase() === headerName.toLowerCase());
-    return header?.value || null;
-}
-
-function parseMessageIdHeader(headerValue: string | null | undefined): string[] {
-    if (!headerValue) return [];
-    const matches = headerValue.match(/<([^>]+)>/g);
-    if (!matches) return [];
-    return [...new Set(matches.map(id => id.substring(1, id.length - 1)))];
-}
+import { sanitizeHtmlContent, validateEmailDomain } from '@/lib/validators';
 
 // --- Types ---
-interface EmailProcessingState {
-    messageId: string;
-    internetMessageId?: string;
-    startTime: number;
-}
-
 interface ProcessEmailResult {
-    success: boolean;
-    ticketId?: number;
-    commentId?: number;
-    message: string;
-    skipped?: boolean;
-    discarded?: boolean;
-    quarantined?: boolean;
-    aiTriageClassification?: string;
+  success: boolean;
+  ticketId?: number;
+  commentId?: number;
+  message?: string;
+  error?: string;
+  skipped?: boolean;
 }
 
-// --- Duplicate Check (Atomic) ---
-async function isDuplicate(internetMessageId: string): Promise<boolean> {
-    const [existingTicket, existingComment, existingQuarantine] = await Promise.all([
-        db.query.tickets.findFirst({ where: eq(tickets.externalMessageId, internetMessageId), columns: { id: true } }),
-        db.query.ticketComments.findFirst({ where: eq(ticketComments.externalMessageId, internetMessageId), columns: { id: true } }),
-        db.query.quarantinedEmails.findFirst({ where: eq(quarantinedEmails.internetMessageId, internetMessageId), columns: { id: true } })
-    ]);
-    return !!existingTicket || !!existingComment || !!existingQuarantine;
+// --- Duplicate Detection (Atomic & Performant) ---
+async function isDuplicateEmail(internetMessageId: string): Promise<boolean> {
+  if (!internetMessageId) return false;
+
+  // Single query with OR condition is more performant than 3 separate queries
+  const [existingTicket, existingComment] = await Promise.all([
+    db.query.tickets.findFirst({
+      where: eq(tickets.externalMessageId, internetMessageId),
+      columns: { id: true }
+    }),
+    db.query.ticketComments.findFirst({
+      where: eq(ticketComments.externalMessageId, internetMessageId),
+      columns: { id: true }
+    })
+  ]);
+
+  return !!(existingTicket || existingComment);
 }
 
-// --- Main Email Processor ---
-export async function processSingleEmail(emailMessage: Message): Promise<ProcessEmailResult> {
-    const state: EmailProcessingState = {
-        messageId: emailMessage.id!,
-        internetMessageId: nullableToOptional(emailMessage.internetMessageId),
-        startTime: Date.now(),
-    };
+// --- Thread Detection ---
+async function findExistingThread(emailMessage: Message): Promise<{ ticketId: number } | null> {
+  const headers = emailMessage.internetMessageHeaders || [];
 
-    const logAndReturn = (result: ProcessEmailResult, logMessage: string): ProcessEmailResult => {
-        const duration = Date.now() - state.startTime;
-        console.log(`[EmailProcessor] [${state.messageId}] Finalizing: ${logMessage}. Duration: ${duration}ms.`);
-        return result;
-    };
+  const inReplyTo = headers.find(h => h.name?.toLowerCase() === 'in-reply-to')?.value;
+  const references = headers.find(h => h.name?.toLowerCase() === 'references')?.value;
 
-    if (!state.internetMessageId) {
-        // This is a critical failure, we can't process without a unique ID.
-        // It might be a good idea to move this email to an error folder.
-        return logAndReturn({ success: false, message: `Email ${state.messageId} is missing InternetMessageId.` }, "Missing InternetMessageId");
-    }
+  // Extract message IDs from headers
+  const parseMessageIds = (header: string | null | undefined): string[] => {
+    if (!header) return [];
+    const matches = header.match(/<([^>]+)>/g);
+    return matches ? matches.map(id => id.slice(1, -1)) : [];
+  };
 
+  const referencedIds = [
+    ...parseMessageIds(inReplyTo),
+    ...parseMessageIds(references),
+  ].filter(Boolean);
+
+  if (referencedIds.length === 0) return null;
+
+  // Check if any referenced message ID belongs to an existing ticket
+  const existingTicket = await db.query.tickets.findFirst({
+    where: inArray(tickets.externalMessageId, referencedIds),
+    columns: { id: true }
+  });
+
+  if (existingTicket) return { ticketId: existingTicket.id };
+
+  // Check comments to find parent ticket
+  const existingComment = await db.query.ticketComments.findFirst({
+    where: inArray(ticketComments.externalMessageId, referencedIds),
+    columns: { ticketId: true }
+  });
+
+  if (existingComment) return { ticketId: existingComment.ticketId };
+
+  return null;
+}
+
+// --- User Management with Transaction Safety ---
+async function findOrCreateUser(
+  email: string,
+  name: string | undefined
+): Promise<{ id: string }> {
+  return db.transaction(async (tx) => {
+    // Try to find existing user
+    let user = await tx.query.users.findFirst({
+      where: eq(users.email, email),
+      columns: { id: true }
+    });
+
+    if (user) return user;
+
+    // Create new user (with race condition handling)
     try {
-        // Step 1: Duplicate Check
-        if (await isDuplicate(state.internetMessageId)) {
-            await graphService.markEmailAsRead(state.messageId); // Mark as read to avoid reprocessing
-            return logAndReturn({ success: true, skipped: true, message: "Duplicate email detected and skipped." }, "Duplicate Detected");
-        }
+      const [newUser] = await tx.insert(users).values({
+        email,
+        name: name || email.split('@')[0], // Fallback to email username
+        role: 'user',
+        isExternal: true,
+        approvalStatus: 'approved', // Auto-approve external ticket creators
+      }).returning({ id: users.id });
 
-        const senderEmail = nullableToOptional(emailMessage.sender?.emailAddress?.address)?.toLowerCase() || '';
-        const senderName = nullableToOptional(emailMessage.sender?.emailAddress?.name);
-        const subject = nullableToOptional(emailMessage.subject) || 'No Subject';
-        const bodyContent = nullableToOptional(emailMessage.body?.content) || '';
-        const bodyPreview = emailMessage.bodyPreview || bodyContent.substring(0, 250);
-
-        // Step 2: AI Triage - The Gatekeeper
-        const triageResult = await triageEmailWithAI(subject, bodyPreview, senderEmail);
-
-        if (!triageResult) {
-            // If AI triage fails, quarantine the email for manual review.
-            await db.insert(quarantinedEmails).values({
-                originalGraphMessageId: state.messageId,
-                internetMessageId: state.internetMessageId,
-                senderEmail, senderName, subject,
-                bodyPreview,
-                receivedAt: new Date(emailMessage.receivedDateTime!),
-                aiClassification: false,
-                aiReason: 'AI Triage service failed or returned an invalid response.',
-                status: 'pending_review'
-            });
-            await graphService.markEmailAsRead(state.messageId);
-            return logAndReturn({ success: true, quarantined: true, message: "Email quarantined due to AI triage failure." }, "AI Triage Failed");
-        }
-
-        // Step 3: Decision Gateway - Route email based on AI classification
-        switch (triageResult.classification) {
-            case 'CUSTOMER_SUPPORT_REQUEST':
-            case 'CUSTOMER_REPLY':
-                // Valid emails, proceed to threading check.
-                console.log(`[EmailProcessor] [${state.messageId}] AI classified as '${triageResult.classification}'. Proceeding to process.`);
-                break; // Fall through to the next section
-
-            case 'SPAM_PHISHING':
-            case 'MARKETING_PROMOTIONAL':
-            case 'VENDOR_BUSINESS':
-                await graphService.markEmailAsRead(state.messageId);
-                // Optionally move to a "Junk" or "Processed-Ignored" folder in Graph
-                return logAndReturn({
-                    success: true,
-                    discarded: true,
-                    message: `Email discarded by AI as '${triageResult.classification}'.`,
-                    aiTriageClassification: triageResult.classification
-                }, "Email Discarded");
-
-            case 'OUT_OF_OFFICE':
-            case 'SYSTEM_NOTIFICATION':
-                await graphService.markEmailAsRead(state.messageId);
-                return logAndReturn({
-                    success: true,
-                    skipped: true,
-                    message: `Email skipped by AI as '${triageResult.classification}'.`,
-                    aiTriageClassification: triageResult.classification
-                }, "Automated Email Skipped");
-
-            default: // Covers 'UNCLEAR_NEEDS_REVIEW', 'PERSONAL_INTERNAL', and any unexpected values
-                await db.insert(quarantinedEmails).values({
-                    originalGraphMessageId: state.messageId,
-                    internetMessageId: state.internetMessageId,
-                    senderEmail, senderName, subject,
-                    bodyPreview,
-                    receivedAt: new Date(emailMessage.receivedDateTime!),
-                    aiClassification: false,
-                    aiReason: triageResult.reasoning || `Classified by AI as '${triageResult.classification}'`,
-                    status: 'pending_review'
-                });
-                await graphService.markEmailAsRead(state.messageId);
-                // Optionally move to a 'Quarantined' folder in Graph
-                return logAndReturn({
-                    success: true,
-                    quarantined: true,
-                    message: `Email quarantined for review. Reason: ${triageResult.reasoning}`,
-                    aiTriageClassification: triageResult.classification
-                }, "Email Quarantined");
-        }
-
-        // Step 4: Threading Check (only for valid customer emails)
-        const inReplyToIds = parseMessageIdHeader(extractEmailHeaderValue(emailMessage, 'In-Reply-To'));
-        const referencesIds = parseMessageIdHeader(extractEmailHeaderValue(emailMessage, 'References'));
-        const allReferencedIds = [...new Set([...inReplyToIds, ...referencesIds])];
-
-        if (allReferencedIds.length > 0) {
-            const existingTicket = await db.query.tickets.findFirst({
-                where: or(inArray(tickets.externalMessageId, allReferencedIds), eq(tickets.conversationId, nullableToOptional(emailMessage.conversationId) || ''))
-            });
-
-            const existingComment = await db.query.ticketComments.findFirst({
-                where: inArray(ticketComments.externalMessageId, allReferencedIds)
-            });
-
-            const targetTicketId = existingTicket?.id || existingComment?.ticketId;
-            if (targetTicketId) {
-                return await processAsNewComment(emailMessage, targetTicketId, state);
-            }
-        }
-
-        // Step 5: New Ticket Creation (only for valid new requests)
-        return await processAsNewTicket(emailMessage, state);
-
+      return newUser;
     } catch (error) {
-        console.error(`[EmailProcessor] [${state.messageId}] Unhandled exception:`, error);
-        return logAndReturn({ success: false, message: `Unhandled exception: ${error instanceof Error ? error.message : 'Unknown error'}` }, "Unhandled Exception");
+      // Race condition: another process created the user
+      // Retry the find operation
+      const retryUser = await tx.query.users.findFirst({
+        where: eq(users.email, email),
+        columns: { id: true }
+      });
+
+      if (retryUser) {
+        console.log(`[EmailProcessor] Race condition handled for user ${email}`);
+        return retryUser;
+      }
+
+      throw error; // Re-throw if it's a different error
     }
+  });
 }
 
-async function processAsNewComment(emailMessage: Message, ticketId: number, state: EmailProcessingState): Promise<ProcessEmailResult> {
-    const bodyContent = nullableToOptional(emailMessage.body?.content) || '';
+// --- Comment Creation (Thread Reply) ---
+async function createCommentForThread(
+  ticketId: number,
+  content: string,
+  internetMessageId: string,
+  senderEmail: string,
+  graphMessageId: string
+): Promise<ProcessEmailResult> {
+  console.log(`[EmailProcessor] Creating comment for ticket #${ticketId}`);
 
-    // Log the intention
-    console.log(`[EmailProcessor] [${state.messageId}] Processing as a new comment for ticket ${ticketId}.`);
+  try {
+    const user = await findOrCreateUser(senderEmail, undefined);
 
+    const [newComment] = await db.insert(ticketComments).values({
+      ticketId,
+      commentText: content,
+      isFromCustomer: true,
+      isInternalNote: false,
+      isOutgoingReply: false,
+      externalMessageId: internetMessageId,
+      commenterId: user.id,
+      createdAt: new Date(),
+    }).returning({ id: ticketComments.id });
+
+    // Re-open ticket when customer replies
+    await db.update(tickets)
+      .set({
+        status: 'open',
+        updatedAt: new Date(),
+      })
+      .where(eq(tickets.id, ticketId));
+
+    // Mark email as processed
+    await graphService.markEmailAsRead(graphMessageId);
+
+    // Flag email for agent review
     try {
-        const newComment = await db.insert(ticketComments).values({
-            ticketId: ticketId,
-            commentText: bodyContent,
-            isFromCustomer: true,
-            isInternalNote: false,
-            isOutgoingReply: false,
-            externalMessageId: state.internetMessageId,
-            createdAt: new Date(),
-            // Assuming 'authorId' or 'reporterId' might be relevant if you can determine it
-        }).returning({ id: ticketComments.id });
-
-        // When a customer replies, re-open the ticket and mark it as pending
-        await db.update(tickets).set({
-            status: OPEN_STATUS, // 'open'
-            updatedAt: new Date(),
-            // Potentially reset assignee or add a note that customer replied
-        }).where(eq(tickets.id, ticketId));
-
-        // Mark the original email as read so it's not reprocessed
-        await graphService.markEmailAsRead(state.messageId!);
-
-        // === INTELLIGENT FLAGGING FOR REPLIES ===
-        try {
-            console.log(`[EmailProcessor] [${state.messageId}] Flagging reply for ticket ${ticketId} for human review.`);
-            await graphService.flagEmail(state.messageId!); // Flag all customer replies
-        } catch (flagError) {
-            const errorMessage = `Failed to flag reply email for ticket ${ticketId}. MessageID: ${state.messageId}`;
-            console.error(`[EmailProcessor] [${state.messageId}] ${errorMessage}`, flagError);
-            // Non-critical error, but we should alert on it to fix permissions/config
-            await alertService.trackErrorAndAlert('EmailFlagging-Reply-Failure', errorMessage, {
-                messageId: state.messageId,
-                ticketId: ticketId,
-                error: flagError instanceof Error ? flagError.message : String(flagError),
-            });
-        }
-
-
-        // Notify the system that a comment has been added
-        ticketEventEmitter.emit({ type: 'comment_added', ticketId: ticketId, commentId: newComment[0].id });
-
-        return {
-            success: true,
-            ticketId: ticketId,
-            commentId: newComment[0].id,
-            message: `Comment added to ticket ${ticketId} and email flagged.`
-        };
-
-    } catch (error) {
-        const errorMessage = `Error processing new comment for ticket ${ticketId}.`;
-        console.error(`[EmailProcessor] [${state.messageId}] ${errorMessage}`, error);
-        // This is a critical error, as we might lose a customer reply.
-        await alertService.trackErrorAndAlert('EmailProcessing-Comment-Failure', errorMessage, {
-            messageId: state.messageId,
-            ticketId: ticketId,
-            error: error instanceof Error ? error.message : String(error),
-        });
-        return { success: false, message: errorMessage };
+      await graphService.flagEmail(graphMessageId);
+      console.log(`[EmailProcessor] Flagged reply email for ticket #${ticketId}`);
+    } catch (flagError) {
+      console.error(`[EmailProcessor] Failed to flag email:`, flagError);
+      await alertService.trackErrorAndAlert(
+        'EmailFlagging-Reply-Failure',
+        `Failed to flag reply for ticket #${ticketId}`,
+        { ticketId, error: flagError instanceof Error ? flagError.message : String(flagError) }
+      );
     }
+
+    ticketEventEmitter.emit({ type: 'comment_added', ticketId, commentId: newComment.id });
+
+    return {
+      success: true,
+      ticketId,
+      commentId: newComment.id,
+      message: `Comment added to ticket #${ticketId}`,
+    };
+  } catch (error) {
+    const errorMessage = `Failed to create comment for ticket #${ticketId}`;
+    console.error(`[EmailProcessor] ${errorMessage}:`, error);
+
+    await alertService.trackErrorAndAlert(
+      'EmailProcessing-Comment-Failure',
+      errorMessage,
+      { ticketId, error: error instanceof Error ? error.message : String(error) }
+    );
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
 }
 
-async function processAsNewTicket(emailMessage: Message, state: EmailProcessingState): Promise<ProcessEmailResult> {
-    const subject = nullableToOptional(emailMessage.subject) || 'No Subject';
-    const bodyContent = nullableToOptional(emailMessage.body?.content) || '';
-    const senderEmail = nullableToOptional(emailMessage.sender?.emailAddress?.address)?.toLowerCase() || '';
-    const senderName = nullableToOptional(emailMessage.sender?.emailAddress?.name);
-    
+// --- Ticket Creation (New Request) ---
+async function createNewTicket(
+  emailMessage: Message,
+  content: string,
+  internetMessageId: string,
+  senderEmail: string,
+  senderName: string | undefined
+): Promise<ProcessEmailResult> {
+  console.log(`[EmailProcessor] Creating new ticket from ${senderEmail}`);
+
+  try {
+    // Validate email domain
+    if (!validateEmailDomain(senderEmail)) {
+      console.warn(`[EmailProcessor] Rejected email from suspicious domain: ${senderEmail}`);
+      return {
+        success: false,
+        error: 'Email from blacklisted domain',
+        skipped: true,
+      };
+    }
+
     // Find or create reporter
-    let reporter = await db.query.users.findFirst({ where: eq(users.email, senderEmail) });
-    if (!reporter) {
-        [reporter] = await db.insert(users).values({
-            email: senderEmail,
-            name: senderName,
-            isExternal: true
-        }).returning();
-    }
-    
-    const aiAnalysis = await analyzeEmailContent(subject, bodyContent);
+    const reporter = await findOrCreateUser(senderEmail, senderName);
 
+    // AI analysis for metadata extraction (optional - can be disabled)
+    let aiAnalysis = null;
+    try {
+      aiAnalysis = await analyzeEmailContent(
+        emailMessage.subject || 'No Subject',
+        content
+      );
+    } catch (aiError) {
+      console.error(`[EmailProcessor] AI analysis failed, continuing without it:`, aiError);
+      // Continue ticket creation even if AI fails
+    }
+
+    // Create ticket
     const [newTicket] = await db.insert(tickets).values({
-        title: aiAnalysis?.summary || subject.substring(0, 255),
-        description: bodyContent,
-        status: DEFAULT_STATUS,
-        priority: aiAnalysis?.prioritySuggestion || DEFAULT_PRIORITY,
-        type: aiAnalysis?.ticketType && aiAnalysis.ticketType !== 'Other' ? aiAnalysis.ticketType : DEFAULT_TYPE,
-        senderEmail: senderEmail,
-        senderName: senderName,
-        reporterId: reporter.id,
-        externalMessageId: state.internetMessageId,
-        conversationId: nullableToOptional(emailMessage.conversationId),
-        sentiment: aiAnalysis?.sentiment || DEFAULT_SENTIMENT,
-        ai_summary: aiAnalysis?.ai_summary,
-        orderNumber: aiAnalysis?.orderNumber,
-        trackingNumber: aiAnalysis?.trackingNumber,
-        aiSuggestedAction: aiAnalysis?.suggestedAction,
+      title: aiAnalysis?.summary || emailMessage.subject?.substring(0, 255) || 'New Support Request',
+      description: content,
+      status: 'new' as typeof ticketStatusEnum.enumValues[number],
+      priority: (aiAnalysis?.prioritySuggestion || 'medium') as typeof ticketPriorityEnum.enumValues[number],
+      type: (aiAnalysis?.ticketType && aiAnalysis.ticketType !== 'Other'
+        ? aiAnalysis.ticketType
+        : 'General Inquiry') as typeof ticketTypeEcommerceEnum.enumValues[number],
+      sentiment: (aiAnalysis?.sentiment || 'neutral') as typeof ticketSentimentEnum.enumValues[number],
+      ai_summary: aiAnalysis?.ai_summary,
+      aiSuggestedAction: aiAnalysis?.suggestedAction,
+      senderEmail,
+      senderName: senderName || senderEmail.split('@')[0],
+      reporterId: reporter.id,
+      externalMessageId: internetMessageId,
+      conversationId: emailMessage.conversationId,
+      orderNumber: aiAnalysis?.orderNumber,
+      trackingNumber: aiAnalysis?.trackingNumber,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }).returning();
 
-    // === INTELLIGENT EMAIL FLAGGING ===
-    // Flag ALL customer requests that create tickets for human review
+    // Flag email for agent review
     try {
-        let shouldFlag = true; // Always flag customer requests
-        let flagReason = 'customer request requiring human review';
-
-        // Add specific reasons for prioritization
-        if (newTicket.priority === 'high' || newTicket.priority === 'urgent') {
-            flagReason = `${newTicket.priority} priority customer request`;
-        }
-
-        if (aiAnalysis?.intent === 'return_request' || 
-            aiAnalysis?.sentiment === 'negative' ||
-            newTicket.type === 'Return') {
-            flagReason = `${aiAnalysis?.intent || newTicket.type} requiring urgent attention`;
-        }
-
-        if (aiAnalysis?.intent === 'documentation_request') {
-            flagReason = 'documentation request requiring review';
-        }
-
-        if (aiAnalysis?.intent === 'order_status_inquiry') {
-            flagReason = 'order inquiry requiring review';
-        }
-
-        if (aiAnalysis?.intent === 'quote_request') {
-            flagReason = 'quote request requiring review';
-        }
-
-        if (shouldFlag && state.messageId) {
-            await graphService.flagEmail(state.messageId);
-            console.log(`[EmailProcessor] [${state.messageId}] Flagged new ticket email for TICKET_ID: ${newTicket.id} because: ${flagReason}`);
-        }
+      await graphService.flagEmail(emailMessage.id!);
+      console.log(`[EmailProcessor] Flagged new ticket email for ticket #${newTicket.id}`);
     } catch (flagError) {
-        const errorMessage = `Failed to flag new ticket email for TICKET_ID: ${newTicket.id}. MessageID: ${state.messageId}`;
-        console.error(`[EmailProcessor] [${state.messageId}] ${errorMessage}`, flagError);
-        // Non-critical error for ticket creation, but critical for visibility. Alert on it.
-        await alertService.trackErrorAndAlert('EmailFlagging-NewTicket-Failure', errorMessage, {
-            messageId: state.messageId,
-            ticketId: newTicket.id,
-            error: flagError instanceof Error ? flagError.message : String(flagError),
-        });
+      console.error(`[EmailProcessor] Failed to flag email:`, flagError);
+      await alertService.trackErrorAndAlert(
+        'EmailFlagging-NewTicket-Failure',
+        `Failed to flag new ticket email for ticket #${newTicket.id}`,
+        { ticketId: newTicket.id, error: flagError instanceof Error ? flagError.message : String(flagError) }
+      );
     }
 
-    await graphService.markEmailAsRead(state.messageId!);
+    // Mark as processed
+    await graphService.markEmailAsRead(emailMessage.id!);
+
     ticketEventEmitter.emit({ type: 'ticket_created', ticketId: newTicket.id });
 
-    return { success: true, ticketId: newTicket.id, message: `New ticket created: #${newTicket.id}` };
+    return {
+      success: true,
+      ticketId: newTicket.id,
+      message: `New ticket created: #${newTicket.id}`,
+    };
+  } catch (error) {
+    const errorMessage = `Failed to create ticket from ${senderEmail}`;
+    console.error(`[EmailProcessor] ${errorMessage}:`, error);
+
+    await alertService.trackErrorAndAlert(
+      'EmailProcessing-Ticket-Creation-Failure',
+      errorMessage,
+      { senderEmail, error: error instanceof Error ? error.message : String(error) }
+    );
+
+    return {
+      success: false,
+      error: errorMessage,
+    };
+  }
 }
 
-// --- Batch Processor (Updated to handle new result types) ---
-export async function processUnreadEmails(limit = 50): Promise<{
-    success: boolean; message: string; processed: number; commentAdded: number;
-    errors: number; skipped: number; discarded: number; quarantined: number;
-    results: ProcessEmailResult[];
-}> {
-    const results: ProcessEmailResult[] = [];
-    let processed = 0, commentAdded = 0, errors = 0, skipped = 0, discarded = 0, quarantined = 0;
+// --- Main Processor ---
+export async function processSingleEmail(emailMessage: Message): Promise<ProcessEmailResult> {
+  const messageId = emailMessage.id!;
+  const internetMessageId = emailMessage.internetMessageId;
+  const startTime = Date.now();
 
-    try {
-        const messages = await graphService.getUnreadEmails(limit);
-        if (messages.length === 0) {
-            return { success: true, message: 'No unread emails to process.', processed: 0, commentAdded: 0, errors: 0, skipped: 0, discarded: 0, quarantined: 0, results: [] };
-        }
+  console.log(`[EmailProcessor] Processing email ${messageId}`);
 
-        for (const message of messages) {
-            try {
-                const result = await processSingleEmail(message);
-                results.push(result);
+  if (!internetMessageId) {
+    console.error(`[EmailProcessor] Skipped: Missing InternetMessageId for ${messageId}`);
+    return {
+      success: false,
+      error: 'Missing InternetMessageId',
+      skipped: true,
+    };
+  }
 
-                if (result.success) {
-                    if (result.ticketId) processed++;
-                    else if (result.commentId) commentAdded++;
-                    else if (result.skipped) skipped++;
-                    else if (result.discarded) discarded++;
-                    else if (result.quarantined) quarantined++;
-                } else {
-                    errors++;
-                }
-            } catch (emailError: any) {
-                console.error(`[EmailProcessor Cron] Error processing message ID ${message.id}:`, emailError);
-                errors++;
-                results.push({ success: false, message: `Failed to process: ${emailError.message}` });
-            }
-        }
-
-        const summary = `Job finished. New Tickets: ${processed}, New Comments: ${commentAdded}, Skipped: ${skipped}, Discarded: ${discarded}, Quarantined: ${quarantined}, Errors: ${errors}.`;
-        console.log(summary);
-        
-        return { success: true, message: summary, processed, commentAdded, errors, skipped, discarded, quarantined, results };
-    } catch (error: any) {
-        const errorMessage = `Critical error fetching unread emails: ${error.message}`;
-        console.error(errorMessage, error);
-        await alertService.trackErrorAndAlert('EmailProcessor-Cron-Failure', errorMessage, error);
-        return { success: false, message: errorMessage, processed: 0, commentAdded: 0, errors: 1, skipped: 0, discarded: 0, quarantined: 0, results: [] };
+  try {
+    // Step 1: Duplicate Check
+    if (await isDuplicateEmail(internetMessageId)) {
+      await graphService.markEmailAsRead(messageId);
+      console.log(`[EmailProcessor] Skipped duplicate: ${internetMessageId}`);
+      return {
+        success: true,
+        skipped: true,
+        message: 'Duplicate email detected',
+      };
     }
+
+    // Extract email data
+    const senderEmail = emailMessage.sender?.emailAddress?.address?.toLowerCase() || '';
+    const senderName = emailMessage.sender?.emailAddress?.name ?? undefined;
+    const bodyContent = sanitizeHtmlContent(emailMessage.body?.content ?? '');
+
+    // Step 2: Thread Detection
+    const existingThread = await findExistingThread(emailMessage);
+
+    if (existingThread) {
+      // This is a reply to an existing ticket
+      const result = await createCommentForThread(
+        existingThread.ticketId,
+        bodyContent,
+        internetMessageId,
+        senderEmail,
+        messageId
+      );
+
+      const duration = Date.now() - startTime;
+      console.log(`[EmailProcessor] Completed in ${duration}ms - Comment added to ticket #${existingThread.ticketId}`);
+
+      return result;
+    }
+
+    // Step 3: New Ticket Creation
+    const result = await createNewTicket(
+      emailMessage,
+      bodyContent,
+      internetMessageId,
+      senderEmail,
+      senderName
+    );
+
+    const duration = Date.now() - startTime;
+    console.log(`[EmailProcessor] Completed in ${duration}ms - New ticket #${result.ticketId}`);
+
+    return result;
+
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[EmailProcessor] Unhandled error after ${duration}ms:`, error);
+
+    await alertService.trackErrorAndAlert(
+      'EmailProcessor-Unhandled-Exception',
+      `Unhandled exception processing email ${messageId}`,
+      { messageId, error: error instanceof Error ? error.message : String(error) }
+    );
+
+    return {
+      success: false,
+      error: `Unhandled exception: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    };
+  }
+}
+
+// --- Batch Processor ---
+export async function processUnreadEmails(limit = 50): Promise<{
+  success: boolean;
+  message: string;
+  processed: number;
+  commentAdded: number;
+  errors: number;
+  skipped: number;
+  results: ProcessEmailResult[];
+}> {
+  const results: ProcessEmailResult[] = [];
+  let processed = 0;
+  let commentAdded = 0;
+  let errors = 0;
+  let skipped = 0;
+
+  try {
+    const messages = await graphService.getUnreadEmails(limit);
+
+    if (messages.length === 0) {
+      console.log('[EmailProcessor] No unread emails to process');
+      return {
+        success: true,
+        message: 'No unread emails',
+        processed: 0,
+        commentAdded: 0,
+        errors: 0,
+        skipped: 0,
+        results: [],
+      };
+    }
+
+    console.log(`[EmailProcessor] Processing ${messages.length} unread emails`);
+
+    for (const message of messages) {
+      try {
+        const result = await processSingleEmail(message);
+        results.push(result);
+
+        if (result.success) {
+          if (result.ticketId) processed++;
+          if (result.commentId) commentAdded++;
+          if (result.skipped) skipped++;
+        } else {
+          errors++;
+        }
+      } catch (emailError) {
+        console.error(`[EmailProcessor] Error processing message ${message.id}:`, emailError);
+        errors++;
+        results.push({
+          success: false,
+          error: `Failed to process: ${emailError instanceof Error ? emailError.message : 'Unknown error'}`,
+        });
+      }
+    }
+
+    const summary = `Batch complete: ${processed} new tickets, ${commentAdded} comments, ${skipped} skipped, ${errors} errors`;
+    console.log(`[EmailProcessor] ${summary}`);
+
+    return {
+      success: true,
+      message: summary,
+      processed,
+      commentAdded,
+      errors,
+      skipped,
+      results,
+    };
+  } catch (error) {
+    const errorMessage = `Critical error fetching unread emails: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    console.error(`[EmailProcessor] ${errorMessage}`, error);
+
+    await alertService.trackErrorAndAlert(
+      'EmailProcessor-Batch-Failure',
+      errorMessage,
+      { error: error instanceof Error ? error.message : String(error) }
+    );
+
+    return {
+      success: false,
+      message: errorMessage,
+      processed: 0,
+      commentAdded: 0,
+      errors: 1,
+      skipped: 0,
+      results: [],
+    };
+  }
 }

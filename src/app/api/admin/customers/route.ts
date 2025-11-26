@@ -3,6 +3,7 @@ import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 import { aiCustomerCommunicationService, CustomerProfile } from '@/services/aiCustomerCommunicationService';
 import { z } from 'zod';
+import { rateLimiters } from '@/lib/rateLimiting';
 
 // Validation schema for customer creation
 const createCustomerSchema = z.object({
@@ -43,6 +44,12 @@ const createCustomerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting check
+    const rateLimitResponse = await rateLimiters.admin.middleware(request);
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     // Authentication check
     const { session, error } = await getServerSession();
         if (error) {

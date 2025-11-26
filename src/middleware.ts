@@ -52,7 +52,8 @@ export async function middleware(req: NextRequest) {
     '/tickets',
     '/admin',
     '/manage-users',
-    '/profile'
+    '/profile',
+    '/customers'
   ];
 
   // Check if the current path is a protected route

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { kv } from '@vercel/kv';
 
 interface RateLimitConfig {
   windowMs: number; // Time window in milliseconds
@@ -14,58 +15,126 @@ interface RateLimitStore {
   };
 }
 
-// In-memory store (use Redis in production for multi-instance apps)
-const store: RateLimitStore = {};
+// In-memory fallback store (only used if KV unavailable)
+const fallbackStore: RateLimitStore = {};
 
-// Cleanup old entries every 10 minutes
+// Cleanup old entries in fallback store every 10 minutes
 setInterval(() => {
   const now = Date.now();
-  Object.keys(store).forEach(key => {
-    if (store[key].resetTime < now) {
-      delete store[key];
+  Object.keys(fallbackStore).forEach(key => {
+    if (fallbackStore[key].resetTime < now) {
+      delete fallbackStore[key];
     }
   });
 }, 10 * 60 * 1000);
 
 export class RateLimiter {
   private config: RateLimitConfig;
+  private useKV: boolean = true;
 
   constructor(config: RateLimitConfig) {
     this.config = config;
   }
 
-  check(identifier: string): { allowed: boolean; resetTime: number; remaining: number } {
+  /**
+   * Check rate limit using Vercel KV (distributed) or fallback to in-memory
+   */
+  async check(identifier: string): Promise<{ allowed: boolean; resetTime: number; remaining: number }> {
+    const now = Date.now();
+    const key = `ratelimit:${identifier}`;
+    const resetKey = `ratelimit:reset:${identifier}`;
+
+    try {
+      // Try to use Vercel KV for distributed rate limiting
+      if (this.useKV) {
+        // Use atomic INCR operation with separate reset time tracking
+        const resetTime = await kv.get<number>(resetKey);
+
+        if (!resetTime || resetTime < now) {
+          // First request or window expired - initialize new window
+          const newResetTime = now + this.config.windowMs;
+
+          // Use pipeline for atomic multi-operation
+          const pipeline = kv.pipeline();
+          pipeline.set(key, 1, { px: this.config.windowMs });
+          pipeline.set(resetKey, newResetTime, { px: this.config.windowMs });
+          await pipeline.exec();
+
+          return {
+            allowed: true,
+            resetTime: newResetTime,
+            remaining: this.config.maxRequests - 1
+          };
+        }
+
+        // Atomically increment counter
+        const count = await kv.incr(key);
+
+        // Ensure TTL is set (in case incr created a new key)
+        const ttl = await kv.pttl(key);
+        if (ttl === -1) {
+          await kv.pexpire(key, resetTime - now);
+        }
+
+        if (count > this.config.maxRequests) {
+          // Rate limit exceeded
+          return {
+            allowed: false,
+            resetTime: resetTime,
+            remaining: 0
+          };
+        }
+
+        return {
+          allowed: true,
+          resetTime: resetTime,
+          remaining: this.config.maxRequests - count
+        };
+      }
+    } catch (error) {
+      console.warn('[RateLimiter] KV unavailable, falling back to in-memory store:', error);
+      this.useKV = false;
+    }
+
+    // Fallback to in-memory store
+    return this.checkInMemory(identifier);
+  }
+
+  /**
+   * Fallback in-memory rate limiter (not distributed across serverless instances)
+   */
+  private checkInMemory(identifier: string): { allowed: boolean; resetTime: number; remaining: number } {
     const now = Date.now();
     const key = `${identifier}`;
-    
-    if (!store[key] || store[key].resetTime < now) {
+
+    if (!fallbackStore[key] || fallbackStore[key].resetTime < now) {
       // First request or window expired
-      store[key] = {
+      fallbackStore[key] = {
         count: 1,
         resetTime: now + this.config.windowMs
       };
       return {
         allowed: true,
-        resetTime: store[key].resetTime,
+        resetTime: fallbackStore[key].resetTime,
         remaining: this.config.maxRequests - 1
       };
     }
 
-    if (store[key].count >= this.config.maxRequests) {
+    if (fallbackStore[key].count >= this.config.maxRequests) {
       // Rate limit exceeded
       return {
         allowed: false,
-        resetTime: store[key].resetTime,
+        resetTime: fallbackStore[key].resetTime,
         remaining: 0
       };
     }
 
     // Increment counter
-    store[key].count++;
+    fallbackStore[key].count++;
     return {
       allowed: true,
-      resetTime: store[key].resetTime,
-      remaining: this.config.maxRequests - store[key].count
+      resetTime: fallbackStore[key].resetTime,
+      remaining: this.config.maxRequests - fallbackStore[key].count
     };
   }
 
@@ -74,7 +143,7 @@ export class RateLimiter {
     getIdentifier: (req: Request) => string = (req) => this.getClientIP(req)
   ): Promise<NextResponse | null> {
     const identifier = getIdentifier(request);
-    const result = this.check(identifier);
+    const result = await this.check(identifier);
 
     if (!result.allowed) {
       return NextResponse.json(

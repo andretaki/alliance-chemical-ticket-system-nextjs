@@ -1,14 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/cron/process-queued-emails",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/renew-subscriptions",
-      "schedule": "0 0 */2 * *"
-    },
-    {
       "path": "/api/cron/sync-products",
       "schedule": "0 2 * * *"
     },
@@ -19,6 +11,14 @@
     {
       "path": "/api/cron/update-metrics",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/outbox",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/ar-late",
+      "schedule": "0 * * * *"
     }
   ]
 }

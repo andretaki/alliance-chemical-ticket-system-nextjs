@@ -119,6 +119,7 @@ export default function Sidebar() {
                 )}
             </div>
 
+
             {/* Navigation */}
             <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
                 {isAuthenticated ? (
@@ -143,6 +144,7 @@ export default function Sidebar() {
                             <p className={`text-xs font-semibold uppercase text-foreground-muted px-3 pb-2 ${isCollapsed ? 'text-center' : ''}`}>Menu</p>
                             <NavItem href="/dashboard" icon="fa-home" label="Dashboard" />
                             <NavItem href="/tickets" icon="fa-list-alt" label="All Tickets" partialMatch={true} />
+                            <NavItem href="/customers" icon="fa-users" label="Customers" partialMatch={true} />
                             <NavItem href="/tickets/create" icon="fa-plus-circle" label="Create Ticket" />
                             <NavItem href="/admin/quotes/create" icon="fa-file-invoice" label="Create Quote" />
                         </div>

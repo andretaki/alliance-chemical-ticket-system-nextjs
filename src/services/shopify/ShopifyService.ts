@@ -153,46 +153,51 @@ interface ShopifyDraftOrderInput_Customer {
   // ... other customer fields if creating a new one
 }
 
-// Initialize Shopify API
-if (!Config.shopify.storeUrl || !Config.shopify.adminAccessToken) {
-  const errMsg = '[ShopifyService] Shopify store URL and Admin Access Token must be configured.';
-  console.error(errMsg);
-  throw new Error(errMsg);
-}
+// Lazy initialization of Shopify API to avoid build errors when env vars are missing
+let _shopify: ReturnType<typeof shopifyApi> | null = null;
 
-const shopify = shopifyApi({
-  apiKey: process.env.SHOPIFY_API_KEY || "dummyAPIKeyIfNotUsedForAuth",
-  apiSecretKey: process.env.SHOPIFY_API_SECRET || "dummySecretIfNotUsedForAuth",
-  scopes: ['read_products', 'write_draft_orders', 'read_draft_orders', 'write_orders', 'read_orders', 'read_customers', 'write_customers'], // Added customer scopes
-  hostName: Config.shopify.storeUrl.replace(/^https?:\/\//, ''),
-  apiVersion: Config.shopify.apiVersion as ApiVersion || LATEST_API_VERSION,
-  isEmbeddedApp: false,
-  logger: { level: LogSeverity.Info },
-});
+function getShopifyApi() {
+  if (_shopify) return _shopify;
+
+  if (!Config.shopify.storeUrl || !Config.shopify.adminAccessToken) {
+    const errMsg = '[ShopifyService] Shopify store URL and Admin Access Token must be configured.';
+    console.error(errMsg);
+    throw new Error(errMsg);
+  }
+
+  _shopify = shopifyApi({
+    apiKey: process.env.SHOPIFY_API_KEY || "dummyAPIKeyIfNotUsedForAuth",
+    apiSecretKey: process.env.SHOPIFY_API_SECRET || "dummySecretIfNotUsedForAuth",
+    scopes: ['read_products', 'write_draft_orders', 'read_draft_orders', 'write_orders', 'read_orders', 'read_customers', 'write_customers'],
+    hostName: Config.shopify.storeUrl.replace(/^https?:\/\//, ''),
+    apiVersion: Config.shopify.apiVersion as ApiVersion || LATEST_API_VERSION,
+    isEmbeddedApp: false,
+    logger: { level: LogSeverity.Info },
+  });
+
+  return _shopify;
+}
 
 export class ShopifyService {
   private shopifyStoreDomain: string;
   private adminAccessToken: string;
-  private graphqlClient: InstanceType<typeof shopify.clients.Graphql>;
+  private graphqlClient: any;
+  private readonly REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 
   constructor() {
-    if (!Config.shopify.storeUrl || !Config.shopify.adminAccessToken) {
-      const errMsg = 'Shopify store URL and Admin Access Token are required for ShopifyService.';
-      console.error(`[ShopifyService] ${errMsg}`);
-      throw new Error(errMsg);
-    }
-    
+    const shopify = getShopifyApi();
+
     console.log(`[ShopifyService] Initializing with store: ${Config.shopify.storeUrl}`);
     console.log(`[ShopifyService] Admin token exists: ${!!Config.shopify.adminAccessToken}`);
     console.log(`[ShopifyService] API version: ${Config.shopify.apiVersion}`);
-    
-    this.shopifyStoreDomain = Config.shopify.storeUrl.replace(/^https?:\/\//, '');
-    this.adminAccessToken = Config.shopify.adminAccessToken;
+
+    this.shopifyStoreDomain = Config.shopify.storeUrl!.replace(/^https?:\/\//, '');
+    this.adminAccessToken = Config.shopify.adminAccessToken!;
 
     // Create a custom app session
     const session = shopify.session.customAppSession(this.shopifyStoreDomain);
     session.accessToken = this.adminAccessToken;
-    
+
     try {
       this.graphqlClient = new shopify.clients.Graphql({ session });
       console.log("[ShopifyService] Successfully initialized GraphQL client.");
@@ -200,6 +205,22 @@ export class ShopifyService {
       console.error("[ShopifyService] Failed to initialize GraphQL client:", error);
       throw error;
     }
+  }
+
+  /**
+   * Wrapper for GraphQL requests with timeout protection
+   */
+  private async requestWithTimeout(
+    query: string,
+    options?: { variables?: any; retries?: number }
+  ): Promise<any> {
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Shopify API request timed out')), this.REQUEST_TIMEOUT_MS)
+    );
+
+    const requestPromise = this.graphqlClient.request(query, options);
+
+    return Promise.race([requestPromise, timeoutPromise]);
   }
 
   private getNumericId(gid: string): bigint {
@@ -409,6 +430,15 @@ export class ShopifyService {
       console.error(`[ShopifyService] Error searching draft orders by query "${query}":`, error);
       throw error;
     }
+  }
+
+  /**
+   * Search for draft orders by tag (for idempotency checks)
+   */
+  public async searchDraftOrdersByTag(tag: string): Promise<ShopifyDraftOrderGQLResponse[]> {
+    // Shopify query syntax for tags: tag:value
+    const query = `tag:${tag}`;
+    return this.getDraftOrdersByQuery(query, 5); // Return up to 5 matches
   }
 
   public getDraftOrderAdminUrl(legacyResourceId: string): string {
@@ -672,7 +702,7 @@ export class ShopifyService {
       console.log('[ShopifyService] Creating draft order with variables:', JSON.stringify(variables, null, 2));
       console.log('[ShopifyService] GraphQL mutation:', mutation);
       
-      const response = await this.graphqlClient.request(mutation, { variables, retries: 2 });
+      const response = await this.requestWithTimeout(mutation, { variables, retries: 2 });
       console.log('[ShopifyService] Raw GraphQL response:', JSON.stringify(response, null, 2));
 
       // Check for GraphQL errors
@@ -799,7 +829,7 @@ export class ShopifyService {
 
     try {
       console.log(`[ShopifyService] Updating shipping line for draft order ${draftOrderId} with:`, JSON.stringify(shippingLineInput));
-      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
+      const response: any = await this.requestWithTimeout(mutation, { variables, retries: 1 });
 
       if (response.errors) {
         console.error('[ShopifyService] GraphQL Errors on draftOrderUpdate:', JSON.stringify(response.errors, null, 2));
@@ -886,7 +916,7 @@ export class ShopifyService {
 
     try {
       console.log('[ShopifyService] Calculating shipping rates with input:', JSON.stringify(variables, null, 2));
-      const response: any = await this.graphqlClient.request(calculationMutation, { variables, retries: 2 });
+      const response: any = await this.requestWithTimeout(calculationMutation, { variables, retries: 2 });
       
       if (response.errors) {
         console.error('[ShopifyService] GraphQL Errors during shipping calculation:', JSON.stringify(response.errors, null, 2));
@@ -976,7 +1006,7 @@ export class ShopifyService {
       console.log(`[ShopifyService] Fetching draft order with ID: ${id}`);
       console.log(`[ShopifyService] GraphQL variables for getDraftOrderById: ${JSON.stringify(variables, null, 2)}`);
       
-      const response: any = await this.graphqlClient.request(query, { variables, retries: 2 });
+      const response: any = await this.requestWithTimeout(query, { variables, retries: 2 });
       
       console.log(`[ShopifyService] Full GraphQL response for getDraftOrderById ${id}:`, JSON.stringify(response, null, 2));
 
@@ -1103,9 +1133,143 @@ export class ShopifyService {
     return this.searchOrders(constructedQuery, limit);
   }
 
-  public async createCustomer(customerData: { email: string; firstName?: string; lastName?: string; phone?: string; tags?: string[]; note?: string; }): Promise<{ success: boolean; customerId?: string; customer?: any; alreadyExists: boolean; error?: string; }> {
+  /**
+   * Creates a customer with retry logic and race condition handling
+   */
+  private async createCustomerWithRetry(
+    customerData: { email: string; firstName?: string; lastName?: string; phone?: string; tags?: string[]; note?: string; },
+    maxRetries: number = 3
+  ): Promise<{ success: boolean; customerId?: string; customer?: any; alreadyExists: boolean; error?: string; }> {
+    const { email } = customerData;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        // Check if customer exists first
+        const existing = await this.findCustomerByEmail(email);
+        if (existing) {
+          return {
+            success: true,
+            alreadyExists: true,
+            customerId: existing.id,
+            customer: existing
+          };
+        }
+
+        // Attempt to create
+        const result = await this.createCustomerInternal(customerData);
+        return result;
+      } catch (error: any) {
+        const isDuplicateError = error.message?.includes('taken') || error.message?.includes('already exists');
+
+        if (isDuplicateError && attempt < maxRetries - 1) {
+          // Race condition detected, wait with exponential backoff and retry
+          const backoffMs = Math.pow(2, attempt) * 100; // 100ms, 200ms, 400ms
+          console.log(`[ShopifyService] Race condition detected for ${email}, retrying after ${backoffMs}ms (attempt ${attempt + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+          continue;
+        }
+
+        if (attempt === maxRetries - 1) {
+          console.error(`[ShopifyService] Failed to create customer after ${maxRetries} attempts:`, error);
+          return { success: false, alreadyExists: false, error: error.message || 'Failed to create customer' };
+        }
+      }
+    }
+
+    return { success: false, alreadyExists: false, error: 'Max retries exceeded' };
+  }
+
+  /**
+   * Helper to find customer by email
+   */
+  private async findCustomerByEmail(email: string): Promise<any | null> {
+    const findCustomerQuery = `
+        query($email: String!) {
+            customers(query: $email, first: 1) {
+                edges {
+                    node {
+                        id
+                        firstName
+                        lastName
+                        email
+                        phone
+                    }
+                }
+            }
+        }
+    `;
+
+    try {
+      const response: any = await this.requestWithTimeout(findCustomerQuery, { variables: { email } });
+      if (response.data?.customers?.edges?.length > 0) {
+        return response.data.customers.edges[0].node;
+      }
+    } catch (error) {
+      console.error(`[ShopifyService] Error finding customer by email:`, error);
+    }
+    return null;
+  }
+
+  /**
+   * Internal method to create customer (without retry logic)
+   */
+  private async createCustomerInternal(customerData: { email: string; firstName?: string; lastName?: string; phone?: string; tags?: string[]; note?: string; }): Promise<{ success: boolean; customerId?: string; customer?: any; alreadyExists: boolean; error?: string; }> {
     const { email, firstName, lastName, phone, tags, note } = customerData;
-    
+
+    const createCustomerMutation = `
+        mutation customerCreate($input: CustomerInput!) {
+            customerCreate(input: $input) {
+                customer {
+                    id
+                    firstName
+                    lastName
+                    email
+                    phone
+                }
+                userErrors {
+                    field
+                    message
+                }
+            }
+        }
+    `;
+
+    const input: any = {
+      email,
+      firstName: firstName || '',
+      lastName: lastName || '',
+      phone,
+      tags,
+      note,
+    };
+
+    const createResponse: any = await this.requestWithTimeout(createCustomerMutation, { variables: { input } });
+
+    if (createResponse.data.customerCreate.userErrors.length > 0) {
+      const errorMessages = createResponse.data.customerCreate.userErrors.map((e: any) => e.message).join(', ');
+      throw new Error(errorMessages);
+    }
+
+    const newCustomer = createResponse.data.customerCreate.customer;
+    console.log(`[ShopifyService] Customer created successfully with ID: ${newCustomer.id}`);
+    return {
+      success: true,
+      alreadyExists: false,
+      customerId: newCustomer.id,
+      customer: newCustomer,
+    };
+  }
+
+  public async createCustomer(customerData: { email: string; firstName?: string; lastName?: string; phone?: string; tags?: string[]; note?: string; }): Promise<{ success: boolean; customerId?: string; customer?: any; alreadyExists: boolean; error?: string; }> {
+    return this.createCustomerWithRetry(customerData, 3);
+  }
+
+  /**
+   * @deprecated Legacy method - kept for backward compatibility but uses new retry logic
+   */
+  public async createCustomerLegacy(customerData: { email: string; firstName?: string; lastName?: string; phone?: string; tags?: string[]; note?: string; }): Promise<{ success: boolean; customerId?: string; customer?: any; alreadyExists: boolean; error?: string; }> {
+    const { email, firstName, lastName, phone, tags, note } = customerData;
+
     // 1. Check if customer exists by email
     const findCustomerQuery = `
         query($email: String!) {
@@ -1124,7 +1288,7 @@ export class ShopifyService {
     `;
 
     try {
-        const findResponse: any = await this.graphqlClient.request(findCustomerQuery, { variables: { email: email } });
+        const findResponse: any = await this.requestWithTimeout(findCustomerQuery, { variables: { email: email } });
         if (findResponse.data.customers.edges.length > 0) {
             const existingCustomer = findResponse.data.customers.edges[0].node;
             console.log(`[ShopifyService] Customer with email ${email} already exists with ID: ${existingCustomer.id}`);
@@ -1170,17 +1334,44 @@ export class ShopifyService {
     };
     
     try {
-        const createResponse: any = await this.graphqlClient.request(createCustomerMutation, { variables: { input } });
-        
+        const createResponse: any = await this.requestWithTimeout(createCustomerMutation, { variables: { input } });
+
         if (createResponse.data.customerCreate.userErrors.length > 0) {
             const errorMessages = createResponse.data.customerCreate.userErrors.map((e: any) => e.message).join(', ');
             console.error(`[ShopifyService] Error creating customer: ${errorMessages}`);
+
+            // Check if error is due to duplicate email (race condition)
+            const isDuplicateError = errorMessages.toLowerCase().includes('email') &&
+                                    (errorMessages.toLowerCase().includes('taken') ||
+                                     errorMessages.toLowerCase().includes('already') ||
+                                     errorMessages.toLowerCase().includes('exists'));
+
+            if (isDuplicateError) {
+                console.log(`[ShopifyService] Detected duplicate customer error (race condition). Re-fetching existing customer.`);
+                // Re-fetch the customer that was created by the concurrent request
+                try {
+                    const refetchResponse: any = await this.requestWithTimeout(findCustomerQuery, { variables: { email: email } });
+                    if (refetchResponse.data.customers.edges.length > 0) {
+                        const existingCustomer = refetchResponse.data.customers.edges[0].node;
+                        console.log(`[ShopifyService] Successfully recovered from race condition. Customer ID: ${existingCustomer.id}`);
+                        return {
+                            success: true,
+                            alreadyExists: true,
+                            customerId: existingCustomer.id,
+                            customer: existingCustomer,
+                        };
+                    }
+                } catch (refetchError) {
+                    console.error(`[ShopifyService] Failed to re-fetch customer after race condition:`, refetchError);
+                }
+            }
+
             return { success: false, alreadyExists: false, error: errorMessages };
         }
-        
+
         const newCustomer = createResponse.data.customerCreate.customer;
         console.log(`[ShopifyService] Successfully created new customer with ID: ${newCustomer.id}`);
-        
+
         return {
             success: true,
             alreadyExists: false,
@@ -1256,7 +1447,7 @@ export class ShopifyService {
 
     try {
       console.log(`[ShopifyService] Adding address to customer ${customerId}`);
-      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
+      const response: any = await this.requestWithTimeout(mutation, { variables, retries: 1 });
 
       if (response.errors) {
         console.error('[ShopifyService] GraphQL Errors adding customer address:', JSON.stringify(response.errors, null, 2));
@@ -1326,7 +1517,7 @@ export class ShopifyService {
 
     try {
       console.log(`[ShopifyService] Setting default address for customer ${customerId}`);
-      const response: any = await this.graphqlClient.request(mutation, { variables, retries: 1 });
+      const response: any = await this.requestWithTimeout(mutation, { variables, retries: 1 });
 
       if (response.errors) {
         console.error('[ShopifyService] GraphQL Errors setting default address:', JSON.stringify(response.errors, null, 2));

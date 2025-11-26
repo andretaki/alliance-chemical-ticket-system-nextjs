@@ -1,14 +1,22 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig, GenerativeModel } from "@google/generative-ai";
 
-const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
-  throw new Error("AI Customer Communication Service: GOOGLE_API_KEY is missing.");
+// Lazy initialization to avoid build-time errors
+let _model: GenerativeModel | null = null;
+
+function getModel(): GenerativeModel {
+  if (_model) return _model;
+
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error("AI Customer Communication Service: GOOGLE_API_KEY is missing.");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  _model = genAI.getGenerativeModel({
+    model: "models/gemini-2.5-flash-preview-05-20",
+  });
+  return _model;
 }
-
-const genAI = new GoogleGenerativeAI(apiKey);
-const model = genAI.getGenerativeModel({
-  model: "models/gemini-2.5-flash-preview-05-20",
-});
 
 export interface CustomerCommunicationSuggestion {
   welcomeEmail: {
@@ -133,7 +141,7 @@ Response Format (JSON):
     try {
       console.log(`[AICustomerComm] Generating suggestions for ${customerProfile.firstName} ${customerProfile.lastName} (${customerProfile.customerType})`);
       
-      const result = await model.generateContent({
+      const result = await getModel().generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: this.generationConfig,
         safetySettings: this.safetySettings,
@@ -211,7 +219,7 @@ Return ONLY the welcome message text, no quotes or formatting.
 `;
 
     try {
-      const result = await model.generateContent({
+      const result = await getModel().generateContent({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,

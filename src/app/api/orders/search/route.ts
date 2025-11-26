@@ -7,7 +7,11 @@ import { OrderSearchResult } from '@/types/orderSearch';
 import { AdvancedSearchProcessor } from '@/lib/advancedSearch';
 import { CacheService } from '@/lib/cache';
 
-const shopifyService = new ShopifyService();
+let _shopifyService: ShopifyService | null = null;
+function getShopifyService() {
+  if (!_shopifyService) _shopifyService = new ShopifyService();
+  return _shopifyService;
+}
 
 /**
  * Takes a Shopify order and enriches it with data from ShipStation and your internal tickets DB.
@@ -38,7 +42,7 @@ async function enrichShopifyOrder(order: ShopifyOrderNode): Promise<OrderSearchR
         fulfillmentStatus: order.displayFulfillmentStatus,
         totalPrice: order.totalPriceSet?.shopMoney?.amount,
         currencyCode: order.totalPriceSet?.shopMoney?.currencyCode,
-        shopifyAdminUrl: shopifyService.getOrderAdminUrl(order.legacyResourceId),
+        shopifyAdminUrl: getShopifyService().getOrderAdminUrl(order.legacyResourceId),
         itemSummary: order.lineItems?.edges.map(item => `${item.node.name} x ${item.node.quantity}`).join(', '),
         relatedTicketId: relatedTicket?.id,
         relatedTicketUrl: relatedTicket ? `/tickets/${relatedTicket.id}` : undefined,
@@ -92,7 +96,7 @@ export async function GET(request: NextRequest) {
     if (shopifyQueryParts.length > 0) {
         const shopifyQueryString = shopifyQueryParts.join(' OR ');
         console.log(`[UnifiedSearch] Executing Shopify Query: "${shopifyQueryString}"`);
-        const shopifyOrders: ShopifyOrderNode[] = await shopifyService.searchOrders(shopifyQueryString);
+        const shopifyOrders: ShopifyOrderNode[] = await getShopifyService().searchOrders(shopifyQueryString);
 
         if (shopifyOrders.length > 0) {
             const orderNames = shopifyOrders.map(o => o.name.replace('#', '')).filter(Boolean);
@@ -134,7 +138,7 @@ export async function GET(request: NextRequest) {
                     fulfillmentStatus: order.displayFulfillmentStatus,
                     totalPrice: order.totalPriceSet?.shopMoney?.amount,
                     currencyCode: order.totalPriceSet?.shopMoney?.currencyCode,
-                    shopifyAdminUrl: shopifyService.getOrderAdminUrl(order.legacyResourceId),
+                    shopifyAdminUrl: getShopifyService().getOrderAdminUrl(order.legacyResourceId),
                     itemSummary: order.lineItems?.edges.map(item => `${item.node.name} x ${item.node.quantity}`).join(', '),
                     relatedTicketId: relatedTicket?.id,
                     relatedTicketUrl: relatedTicket ? `/tickets/${relatedTicket.id}` : undefined,

@@ -3,7 +3,7 @@
  * Supercharged AI capabilities for intelligent automation
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import type { SimpleQuoteEmailData } from '@/types/quoteInterfaces';
 
 interface ProductRecommendation {
@@ -44,9 +44,21 @@ interface TicketIntelligence {
   knowledgeBaseMatches: string[];
 }
 
-// Initialize Google AI
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
-const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+// Lazy initialization to avoid build-time errors
+let _model: GenerativeModel | null = null;
+
+function getModel(): GenerativeModel {
+  if (_model) return _model;
+
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error("Enhanced AI Service: GOOGLE_API_KEY is missing.");
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  _model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  return _model;
+}
 
 export class EnhancedAiService {
   private readonly systemPrompt = `
@@ -89,7 +101,7 @@ Return as JSON matching the QuoteIntelligence interface.
 
     try {
       const fullPrompt = `${this.systemPrompt}\n\n${prompt}`;
-      const result = await model.generateContent(fullPrompt);
+      const result = await getModel().generateContent(fullPrompt);
       const response = result.response;
       const text = response.text();
       
@@ -137,7 +149,7 @@ Return as JSON matching the TicketIntelligence interface.
 
     try {
       const fullPrompt = `${this.systemPrompt}\n\n${prompt}`;
-      const result = await model.generateContent(fullPrompt);
+      const result = await getModel().generateContent(fullPrompt);
       const response = result.response;
       const text = response.text();
       
@@ -174,7 +186,7 @@ Return as structured JSON.
 `;
 
       const fullPrompt = `${this.systemPrompt}\n\n${prompt}`;
-      const result = await model.generateContent(fullPrompt);
+      const result = await getModel().generateContent(fullPrompt);
       const response = result.response;
       const text = response.text();
       

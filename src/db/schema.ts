@@ -25,6 +25,39 @@ export const aiSuggestedActionEnum = ticketingProdSchema.enum('ai_suggested_acti
   'DOCUMENT_REQUEST',
   'GENERAL_REPLY',
 ]);
+export const providerEnum = ticketingProdSchema.enum('provider_enum', [
+  'shopify',
+  'qbo',
+  'amazon',
+  'manual',
+  'self_reported',
+  'klaviyo'
+]);
+export const orderStatusEnum = ticketingProdSchema.enum('order_status_enum', [
+  'open',
+  'closed',
+  'cancelled',
+  'fulfilled',
+  'partial'
+]);
+export const financialStatusEnum = ticketingProdSchema.enum('financial_status_enum', [
+  'paid',
+  'partially_paid',
+  'unpaid',
+  'void'
+]);
+export const interactionChannelEnum = ticketingProdSchema.enum('interaction_channel_enum', [
+  'email',
+  'ticket',
+  'self_id_form',
+  'amazon_api',
+  'shopify_webhook',
+  'klaviyo'
+]);
+export const interactionDirectionEnum = ticketingProdSchema.enum('interaction_direction_enum', [
+  'inbound',
+  'outbound'
+]);
 
 // --- Canned Responses Table ---
 export const cannedResponses = ticketingProdSchema.table('canned_responses', {
@@ -125,6 +158,101 @@ export const verificationTokens = ticketingProdSchema.table(
 
 // --- Your Application Tables (within ticketing_prod schema) ---
 
+export const customers = ticketingProdSchema.table('customers', {
+  id: serial('id').primaryKey(),
+  primaryEmail: varchar('primary_email', { length: 255 }),
+  primaryPhone: varchar('primary_phone', { length: 32 }),
+  firstName: varchar('first_name', { length: 255 }),
+  lastName: varchar('last_name', { length: 255 }),
+  company: varchar('company', { length: 255 }),
+  isVip: boolean('is_vip').default(false).notNull(),
+  creditRiskLevel: varchar('credit_risk_level', { length: 32 }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    emailIndex: index('idx_customers_primary_email').on(table.primaryEmail),
+    phoneIndex: index('idx_customers_primary_phone').on(table.primaryPhone),
+    companyIndex: index('idx_customers_company').on(table.company),
+  };
+});
+
+export const customerIdentities = ticketingProdSchema.table('customer_identities', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  provider: providerEnum('provider').notNull(),
+  externalId: varchar('external_id', { length: 255 }),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 32 }),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    providerExternalIndex: index('idx_customer_identities_provider_ext').on(table.provider, table.externalId),
+    emailIndex: index('idx_customer_identities_email').on(table.email),
+    phoneIndex: index('idx_customer_identities_phone').on(table.phone),
+    customerIndex: index('idx_customer_identities_customer').on(table.customerId),
+  };
+});
+
+export const orders = ticketingProdSchema.table('orders', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  provider: providerEnum('provider').notNull(),
+  externalId: varchar('external_id', { length: 255 }),
+  orderNumber: varchar('order_number', { length: 255 }),
+  status: orderStatusEnum('status').default('open').notNull(),
+  financialStatus: financialStatusEnum('financial_status').default('unpaid').notNull(),
+  currency: varchar('currency', { length: 8 }).default('USD').notNull(),
+  total: decimal('total', { precision: 14, scale: 2 }).default('0').notNull(),
+  placedAt: timestamp('placed_at', { withTimezone: true }),
+  dueAt: timestamp('due_at', { withTimezone: true }),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
+  lateFlag: boolean('late_flag').default(false).notNull(),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    providerExternalIndex: index('idx_orders_provider_ext').on(table.provider, table.externalId),
+    orderNumberIndex: index('idx_orders_order_number').on(table.orderNumber),
+    customerIndex: index('idx_orders_customer').on(table.customerId),
+    lateIndex: index('idx_orders_late_flag').on(table.lateFlag),
+  };
+});
+
+export const orderItems = ticketingProdSchema.table('order_items', {
+  id: serial('id').primaryKey(),
+  orderId: integer('order_id').notNull().references(() => orders.id, { onDelete: 'cascade' }),
+  sku: varchar('sku', { length: 255 }),
+  productIdExternal: varchar('product_id_external', { length: 255 }),
+  title: varchar('title', { length: 512 }),
+  quantity: integer('quantity').default(1).notNull(),
+  price: decimal('price', { precision: 14, scale: 2 }).default('0').notNull(),
+  metadata: jsonb('metadata'),
+}, (table) => {
+  return {
+    orderIndex: index('idx_order_items_order').on(table.orderId),
+  };
+});
+
+export const outboxJobs = ticketingProdSchema.table('outbox_jobs', {
+  id: serial('id').primaryKey(),
+  topic: varchar('topic', { length: 128 }).notNull(),
+  payload: jsonb('payload').notNull(),
+  status: varchar('status', { length: 32 }).default('pending').notNull(),
+  attempts: integer('attempts').default(0).notNull(),
+  nextRunAt: timestamp('next_run_at', { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    statusIndex: index('idx_outbox_status').on(table.status, table.nextRunAt),
+    topicIndex: index('idx_outbox_topic').on(table.topic),
+  };
+});
+
 export const tickets = ticketingProdSchema.table('tickets', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 255 }).notNull(),
@@ -164,6 +292,8 @@ export const tickets = ticketingProdSchema.table('tickets', {
   shippingEmail: varchar('shipping_email', { length: 255 }),
   // Foreign key to the ticket this one was merged into.
   mergedIntoTicketId: integer('merged_into_ticket_id').references((): AnyPgColumn => tickets.id, { onDelete: 'set null' }),
+  // Link to CRM customer
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
 
   // --- NEW SLA-related fields ---
   slaPolicyId: integer('sla_policy_id').references(() => slaPolicies.id, { onDelete: 'set null' }),
@@ -191,6 +321,7 @@ export const tickets = ticketingProdSchema.table('tickets', {
     // --- NEW INDEXES ---
     slaPolicyIdIndex: index('idx_tickets_sla_policy_id').on(table.slaPolicyId),
     slaStatusIndex: index('idx_tickets_sla_status').on(table.status, table.slaBreached),
+    customerIndex: index('idx_tickets_customer').on(table.customerId),
   };
 });
 
@@ -244,6 +375,24 @@ export const ticketAttachments = ticketingProdSchema.table('ticket_attachments',
     ticketIdIndex: index('idx_ticket_attachments_ticket_id').on(table.ticketId),
     commentIdIndex: index('idx_ticket_attachments_comment_id').on(table.commentId),
     uploaderIdIndex: index('idx_attachment_uploader_id').on(table.uploaderId),
+  };
+});
+
+export const interactions = ticketingProdSchema.table('interactions', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  ticketId: integer('ticket_id').references(() => tickets.id, { onDelete: 'set null' }),
+  commentId: integer('comment_id').references(() => ticketComments.id, { onDelete: 'set null' }),
+  channel: interactionChannelEnum('channel').notNull(),
+  direction: interactionDirectionEnum('direction').default('inbound').notNull(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    customerIndex: index('idx_interactions_customer').on(table.customerId),
+    ticketIndex: index('idx_interactions_ticket').on(table.ticketId),
+    channelIndex: index('idx_interactions_channel').on(table.channel),
   };
 });
 
@@ -312,6 +461,10 @@ export const ticketsRelations = relations(tickets, ({ one, many }) => ({
     fields: [tickets.slaPolicyId],
     references: [slaPolicies.id],
   }),
+  customer: one(customers, {
+    fields: [tickets.customerId],
+    references: [customers.id],
+  }),
 }));
 
 export const ticketCommentsRelations = relations(ticketComments, ({ one, many }) => ({
@@ -342,6 +495,50 @@ export const ticketAttachmentsRelations = relations(ticketAttachments, ({ one })
     fields: [ticketAttachments.uploaderId],
     references: [users.id],
     relationName: 'AttachmentUploader',
+  }),
+}));
+
+export const interactionsRelations = relations(interactions, ({ one }) => ({
+  customer: one(customers, {
+    fields: [interactions.customerId],
+    references: [customers.id],
+  }),
+  ticket: one(tickets, {
+    fields: [interactions.ticketId],
+    references: [tickets.id],
+  }),
+  comment: one(ticketComments, {
+    fields: [interactions.commentId],
+    references: [ticketComments.id],
+  }),
+}));
+
+export const customersRelations = relations(customers, ({ many }) => ({
+  identities: many(customerIdentities),
+  orders: many(orders),
+  interactions: many(interactions),
+  tickets: many(tickets),
+}));
+
+export const customerIdentitiesRelations = relations(customerIdentities, ({ one }) => ({
+  customer: one(customers, {
+    fields: [customerIdentities.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const ordersRelations = relations(orders, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [orders.customerId],
+    references: [customers.id],
+  }),
+  items: many(orderItems),
+}));
+
+export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
+    references: [orders.id],
   }),
 }));
 
