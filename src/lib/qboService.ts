@@ -104,7 +104,7 @@ export interface QboCustomerBalance {
 const runQboQuery = async <T = any>(query: string): Promise<T> => {
     const client = await getQboClient();
     return new Promise<T>((resolve, reject) => {
-        client.query(query, (err: any, data: T) => {
+        (client as any).query(query, (err: any, data: T) => {
             if (err) {
                 reject(err);
                 return;

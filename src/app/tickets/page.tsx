@@ -3,6 +3,9 @@ import { getServerSession } from '@/lib/auth-helpers';
 import type { Metadata } from 'next';
 import TicketListClient from '@/components/TicketListClient';
 
+// Force dynamic rendering since client component uses useSearchParams
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'All Tickets - Alliance Chemical Support',
   description: 'View and manage customer support tickets',
