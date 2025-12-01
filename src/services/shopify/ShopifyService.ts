@@ -41,6 +41,9 @@ export interface ShopifyOrderNode {
   legacyResourceId: string; // The numeric ID, e.g., "12345"
   name: string; // The order name, e.g., "#1001"
   createdAt: string; // ISO 8601 date string
+  processedAt?: string | null;
+  closedAt?: string | null;
+  financialStatus?: string | null;
   displayFulfillmentStatus: 'FULFILLED' | 'UNFULFILLED' | 'PARTIALLY_FULFILLED' | 'SCHEDULED' | 'ON_HOLD';
   totalPriceSet: {
     shopMoney: {
@@ -50,9 +53,11 @@ export interface ShopifyOrderNode {
   };
   customer: {
     id: string;
+    legacyResourceId?: string;
     firstName: string;
     lastName: string;
     email: string;
+    phone?: string | null;
   } | null;
   lineItems: {
     edges: Array<{
@@ -62,11 +67,14 @@ export interface ShopifyOrderNode {
         sku?: string;
         variant?: {
           id: string;
+          legacyResourceId?: string;
           title: string;
         };
+        originalUnitPriceSet?: { shopMoney: { amount: string; currencyCode: string } };
       };
     }>;
   };
+  cursor?: string;
   // Add other fields as needed
 }
 
@@ -1538,5 +1546,73 @@ export class ShopifyService {
       console.error('[ShopifyService] Error setting default address:', error);
       return { success: false, error: error.message || 'An unexpected error occurred' };
     }
+  }
+
+  /**
+   * Fetch a page of orders for synchronization purposes.
+   */
+  public async fetchOrdersPage(cursor?: string, pageSize: number = 50): Promise<{ orders: ShopifyOrderNode[]; nextCursor?: string; hasNextPage: boolean; }> {
+    const query = `
+      query FetchOrders($cursor: String, $pageSize: Int!) {
+        orders(first: $pageSize, after: $cursor, sortKey: CREATED_AT, reverse: true) {
+          edges {
+            cursor
+            node {
+              id
+              legacyResourceId
+              name
+              createdAt
+              processedAt
+              closedAt
+              financialStatus
+              displayFulfillmentStatus
+              totalPriceSet { shopMoney { amount currencyCode } }
+              customer {
+                id
+                legacyResourceId
+                firstName
+                lastName
+                email
+                phone
+              }
+              lineItems(first: 100) {
+                edges {
+                  node {
+                    name
+                    sku
+                    quantity
+                    originalUnitPriceSet { shopMoney { amount currencyCode } }
+                    variant { id legacyResourceId title }
+                  }
+                }
+              }
+            }
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+        }
+      }
+    `;
+
+    const response = await this.graphqlClient.query({
+      data: query,
+      variables: { cursor, pageSize },
+    });
+
+    const edges = response?.body?.data?.orders?.edges || [];
+    const pageInfo = response?.body?.data?.orders?.pageInfo || {};
+
+    const orders: ShopifyOrderNode[] = edges.map((edge: any) => ({
+      ...edge.node,
+      cursor: edge.cursor,
+    }));
+
+    return {
+      orders,
+      nextCursor: pageInfo.endCursor,
+      hasNextPage: Boolean(pageInfo.hasNextPage),
+    };
   }
 }

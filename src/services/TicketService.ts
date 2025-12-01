@@ -33,6 +33,7 @@ export interface CreateTicketInput {
   sentiment?: string | null;
   ai_summary?: string | null;
   ai_suggested_assignee_id?: string | null;
+  opportunityId?: number | null;
   reporterId: string;
 }
 
@@ -126,33 +127,22 @@ export class TicketService {
       }
     }
 
-    // Search filter - use full-text search if available, fallback to LIKE
+    // Search filter using LIKE (FTS available via manual migration later)
     if (searchTerm) {
       const sanitized = sanitizeSearchTerm(searchTerm);
       if (sanitized) {
-        // Try full-text search first (much faster with GIN index)
-        // Fallback to LIKE for partial matches or if FTS not set up
-        const useFTS = sanitized.length >= 3; // FTS works better with 3+ chars
+        const searchPattern = `%${sanitized.toLowerCase()}%`;
+        const searchConditions = or(
+          sql`LOWER(${tickets.title}) LIKE ${searchPattern}`,
+          sql`LOWER(${tickets.description}) LIKE ${searchPattern}`,
+          sql`LOWER(${tickets.senderEmail}) LIKE ${searchPattern}`,
+          sql`LOWER(${tickets.senderName}) LIKE ${searchPattern}`,
+          sql`LOWER(${tickets.orderNumber}) LIKE ${searchPattern}`,
+          sql`LOWER(${tickets.trackingNumber}) LIKE ${searchPattern}`
+        );
 
-        if (useFTS) {
-          // PostgreSQL full-text search using plainto_tsquery
-          const ftsCondition = sql`${tickets.searchVector} @@ plainto_tsquery('english', ${sanitized})`;
-          whereConditions.push(ftsCondition);
-        } else {
-          // Fallback to LIKE for short searches
-          const searchPattern = `%${sanitized.toLowerCase()}%`;
-          const searchConditions = or(
-            sql`LOWER(${tickets.title}) LIKE ${searchPattern}`,
-            sql`LOWER(${tickets.description}) LIKE ${searchPattern}`,
-            sql`LOWER(${tickets.senderEmail}) LIKE ${searchPattern}`,
-            sql`LOWER(${tickets.senderName}) LIKE ${searchPattern}`,
-            sql`LOWER(${tickets.orderNumber}) LIKE ${searchPattern}`,
-            sql`LOWER(${tickets.trackingNumber}) LIKE ${searchPattern}`
-          );
-
-          if (searchConditions) {
-            whereConditions.push(searchConditions);
-          }
+        if (searchConditions) {
+          whereConditions.push(searchConditions);
         }
       }
     }
@@ -338,6 +328,7 @@ export class TicketService {
       sentiment,
       ai_summary,
       ai_suggested_assignee_id,
+      opportunityId,
       reporterId,
     } = input;
 
@@ -372,6 +363,7 @@ export class TicketService {
       sentiment: sentiment as any,
       ai_summary: ai_summary || null,
       ai_suggested_assignee_id: ai_suggested_assignee_id || null,
+      opportunityId: opportunityId ?? null,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning();

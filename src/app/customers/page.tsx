@@ -64,9 +64,7 @@ export default async function CustomersPage() {
       orders: {
         columns: { lateFlag: true },
       },
-      tickets: {
-        columns: { status: true },
-      },
+      // Note: tickets link via senderEmail, not a direct FK
     },
     orderBy: [desc(customers.updatedAt)],
     limit: 100,

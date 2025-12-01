@@ -20,6 +20,12 @@ export function CustomerSnapshotCard({ overview }: Props) {
   const name = [overview.firstName, overview.lastName].filter(Boolean).join(' ') || 'Unknown';
   const providers = Array.from(new Set(overview.identities.map(i => i.provider)));
   const hasLate = overview.lateOrdersCount > 0;
+  const toTel = (phone?: string | null) => {
+    if (!phone) return null;
+    const digits = phone.replace(/[^\d+]/g, '');
+    if (!digits) return null;
+    return digits.startsWith('+') ? `tel:${digits}` : `tel:+${digits}`;
+  };
 
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 shadow-sm">
@@ -38,7 +44,11 @@ export function CustomerSnapshotCard({ overview }: Props) {
 
       <div className="mt-3 space-y-2 text-sm text-slate-200">
         {overview.primaryEmail && <p className="truncate">{overview.primaryEmail}</p>}
-        {overview.primaryPhone && <p className="truncate">{overview.primaryPhone}</p>}
+        {overview.primaryPhone && (
+          <a href={toTel(overview.primaryPhone) || undefined} className="truncate text-indigo-200 hover:underline">
+            {overview.primaryPhone}
+          </a>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -48,6 +58,16 @@ export function CustomerSnapshotCard({ overview }: Props) {
           </span>
         ))}
       </div>
+
+      {overview.qboSnapshot && (
+        <div className="mt-3 rounded-lg border border-slate-800/80 bg-slate-900/70 p-3">
+          <div className="text-xs uppercase tracking-[0.15em] text-slate-500">AR</div>
+          <div className="text-sm text-slate-200">
+            Balance: <span className="font-semibold text-emerald-300">{overview.qboSnapshot.currency} {overview.qboSnapshot.balance}</span>
+          </div>
+          <div className="text-xs text-slate-400">Terms: {overview.qboSnapshot.terms || '—'}</div>
+        </div>
+      )}
 
       <div className="mt-4 grid grid-cols-3 gap-3 text-center text-sm text-slate-300">
         <div className="rounded-lg border border-slate-800/80 bg-slate-900/70 p-2">
@@ -63,6 +83,29 @@ export function CustomerSnapshotCard({ overview }: Props) {
             {overview.lateOrdersCount}
           </div>
           <div className="text-xs text-slate-400">Late</div>
+        </div>
+        <div className="rounded-lg border border-slate-800/80 bg-slate-900/70 p-2 col-span-3 text-left">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs uppercase tracking-[0.15em] text-slate-500">Open opportunities</div>
+            <span className="text-xs text-slate-400">{overview.openOpportunities.length}</span>
+          </div>
+          {overview.openOpportunities.length === 0 ? (
+            <p className="text-sm text-slate-400">No open opportunities</p>
+          ) : (
+            <div className="space-y-2">
+              {overview.openOpportunities.slice(0, 3).map((opp) => (
+                <div key={opp.id} className="flex items-center justify-between text-sm text-slate-200">
+                  <div className="truncate">
+                    <p className="truncate font-medium">{opp.title}</p>
+                    <p className="text-xs text-slate-500">{opp.stage}</p>
+                  </div>
+                  <span className="text-xs text-slate-300">
+                    {opp.currency} {opp.estimatedValue ?? '—'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import QuickBooks from 'node-quickbooks';
 import OAuthClient from 'intuit-oauth';
 import { qboConfig } from '@/config/qboConfig';
 import { getToken, setToken, QboToken } from './qboTokenStore';
+import { db, qboCustomerSnapshots } from '@/lib/db';
 
 let oauthClient: OAuthClient | null = null;
 
@@ -89,4 +90,89 @@ export const getQboClient = async (): Promise<QuickBooks> => {
         '2.0', // oauthversion
         token.refresh_token
     );
-}; 
+};
+
+export interface QboCustomerBalance {
+    qboCustomerId: string;
+    balance: number;
+    currency: string;
+    terms?: string | null;
+    lastInvoiceDate?: string | null;
+    lastPaymentDate?: string | null;
+}
+
+const runQboQuery = async <T = any>(query: string): Promise<T> => {
+    const client = await getQboClient();
+    return new Promise<T>((resolve, reject) => {
+        client.query(query, (err: any, data: T) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve(data);
+        });
+    });
+};
+
+/**
+ * Fetch QBO customers with balance/terms for AR snapshotting.
+ * Note: QuickBooks does not expose last invoice/payment dates directly on customer,
+ * so those fields may be null in the snapshot.
+ */
+export const fetchQboCustomersWithBalances = async (): Promise<QboCustomerBalance[]> => {
+    const query = "SELECT Id, DisplayName, Balance, CurrencyRef, SalesTermRef, MetaData.LastUpdatedTime FROM Customer";
+    const response = await runQboQuery<any>(query);
+    const customers = response?.QueryResponse?.Customer || [];
+
+    return customers
+        .filter((c: any) => c?.Id)
+        .map((c: any) => ({
+            qboCustomerId: String(c.Id),
+            balance: Number(c.Balance || 0),
+            currency: c.CurrencyRef?.value || 'USD',
+            terms: c.SalesTermRef?.name || c.SalesTermRef?.value || null,
+            lastInvoiceDate: null,
+            lastPaymentDate: null,
+        }));
+};
+
+export interface QboSnapshotUpsert {
+    customerId: number;
+    qboCustomerId: string;
+    terms?: string | null;
+    balance: string;
+    currency: string;
+    lastInvoiceDate?: Date | null;
+    lastPaymentDate?: Date | null;
+    snapshotTakenAt?: Date;
+}
+
+export const upsertQboCustomerSnapshots = async (snapshots: QboSnapshotUpsert[]) => {
+    if (!snapshots.length) return;
+    const now = new Date();
+    for (const snap of snapshots) {
+        await db.insert(qboCustomerSnapshots)
+            .values({
+                customerId: snap.customerId,
+                qboCustomerId: snap.qboCustomerId,
+                terms: snap.terms ?? null,
+                balance: snap.balance,
+                currency: snap.currency,
+                lastInvoiceDate: snap.lastInvoiceDate ?? null,
+                lastPaymentDate: snap.lastPaymentDate ?? null,
+                snapshotTakenAt: snap.snapshotTakenAt ?? now,
+            })
+            .onConflictDoUpdate({
+                target: qboCustomerSnapshots.customerId,
+                set: {
+                    qboCustomerId: snap.qboCustomerId,
+                    terms: snap.terms ?? null,
+                    balance: snap.balance,
+                    currency: snap.currency,
+                    lastInvoiceDate: snap.lastInvoiceDate ?? null,
+                    lastPaymentDate: snap.lastPaymentDate ?? null,
+                    snapshotTakenAt: snap.snapshotTakenAt ?? now,
+                },
+            });
+    }
+};

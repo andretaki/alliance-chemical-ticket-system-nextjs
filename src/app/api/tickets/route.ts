@@ -16,6 +16,7 @@ const CreateTicketSchema = z.object({
   priority: z.enum(ticketPriorityEnum.enumValues).optional().default('medium'),
   status: z.enum(ticketStatusEnum.enumValues).optional().default('new'),
   type: z.enum(ticketTypeEcommerceEnum.enumValues).nullable().optional(),
+  opportunityId: z.number().int().positive().nullable().optional(),
 
   // Customer information
   senderEmail: z.string().email().nullable().optional(),
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
       senderPhone,
       senderCompany,
       orderNumber,
+      opportunityId,
       sentiment,
       ai_summary,
       ai_suggested_assignee_id,
@@ -153,6 +155,7 @@ export async function POST(request: NextRequest) {
       senderPhone,
       senderCompany,
       orderNumber,
+      opportunityId,
       sentiment,
       ai_summary,
       ai_suggested_assignee_id,

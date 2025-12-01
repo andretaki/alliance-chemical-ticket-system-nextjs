@@ -1,15 +1,8 @@
   // src/db/schema.ts
-import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, vector, type PgTable, index, doublePrecision, type AnyPgColumn, time, customType } from 'drizzle-orm/pg-core';
+import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, type PgTable, index, doublePrecision, type AnyPgColumn, time } from 'drizzle-orm/pg-core';
 import { relations, type One, type Many, sql } from 'drizzle-orm';
 import crypto from 'crypto'; // For UUID generation
 import { pgTable, bigint, jsonb, decimal } from 'drizzle-orm/pg-core';
-
-// Custom type for PostgreSQL tsvector (full-text search)
-const tsvector = customType<{ data: string }>({
-  dataType() {
-    return 'tsvector';
-  },
-});
 
 // Define your PostgreSQL schema objects
 export const ticketingProdSchema = pgSchema('ticketing_prod');
@@ -59,11 +52,18 @@ export const interactionChannelEnum = ticketingProdSchema.enum('interaction_chan
   'self_id_form',
   'amazon_api',
   'shopify_webhook',
-  'klaviyo'
+  'klaviyo',
+  'telephony',
 ]);
 export const interactionDirectionEnum = ticketingProdSchema.enum('interaction_direction_enum', [
   'inbound',
   'outbound'
+]);
+export const opportunityStageEnum = ticketingProdSchema.enum('opportunity_stage_enum', [
+  'lead',
+  'quote_sent',
+  'won',
+  'lost',
 ]);
 
 // --- Canned Responses Table ---
@@ -184,6 +184,50 @@ export const customers = ticketingProdSchema.table('customers', {
   };
 });
 
+export const contacts = ticketingProdSchema.table('contacts', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 32 }),
+  role: varchar('role', { length: 64 }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    customerIndex: index('idx_contacts_customer').on(table.customerId),
+    emailIndex: index('idx_contacts_email').on(table.email),
+  };
+});
+
+export const opportunities = ticketingProdSchema.table('opportunities', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  contactId: integer('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+  title: varchar('title', { length: 255 }).notNull(),
+  description: text('description'),
+  stage: opportunityStageEnum('stage').default('lead').notNull(),
+  source: varchar('source', { length: 64 }),
+  division: varchar('division', { length: 32 }),
+  estimatedValue: decimal('estimated_value', { precision: 14, scale: 2 }),
+  currency: varchar('currency', { length: 8 }).default('USD').notNull(),
+  ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
+  shopifyDraftOrderId: text('shopify_draft_order_id'),
+  qboEstimateId: text('qbo_estimate_id'),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+  lostReason: text('lost_reason'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    customerIndex: index('idx_opportunities_customer').on(table.customerId),
+    ownerIndex: index('idx_opportunities_owner').on(table.ownerId),
+    stageIndex: index('idx_opportunities_stage').on(table.stage),
+    divisionIndex: index('idx_opportunities_division').on(table.division),
+  };
+});
+
 export const customerIdentities = ticketingProdSchema.table('customer_identities', {
   id: serial('id').primaryKey(),
   customerId: integer('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
@@ -226,6 +270,7 @@ export const orders = ticketingProdSchema.table('orders', {
     orderNumberIndex: index('idx_orders_order_number').on(table.orderNumber),
     customerIndex: index('idx_orders_customer').on(table.customerId),
     lateIndex: index('idx_orders_late_flag').on(table.lateFlag),
+    providerExternalUnique: unique('uq_orders_provider_external').on(table.provider, table.externalId),
   };
 });
 
@@ -301,6 +346,8 @@ export const tickets = ticketingProdSchema.table('tickets', {
   mergedIntoTicketId: integer('merged_into_ticket_id').references((): AnyPgColumn => tickets.id, { onDelete: 'set null' }),
   // Link to CRM customer
   customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  // Optional link to an opportunity
+  opportunityId: integer('opportunity_id').references(() => opportunities.id, { onDelete: 'set null' }),
 
   // --- NEW SLA-related fields ---
   slaPolicyId: integer('sla_policy_id').references(() => slaPolicies.id, { onDelete: 'set null' }),
@@ -310,8 +357,8 @@ export const tickets = ticketingProdSchema.table('tickets', {
   slaBreached: boolean('sla_breached').default(false).notNull(),
   slaNotified: boolean('sla_notified').default(false).notNull(), // To prevent multiple notifications
 
-  // Full-text search vector - auto-populated by trigger
-  searchVector: tsvector('search_vector'),
+  // Full-text search vector - added via manual migration (see migrations/fts_setup.sql)
+  // FTS: Full-text search done via LIKE patterns in queries (see TicketService)
 
 }, (table) => {
   return {
@@ -342,9 +389,9 @@ export const tickets = ticketingProdSchema.table('tickets', {
     reporterStatusIndex: index('idx_tickets_reporter_status').on(table.reporterId, table.status),
     // slaStatusIndex covers: (status + slaBreached) for SLA queries
     slaStatusIndex: index('idx_tickets_sla_status').on(table.status, table.slaBreached),
+    opportunityIndex: index('idx_tickets_opportunity_id').on(table.opportunityId),
 
-    // Full-text search GIN index (requires manual migration - see migrations/fts_setup.sql)
-    // searchVectorIndex: index('idx_tickets_search_vector').using('gin', table.searchVector),
+    // FTS uses LIKE patterns on indexed columns (senderEmail, title, description, orderNumber)
   };
 });
 
@@ -380,6 +427,51 @@ export const subscriptions = ticketingProdSchema.table('subscriptions', {
   renewalCount: integer('renewal_count').default(0).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const qboCustomerSnapshots = ticketingProdSchema.table('qbo_customer_snapshots', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').notNull().references(() => customers.id, { onDelete: 'cascade' }),
+  qboCustomerId: text('qbo_customer_id').notNull(),
+  terms: text('terms'),
+  balance: decimal('balance', { precision: 14, scale: 2 }).default('0').notNull(),
+  currency: varchar('currency', { length: 8 }).default('USD').notNull(),
+  lastInvoiceDate: timestamp('last_invoice_date', { withTimezone: true }),
+  lastPaymentDate: timestamp('last_payment_date', { withTimezone: true }),
+  snapshotTakenAt: timestamp('snapshot_taken_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    customerUnique: unique('uq_qbo_snapshots_customer').on(table.customerId),
+    qboIdIndex: index('idx_qbo_snapshots_qbo_id').on(table.qboCustomerId),
+  };
+});
+
+export const calls = ticketingProdSchema.table('calls', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  contactId: integer('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
+  opportunityId: integer('opportunity_id').references(() => opportunities.id, { onDelete: 'set null' }),
+  ticketId: integer('ticket_id').references(() => tickets.id, { onDelete: 'set null' }),
+  provider: text('provider').notNull(),
+  providerCallId: text('provider_call_id'),
+  direction: interactionDirectionEnum('direction').notNull().default('inbound'),
+  fromNumber: varchar('from_number', { length: 32 }).notNull(),
+  toNumber: varchar('to_number', { length: 32 }).notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+  endedAt: timestamp('ended_at', { withTimezone: true }),
+  durationSeconds: integer('duration_seconds'),
+  recordingUrl: text('recording_url'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    customerIndex: index('idx_calls_customer').on(table.customerId),
+    contactIndex: index('idx_calls_contact').on(table.contactId),
+    providerCallIndex: index('idx_calls_provider_call').on(table.providerCallId),
+    startedAtIndex: index('idx_calls_started_at').on(table.startedAt),
+    providerCallUnique: unique('uq_calls_provider_call').on(table.provider, table.providerCallId),
+  };
 });
 
 export const ticketAttachments = ticketingProdSchema.table('ticket_attachments', {
@@ -488,6 +580,11 @@ export const ticketsRelations = relations(tickets, ({ one, many }) => ({
     fields: [tickets.customerId],
     references: [customers.id],
   }),
+  opportunity: one(opportunities, {
+    fields: [tickets.opportunityId],
+    references: [opportunities.id],
+  }),
+  calls: many(calls),
 }));
 
 export const ticketCommentsRelations = relations(ticketComments, ({ one, many }) => ({
@@ -540,7 +637,11 @@ export const customersRelations = relations(customers, ({ many }) => ({
   identities: many(customerIdentities),
   orders: many(orders),
   interactions: many(interactions),
-  tickets: many(tickets),
+  // Note: tickets don't have a direct customerId FK - they link via senderEmail
+  contacts: many(contacts),
+  qboSnapshots: many(qboCustomerSnapshots),
+  opportunities: many(opportunities),
+  calls: many(calls),
 }));
 
 export const customerIdentitiesRelations = relations(customerIdentities, ({ one }) => ({
@@ -562,6 +663,41 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   order: one(orders, {
     fields: [orderItems.orderId],
     references: [orders.id],
+  }),
+}));
+
+export const opportunitiesRelations = relations(opportunities, ({ one, many }) => ({
+  customer: one(customers, {
+    fields: [opportunities.customerId],
+    references: [customers.id],
+  }),
+  contact: one(contacts, {
+    fields: [opportunities.contactId],
+    references: [contacts.id],
+  }),
+  owner: one(users, {
+    fields: [opportunities.ownerId],
+    references: [users.id],
+  }),
+  calls: many(calls),
+}));
+
+export const callsRelations = relations(calls, ({ one }) => ({
+  customer: one(customers, {
+    fields: [calls.customerId],
+    references: [customers.id],
+  }),
+  contact: one(contacts, {
+    fields: [calls.contactId],
+    references: [contacts.id],
+  }),
+  opportunity: one(opportunities, {
+    fields: [calls.opportunityId],
+    references: [opportunities.id],
+  }),
+  ticket: one(tickets, {
+    fields: [calls.ticketId],
+    references: [tickets.id],
   }),
 }));
 
@@ -704,6 +840,20 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   creator: one(users, {
     fields: [subscriptions.creatorId],
     references: [users.id],
+  }),
+}));
+
+export const contactsRelations = relations(contacts, ({ one }) => ({
+  customer: one(customers, {
+    fields: [contacts.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const qboCustomerSnapshotsRelations = relations(qboCustomerSnapshots, ({ one }) => ({
+  customer: one(customers, {
+    fields: [qboCustomerSnapshots.customerId],
+    references: [customers.id],
   }),
 }));
 

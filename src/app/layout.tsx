@@ -28,7 +28,11 @@ export const metadata: Metadata = {
   },
   keywords: ['ticket system', 'support', 'alliance chemical', 'enterprise', 'saas'],
   authors: [{ name: 'Alliance Chemical' }],
-  viewport: 'width=device-width, initial-scale=1',
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({

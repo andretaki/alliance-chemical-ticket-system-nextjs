@@ -59,6 +59,24 @@ function Button({
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button"
 
+  // When using asChild, Slot expects exactly one child element
+  // so we can't wrap children with loading/icon elements
+  if (asChild) {
+    return (
+      <Comp
+        data-slot="button"
+        className={cn(
+          buttonVariants({ variant, size }),
+          fullWidth && "w-full",
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </Comp>
+    )
+  }
+
   return (
     <Comp
       data-slot="button"

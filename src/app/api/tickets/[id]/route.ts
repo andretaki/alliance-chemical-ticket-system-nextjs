@@ -17,6 +17,7 @@ const updateTicketSchema = z.object({
   sentiment: z.enum(ticketSentimentEnum.enumValues).nullable().optional(), // Optional sentiment
   ai_summary: z.string().nullable().optional(), // Optional AI summary
   ai_suggested_assignee_id: z.string().nullable().optional(), // Optional AI suggested assignee
+  opportunityId: z.number().int().positive().nullable().optional(),
 });
 
 // Helper to parse and validate ticket ID
@@ -171,6 +172,9 @@ export async function PUT(
     if (sentiment !== undefined) updateData.sentiment = sentiment;
     if (ai_summary !== undefined) updateData.ai_summary = ai_summary;
     if (ai_suggested_assignee_id !== undefined) updateData.ai_suggested_assignee_id = ai_suggested_assignee_id;
+    if (validationResult.data.opportunityId !== undefined) {
+      updateData.opportunityId = validationResult.data.opportunityId;
+    }
     
     let newAssigneeId = oldAssigneeId;
     
