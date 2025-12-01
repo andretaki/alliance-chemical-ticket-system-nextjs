@@ -5,11 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 interface PageProps {
-  searchParams?: { phone?: string };
+  searchParams?: Promise<{ phone?: string }>;
 }
 
 export default async function TelephonyLookupPage({ searchParams }: PageProps) {
-  const phone = searchParams?.phone || '';
+  const resolvedParams = await searchParams;
+  const phone = resolvedParams?.phone || '';
 
   if (!phone) {
     return (

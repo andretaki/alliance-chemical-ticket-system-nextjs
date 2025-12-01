@@ -4,11 +4,12 @@ import { getOpportunityById } from '@/services/opportunityService';
 import { OpportunityDetailClient } from '@/components/opportunities/OpportunityDetailClient';
 
 interface PageProps {
-  params: { id: string };
+  params: any;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const id = Number(params.id);
+  const { id: idParam } = await params;
+  const id = Number(idParam);
   if (Number.isNaN(id)) return { title: 'Opportunity - Alliance Chemical' };
   const opp = await getOpportunityById(id);
   if (!opp) return { title: 'Opportunity not found' };
@@ -16,7 +17,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function OpportunityDetailPage({ params }: PageProps) {
-  const id = Number(params.id);
+  const { id: idParam } = await params;
+  const id = Number(idParam);
   if (Number.isNaN(id)) notFound();
   const opportunity = await getOpportunityById(id);
   if (!opportunity) notFound();

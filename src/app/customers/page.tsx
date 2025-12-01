@@ -195,8 +195,6 @@ export default async function CustomersPage() {
                       ...new Set(customer.identities?.map((i) => i.provider) || []),
                     ];
                     const hasLate = customer.orders?.some((o) => o.lateFlag);
-                    const openTickets =
-                      customer.tickets?.filter((t) => t.status !== 'closed').length || 0;
 
                     return (
                       <TableRow
@@ -269,19 +267,7 @@ export default async function CustomersPage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          {openTickets > 0 ? (
-                            <Badge
-                              variant="outline"
-                              className="border-blue-500/30 bg-blue-500/15 text-blue-400"
-                            >
-                              <Ticket className="mr-1 h-3 w-3" />
-                              {openTickets} open
-                            </Badge>
-                          ) : (
-                            <span className="text-sm text-white/30">
-                              {customer.tickets?.length || 0}
-                            </span>
-                          )}
+                          <span className="text-sm text-white/30">—</span>
                         </TableCell>
                         <TableCell>
                           {hasLate ? (
