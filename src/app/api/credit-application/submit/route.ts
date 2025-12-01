@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       senderEmail: appData.email,
       senderName: appData.contactName,
       senderPhone: appData.phone,
-      sendercompany: appData.companyName,
+      senderCompany: appData.companyName,
     }).returning();
     
     return NextResponse.json({ success: true, message: 'Application received and ticket created.', ticketId: newTicket.id }, { status: 201 });

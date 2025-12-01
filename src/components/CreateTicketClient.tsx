@@ -103,7 +103,7 @@ const CreateTicketClient: React.FC = () => {
         type,
         senderEmail: customerEmail,
         senderPhone: customerPhone,
-        sendercompany: customerCompany,
+        senderCompany: customerCompany,
         orderNumber,
         shippingName,
         shippingCompany,
@@ -487,12 +487,12 @@ const CreateTicketClient: React.FC = () => {
                     </div>
                     <input
                       type="text"
-                      className={`form-input with-icon ${fieldErrors.sendercompany ? 'error' : ''}`}
+                      className={`form-input with-icon ${fieldErrors.senderCompany ? 'error' : ''}`}
                       placeholder="Company Name"
                       value={customerCompany}
                       onChange={(e) => setCustomerCompany(e.target.value)}
                     />
-                    {fieldErrors.sendercompany && <div className="field-error">{fieldErrors.sendercompany}</div>}
+                    {fieldErrors.senderCompany && <div className="field-error">{fieldErrors.senderCompany}</div>}
                   </div>
                 </div>
                 

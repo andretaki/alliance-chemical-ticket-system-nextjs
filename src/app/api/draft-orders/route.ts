@@ -310,21 +310,24 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    // Step 3: Optionally send invoice immediately after creation
-    if (outputData.id && body.email && body.lineItems.length > 0) { // Check lineItems again before sending
-        // Introduce a small delay to allow Shopify to finish processing the draft order update
-        console.log('[API /api/draft-orders POST] Waiting a few seconds before sending invoice...');
-        await new Promise(resolve => setTimeout(resolve, 5000)); // 5-second delay
-
-        console.log(`Attempting to send invoice for draft order ${outputData.id} to ${body.email}`);
-        const invoiceResult = await shopifyService.sendDraftOrderInvoice(outputData.id);
-        if (invoiceResult.success) {
-            console.log(`Invoice sent successfully for draft order ${outputData.id}. New status: ${invoiceResult.status}`);
-            if (invoiceResult.invoiceUrl) outputData.invoiceUrl = invoiceResult.invoiceUrl;
-            if (invoiceResult.status) outputData.status = invoiceResult.status;
-        } else {
-            console.warn(`Failed to send invoice for draft order ${outputData.id}: ${invoiceResult.error}`);
-            console.warn(`Automated invoice sending failed: ${invoiceResult.error}. Please send manually from Shopify.`);
+    // Step 3: Queue invoice sending asynchronously (non-blocking)
+    if (outputData.id && body.email && body.lineItems.length > 0) {
+        try {
+            // Queue invoice sending via outbox - runs after 5 seconds to allow Shopify to process
+            const { outboxService } = await import('@/services/outboxService');
+            await outboxService.enqueue(
+                'draft-order.send-invoice',
+                {
+                    draftOrderId: outputData.id,
+                    email: body.email,
+                    legacyResourceId: outputData.legacyResourceId,
+                },
+                new Date(Date.now() + 5000) // Schedule 5 seconds from now
+            );
+            console.log(`[API /api/draft-orders POST] Invoice sending queued for ${outputData.id}`);
+        } catch (queueError) {
+            // Don't fail the request if queuing fails - invoice can be sent manually
+            console.warn(`[API /api/draft-orders POST] Failed to queue invoice: ${queueError}`);
         }
     }
 

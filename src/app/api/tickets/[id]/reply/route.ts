@@ -205,68 +205,6 @@ export async function POST(
 
         console.log(`Email reply sent successfully for ticket ${ticketId} to ${verifiedTicket.senderEmail}`);
 
-        // === INTELLIGENT UNFLAGGING: Remove flag if appropriate ===
-        // Only unflag if we have the original email message ID and this is not just an internal note
-        if (verifiedTicket.externalMessageId && !requestBody.isInternalNote) {
-          try {
-            // Import the unflagEmail function
-            const { unflagEmail } = await import('@/lib/graphService');
-            
-            // Determine if we should unflag based on response content and type
-            let shouldUnflag = false;
-            let unflagReason = '';
-            
-            // Always unflag if we're providing a direct answer or resolution
-            const responseContent = requestBody.content?.toLowerCase() || '';
-            const hasDirectAnswer = responseContent.includes('attached') || 
-                                   responseContent.includes('here is') ||
-                                   responseContent.includes('please find') ||
-                                   responseContent.includes('i have') ||
-                                   responseContent.includes('we have');
-            
-            const isResolution = responseContent.includes('resolved') ||
-                               responseContent.includes('completed') ||
-                               responseContent.includes('processed') ||
-                               responseContent.includes('shipped') ||
-                               responseContent.includes('tracking');
-            
-            const isProvidingInfo = responseContent.includes('information') ||
-                                  responseContent.includes('details') ||
-                                  responseContent.includes('status') ||
-                                  responseContent.includes('update');
-
-            if (hasDirectAnswer || isResolution) {
-              shouldUnflag = true;
-              unflagReason = hasDirectAnswer ? 'direct answer provided' : 'issue resolved';
-            } else if (isProvidingInfo && responseContent.length > 50) {
-              shouldUnflag = true;
-              unflagReason = 'substantive information provided';
-            }
-            // Don't unflag if we're asking for more information or it's a brief acknowledgment
-            else if (responseContent.includes('please provide') ||
-                    responseContent.includes('can you') ||
-                    responseContent.includes('need more') ||
-                    responseContent.length < 30) {
-              shouldUnflag = false;
-              unflagReason = 'requesting more information or brief response';
-            } else {
-              // Default to unflagging for any substantial response
-              shouldUnflag = responseContent.length > 100;
-              unflagReason = shouldUnflag ? 'substantial response provided' : 'brief response';
-            }
-
-            if (shouldUnflag) {
-              await unflagEmail(verifiedTicket.externalMessageId!); // Verified non-null at line 208
-              console.log(`Unflagged email for ticket ${ticketId} (${unflagReason})`);
-            } else {
-              console.log(`Keeping flag for ticket ${ticketId} (${unflagReason})`);
-            }
-          } catch (unflagError) {
-            console.warn(`Failed to unflag email for ticket ${ticketId}:`, unflagError);
-            // Don't fail the whole request if unflagging fails
-          }
-        }
-        
         // TRANSACTION: Update ticket and comment after successful email send
         await db.transaction(async (tx) => {
           // Update the ticket status to "pending_customer" if it's not already closed

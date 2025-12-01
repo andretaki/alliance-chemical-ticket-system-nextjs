@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
   const query = queryParam.trim();
   
   // Check cache first
-  const cachedResults = await CacheService.get<OrderSearchResult[]>(query);
+  const cachedResults = await CacheService.get<OrderSearchResult[]>('SEARCH', query);
   if (cachedResults) {
     return NextResponse.json({ results: cachedResults, source: 'cache' });
   }
@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
     allResults.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     // Store in cache for next time
-    await CacheService.set(query, allResults);
+    await CacheService.set('SEARCH', query, allResults);
 
     return NextResponse.json({
       results: allResults,

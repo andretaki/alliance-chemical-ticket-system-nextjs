@@ -18,15 +18,38 @@ interface RateLimitStore {
 // In-memory fallback store (only used if KV unavailable)
 const fallbackStore: RateLimitStore = {};
 
-// Cleanup old entries in fallback store every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  Object.keys(fallbackStore).forEach(key => {
-    if (fallbackStore[key].resetTime < now) {
-      delete fallbackStore[key];
+// Track cleanup interval to prevent memory leaks in serverless
+let cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+// Start cleanup only when fallback store is actually used
+function ensureCleanupRunning() {
+  if (cleanupInterval) return;
+
+  cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    const keys = Object.keys(fallbackStore);
+
+    // If store is empty, stop the interval to save resources
+    if (keys.length === 0) {
+      if (cleanupInterval) {
+        clearInterval(cleanupInterval);
+        cleanupInterval = null;
+      }
+      return;
     }
-  });
-}, 10 * 60 * 1000);
+
+    keys.forEach(key => {
+      if (fallbackStore[key].resetTime < now) {
+        delete fallbackStore[key];
+      }
+    });
+  }, 60 * 1000); // Check every minute instead of 10 minutes
+
+  // Ensure cleanup doesn't prevent process exit in serverless
+  if (cleanupInterval.unref) {
+    cleanupInterval.unref();
+  }
+}
 
 export class RateLimiter {
   private config: RateLimitConfig;
@@ -104,6 +127,9 @@ export class RateLimiter {
    * Fallback in-memory rate limiter (not distributed across serverless instances)
    */
   private checkInMemory(identifier: string): { allowed: boolean; resetTime: number; remaining: number } {
+    // Start cleanup interval when fallback store is used
+    ensureCleanupRunning();
+
     const now = Date.now();
     const key = `${identifier}`;
 

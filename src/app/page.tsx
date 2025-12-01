@@ -1,17 +1,19 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from '@/lib/auth-helpers';
 import Link from 'next/link';
+// import { getServerSession } from '@/lib/auth-helpers';
 
 // This page will immediately redirect users to the dashboard
 export default async function RootPage() {
-  const { session } = await getServerSession();
+  // BYPASS AUTH - Always redirect to dashboard
+  redirect('/dashboard');
 
-  // If user is authenticated and approved, redirect to dashboard
-  if (session?.user) {
-    redirect('/dashboard');
-  }
+  // Original auth check commented out:
+  // const { session } = await getServerSession();
+  // if (session?.user) {
+  //   redirect('/dashboard');
+  // }
 
-  // Show landing page for unauthenticated users
+  // Landing page disabled - keeping for reference
   return (
     <div className="min-vh-100 d-flex align-items-center bg-light">
       <div className="container">

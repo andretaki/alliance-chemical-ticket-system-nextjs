@@ -9,13 +9,12 @@ export const metadata: Metadata = {
 };
 
 export default async function TicketsPage() {
-  // Server-side authentication check
-  const { session, error } = await getServerSession();
-  
-  if (error || !session) {
-    redirect('/auth/signin?callbackUrl=/tickets');
-  }
-  
+  // BYPASS AUTH
+  // const { session, error } = await getServerSession();
+  // if (error || !session) {
+  //   redirect('/auth/signin?callbackUrl=/tickets');
+  // }
+
   return (
     <main className="flex-grow-1" style={{ minHeight: '100vh' }}>
       <div className="pt-3 pb-2 mb-3">

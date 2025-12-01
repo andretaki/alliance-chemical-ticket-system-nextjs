@@ -1,4 +1,12 @@
-import type { ExtractedEntityDetail } from './emailAnalysis';
+/**
+ * Entity extracted from email/request for quote processing
+ */
+export interface ExtractedEntityDetail {
+  type: string;
+  value: string;
+  context?: string;
+  attributes?: Record<string, string | number | boolean>;
+}
 
 /**
  * Types of quotes that can be generated for a chemical company

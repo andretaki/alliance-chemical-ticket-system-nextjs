@@ -1,8 +1,15 @@
   // src/db/schema.ts
-import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, vector, type PgTable, index, doublePrecision, type AnyPgColumn, time } from 'drizzle-orm/pg-core';
-import { relations, type One, type Many } from 'drizzle-orm';
+import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, vector, type PgTable, index, doublePrecision, type AnyPgColumn, time, customType } from 'drizzle-orm/pg-core';
+import { relations, type One, type Many, sql } from 'drizzle-orm';
 import crypto from 'crypto'; // For UUID generation
 import { pgTable, bigint, jsonb, decimal } from 'drizzle-orm/pg-core';
+
+// Custom type for PostgreSQL tsvector (full-text search)
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return 'tsvector';
+  },
+});
 
 // Define your PostgreSQL schema objects
 export const ticketingProdSchema = pgSchema('ticketing_prod');
@@ -274,7 +281,7 @@ export const tickets = ticketingProdSchema.table('tickets', {
   sentiment: ticketSentimentEnum('sentiment'),
   ai_summary: text('ai_summary'),
   ai_suggested_assignee_id: text('ai_suggested_assignee_id').references(() => users.id, { onDelete: 'set null' }),
-  sendercompany: varchar('sender_company', { length: 255 }),
+  senderCompany: varchar('sender_company', { length: 255 }),
 
   // --- NEW AI-related field ---
   aiSuggestedAction: aiSuggestedActionEnum('ai_suggested_action'),
@@ -303,25 +310,41 @@ export const tickets = ticketingProdSchema.table('tickets', {
   slaBreached: boolean('sla_breached').default(false).notNull(),
   slaNotified: boolean('sla_notified').default(false).notNull(), // To prevent multiple notifications
 
+  // Full-text search vector - auto-populated by trigger
+  searchVector: tsvector('search_vector'),
+
 }, (table) => {
   return {
-    mergedIntoTicketIdIndex: index('idx_tickets_merged_into').on(table.mergedIntoTicketId),
+    // Unique constraints
     externalMessageIdKey: unique('tickets_mailgun_message_id_key').on(table.externalMessageId),
+
+    // Foreign key / relationship indexes
+    mergedIntoTicketIdIndex: index('idx_tickets_merged_into').on(table.mergedIntoTicketId),
     conversationIdIndex: index('idx_tickets_conversation_id').on(table.conversationId),
-    statusIndex: index('idx_tickets_status').on(table.status),
+    customerIndex: index('idx_tickets_customer').on(table.customerId),
+    slaPolicyIdIndex: index('idx_tickets_sla_policy_id').on(table.slaPolicyId),
+
+    // Single-column filter indexes (not covered by composites)
     priorityIndex: index('idx_tickets_priority').on(table.priority),
     typeIndex: index('idx_tickets_type').on(table.type),
-    assigneeIdIndex: index('idx_tickets_assignee_id').on(table.assigneeId),
-    reporterIdIndex: index('idx_tickets_reporter_id').on(table.reporterId),
+    senderEmailIndex: index('idx_tickets_sender_email').on(table.senderEmail),
+
+    // Sort indexes
     createdAtIndex: index('idx_tickets_created_at').on(table.createdAt),
     updatedAtIndex: index('idx_tickets_updated_at').on(table.updatedAt),
+
+    // Composite indexes (cover single-column queries on leading column)
+    // statusPriorityIndex covers: status, (status + priority)
     statusPriorityIndex: index('idx_tickets_status_priority').on(table.status, table.priority),
+    // assigneeStatusIndex covers: assigneeId, (assigneeId + status)
     assigneeStatusIndex: index('idx_tickets_assignee_status').on(table.assigneeId, table.status),
+    // reporterStatusIndex covers: reporterId, (reporterId + status)
     reporterStatusIndex: index('idx_tickets_reporter_status').on(table.reporterId, table.status),
-    // --- NEW INDEXES ---
-    slaPolicyIdIndex: index('idx_tickets_sla_policy_id').on(table.slaPolicyId),
+    // slaStatusIndex covers: (status + slaBreached) for SLA queries
     slaStatusIndex: index('idx_tickets_sla_status').on(table.status, table.slaBreached),
-    customerIndex: index('idx_tickets_customer').on(table.customerId),
+
+    // Full-text search GIN index (requires manual migration - see migrations/fts_setup.sql)
+    // searchVectorIndex: index('idx_tickets_search_vector').using('gin', table.searchVector),
   };
 });
 

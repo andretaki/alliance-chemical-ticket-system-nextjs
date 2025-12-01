@@ -4,8 +4,9 @@ import "./globals.css";
 import Script from 'next/script';
 import Sidebar from '@/components/Sidebar';
 import AuthSessionProvider from '@/components/AuthSessionProvider';
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from 'sonner';
 import AppFooter from '@/components/AppFooter';
+import { KeyboardShortcutsProvider } from '@/components/KeyboardShortcuts';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -50,58 +51,24 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <AuthSessionProvider>
-          {/* Premium Toast System */}
-          <Toaster 
-            position="bottom-right"
-            containerClassName="toast-container"
-            toastOptions={{ 
-              duration: 4000,
-              style: {
-                background: 'rgba(255, 255, 255, 0.03)',
-                color: '#ffffff',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '16px',
-                backdropFilter: 'blur(20px)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                padding: '16px 20px',
-                fontSize: '14px',
-                fontWeight: '500',
-                maxWidth: '400px',
-              },
-              success: {
-                iconTheme: {
-                  primary: '#10b981',
-                  secondary: '#ffffff',
-                },
+          <KeyboardShortcutsProvider>
+            {/* Toast Notifications */}
+            <Toaster
+              position="bottom-right"
+              theme="dark"
+              richColors
+              closeButton
+              toastOptions={{
                 style: {
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                  background: 'rgba(16, 185, 129, 0.1)',
+                  background: 'rgba(13, 17, 23, 0.95)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '12px',
+                  backdropFilter: 'blur(20px)',
                 },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#ffffff',
-                },
-                style: {
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
-                  background: 'rgba(239, 68, 68, 0.1)',
-                },
-              },
-              loading: {
-                iconTheme: {
-                  primary: '#667eea',
-                  secondary: '#ffffff',
-                },
-                style: {
-                  border: '1px solid rgba(102, 126, 234, 0.2)',
-                  background: 'rgba(102, 126, 234, 0.1)',
-                },
-              },
-            }} 
-          />
+              }}
+            />
 
-          {/* Main Application Layout */}
+            {/* Main Application Layout */}
           <div className="app-layout">
             {/* Premium Sidebar */}
             <Sidebar />
@@ -145,6 +112,7 @@ export default function RootLayout({
             </div>
           </div>
 
+          </KeyboardShortcutsProvider>
         </AuthSessionProvider>
       </body>
     </html>

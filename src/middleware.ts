@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { auth } from '@/lib/auth';
+// import { auth } from '@/lib/auth'; // Commented out - auth bypassed
 
 interface AppUser {
   id: string;
@@ -13,38 +13,17 @@ interface AppUser {
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
-  // Skip auth check for API routes and static files
-  if (pathname.startsWith('/api/auth') || 
-      pathname.startsWith('/_next') || 
-      pathname.startsWith('/favicon.ico') ||
-      pathname.startsWith('/assets') ||
-      pathname.startsWith('/public')) {
-    return NextResponse.next();
-  }
+  // BYPASS AUTH - Always allow access
+  // TODO: Remove this bypass when auth is ready
+  const user: AppUser = {
+    id: 'dev-user',
+    role: 'admin',
+    email: 'dev@localhost',
+    approvalStatus: 'approved'
+  };
+  const isAuthenticated = true;
 
-  // Get session from Better Auth
-  let user: AppUser | null = null;
-  let isAuthenticated = false;
-
-  try {
-    // Better Auth session validation
-    const sessionToken = req.cookies.get('better-auth.session_token')?.value;
-    if (sessionToken) {
-      // Validate session with Better Auth
-      const session = await auth.api.getSession({
-        headers: req.headers,
-      });
-      
-      if (session?.user) {
-        user = session.user as AppUser;
-        isAuthenticated = true;
-      }
-    }
-  } catch (error) {
-    console.error('Session validation error:', error);
-  }
-
-  console.log(`Middleware running for ${pathname}, auth status: ${isAuthenticated}`);
+  console.log(`Middleware running for ${pathname}, auth BYPASSED`);
 
   // Define protected routes that require authentication
   const protectedRoutes = [

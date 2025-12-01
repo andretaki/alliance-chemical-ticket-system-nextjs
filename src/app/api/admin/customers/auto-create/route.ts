@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
         senderEmail: true,
         senderName: true,
         senderPhone: true,
-        sendercompany: true,
+        senderCompany: true,
         externalMessageId: true,
         createdAt: true
       },
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         email: ticket.senderEmail,
         name: ticket.senderName,
         phone: ticket.senderPhone,
-        company: ticket.sendercompany,
+        company: ticket.senderCompany,
         source: ticket.externalMessageId ? 'email' : 'ticket',
         createdAt: ticket.createdAt
       }));
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName,
         phone: ticket.senderPhone || undefined,
-        company: ticket.sendercompany || undefined,
+        company: ticket.senderCompany || undefined,
         ticketId: ticket.id,
         source: ticket.externalMessageId ? 'email' as const : 'ticket' as const
       };

@@ -283,32 +283,32 @@ export function TicketViewClient({
   }, [optimisticTicket.id, optimisticTicket.orderNumber]);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-background">
+    <div className="flex h-[calc(100vh-56px)] overflow-hidden bg-[#0c0f16]">
       {/* Left Sidebar - Ticket List */}
-      <aside className="w-80 border-r border-border bg-card flex flex-col">
-        <div className="p-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-foreground">Active Tickets</h2>
+      <aside className="w-64 border-r border-white/[0.06] bg-[#0d1117] flex flex-col">
+        <div className="px-4 py-3 border-b border-white/[0.06]">
+          <h2 className="text-sm font-medium text-white/60">Recent Tickets</h2>
         </div>
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
+          <div className="p-2 space-y-0.5">
             {sidebarTickets.map((ticket) => (
               <Link
                 key={ticket.id}
                 href={`/tickets/${ticket.id}`}
-                className={`block p-3 rounded-lg transition-colors ${
+                className={`block px-3 py-2.5 rounded-md transition-colors ${
                   ticket.id === optimisticTicket.id
-                    ? 'bg-primary/10 border border-primary/20'
-                    : 'hover:bg-accent'
+                    ? 'bg-white/[0.06]'
+                    : 'hover:bg-white/[0.03]'
                 }`}
               >
-                <p className={`font-medium truncate ${
-                  ticket.id === optimisticTicket.id ? 'text-primary' : 'text-foreground'
+                <p className={`text-sm font-medium truncate ${
+                  ticket.id === optimisticTicket.id ? 'text-white' : 'text-white/70'
                 }`}>
                   {ticket.title}
                 </p>
-                <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground">
-                  <span>{ticket.senderName || 'Unknown'}</span>
-                  <span>{new Date(ticket.updatedAt).toLocaleDateString()}</span>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-[11px] text-white/40 truncate">{ticket.senderName || 'Unknown'}</span>
+                  <span className="text-[11px] text-white/30">{new Date(ticket.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
                 </div>
               </Link>
             ))}
@@ -316,9 +316,8 @@ export function TicketViewClient({
         </ScrollArea>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Ticket Header */}
         <TicketHeader
           ticket={optimisticTicket}
           currentUser={currentUser}
@@ -329,14 +328,14 @@ export function TicketViewClient({
           isLoadingAI={isLoadingAI}
         />
 
-        {/* Customer Context - always visible */}
+        {/* Customer context */}
         {customerOverview && (
-          <div className="px-6 py-4 border-b border-border">
+          <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.01]">
             <CustomerSnapshotCard overview={customerOverview} />
           </div>
         )}
 
-        {/* Reply Composer - at top for quick access */}
+        {/* Reply Composer */}
         <ReplyComposer
           ticketId={optimisticTicket.id}
           senderEmail={optimisticTicket.senderEmail}
@@ -344,44 +343,44 @@ export function TicketViewClient({
           aiSuggestion={aiSuggestion?.type === 'reply' ? aiSuggestion.content : undefined}
         />
 
-        {/* Conversation Area */}
-        <ScrollArea className="flex-1 p-6">
-          <ConversationThread
-            comments={conversationHistory}
-            ticket={optimisticTicket}
-          />
+        {/* Conversation */}
+        <ScrollArea className="flex-1">
+          <div className="p-5">
+            <ConversationThread
+              comments={conversationHistory}
+              ticket={optimisticTicket}
+            />
+          </div>
         </ScrollArea>
       </div>
 
-      {/* Right Sidebar - AI Copilot & Details */}
+      {/* Right Sidebar */}
       {showCopilot && (
-        <aside className="w-96 border-l border-border bg-card flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-border flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">AI Copilot</h2>
-            <Button
-              variant="ghost"
-              size="sm"
+        <aside className="w-80 border-l border-white/[0.06] bg-[#0d1117] flex flex-col overflow-hidden">
+          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+            <h2 className="text-sm font-medium text-white/70">Details</h2>
+            <button
               onClick={() => setShowCopilot(false)}
+              className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white/60 transition-colors"
             >
-              ✕
-            </Button>
+              <i className="fas fa-times text-xs" />
+            </button>
           </div>
           <ScrollArea className="flex-1">
-            <AICopilotPanel
-              ticket={optimisticTicket}
-              aiSuggestion={aiSuggestion}
-              onApplySuggestion={(content) => {
-                // Apply suggestion to reply composer
-                setAiSuggestion(null);
-              }}
-              onDismiss={() => setAiSuggestion(null)}
-            />
-            <Separator className="my-4" />
-            <TicketSidebar
-              ticket={optimisticTicket}
-              relatedQuote={relatedQuote}
-              quoteAdminUrl={quoteAdminUrl}
-            />
+            <div className="p-4">
+              <AICopilotPanel
+                ticket={optimisticTicket}
+                aiSuggestion={aiSuggestion}
+                onApplySuggestion={() => setAiSuggestion(null)}
+                onDismiss={() => setAiSuggestion(null)}
+              />
+              <Separator className="my-4 bg-white/[0.06]" />
+              <TicketSidebar
+                ticket={optimisticTicket}
+                relatedQuote={relatedQuote}
+                quoteAdminUrl={quoteAdminUrl}
+              />
+            </div>
           </ScrollArea>
         </aside>
       )}

@@ -3,24 +3,44 @@
  * Provides compatibility layer for migration from NextAuth to Better Auth
  */
 
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+// BYPASS AUTH - commented out for development
+// import { auth } from '@/lib/auth';
+// import { headers } from 'next/headers';
+
+// Mock session for development
+const mockSession = {
+  user: {
+    id: 'dev-user',
+    name: 'Dev User',
+    email: 'dev@localhost',
+    role: 'admin',
+    approvalStatus: 'approved',
+  },
+  session: {
+    id: 'dev-session',
+    userId: 'dev-user',
+  }
+};
 
 /**
  * Get the current server session (replacement for getServerSession)
+ * BYPASS AUTH - returns mock session
  */
 export async function getServerSession() {
-  try {
-    const headersList = await headers();
-    const session = await auth.api.getSession({
-      headers: headersList
-    });
-    
-    return { session, error: null };
-  } catch (error) {
-    console.error('Error getting server session:', error);
-    return { session: null, error: error instanceof Error ? error.message : 'Authentication error' };
-  }
+  // Always return mock session for development
+  return { session: mockSession, error: null };
+
+  // Original implementation:
+  // try {
+  //   const headersList = await headers();
+  //   const session = await auth.api.getSession({
+  //     headers: headersList
+  //   });
+  //   return { session, error: null };
+  // } catch (error) {
+  //   console.error('Error getting server session:', error);
+  //   return { session: null, error: error instanceof Error ? error.message : 'Authentication error' };
+  // }
 }
 
 /**

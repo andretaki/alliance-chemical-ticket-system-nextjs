@@ -28,7 +28,7 @@ export interface CreateTicketInput {
   type?: typeof ticketTypeEcommerceEnum.enumValues[number] | null;
   senderEmail?: string | null;
   senderPhone?: string | null;
-  sendercompany?: string | null;
+  senderCompany?: string | null;
   orderNumber?: string | null;
   sentiment?: string | null;
   ai_summary?: string | null;
@@ -126,22 +126,33 @@ export class TicketService {
       }
     }
 
-    // Search filter (sanitized to prevent SQL injection)
+    // Search filter - use full-text search if available, fallback to LIKE
     if (searchTerm) {
       const sanitized = sanitizeSearchTerm(searchTerm);
       if (sanitized) {
-        const searchPattern = `%${sanitized.toLowerCase()}%`;
-        const searchConditions = or(
-          sql`LOWER(${tickets.title}) LIKE ${searchPattern}`,
-          sql`LOWER(${tickets.description}) LIKE ${searchPattern}`,
-          sql`LOWER(${tickets.senderEmail}) LIKE ${searchPattern}`,
-          sql`LOWER(${tickets.senderName}) LIKE ${searchPattern}`,
-          sql`LOWER(${tickets.orderNumber}) LIKE ${searchPattern}`,
-          sql`LOWER(${tickets.trackingNumber}) LIKE ${searchPattern}`
-        );
+        // Try full-text search first (much faster with GIN index)
+        // Fallback to LIKE for partial matches or if FTS not set up
+        const useFTS = sanitized.length >= 3; // FTS works better with 3+ chars
 
-        if (searchConditions) {
-          whereConditions.push(searchConditions);
+        if (useFTS) {
+          // PostgreSQL full-text search using plainto_tsquery
+          const ftsCondition = sql`${tickets.searchVector} @@ plainto_tsquery('english', ${sanitized})`;
+          whereConditions.push(ftsCondition);
+        } else {
+          // Fallback to LIKE for short searches
+          const searchPattern = `%${sanitized.toLowerCase()}%`;
+          const searchConditions = or(
+            sql`LOWER(${tickets.title}) LIKE ${searchPattern}`,
+            sql`LOWER(${tickets.description}) LIKE ${searchPattern}`,
+            sql`LOWER(${tickets.senderEmail}) LIKE ${searchPattern}`,
+            sql`LOWER(${tickets.senderName}) LIKE ${searchPattern}`,
+            sql`LOWER(${tickets.orderNumber}) LIKE ${searchPattern}`,
+            sql`LOWER(${tickets.trackingNumber}) LIKE ${searchPattern}`
+          );
+
+          if (searchConditions) {
+            whereConditions.push(searchConditions);
+          }
         }
       }
     }
@@ -322,7 +333,7 @@ export class TicketService {
       type,
       senderEmail,
       senderPhone,
-      sendercompany,
+      senderCompany,
       orderNumber,
       sentiment,
       ai_summary,
@@ -356,7 +367,7 @@ export class TicketService {
       type: type as typeof ticketTypeEcommerceEnum.enumValues[number] | null,
       senderEmail: senderEmail || null,
       senderPhone: senderPhone || null,
-      sendercompany: sendercompany || null,
+      senderCompany: senderCompany || null,
       orderNumber: orderNumber || null,
       sentiment: sentiment as any,
       ai_summary: ai_summary || null,
@@ -373,7 +384,7 @@ export class TicketService {
         ticketId: newTicket.id,
         senderEmail,
         senderPhone,
-        sendercompany,
+        senderCompany,
         reporterId,
         source: 'ticket',
         title,

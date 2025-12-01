@@ -35,6 +35,8 @@ async function handleJob(job: OutboxJob) {
       return handleCustomerSync(job);
     case 'ar.overdue-ticket':
       return handleArOverdueTicket(job);
+    case 'draft-order.send-invoice':
+      return handleDraftOrderInvoice(job);
     default:
       logWarn('outbox.unknown_topic', { topic: job.topic, jobId: job.id });
   }
@@ -45,7 +47,7 @@ async function handleCustomerSync(job: OutboxJob) {
     ticketId?: number;
     senderEmail?: string | null;
     senderPhone?: string | null;
-    sendercompany?: string | null;
+    senderCompany?: string | null;
     reporterId?: string;
     title?: string;
   };
@@ -64,7 +66,7 @@ async function handleCustomerSync(job: OutboxJob) {
     provider: 'manual',
     email: payload.senderEmail || ticket.senderEmail || undefined,
     phone: payload.senderPhone || ticket.senderPhone || undefined,
-    company: payload.sendercompany || ticket.sendercompany || undefined,
+    company: payload.senderCompany || ticket.senderCompany || undefined,
     firstName: ticket.senderName || undefined,
   });
 
@@ -157,6 +159,41 @@ async function handleArOverdueTicket(job: OutboxJob) {
     orderNumber: payload.orderNumber,
     invoiceNumber: payload.invoiceNumber,
   });
+}
+
+async function handleDraftOrderInvoice(job: OutboxJob) {
+  const payload = job.payload as {
+    draftOrderId?: string;
+    email?: string;
+    legacyResourceId?: string;
+  };
+
+  if (!payload.draftOrderId) {
+    logWarn('outbox.invoice_missing_draft_order', { jobId: job.id });
+    return;
+  }
+
+  const { ShopifyService } = await import('@/services/shopify/ShopifyService');
+  const shopifyService = new ShopifyService();
+
+  logInfo('outbox.invoice_sending', {
+    jobId: job.id,
+    draftOrderId: payload.draftOrderId,
+    email: payload.email,
+  });
+
+  const invoiceResult = await shopifyService.sendDraftOrderInvoice(payload.draftOrderId);
+
+  if (invoiceResult.success) {
+    logInfo('outbox.invoice_sent', {
+      jobId: job.id,
+      draftOrderId: payload.draftOrderId,
+      status: invoiceResult.status,
+    });
+  } else {
+    // Throw to trigger retry with backoff
+    throw new Error(`Invoice send failed: ${invoiceResult.error}`);
+  }
 }
 
 async function getDefaultReporterId(): Promise<string | null> {

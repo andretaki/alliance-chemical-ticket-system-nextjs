@@ -1,7 +1,6 @@
 import axios from 'axios';
+import { env, integrations } from '@/lib/env';
 
-const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY;
-const SHIPSTATION_API_SECRET = process.env.SHIPSTATION_API_SECRET;
 const SHIPSTATION_BASE_URL = 'https://ssapi.shipstation.com';
 
 // Rate limiting to respect ShipStation API limits
@@ -105,12 +104,12 @@ export interface ShipStationCustomerInfo {
  * Search for customer information in ShipStation by email
  */
 export async function searchShipStationCustomerByEmail(email: string): Promise<ShipStationCustomerInfo | null> {
-    if (!SHIPSTATION_API_KEY || !SHIPSTATION_API_SECRET) {
+    if (!integrations.shipstation) {
         console.error('[ShipStationCustomerService] API credentials not configured');
         return null;
     }
 
-    const authHeader = `Basic ${Buffer.from(`${SHIPSTATION_API_KEY}:${SHIPSTATION_API_SECRET}`).toString('base64')}`;
+    const authHeader = `Basic ${Buffer.from(`${env.SHIPSTATION_API_KEY}:${env.SHIPSTATION_API_SECRET}`).toString('base64')}`;
 
     try {
         console.log(`[ShipStationCustomerService] Searching for customer by email: ${email}`);
@@ -157,12 +156,12 @@ export async function searchShipStationCustomerByEmail(email: string): Promise<S
  * Search for customer information in ShipStation by name
  */
 export async function searchShipStationCustomerByName(name: string): Promise<ShipStationCustomerInfo[]> {
-    if (!SHIPSTATION_API_KEY || !SHIPSTATION_API_SECRET) {
+    if (!integrations.shipstation) {
         console.error('[ShipStationCustomerService] API credentials not configured');
         return [];
     }
 
-    const authHeader = `Basic ${Buffer.from(`${SHIPSTATION_API_KEY}:${SHIPSTATION_API_SECRET}`).toString('base64')}`;
+    const authHeader = `Basic ${Buffer.from(`${env.SHIPSTATION_API_KEY}:${env.SHIPSTATION_API_SECRET}`).toString('base64')}`;
 
     try {
         console.log(`[ShipStationCustomerService] Searching for customers by name: ${name}`);
@@ -223,7 +222,7 @@ export async function searchShipStationCustomerByName(name: string): Promise<Shi
  * Search for customer information in ShipStation by phone number
  */
 export async function searchShipStationCustomerByPhone(phone: string): Promise<ShipStationCustomerInfo[]> {
-    if (!SHIPSTATION_API_KEY || !SHIPSTATION_API_SECRET) {
+    if (!integrations.shipstation) {
         console.error('[ShipStationCustomerService] API credentials not configured');
         return [];
     }

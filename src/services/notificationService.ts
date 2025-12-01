@@ -1,32 +1,45 @@
 import type { SimpleQuoteEmailData } from '@/types/quoteInterfaces';
 import { sendNotificationEmail } from '@/lib/email';
+import { db, tickets } from '@/lib/db';
+import { eq } from 'drizzle-orm';
+
+// =============================================================================
+// Interfaces
+// =============================================================================
 
 interface EmailParams {
   to: string;
   subject: string;
   text: string;
   html?: string;
-  from?: string;
-  headers?: Record<string, string>;
 }
+
+interface TicketClosureParams {
+  ticketId: number;
+  recipientEmail: string;
+  recipientName?: string;
+  resolutionSummary: string;
+  referenceNumber?: string;
+  surveyLink?: string;
+}
+
+// =============================================================================
+// NotificationService - Unified Email Notification Service
+// =============================================================================
 
 export class NotificationService {
   private readonly salesTeamEmail = process.env.SALES_TEAM_EMAIL || 'sales@alliancechemical.com';
-  private readonly agentSenderEmail = process.env.AGENT_SENDER_EMAIL || 'quotes@alliancechemical.com';
 
-  constructor() {
-    // Email client is handled by the Microsoft Graph integration
-  }
-
-  private async sendEmail(params: EmailParams): Promise<void> {
+  /**
+   * Core email sending method using Microsoft Graph via lib/email
+   */
+  private async sendEmail(params: EmailParams): Promise<boolean> {
     const { to, subject, text, html } = params;
-    
-    console.log(`[NotificationService] Sending email via Microsoft Graph to: ${to}`);
+
+    console.log(`[NotificationService] Sending email to: ${to}`);
     console.log(`  Subject: ${subject}`);
-    console.log(`  Body Preview: ${text.substring(0, 200)}...`);
 
     try {
-      // Use the Microsoft Graph email infrastructure
       const success = await sendNotificationEmail({
         recipientEmail: to,
         subject,
@@ -35,15 +48,112 @@ export class NotificationService {
       });
 
       if (!success) {
-        throw new Error('Failed to send email via Microsoft Graph');
+        console.error(`[NotificationService] Failed to send email to ${to}`);
+        return false;
       }
 
-      console.log(`[NotificationService] Email sent successfully via Microsoft Graph to: ${to}`);
+      console.log(`[NotificationService] Email sent successfully to: ${to}`);
+      return true;
     } catch (error) {
-      console.error(`[NotificationService] Failed to send email via Microsoft Graph to ${to}:`, error);
-      throw error;
+      console.error(`[NotificationService] Error sending email to ${to}:`, error);
+      return false;
     }
   }
+
+  // ===========================================================================
+  // Ticket Notifications
+  // ===========================================================================
+
+  /**
+   * Sends a notification to the customer that their ticket has been resolved and closed
+   */
+  public async sendTicketClosureNotification(params: TicketClosureParams): Promise<boolean> {
+    const ticket = await db.query.tickets.findFirst({
+      where: eq(tickets.id, params.ticketId),
+      columns: { title: true }
+    });
+
+    if (!ticket) {
+      console.error(`[NotificationService] Ticket ${params.ticketId} not found`);
+      return false;
+    }
+
+    const subject = `Resolved: ${ticket.title} [#${params.ticketId}]`;
+
+    const html = `
+      <p>Hello ${params.recipientName || 'Customer'},</p>
+
+      <p>We're pleased to inform you that your support request has been successfully resolved:</p>
+
+      <p><strong>Ticket:</strong> #${params.ticketId} - ${ticket.title}<br>
+      ${params.referenceNumber ? `<strong>Reference:</strong> ${params.referenceNumber}<br>` : ''}
+      <strong>Resolution:</strong> ${params.resolutionSummary}</p>
+
+      <p>This ticket has been automatically closed as we believe your issue has been resolved. If you need further assistance or if your issue has not been fully resolved, please reply to this email and we'll reopen your ticket.</p>
+
+      ${params.surveyLink ? `
+      <p>We value your feedback! Please take a moment to rate your experience:<br>
+      <a href="${params.surveyLink}">Rate your experience</a></p>
+      ` : ''}
+
+      <p>Thank you for choosing Alliance Chemical.</p>
+
+      <p>Best regards,<br>
+      Alliance Chemical Support Team</p>
+    `;
+
+    return this.sendEmail({
+      to: params.recipientEmail,
+      subject,
+      text: `Hello ${params.recipientName || 'Customer'}, your ticket #${params.ticketId} has been resolved.`,
+      html
+    });
+  }
+
+  /**
+   * Sends a follow-up question to the customer based on AI recommendation
+   */
+  public async sendFollowUpQuestion(
+    ticketId: number,
+    recipientEmail: string,
+    followUpQuestion: string
+  ): Promise<boolean> {
+    const ticket = await db.query.tickets.findFirst({
+      where: eq(tickets.id, ticketId),
+      columns: { title: true, senderName: true }
+    });
+
+    if (!ticket) {
+      console.error(`[NotificationService] Ticket ${ticketId} not found for follow-up`);
+      return false;
+    }
+
+    const subject = `Re: ${ticket.title} [#${ticketId}]`;
+
+    const html = `
+      <p>Hello ${ticket.senderName || 'Customer'},</p>
+
+      <p>We're following up on your recent support request (Ticket #${ticketId}).</p>
+
+      <p>${followUpQuestion}</p>
+
+      <p>Your response will help us better assist you with this matter.</p>
+
+      <p>Best regards,<br>
+      Alliance Chemical Support Team</p>
+    `;
+
+    return this.sendEmail({
+      to: recipientEmail,
+      subject,
+      text: `Hello, we're following up on ticket #${ticketId}. ${followUpQuestion}`,
+      html
+    });
+  }
+
+  // ===========================================================================
+  // Quote Notifications
+  // ===========================================================================
 
   /**
    * Sends an email with a simple, AI-generated quote.
@@ -51,59 +161,44 @@ export class NotificationService {
   public async sendSimpleQuoteEmail(
     recipientEmail: string,
     quoteData: SimpleQuoteEmailData,
-    originalEmailIdToThread?: string // For threading replies
+    _originalEmailIdToThread?: string
   ): Promise<boolean> {
-    const subject = `Your Quote from Alliance Chemical - Ref: ${quoteData.quoteId || originalEmailIdToThread || Date.now()}`;
-    let body = `Dear ${quoteData.customer.name || 'Valued Customer'},\n\n`;
-    body += `Thank you for your inquiry. Here is the quote you requested:\n\n`;
+    const subject = `Your Quote from Alliance Chemical - Ref: ${quoteData.quoteId || Date.now()}`;
+
+    let textBody = `Dear ${quoteData.customer.name || 'Valued Customer'},\n\n`;
+    textBody += `Thank you for your inquiry. Here is the quote you requested:\n\n`;
 
     quoteData.items.forEach(item => {
-      body += `Product: ${item.productName} ${item.sku ? `(SKU: ${item.sku})` : ''}\n`;
-      body += `Quantity: ${item.quantity} ${item.unit}\n`;
-      body += `Unit Price: ${item.currency} ${item.unitPrice.toFixed(2)}\n`;
-      body += `Total Price: ${item.currency} ${item.totalPrice.toFixed(2)}\n`;
+      textBody += `Product: ${item.productName} ${item.sku ? `(SKU: ${item.sku})` : ''}\n`;
+      textBody += `Quantity: ${item.quantity} ${item.unit}\n`;
+      textBody += `Unit Price: ${item.currency} ${item.unitPrice.toFixed(2)}\n`;
+      textBody += `Total Price: ${item.currency} ${item.totalPrice.toFixed(2)}\n`;
       if (item.pageUrl) {
-        body += `Product Link: ${item.pageUrl}\n`;
+        textBody += `Product Link: ${item.pageUrl}\n`;
       }
-      body += `------------------------------------\n`;
+      textBody += `------------------------------------\n`;
     });
 
-    if (quoteData.items.length > 1 || quoteData.subtotal !== quoteData.grandTotal) { // Only show subtotal if different or multiple items
-      body += `Subtotal: ${quoteData.currency} ${quoteData.subtotal.toFixed(2)}\n`;
+    if (quoteData.items.length > 1 || quoteData.subtotal !== quoteData.grandTotal) {
+      textBody += `Subtotal: ${quoteData.currency} ${quoteData.subtotal.toFixed(2)}\n`;
     }
     if (quoteData.shippingInfo) {
-      body += `Shipping: ${quoteData.shippingInfo}\n`;
+      textBody += `Shipping: ${quoteData.shippingInfo}\n`;
     }
-    body += `Grand Total: ${quoteData.currency} ${quoteData.grandTotal.toFixed(2)}\n\n`;
-    body += `${quoteData.validityMessage}\n\n`;
-    body += `${quoteData.nextStepsMessage}\n\n`;
-    body += `If you have any questions, please reply to this email or contact us at ${this.salesTeamEmail}.\n\n`;
-    body += `Sincerely,\nAlliance Chemical Automated Quoting Assistant`;
+    textBody += `Grand Total: ${quoteData.currency} ${quoteData.grandTotal.toFixed(2)}\n\n`;
+    textBody += `${quoteData.validityMessage}\n\n`;
+    textBody += `${quoteData.nextStepsMessage}\n\n`;
+    textBody += `If you have any questions, please reply to this email or contact us at ${this.salesTeamEmail}.\n\n`;
+    textBody += `Sincerely,\nAlliance Chemical Automated Quoting Assistant`;
 
-    console.log(`[NotificationService] Sending Simple Quote Email to: ${recipientEmail}`);
-    console.log(`  Subject: ${subject}`);
-    console.log(`  Body Preview: ${body.substring(0, 200)}...`);
+    console.log(`[NotificationService] Sending Quote Email to: ${recipientEmail}`);
 
-    try {
-      // Generate HTML version of the quote
-      const htmlBody = this.generateHtmlQuoteEmail(quoteData);
-      
-      await this.sendEmail({
-        to: recipientEmail,
-        subject,
-        text: body,
-        html: htmlBody,
-        headers: originalEmailIdToThread ? { 
-          'In-Reply-To': `<${originalEmailIdToThread}>`, 
-          'References': `<${originalEmailIdToThread}>` 
-        } : {}
-      });
-      
-      return true;
-    } catch (error) {
-      console.error(`[NotificationService] Failed to send simple quote email to ${recipientEmail}:`, error);
-      return false;
-    }
+    return this.sendEmail({
+      to: recipientEmail,
+      subject,
+      text: textBody,
+      html: this.generateHtmlQuoteEmail(quoteData)
+    });
   }
 
   /**
@@ -112,7 +207,7 @@ export class NotificationService {
   public async sendComplexQuoteAcknowledgement(
     recipientEmail: string,
     ticketId: string,
-    originalEmailIdToThread?: string
+    _originalEmailIdToThread?: string
   ): Promise<boolean> {
     const subject = `We've Received Your Quote Request - Ref: ${ticketId}`;
     const body = `Dear Valued Customer,\n\n` +
@@ -121,29 +216,26 @@ export class NotificationService {
                  `We aim to respond within 1-2 business days. If your request is urgent, please contact us directly at ${this.salesTeamEmail} and reference your ticket number.\n\n` +
                  `Sincerely,\nAlliance Chemical Support`;
 
-    try {
-      await this.sendEmail({
-        to: recipientEmail,
-        subject,
-        text: body,
-        html: body.replace(/\n/g, '<br>'),
-        headers: originalEmailIdToThread ? {
-          'In-Reply-To': `<${originalEmailIdToThread}>`,
-          'References': `<${originalEmailIdToThread}>`
-        } : undefined
-      });
-      return true;
-    } catch (error) {
-      console.error(`Failed to send complex quote acknowledgement to ${recipientEmail}:`, error);
-      return false;
-    }
+    return this.sendEmail({
+      to: recipientEmail,
+      subject,
+      text: body,
+      html: body.replace(/\n/g, '<br>')
+    });
   }
 
-  private async sendCreditApplicationEmail(to: string, customerName?: string): Promise<void> {
+  // ===========================================================================
+  // Credit Application
+  // ===========================================================================
+
+  /**
+   * Sends credit application form link to customer
+   */
+  public async handleCreditApplicationRequest(email: string, customerName?: string): Promise<void> {
     const subject = "Alliance Chemical - Credit Application Form";
     const creditApplicationUrl = process.env.CREDIT_APPLICATION_URL || "https://apply.alliancechemical.com";
-    
-    const emailContent = `
+
+    const textContent = `
 Dear ${customerName || 'Valued Customer'},
 
 Thank you for your interest in establishing credit terms with Alliance Chemical. To proceed with your credit application, please use the following link:
@@ -157,28 +249,24 @@ If you have any questions during the application process, please don't hesitate 
 Best regards,
 
 Alliance Chemical Credit Department
-    `;
+    `.trim();
 
-    try {
-      await this.sendEmail({
-        to,
-        subject,
-        text: emailContent,
-        html: emailContent.replace(/\n/g, '<br>')
-      });
-    } catch (error) {
-      console.error(`Failed to send credit application email to ${to}:`, error);
-      throw error;
+    const success = await this.sendEmail({
+      to: email,
+      subject,
+      text: textContent,
+      html: textContent.replace(/\n/g, '<br>')
+    });
+
+    if (!success) {
+      throw new Error(`Failed to send credit application email to ${email}`);
     }
   }
 
-  public async handleCreditApplicationRequest(email: string, customerName?: string): Promise<void> {
-    await this.sendCreditApplicationEmail(email, customerName);
-  }
+  // ===========================================================================
+  // HTML Template Helpers
+  // ===========================================================================
 
-  /**
-   * Generates HTML version of quote email for better formatting
-   */
   private generateHtmlQuoteEmail(quoteData: SimpleQuoteEmailData): string {
     const items = quoteData.items.map(item => `
       <tr>
@@ -207,10 +295,10 @@ Alliance Chemical Credit Department
             Reference: ${quoteData.quoteId || Date.now()}
           </p>
         </div>
-        
+
         <p>Dear ${quoteData.customer.name || 'Valued Customer'},</p>
         <p>Thank you for your inquiry. Here is the quote you requested:</p>
-        
+
         <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
           <thead>
             <tr style="background-color: #f8f9fa;">
@@ -224,28 +312,28 @@ Alliance Chemical Credit Department
             ${items}
           </tbody>
         </table>
-        
+
         <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          ${quoteData.items.length > 1 || quoteData.subtotal !== quoteData.grandTotal ? 
+          ${quoteData.items.length > 1 || quoteData.subtotal !== quoteData.grandTotal ?
             `<div style="margin-bottom: 10px;">Subtotal: <strong>${quoteData.currency} ${quoteData.subtotal.toFixed(2)}</strong></div>` : ''}
-          ${quoteData.shippingInfo ? 
+          ${quoteData.shippingInfo ?
             `<div style="margin-bottom: 10px;">Shipping: <strong>${quoteData.shippingInfo}</strong></div>` : ''}
           <div style="font-size: 18px; color: #0066cc;">
             <strong>Grand Total: ${quoteData.currency} ${quoteData.grandTotal.toFixed(2)}</strong>
           </div>
         </div>
-        
+
         <div style="background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0;">
           <p style="margin: 0 0 10px 0;"><strong>Quote Validity:</strong></p>
           <p style="margin: 0 0 15px 0;">${quoteData.validityMessage}</p>
           <p style="margin: 0;"><strong>Next Steps:</strong></p>
           <p style="margin: 0;">${quoteData.nextStepsMessage}</p>
         </div>
-        
-        <p>If you have any questions, please reply to this email or contact us at 
+
+        <p>If you have any questions, please reply to this email or contact us at
           <a href="mailto:${this.salesTeamEmail}" style="color: #0066cc;">${this.salesTeamEmail}</a>
         </p>
-        
+
         <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
           <p style="margin: 0;">Sincerely,</p>
           <p style="margin: 0; font-weight: bold;">Alliance Chemical Automated Quoting Assistant</p>
@@ -253,4 +341,30 @@ Alliance Chemical Credit Department
       </div>
     `;
   }
-} 
+}
+
+// =============================================================================
+// Singleton Instance & Standalone Functions (for backwards compatibility)
+// =============================================================================
+
+const notificationServiceInstance = new NotificationService();
+
+/**
+ * Sends a notification to the customer that their ticket has been resolved and closed.
+ * @deprecated Use NotificationService class directly
+ */
+export async function sendTicketClosureNotification(params: TicketClosureParams): Promise<boolean> {
+  return notificationServiceInstance.sendTicketClosureNotification(params);
+}
+
+/**
+ * Sends a follow-up question to the customer based on AI recommendation.
+ * @deprecated Use NotificationService class directly
+ */
+export async function sendFollowUpQuestion(
+  ticketId: number,
+  recipientEmail: string,
+  followUpQuestion: string
+): Promise<boolean> {
+  return notificationServiceInstance.sendFollowUpQuestion(ticketId, recipientEmail, followUpQuestion);
+}

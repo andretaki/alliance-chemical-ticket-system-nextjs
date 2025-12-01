@@ -16,13 +16,12 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
-  // Server-side authentication check
-  const { session, error } = await getServerSession();
-  
-  if (error || !session) {
-    redirect('/auth/signin?callbackUrl=/dashboard');
-  }
-  
+  // BYPASS AUTH - Skip session check
+  // const { session, error } = await getServerSession();
+  // if (error || !session) {
+  //   redirect('/auth/signin?callbackUrl=/dashboard');
+  // }
+
   return (
     <main className="flex-grow-1" style={{ minHeight: '100vh' }}>
       <DashboardClient />

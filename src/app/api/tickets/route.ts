@@ -20,7 +20,7 @@ const CreateTicketSchema = z.object({
   // Customer information
   senderEmail: z.string().email().nullable().optional(),
   senderPhone: z.string().nullable().optional(),
-  sendercompany: z.string().nullable().optional(),
+  senderCompany: z.string().nullable().optional(),
   orderNumber: z.string().nullable().optional(),
 
   // AI-generated fields
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
       type,
       senderEmail,
       senderPhone,
-      sendercompany,
+      senderCompany,
       orderNumber,
       sentiment,
       ai_summary,
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       type,
       senderEmail,
       senderPhone,
-      sendercompany,
+      senderCompany,
       orderNumber,
       sentiment,
       ai_summary,

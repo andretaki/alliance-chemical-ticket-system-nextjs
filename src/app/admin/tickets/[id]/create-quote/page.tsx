@@ -33,7 +33,7 @@ export default async function CreateQuotePage({ params }: CreateQuotePageProps) 
       senderEmail: true,
       senderName: true,
       senderPhone: true,
-      sendercompany: true,
+      senderCompany: true,
     },
     with: {
       reporter: {
@@ -55,7 +55,7 @@ export default async function CreateQuotePage({ params }: CreateQuotePageProps) 
     firstName: ticket.senderName?.split(' ')[0] || ticket.reporter?.name?.split(' ')[0] || '',
     lastName: ticket.senderName?.split(' ').slice(1).join(' ') || ticket.reporter?.name?.split(' ').slice(1).join(' ') || '',
     phone: ticket.senderPhone || '',
-    company: ticket.sendercompany || '',
+    company: ticket.senderCompany || '',
   };
 
   return (

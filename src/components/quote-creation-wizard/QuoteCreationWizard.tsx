@@ -60,7 +60,7 @@ const QuoteCreationWizard = () => {
             senderEmail: data.customer.email,
             senderPhone: data.customer.phone,
             senderName: `${data.customer.firstName} ${data.customer.lastName}`.trim(),
-            sendercompany: data.customer.company
+            senderCompany: data.customer.company
           });
 
           ticketId = ticketResponse.data.ticket.id;

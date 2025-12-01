@@ -12,20 +12,34 @@ const envSchema = z.object({
   // Auth
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.string().url().optional(),
+  NEXTAUTH_SECRET: z.string().optional(),
+  NEXTAUTH_URL: z.string().url().optional(),
 
   // Microsoft Graph
   MICROSOFT_CLIENT_ID: z.string().optional(),
   MICROSOFT_CLIENT_SECRET: z.string().optional(),
   MICROSOFT_TENANT_ID: z.string().optional(),
+  MICROSOFT_GRAPH_TENANT_ID: z.string().optional(),
+  MICROSOFT_GRAPH_CLIENT_ID: z.string().optional(),
+  MICROSOFT_GRAPH_CLIENT_SECRET: z.string().optional(),
+  MICROSOFT_GRAPH_WEBHOOK_SECRET: z.string().optional(),
+  SHARED_MAILBOX_ADDRESS: z.string().email().optional(),
 
   // AI Services
   OPENAI_API_KEY: z.string().optional(),
   GOOGLE_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
+  GEMINI_MODEL_NAME: z.string().default('models/gemini-2.5-flash-preview-05-20'),
 
   // Shopify
   SHOPIFY_STORE_URL: z.string().url().optional(),
   SHOPIFY_ADMIN_ACCESS_TOKEN: z.string().optional(),
+  SHOPIFY_API_KEY: z.string().optional(),
+  SHOPIFY_API_SECRET: z.string().optional(),
+
+  // ShipStation
+  SHIPSTATION_API_KEY: z.string().optional(),
+  SHIPSTATION_API_SECRET: z.string().optional(),
 
   // QuickBooks
   QBO_CLIENT_ID: z.string().optional(),
@@ -33,6 +47,9 @@ const envSchema = z.object({
 
   // Email
   RESEND_API_KEY: z.string().optional(),
+  ALERT_EMAIL: z.string().email().optional(),
+  ERROR_ALERT_THRESHOLD: z.string().default('3'),
+  CC_EMAIL_ADDRESS: z.string().email().default('sales@alliancechemical.com'),
 
   // Vercel
   KV_REST_API_URL: z.string().url().optional(),
@@ -42,6 +59,8 @@ const envSchema = z.object({
   // App Config
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  DEBUG_SQL: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -80,4 +99,6 @@ export const integrations = {
   openai: !!env.OPENAI_API_KEY,
   google: !!env.GOOGLE_API_KEY,
   microsoft: !!env.MICROSOFT_CLIENT_ID && !!env.MICROSOFT_CLIENT_SECRET,
+  shipstation: !!env.SHIPSTATION_API_KEY && !!env.SHIPSTATION_API_SECRET,
+  microsoftGraph: !!env.MICROSOFT_GRAPH_CLIENT_ID && !!env.MICROSOFT_GRAPH_CLIENT_SECRET,
 } as const;
