@@ -9,8 +9,8 @@ const envSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
 
-  // Auth
-  BETTER_AUTH_SECRET: z.string().min(32),
+  // Auth (optional since auth is bypassed for now)
+  BETTER_AUTH_SECRET: z.string().min(32).default('development-secret-key-at-least-32-chars'),
   BETTER_AUTH_URL: z.string().url().optional(),
   NEXTAUTH_SECRET: z.string().optional(),
   NEXTAUTH_URL: z.string().url().optional(),

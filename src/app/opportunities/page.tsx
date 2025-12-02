@@ -2,6 +2,9 @@ import { listOpportunities } from '@/services/opportunityService';
 import { OpportunitiesListClient } from '@/components/opportunities/OpportunitiesListClient';
 import type { Metadata } from 'next';
 
+// Force dynamic rendering since we fetch from database
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Opportunities - Alliance Chemical CRM',
 };
