@@ -129,26 +129,26 @@ function TicketRow({
       <div
         ref={rowRef}
         className={cn(
-          'group flex items-center gap-4 border-b border-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.02]',
+          'group flex items-center gap-4 border-b border-gray-100 px-4 py-3 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50',
           isDeleting && 'pointer-events-none opacity-50',
-          isSelected && 'bg-indigo-500/10 border-l-2 border-l-indigo-500'
+          isSelected && 'bg-indigo-50 border-l-2 border-l-indigo-500 dark:bg-indigo-900/20'
         )}
       >
         {/* Priority Indicator */}
         <PriorityDot priority={ticket.priority as any} />
 
         {/* ID */}
-        <span className="w-12 flex-shrink-0 font-mono text-xs text-white/40">#{ticket.id}</span>
+        <span className="w-12 flex-shrink-0 font-mono text-xs text-gray-400 dark:text-gray-500">#{ticket.id}</span>
 
         {/* Title & Meta */}
         <div className="min-w-0 flex-1">
           <Link
             href={`/tickets/${ticket.id}`}
-            className="block truncate text-sm font-medium text-white/90 transition-colors hover:text-indigo-400"
+            className="block truncate text-sm font-medium text-gray-800 transition-colors hover:text-indigo-600 dark:text-gray-200 dark:hover:text-indigo-400"
           >
             {ticket.title}
           </Link>
-          <div className="mt-0.5 flex items-center gap-2 text-xs text-white/40">
+          <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
             <span className="truncate">{ticket.senderEmail || ticket.reporterName || 'Unknown'}</span>
             {ticket.type && (
               <>
@@ -174,20 +174,20 @@ function TicketRow({
           {ticket.assigneeName ? (
             <div className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
-                <AvatarFallback className="bg-indigo-500/20 text-[10px] text-indigo-400">
+                <AvatarFallback className="bg-indigo-100 text-[10px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
                   {ticket.assigneeName.charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <span className="truncate text-xs text-white/60">{ticket.assigneeName}</span>
+              <span className="truncate text-xs text-gray-600 dark:text-gray-300">{ticket.assigneeName}</span>
             </div>
           ) : (
-            <span className="text-xs text-white/30">Unassigned</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">Unassigned</span>
           )}
         </div>
 
         {/* Time */}
         <div className="w-16 flex-shrink-0 text-right">
-          <span className="text-xs text-white/30">{timeAgo(ticket.updatedAt)}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">{timeAgo(ticket.updatedAt)}</span>
         </div>
 
         {/* Actions */}
@@ -199,26 +199,26 @@ function TicketRow({
                 size="sm"
                 className="h-7 w-7 p-0 opacity-0 transition-opacity group-hover:opacity-100"
               >
-                <MoreHorizontal className="h-4 w-4 text-white/40" />
+                <MoreHorizontal className="h-4 w-4 text-gray-400 dark:text-gray-500" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 border-white/10 bg-[#161b22]">
-              <DropdownMenuItem asChild className="text-white/70 focus:bg-white/[0.06] focus:text-white">
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
                 <Link href={`/tickets/${ticket.id}`}>
                   <Eye className="mr-2 h-4 w-4" />
                   View Details
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild className="text-white/70 focus:bg-white/[0.06] focus:text-white">
+              <DropdownMenuItem asChild>
                 <Link href={`/tickets/${ticket.id}/edit`}>
                   <Pencil className="mr-2 h-4 w-4" />
                   Edit
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-white/[0.06]" />
+              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => setShowDeleteConfirm(true)}
-                className="text-red-400 focus:bg-red-500/10 focus:text-red-400"
+                className="text-red-600 focus:text-red-600 dark:text-red-400 dark:focus:text-red-400"
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -230,10 +230,10 @@ function TicketRow({
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <DialogContent className="border-white/10 bg-[#161b22]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-white">Delete Ticket</DialogTitle>
-            <DialogDescription className="text-white/50">
+            <DialogTitle>Delete Ticket</DialogTitle>
+            <DialogDescription>
               Are you sure you want to delete ticket #{ticket.id}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
@@ -241,7 +241,6 @@ function TicketRow({
             <Button
               variant="outline"
               onClick={() => setShowDeleteConfirm(false)}
-              className="border-white/10 bg-transparent text-white/70 hover:bg-white/[0.06]"
             >
               Cancel
             </Button>
@@ -251,7 +250,6 @@ function TicketRow({
                 onDelete(ticket.id);
                 setShowDeleteConfirm(false);
               }}
-              className="bg-red-600 hover:bg-red-500"
             >
               Delete
             </Button>
@@ -502,8 +500,8 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   if (isLoading && tickets.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-white/10 border-t-indigo-500" />
-        <p className="mt-3 text-sm text-white/40">Loading tickets...</p>
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-gray-200 border-t-indigo-500 dark:border-gray-700" />
+        <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">Loading tickets...</p>
       </div>
     );
   }
@@ -511,11 +509,11 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
   // Embedded mode (simple list)
   if (isEmbedded) {
     return (
-      <div className="divide-y divide-white/[0.04]">
+      <div className="divide-y divide-gray-100 dark:divide-gray-800">
         {tickets.length === 0 ? (
           <div className="py-12 text-center">
-            <Inbox className="mx-auto mb-3 h-10 w-10 text-white/20" />
-            <p className="text-sm text-white/50">No tickets found</p>
+            <Inbox className="mx-auto mb-3 h-10 w-10 text-gray-300 dark:text-gray-600" />
+            <p className="text-sm text-gray-500 dark:text-gray-400">No tickets found</p>
           </div>
         ) : (
           tickets.map((ticket) => (
@@ -533,13 +531,13 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
 
   // Full page mode
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col bg-background">
       {/* Header */}
-      <div className="border-b border-white/[0.06] px-6 py-4">
+      <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-semibold text-white">Tickets</h1>
-            <p className="mt-0.5 text-sm text-white/40">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-white">Tickets</h1>
+            <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
               {tickets.length} ticket{tickets.length !== 1 ? 's' : ''}
               {hasActiveFilters && ' (filtered)'}
             </p>
@@ -550,7 +548,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
               size="sm"
               onClick={() => fetchTickets({ refresh: true })}
               disabled={isRefreshing}
-              className="gap-2 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]"
+              className="gap-2"
             >
               <RefreshCw className={cn('h-4 w-4', isRefreshing && 'animate-spin')} />
               Refresh
@@ -566,21 +564,21 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
       </div>
 
       {/* Filter Bar */}
-      <div className="border-b border-white/[0.06] px-6 py-3">
+      <div className="border-b border-gray-200 px-6 py-3 dark:border-gray-700">
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
           <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
             <Input
               placeholder="Search tickets..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 border-white/[0.08] bg-white/[0.02] pl-9 text-white placeholder:text-white/30 focus:border-indigo-500/50"
+              className="h-9 pl-9"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -589,24 +587,24 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
 
           {/* Preset Tabs */}
           <Tabs value={activePreset} onValueChange={(v) => setActivePreset(v as FilterPreset)}>
-            <TabsList className="h-9 bg-white/[0.02] p-1">
+            <TabsList className="h-9 p-1">
               <TabsTrigger
                 value="my_tickets"
-                className="gap-1.5 text-xs data-[state=active]:bg-white/[0.08] data-[state=active]:text-white"
+                className="gap-1.5 text-xs"
               >
                 <User className="h-3.5 w-3.5" />
                 My Tickets
               </TabsTrigger>
               <TabsTrigger
                 value="unassigned"
-                className="gap-1.5 text-xs data-[state=active]:bg-white/[0.08] data-[state=active]:text-white"
+                className="gap-1.5 text-xs"
               >
                 <AlertCircle className="h-3.5 w-3.5" />
                 Unassigned
               </TabsTrigger>
               <TabsTrigger
                 value="all"
-                className="gap-1.5 text-xs data-[state=active]:bg-white/[0.08] data-[state=active]:text-white"
+                className="gap-1.5 text-xs"
               >
                 <Inbox className="h-3.5 w-3.5" />
                 All
@@ -621,8 +619,8 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                 variant="outline"
                 size="sm"
                 className={cn(
-                  'h-9 gap-2 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]',
-                  statusFilter.length > 0 && 'border-indigo-500/30 bg-indigo-500/10 text-indigo-400'
+                  'h-9 gap-2',
+                  statusFilter.length > 0 && 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
                 )}
               >
                 Status
@@ -634,9 +632,9 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48 border-white/10 bg-[#161b22]">
-              <DropdownMenuLabel className="text-white/50">Filter by status</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/[0.06]" />
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
+              <DropdownMenuSeparator />
               {ticketStatusEnum.enumValues.map((status) => (
                 <DropdownMenuCheckboxItem
                   key={status}
@@ -646,7 +644,6 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                       checked ? [...prev, status] : prev.filter((s) => s !== status)
                     );
                   }}
-                  className="text-white/70 focus:bg-white/[0.06] focus:text-white"
                 >
                   {status.replace(/_/g, ' ')}
                 </DropdownMenuCheckboxItem>
@@ -661,8 +658,8 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                 variant="outline"
                 size="sm"
                 className={cn(
-                  'h-9 gap-2 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]',
-                  priorityFilter.length > 0 && 'border-indigo-500/30 bg-indigo-500/10 text-indigo-400'
+                  'h-9 gap-2',
+                  priorityFilter.length > 0 && 'border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400'
                 )}
               >
                 Priority
@@ -674,9 +671,9 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                 <ChevronDown className="h-3.5 w-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-48 border-white/10 bg-[#161b22]">
-              <DropdownMenuLabel className="text-white/50">Filter by priority</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/[0.06]" />
+            <DropdownMenuContent className="w-48">
+              <DropdownMenuLabel>Filter by priority</DropdownMenuLabel>
+              <DropdownMenuSeparator />
               {ticketPriorityEnum.enumValues.map((priority) => (
                 <DropdownMenuCheckboxItem
                   key={priority}
@@ -686,7 +683,6 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                       checked ? [...prev, priority] : prev.filter((p) => p !== priority)
                     );
                   }}
-                  className="text-white/70 focus:bg-white/[0.06] focus:text-white"
                 >
                   <PriorityDot priority={priority as any} className="mr-2" />
                   {priority}
@@ -701,15 +697,15 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 gap-2 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]"
+                className="h-9 gap-2"
               >
                 <ArrowUpDown className="h-3.5 w-3.5" />
                 Sort
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48 border-white/10 bg-[#161b22]">
-              <DropdownMenuLabel className="text-white/50">Sort by</DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-white/[0.06]" />
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+              <DropdownMenuSeparator />
               {[
                 { value: 'updatedAt', label: 'Last Updated' },
                 { value: 'createdAt', label: 'Created Date' },
@@ -726,11 +722,10 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                       setSortOrder('desc');
                     }
                   }}
-                  className="text-white/70 focus:bg-white/[0.06] focus:text-white"
                 >
                   {option.label}
                   {sortBy === option.value && (
-                    <span className="ml-auto text-xs text-white/40">
+                    <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">
                       {sortOrder === 'asc' ? '↑' : '↓'}
                     </span>
                   )}
@@ -746,20 +741,20 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-9 gap-2 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]"
+                  className="h-9 gap-2"
                 >
                   <Star className="h-3.5 w-3.5" />
                   Saved
                   <ChevronDown className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56 border-white/10 bg-[#161b22]">
-                <DropdownMenuLabel className="text-white/50">Saved Filters</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-white/[0.06]" />
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Saved Filters</DropdownMenuLabel>
+                <DropdownMenuSeparator />
                 {savedFilters.map((filter) => (
                   <DropdownMenuItem
                     key={filter.id}
-                    className="flex items-center justify-between text-white/70 focus:bg-white/[0.06] focus:text-white"
+                    className="flex items-center justify-between"
                   >
                     <span onClick={() => applySavedFilter(filter)} className="flex-1 cursor-pointer">
                       {filter.name}
@@ -769,7 +764,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                         e.stopPropagation();
                         deleteSavedFilter(filter.id);
                       }}
-                      className="ml-2 text-white/30 hover:text-red-400"
+                      className="ml-2 text-gray-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -785,7 +780,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
               variant="outline"
               size="sm"
               onClick={() => setShowSaveDialog(true)}
-              className="h-9 gap-1.5 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]"
+              className="h-9 gap-1.5"
             >
               <Save className="h-3.5 w-3.5" />
               Save
@@ -798,7 +793,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="h-9 gap-1.5 text-white/50 hover:bg-white/[0.04] hover:text-white/70"
+              className="h-9 gap-1.5"
             >
               <X className="h-3.5 w-3.5" />
               Clear
@@ -809,10 +804,10 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
 
       {/* Save Filter Dialog */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-        <DialogContent className="border-white/10 bg-[#0d1117]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-white">Save Filter</DialogTitle>
-            <DialogDescription className="text-white/50">
+            <DialogTitle>Save Filter</DialogTitle>
+            <DialogDescription>
               Save the current filter settings for quick access later.
             </DialogDescription>
           </DialogHeader>
@@ -821,7 +816,6 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
               placeholder="Filter name (e.g. 'Urgent Open')"
               value={newFilterName}
               onChange={(e) => setNewFilterName(e.target.value)}
-              className="border-white/[0.08] bg-white/[0.02] text-white placeholder:text-white/30"
               onKeyDown={(e) => e.key === 'Enter' && saveCurrentFilter()}
             />
           </div>
@@ -829,7 +823,6 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
             <Button
               variant="ghost"
               onClick={() => setShowSaveDialog(false)}
-              className="text-white/70"
             >
               Cancel
             </Button>
@@ -846,7 +839,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
 
       {/* Error State */}
       {error && (
-        <div className="mx-6 mt-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="mx-6 mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
           <AlertCircle className="h-4 w-4" />
           {error}
           <button onClick={() => fetchTickets()} className="ml-auto text-xs underline hover:no-underline">
@@ -856,7 +849,7 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
       )}
 
       {/* Table Header */}
-      <div className="flex items-center gap-4 border-b border-white/[0.06] bg-white/[0.01] px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-white/40">
+      <div className="flex items-center gap-4 border-b border-gray-200 bg-gray-50 px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">
         <div className="w-4" /> {/* Priority dot */}
         <div className="w-12">ID</div>
         <div className="flex-1">Title</div>
@@ -870,16 +863,16 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
       {/* Ticket List */}
       <ScrollArea className="flex-1">
         {isRefreshing && (
-          <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-indigo-500/20">
+          <div className="absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-indigo-100 dark:bg-indigo-900/30">
             <div className="h-full w-1/3 animate-[shimmer_1s_ease-in-out_infinite] bg-indigo-500" />
           </div>
         )}
 
         {tickets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
-            <Inbox className="mb-4 h-12 w-12 text-white/20" />
-            <p className="text-sm font-medium text-white/70">No tickets found</p>
-            <p className="mt-1 text-xs text-white/40">
+            <Inbox className="mb-4 h-12 w-12 text-gray-300 dark:text-gray-600" />
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">No tickets found</p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               {hasActiveFilters ? 'Try adjusting your filters' : 'Create a new ticket to get started'}
             </p>
             {hasActiveFilters && (
@@ -887,14 +880,14 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
                 variant="outline"
                 size="sm"
                 onClick={clearFilters}
-                className="mt-4 border-white/[0.08] bg-white/[0.02] text-white/70"
+                className="mt-4"
               >
                 Clear Filters
               </Button>
             )}
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.04]">
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {tickets.map((ticket, index) => (
               <TicketRow
                 key={ticket.id}
