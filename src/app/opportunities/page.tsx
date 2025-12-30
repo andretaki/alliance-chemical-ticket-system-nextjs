@@ -1,4 +1,5 @@
 import { listOpportunities } from '@/services/opportunityService';
+import { getPipelineHealth } from '@/services/crm/crmDashboardService';
 import { OpportunitiesListClient } from '@/components/opportunities/OpportunitiesListClient';
 import type { Metadata } from 'next';
 
@@ -10,15 +11,24 @@ export const metadata: Metadata = {
 };
 
 export default async function OpportunitiesPage() {
-  const initialRaw = await listOpportunities();
+  const [initialRaw, pipelineHealth] = await Promise.all([
+    listOpportunities(),
+    getPipelineHealth(),
+  ]);
+
   const initial = initialRaw.map((o: any) => ({
     ...o,
     createdAt: o.createdAt instanceof Date ? o.createdAt.toISOString() : o.createdAt,
+    stageChangedAt: o.stageChangedAt instanceof Date ? o.stageChangedAt.toISOString() : o.stageChangedAt,
   }));
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold text-white mb-4">Opportunities</h1>
-      <OpportunitiesListClient initial={initial as any} />
+    <div className="min-h-screen bg-background p-6">
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Opportunities</h1>
+      <OpportunitiesListClient
+        initial={initial as any}
+        pipelineHealth={pipelineHealth}
+      />
     </div>
   );
 }
