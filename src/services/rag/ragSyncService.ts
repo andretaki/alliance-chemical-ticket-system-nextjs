@@ -51,7 +51,7 @@ async function markCursorError(sourceType: RagSourceType, error: string) {
 export async function syncTickets({
   pageSize = DEFAULT_PAGE_SIZE,
   maxPages = DEFAULT_MAX_PAGES,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   startAt,
 }: {
   pageSize?: number;
@@ -91,7 +91,7 @@ export async function syncTickets({
 export async function syncTicketComments({
   pageSize = DEFAULT_PAGE_SIZE,
   maxPages = DEFAULT_MAX_PAGES,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   startAt,
 }: {
   pageSize?: number;
@@ -131,7 +131,7 @@ export async function syncTicketComments({
 export async function syncInteractions({
   pageSize = DEFAULT_PAGE_SIZE,
   maxPages = DEFAULT_MAX_PAGES,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   startAt,
 }: {
   pageSize?: number;
@@ -171,7 +171,7 @@ export async function syncInteractions({
 export async function syncOrders({
   pageSize = DEFAULT_PAGE_SIZE,
   maxPages = DEFAULT_MAX_PAGES,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   startAt,
 }: {
   pageSize?: number;
@@ -238,7 +238,7 @@ export async function syncQboCustomers(operation: RagIngestionOperation = 'upser
 export async function syncShopifyCustomers({
   pageSize = DEFAULT_PAGE_SIZE,
   maxPages = DEFAULT_MAX_PAGES,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   startAt,
 }: {
   pageSize?: number;
@@ -285,7 +285,7 @@ export async function syncShopifyCustomers({
 
 export async function syncQboInvoices({
   sinceDays = 90,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   startAt,
 }: {
   sinceDays?: number;
@@ -324,7 +324,7 @@ export async function syncQboInvoices({
 
 export async function syncQboEstimates({
   sinceDays = 180,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   startAt,
 }: {
   sinceDays?: number;
@@ -364,7 +364,7 @@ export async function syncQboEstimates({
 export async function syncShipstationShipments({
   sinceDays = 30,
   pageSize = 100,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   startAt,
 }: {
   sinceDays?: number;
@@ -451,7 +451,7 @@ export async function syncShipstationShipments({
 
 export async function syncGraphEmails({
   pageSize = 50,
-  operation: RagIngestionOperation = 'upsert',
+  operation = 'upsert',
   resetCursor = false,
 }: {
   pageSize?: number;

@@ -5,7 +5,7 @@ import { embedTexts } from './ragEmbedding';
 import { buildRagAccessWhere, canViewRagRow } from './ragRbac';
 import { classifyIntent, extractIdentifiers, type RagIdentifiers } from './ragIntent';
 import { structuredLookup } from './ragStructuredLookup';
-import type { RagIntent, RagQueryFilters, RagResultItem, RagScoreBreakdown, RagSourceType, RagTruthResult, ViewerScope } from './ragTypes';
+import type { RagIntent, RagQueryFilters, RagResultItem, RagScoreBreakdown, RagSensitivity, RagSourceType, RagTruthResult, ViewerScope } from './ragTypes';
 import { logInfo, logWarn } from '@/utils/logger';
 
 interface SearchRow {
@@ -17,7 +17,7 @@ interface SearchRow {
   sourceUri: string;
   title: string | null;
   metadata: Record<string, any>;
-  sensitivity: string;
+  sensitivity: RagSensitivity | null;
   customerId: number | null;
   ticketId: number | null;
   threadId: string | null;
@@ -618,7 +618,7 @@ async function hybridSearch(queryText: string, intent: RagIntent, options: Hybri
   const filtered = Array.from(bySource.values())
     .filter((entry) => canViewRagRow(options.scope, {
       customerId: entry.row.customerId,
-      sensitivity: entry.row.sensitivity,
+      sensitivity: entry.row.sensitivity ?? 'public',
       metadata: entry.row.metadata,
     }, { includeInternal: options.includeInternal }))
     .sort((a, b) => (b.score.finalScore || 0) - (a.score.finalScore || 0))

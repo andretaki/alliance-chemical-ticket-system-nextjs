@@ -175,7 +175,7 @@ function PipelineStageCard({ stage, data }: { stage: string; data: PipelineHealt
       <div className="mt-1 text-xs text-muted-foreground">
         {formatCurrency(data?.totalValue || 0)}
       </div>
-    </PageShell>
+    </div>
   );
 }
 
@@ -479,6 +479,6 @@ export default function CrmDashboardClient({
           </Card>
         </section>
       )}
-    </div>
+    </PageShell>
   );
 }

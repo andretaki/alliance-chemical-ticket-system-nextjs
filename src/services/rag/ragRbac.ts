@@ -1,7 +1,7 @@
 import { and, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { getCurrentUserWithRole } from '@/lib/auth-utils';
 import { db, crmTasks, opportunities, ticketComments, tickets, ragSources } from '@/lib/db';
-import type { ViewerScope } from './ragTypes';
+import type { RagSensitivity, ViewerScope } from './ragTypes';
 
 function extractDepartments(user: { role: string; ticketingRole?: string | null } & Record<string, any>): string[] {
   const departments: string[] = [];
@@ -129,7 +129,7 @@ export function buildRagAccessWhere(scope: ViewerScope, options?: {
 
 export function canViewRagRow(scope: ViewerScope, row: {
   customerId: number | null;
-  sensitivity: string;
+  sensitivity: RagSensitivity | null;
   metadata: Record<string, any>;
 }, options?: { includeInternal?: boolean }): boolean {
   const includeInternal = Boolean(scope.allowInternal && options?.includeInternal);

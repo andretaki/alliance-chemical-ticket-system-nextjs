@@ -88,7 +88,7 @@ async function fetchQboCustomers(sinceDate?: string | null): Promise<QboCustomer
 export async function syncQboCustomers(options: { fullSync?: boolean } = {}): Promise<SyncMetrics> {
   const metrics = createSyncMetrics();
 
-  if (!integrations.qbo) {
+  if (!integrations.quickbooks) {
     console.log('[syncQboCustomers] QBO integration not configured, skipping');
     return metrics;
   }

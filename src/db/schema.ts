@@ -111,8 +111,10 @@ export const ragSourceTypeEnum = ticketingProdSchema.enum('rag_source_type', [
   'qbo_customer',
   'shopify_order',
   'shopify_customer',
+  'amazon_customer',
   'amazon_order',
   'amazon_shipment',
+  'shipstation_customer',
   'shipstation_shipment',
   'order',
 ]);

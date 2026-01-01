@@ -99,6 +99,13 @@
       "when": 1764616369000,
       "tag": "0013_customer_identity_spine",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1764616369100,
+      "tag": "0014_rag_source_customer_types",
+      "breakpoints": true
     }
   ]
 }

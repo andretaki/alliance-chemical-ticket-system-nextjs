@@ -101,7 +101,7 @@ export interface QboCustomerBalance {
     lastPaymentDate?: string | null;
 }
 
-const runQboQuery = async <T = any>(query: string): Promise<T> => {
+export const runQboQuery = async <T = any>(query: string): Promise<T> => {
     const client = await getQboClient();
     return new Promise<T>((resolve, reject) => {
         (client as any).query(query, (err: any, data: T) => {

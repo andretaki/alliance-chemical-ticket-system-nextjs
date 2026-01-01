@@ -40,7 +40,7 @@ async function findAmbiguousByEmail(): Promise<AmbiguousMatch[]> {
 
   const matches: AmbiguousMatch[] = [];
 
-  for (const row of duplicateEmails.rows) {
+  for (const row of duplicateEmails) {
     const customerIds = row.customer_ids;
 
     // Get customer details
@@ -98,7 +98,7 @@ async function findAmbiguousByPhone(): Promise<AmbiguousMatch[]> {
 
   const matches: AmbiguousMatch[] = [];
 
-  for (const row of duplicatePhones.rows) {
+  for (const row of duplicatePhones) {
     const customerIds = row.customer_ids;
 
     const customerDetails = await db.query.customers.findMany({
@@ -153,7 +153,7 @@ async function findAmbiguousByAddressHash(): Promise<AmbiguousMatch[]> {
 
   const matches: AmbiguousMatch[] = [];
 
-  for (const row of duplicateHashes.rows) {
+  for (const row of duplicateHashes) {
     const customerIds = row.customer_ids;
 
     const customerDetails = await db.query.customers.findMany({
