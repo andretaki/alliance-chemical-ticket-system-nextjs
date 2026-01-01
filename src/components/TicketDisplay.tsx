@@ -46,19 +46,19 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, deleteTicket }) =
   };
 
   const priorityColors: Record<string, string> = {
-    low: 'text-emerald-400 bg-emerald-400/10',
-    medium: 'text-amber-400 bg-amber-400/10',
-    high: 'text-red-400 bg-red-400/10',
-    urgent: 'text-red-400 bg-red-400/10',
+    low: 'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-400/10',
+    medium: 'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-400/10',
+    high: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-400/10',
+    urgent: 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-400/10',
   };
 
   const statusColors: Record<string, string> = {
-    new: 'text-indigo-400 bg-indigo-400/10',
-    open: 'text-sky-400 bg-sky-400/10',
-    in_progress: 'text-sky-400 bg-sky-400/10',
-    pending_customer: 'text-amber-400 bg-amber-400/10',
-    resolved: 'text-emerald-400 bg-emerald-400/10',
-    closed: 'text-white/40 bg-white/5',
+    new: 'text-indigo-600 bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-400/10',
+    open: 'text-sky-600 bg-sky-100 dark:text-sky-400 dark:bg-sky-400/10',
+    in_progress: 'text-sky-600 bg-sky-100 dark:text-sky-400 dark:bg-sky-400/10',
+    pending_customer: 'text-amber-600 bg-amber-100 dark:text-amber-400 dark:bg-amber-400/10',
+    resolved: 'text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-400/10',
+    closed: 'text-gray-500 bg-gray-100 dark:text-gray-400 dark:bg-gray-800',
   };
 
   const formatTime = (date: Date) => {
@@ -75,19 +75,19 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, deleteTicket }) =
   };
 
   return (
-    <tr className={`hover:bg-white/[0.02] transition-colors ${showDeleteConfirm ? 'bg-red-500/5' : ''}`}>
+    <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${showDeleteConfirm ? 'bg-red-50 dark:bg-red-500/5' : ''}`}>
       {/* ID */}
       <td className="px-4 py-3 align-middle">
-        <span className="text-white/40 text-xs font-mono">{ticket.id}</span>
+        <span className="text-gray-400 dark:text-gray-500 text-xs font-mono">{ticket.id}</span>
       </td>
 
       {/* Title */}
       <td className="px-4 py-3 align-middle max-w-xs">
         <Link href={`/tickets/${ticket.id}`} className="group block">
-          <span className="text-white/90 text-sm font-medium truncate block group-hover:text-indigo-400 transition-colors">
+          <span className="text-gray-900 dark:text-gray-100 text-sm font-medium truncate block group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
             {ticket.title}
           </span>
-          <span className="text-white/30 text-xs">{formatTime(ticket.createdAt)}</span>
+          <span className="text-gray-400 dark:text-gray-500 text-xs">{formatTime(ticket.createdAt)}</span>
         </Link>
       </td>
 
@@ -95,35 +95,35 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, deleteTicket }) =
       <td className="px-4 py-3 align-middle hidden md:table-cell">
         {ticket.assigneeName ? (
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 text-xs font-medium">
+            <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-xs font-medium">
               {ticket.assigneeName.charAt(0).toUpperCase()}
             </div>
-            <span className="text-white/70 text-sm truncate max-w-[100px]">{ticket.assigneeName}</span>
+            <span className="text-gray-600 dark:text-gray-300 text-sm truncate max-w-[100px]">{ticket.assigneeName}</span>
           </div>
         ) : (
-          <span className="text-white/30 text-xs">—</span>
+          <span className="text-gray-400 dark:text-gray-500 text-xs">—</span>
         )}
       </td>
 
       {/* Reporter */}
       <td className="px-4 py-3 align-middle hidden md:table-cell">
         {ticket.reporterName ? (
-          <span className="text-white/60 text-sm truncate block max-w-[100px]">{ticket.reporterName}</span>
+          <span className="text-gray-500 dark:text-gray-400 text-sm truncate block max-w-[100px]">{ticket.reporterName}</span>
         ) : (
-          <span className="text-white/30 text-xs">—</span>
+          <span className="text-gray-400 dark:text-gray-500 text-xs">—</span>
         )}
       </td>
 
       {/* Priority */}
       <td className="px-4 py-3 align-middle">
-        <span className={`inline-block text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded ${priorityColors[ticket.priority] || 'text-white/40 bg-white/5'}`}>
+        <span className={`inline-block text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded ${priorityColors[ticket.priority] || 'text-gray-500 bg-gray-100 dark:text-gray-400 dark:bg-gray-800'}`}>
           {ticket.priority}
         </span>
       </td>
 
       {/* Status */}
       <td className="px-4 py-3 align-middle">
-        <span className={`inline-block text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded ${statusColors[ticket.status] || 'text-white/40 bg-white/5'}`}>
+        <span className={`inline-block text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded ${statusColors[ticket.status] || 'text-gray-500 bg-gray-100 dark:text-gray-400 dark:bg-gray-800'}`}>
           {ticket.status.replace('_', ' ')}
         </span>
       </td>
@@ -131,9 +131,9 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, deleteTicket }) =
       {/* Type */}
       <td className="px-4 py-3 align-middle hidden sm:table-cell">
         {ticket.type ? (
-          <span className="text-white/40 text-xs">{ticket.type}</span>
+          <span className="text-gray-400 dark:text-gray-500 text-xs">{ticket.type}</span>
         ) : (
-          <span className="text-white/20">—</span>
+          <span className="text-gray-300 dark:text-gray-600">—</span>
         )}
       </td>
 
@@ -144,19 +144,19 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, deleteTicket }) =
             <>
               <Link
                 href={`/tickets/${ticket.id}`}
-                className="w-7 h-7 flex items-center justify-center rounded text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 transition-colors"
               >
                 <i className="fas fa-eye text-xs" />
               </Link>
               <Link
                 href={`/tickets/${ticket.id}/edit`}
-                className="w-7 h-7 flex items-center justify-center rounded text-white/40 hover:text-white/70 hover:bg-white/[0.04] transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 transition-colors"
               >
                 <i className="fas fa-pen text-xs" />
               </Link>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="w-7 h-7 flex items-center justify-center rounded text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:text-gray-500 dark:hover:text-red-400 dark:hover:bg-red-400/10 transition-colors"
               >
                 <i className="fas fa-trash text-xs" />
               </button>
@@ -172,7 +172,7 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, deleteTicket }) =
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="w-7 h-7 flex items-center justify-center rounded bg-white/10 text-white/70 text-xs"
+                className="w-7 h-7 flex items-center justify-center rounded bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 text-xs"
               >
                 <i className="fas fa-times" />
               </button>

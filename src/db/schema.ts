@@ -1,11 +1,39 @@
   // src/db/schema.ts
-import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, type PgTable, index, doublePrecision, type AnyPgColumn, time } from 'drizzle-orm/pg-core';
+import { serial, text, timestamp, varchar, pgEnum, integer, boolean, unique, pgSchema, primaryKey, check, type PgTable, index, doublePrecision, type AnyPgColumn, time, uuid, smallint, customType } from 'drizzle-orm/pg-core';
 import { relations, type One, type Many, sql } from 'drizzle-orm';
 import crypto from 'crypto'; // For UUID generation
 import { pgTable, bigint, jsonb, decimal } from 'drizzle-orm/pg-core';
 
 // Define your PostgreSQL schema objects
 export const ticketingProdSchema = pgSchema('ticketing_prod');
+
+const RAG_EMBEDDING_DIM = 1536;
+
+const vector1536 = customType<{ data: number[] | null; driverData: string | null }>({
+  dataType() {
+    return `vector(${RAG_EMBEDDING_DIM})`;
+  },
+  toDriver(value) {
+    if (!value) return null;
+    return `[${value.join(',')}]`;
+  },
+  fromDriver(value) {
+    if (value == null) return null;
+    if (Array.isArray(value)) return value as number[];
+    if (typeof value === 'string') {
+      const trimmed = value.replace(/^\[|\]$/g, '');
+      if (!trimmed) return [];
+      return trimmed.split(',').map((entry) => Number(entry));
+    }
+    return value as number[];
+  },
+});
+
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return 'tsvector';
+  },
+});
 
 // --- Enums ---
 export const ticketStatusEnum = ticketingProdSchema.enum('ticket_status_enum', ['new', 'open', 'in_progress', 'pending_customer', 'closed']);
@@ -31,7 +59,8 @@ export const providerEnum = ticketingProdSchema.enum('provider_enum', [
   'amazon',
   'manual',
   'self_reported',
-  'klaviyo'
+  'klaviyo',
+  'shipstation'
 ]);
 export const orderStatusEnum = ticketingProdSchema.enum('order_status_enum', [
   'open',
@@ -64,6 +93,45 @@ export const opportunityStageEnum = ticketingProdSchema.enum('opportunity_stage_
   'quote_sent',
   'won',
   'lost',
+]);
+
+export const churnRiskEnum = ticketingProdSchema.enum('churn_risk_enum', [
+  'low',
+  'medium',
+  'high',
+]);
+
+export const ragSourceTypeEnum = ticketingProdSchema.enum('rag_source_type', [
+  'ticket',
+  'ticket_comment',
+  'email',
+  'interaction',
+  'qbo_invoice',
+  'qbo_estimate',
+  'qbo_customer',
+  'shopify_order',
+  'shopify_customer',
+  'amazon_order',
+  'amazon_shipment',
+  'shipstation_shipment',
+  'order',
+]);
+
+export const ragSensitivityEnum = ticketingProdSchema.enum('rag_sensitivity', ['public', 'internal']);
+
+export const ragIngestionStatusEnum = ticketingProdSchema.enum('rag_ingestion_status_enum', [
+  'pending',
+  'processing',
+  'completed',
+  'failed',
+  'skipped',
+]);
+
+export const shipmentProviderEnum = ticketingProdSchema.enum('shipment_provider_enum', [
+  'shipstation',
+  'amazon_fba',
+  'amazon_mfn',
+  'shopify_fulfillment',
 ]);
 
 // --- Canned Responses Table ---
@@ -217,6 +285,11 @@ export const opportunities = ticketingProdSchema.table('opportunities', {
   qboEstimateId: text('qbo_estimate_id'),
   closedAt: timestamp('closed_at', { withTimezone: true }),
   lostReason: text('lost_reason'),
+
+  // Pipeline hygiene fields
+  stageChangedAt: timestamp('stage_changed_at', { withTimezone: true }).defaultNow().notNull(),
+  expectedCloseDate: timestamp('expected_close_date', { withTimezone: true }),
+
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => {
@@ -225,6 +298,7 @@ export const opportunities = ticketingProdSchema.table('opportunities', {
     ownerIndex: index('idx_opportunities_owner').on(table.ownerId),
     stageIndex: index('idx_opportunities_stage').on(table.stage),
     divisionIndex: index('idx_opportunities_division').on(table.division),
+    stageChangedIndex: index('idx_opportunities_stage_changed').on(table.stageChangedAt),
   };
 });
 
@@ -446,6 +520,69 @@ export const qboCustomerSnapshots = ticketingProdSchema.table('qbo_customer_snap
   };
 });
 
+// --- Customer Scores (RFM + Health) ---
+export const customerScores = ticketingProdSchema.table('customer_scores', {
+  customerId: integer('customer_id')
+    .notNull()
+    .references(() => customers.id, { onDelete: 'cascade' })
+    .primaryKey(),
+
+  // RFM scores (1-5 quintiles)
+  rScore: integer('r_score').notNull(),
+  fScore: integer('f_score').notNull(),
+  mScore: integer('m_score').notNull(),
+
+  // Money
+  ltv: decimal('ltv', { precision: 14, scale: 2 }).default('0').notNull(),
+  last12MonthsRevenue: decimal('last_12_months_revenue', { precision: 14, scale: 2 }).default('0').notNull(),
+
+  // Health indicators
+  healthScore: integer('health_score').notNull(),  // 0-100
+  churnRisk: churnRiskEnum('churn_risk').notNull(),
+  previousChurnRisk: churnRiskEnum('previous_churn_risk'),  // for detecting escalations
+
+  lastCalculatedAt: timestamp('last_calculated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  healthIndex: index('idx_customer_scores_health').on(table.healthScore),
+  churnRiskIndex: index('idx_customer_scores_churn_risk').on(table.churnRisk),
+}));
+
+// --- CRM Tasks (workflow triggers land here) ---
+export const crmTasks = ticketingProdSchema.table('crm_tasks', {
+  id: serial('id').primaryKey(),
+
+  customerId: integer('customer_id')
+    .references(() => customers.id, { onDelete: 'set null' }),
+  opportunityId: integer('opportunity_id')
+    .references(() => opportunities.id, { onDelete: 'set null' }),
+  ticketId: integer('ticket_id')
+    .references(() => tickets.id, { onDelete: 'set null' }),
+
+  // FOLLOW_UP, CHURN_WATCH, VIP_TICKET, etc
+  type: varchar('type', { length: 64 }).notNull(),
+
+  // STALE_QUOTE, RISING_CHURN, HIGH_VALUE_CUSTOMER, etc
+  reason: varchar('reason', { length: 64 }),
+
+  // open, in_progress, done, dismissed
+  status: varchar('status', { length: 32 }).default('open').notNull(),
+
+  dueAt: timestamp('due_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+
+  assignedToId: text('assigned_to_id')
+    .references(() => users.id, { onDelete: 'set null' }),
+
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    customerIndex: index('idx_crm_tasks_customer').on(table.customerId),
+    statusIndex: index('idx_crm_tasks_status').on(table.status, table.dueAt),
+    assigneeIndex: index('idx_crm_tasks_assignee').on(table.assignedToId),
+  };
+});
+
 export const calls = ticketingProdSchema.table('calls', {
   id: serial('id').primaryKey(),
   customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
@@ -636,12 +773,13 @@ export const interactionsRelations = relations(interactions, ({ one }) => ({
 export const customersRelations = relations(customers, ({ many }) => ({
   identities: many(customerIdentities),
   orders: many(orders),
+  shipments: many(shipments),
   interactions: many(interactions),
-  // Note: tickets don't have a direct customerId FK - they link via senderEmail
   contacts: many(contacts),
   qboSnapshots: many(qboCustomerSnapshots),
   opportunities: many(opportunities),
   calls: many(calls),
+  tasks: many(crmTasks),
 }));
 
 export const customerIdentitiesRelations = relations(customerIdentities, ({ one }) => ({
@@ -657,6 +795,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     references: [customers.id],
   }),
   items: many(orderItems),
+  shipments: many(shipments),
 }));
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
@@ -836,6 +975,233 @@ export const creditApplications = ticketingProdSchema.table('credit_applications
   };
 });
 
+// --- QBO invoices/estimates (structured truth for RAG) ---
+export const qboInvoices = ticketingProdSchema.table('qbo_invoices', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  qboInvoiceId: text('qbo_invoice_id').notNull().unique(),
+  qboCustomerId: text('qbo_customer_id'),
+  docNumber: text('doc_number'),
+  status: text('status'),
+  totalAmount: decimal('total_amount', { precision: 14, scale: 2 }).default('0').notNull(),
+  balance: decimal('balance', { precision: 14, scale: 2 }).default('0').notNull(),
+  currency: varchar('currency', { length: 8 }).default('USD').notNull(),
+  txnDate: timestamp('txn_date', { withTimezone: true }),
+  dueDate: timestamp('due_date', { withTimezone: true }),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    invoiceIdIndex: index('idx_qbo_invoices_id').on(table.qboInvoiceId),
+    docNumberIndex: index('idx_qbo_invoices_doc_number').on(table.docNumber),
+    customerIndex: index('idx_qbo_invoices_customer').on(table.customerId),
+    qboCustomerIndex: index('idx_qbo_invoices_qbo_customer').on(table.qboCustomerId),
+  };
+});
+
+export const qboEstimates = ticketingProdSchema.table('qbo_estimates', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  qboEstimateId: text('qbo_estimate_id').notNull().unique(),
+  qboCustomerId: text('qbo_customer_id'),
+  docNumber: text('doc_number'),
+  status: text('status'),
+  totalAmount: decimal('total_amount', { precision: 14, scale: 2 }).default('0').notNull(),
+  currency: varchar('currency', { length: 8 }).default('USD').notNull(),
+  txnDate: timestamp('txn_date', { withTimezone: true }),
+  expirationDate: timestamp('expiration_date', { withTimezone: true }),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    estimateIdIndex: index('idx_qbo_estimates_id').on(table.qboEstimateId),
+    docNumberIndex: index('idx_qbo_estimates_doc_number').on(table.docNumber),
+    customerIndex: index('idx_qbo_estimates_customer').on(table.customerId),
+    qboCustomerIndex: index('idx_qbo_estimates_qbo_customer').on(table.qboCustomerId),
+  };
+});
+
+// --- ShipStation shipments (structured truth for RAG) ---
+export const shipstationShipments = ticketingProdSchema.table('shipstation_shipments', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  shipstationShipmentId: bigint('shipstation_shipment_id', { mode: 'bigint' }).notNull().unique(),
+  shipstationOrderId: bigint('shipstation_order_id', { mode: 'bigint' }),
+  orderNumber: text('order_number'),
+  trackingNumber: text('tracking_number'),
+  carrierCode: text('carrier_code'),
+  serviceCode: text('service_code'),
+  shipDate: timestamp('ship_date', { withTimezone: true }),
+  deliveryDate: timestamp('delivery_date', { withTimezone: true }),
+  status: text('status'),
+  cost: decimal('cost', { precision: 12, scale: 2 }),
+  weight: decimal('weight', { precision: 10, scale: 3 }),
+  weightUnit: text('weight_unit'),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+  // Added for migration to unified shipments table
+  orderId: integer('order_id').references(() => orders.id, { onDelete: 'set null' }),
+}, (table) => {
+  return {
+    orderNumberIndex: index('idx_shipstation_shipments_order_number').on(table.orderNumber),
+    trackingIndex: index('idx_shipstation_shipments_tracking').on(table.trackingNumber),
+    customerIndex: index('idx_shipstation_shipments_customer').on(table.customerId),
+    orderIdIndex: index('idx_shipstation_shipments_order_id').on(table.shipstationOrderId),
+    orderFkIndex: index('idx_shipstation_shipments_order_fk').on(table.orderId),
+  };
+});
+
+// --- Unified Shipments table (multi-provider: ShipStation, Amazon FBA, etc.) ---
+export const shipments = ticketingProdSchema.table('shipments', {
+  id: serial('id').primaryKey(),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  orderId: integer('order_id').references(() => orders.id, { onDelete: 'set null' }),
+  provider: shipmentProviderEnum('provider').notNull(),
+  externalId: text('external_id').notNull(),
+  orderNumber: text('order_number'),
+  trackingNumber: text('tracking_number'),
+  carrierCode: text('carrier_code'),
+  serviceCode: text('service_code'),
+  shipDate: timestamp('ship_date', { withTimezone: true }),
+  estimatedDeliveryDate: timestamp('estimated_delivery_date', { withTimezone: true }),
+  actualDeliveryDate: timestamp('actual_delivery_date', { withTimezone: true }),
+  status: text('status'),
+  cost: decimal('cost', { precision: 12, scale: 2 }),
+  weight: decimal('weight', { precision: 10, scale: 3 }),
+  weightUnit: text('weight_unit'),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    providerExternalUnique: unique('uq_shipments_provider_external').on(table.provider, table.externalId),
+    customerIndex: index('idx_shipments_customer').on(table.customerId),
+    orderIndex: index('idx_shipments_order').on(table.orderId),
+    orderNumberIndex: index('idx_shipments_order_number').on(table.orderNumber),
+    trackingIndex: index('idx_shipments_tracking').on(table.trackingNumber),
+    providerIndex: index('idx_shipments_provider').on(table.provider),
+    statusIndex: index('idx_shipments_status').on(table.status),
+    shipDateIndex: index('idx_shipments_ship_date').on(table.shipDate),
+    updatedAtIndex: index('idx_shipments_updated_at').on(table.updatedAt),
+  };
+});
+
+// --- Amazon SP-API OAuth tokens ---
+export const amazonSpTokens = ticketingProdSchema.table('amazon_sp_tokens', {
+  id: serial('id').primaryKey(),
+  marketplaceId: text('marketplace_id').notNull().unique(),
+  refreshToken: text('refresh_token').notNull(),
+  accessToken: text('access_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+// --- RAG tables ---
+export const ragSources = ticketingProdSchema.table('rag_sources', {
+  id: uuid('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  sourceType: ragSourceTypeEnum('source_type').notNull(),
+  sourceId: text('source_id').notNull(),
+  sourceUri: text('source_uri').notNull(),
+  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
+  ticketId: integer('ticket_id').references(() => tickets.id, { onDelete: 'set null' }),
+  threadId: text('thread_id'),
+  parentId: uuid('parent_id').references((): AnyPgColumn => ragSources.id, { onDelete: 'set null' }),
+  sensitivity: ragSensitivityEnum('sensitivity').default('public').notNull(),
+  ownerUserId: text('owner_user_id').references(() => users.id, { onDelete: 'set null' }),
+  title: text('title'),
+  contentText: text('content_text').notNull(),
+  contentHash: text('content_hash').notNull(),
+  metadata: jsonb('metadata').default({}).notNull(),
+  sourceCreatedAt: timestamp('source_created_at', { withTimezone: true }).notNull(),
+  sourceUpdatedAt: timestamp('source_updated_at', { withTimezone: true }),
+  indexedAt: timestamp('indexed_at', { withTimezone: true }).defaultNow().notNull(),
+  reindexedAt: timestamp('reindexed_at', { withTimezone: true }),
+}, (table) => {
+  return {
+    sourceUnique: unique('uq_rag_sources_source').on(table.sourceType, table.sourceId),
+    customerIndex: index('idx_rag_sources_customer').on(table.customerId),
+    ticketIndex: index('idx_rag_sources_ticket').on(table.ticketId),
+    threadIndex: index('idx_rag_sources_thread').on(table.threadId),
+    sourceTypeIndex: index('idx_rag_sources_source_type').on(table.sourceType),
+    sourceTypeCreatedIndex: index('idx_rag_sources_type_created').on(table.sourceType, table.sourceCreatedAt),
+  };
+});
+
+export const ragChunks = ticketingProdSchema.table('rag_chunks', {
+  id: uuid('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  sourceId: uuid('source_id').notNull().references(() => ragSources.id, { onDelete: 'cascade' }),
+  chunkIndex: smallint('chunk_index').notNull(),
+  chunkCount: smallint('chunk_count').notNull(),
+  chunkText: text('chunk_text').notNull(),
+  chunkHash: text('chunk_hash').notNull(),
+  tokenCount: smallint('token_count'),
+  embedding: vector1536('embedding'),
+  embeddedAt: timestamp('embedded_at', { withTimezone: true }),
+  tsv: tsvector('tsv').generatedAlwaysAs(sql`to_tsvector('english', ${sql.raw('chunk_text')})`),
+}, (table) => {
+  return {
+    chunkIndexUnique: unique('uq_rag_chunks_source_index').on(table.sourceId, table.chunkIndex),
+    chunkIndexCheck: check('chk_rag_chunks_index', sql`${table.chunkIndex} >= 0 AND ${table.chunkIndex} < ${table.chunkCount}`),
+    sourceIndex: index('idx_rag_chunks_source').on(table.sourceId),
+    chunkHashIndex: index('idx_rag_chunks_hash').on(table.chunkHash),
+  };
+});
+
+export const ragIngestionJobs = ticketingProdSchema.table('rag_ingestion_jobs', {
+  id: uuid('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  sourceType: ragSourceTypeEnum('source_type').notNull(),
+  sourceId: text('source_id').notNull(),
+  operation: varchar('operation', { length: 16 }).notNull(),
+  status: ragIngestionStatusEnum('status').default('pending').notNull(),
+  priority: smallint('priority').default(0).notNull(),
+  attempts: smallint('attempts').default(0).notNull(),
+  maxAttempts: smallint('max_attempts').default(5).notNull(),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+  errorMessage: text('error_message'),
+  errorCode: text('error_code'),
+  resultSourceId: uuid('result_source_id').references(() => ragSources.id, { onDelete: 'set null' }),
+  resultChunkCount: smallint('result_chunk_count'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (table) => {
+  return {
+    statusIndex: index('idx_rag_jobs_status').on(table.status, table.nextRetryAt),
+    sourceIndex: index('idx_rag_jobs_source').on(table.sourceType, table.sourceId),
+  };
+});
+
+export const ragSyncCursors = ticketingProdSchema.table('rag_sync_cursors', {
+  sourceType: ragSourceTypeEnum('source_type').primaryKey(),
+  cursorValue: jsonb('cursor_value'),
+  lastSuccessAt: timestamp('last_success_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  itemsSynced: integer('items_synced').default(0).notNull(),
+});
+
+export const ragQueryLog = ticketingProdSchema.table('rag_query_log', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id'),
+  queryText: text('query_text').notNull(),
+  queryIntent: text('query_intent'),
+  customerId: integer('customer_id'),
+  ticketId: integer('ticket_id'),
+  filters: jsonb('filters').default({}).notNull(),
+  topK: integer('top_k').default(10).notNull(),
+  returnedCount: integer('returned_count').default(0).notNull(),
+  confidence: text('confidence'),
+  ftsLatencyMs: integer('fts_latency_ms'),
+  vectorLatencyMs: integer('vector_latency_ms'),
+  structuredLatencyMs: integer('structured_latency_ms'),
+  rerankLatencyMs: integer('rerank_latency_ms'),
+  debugInfo: jsonb('debug_info'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
   creator: one(users, {
     fields: [subscriptions.creatorId],
@@ -854,6 +1220,43 @@ export const qboCustomerSnapshotsRelations = relations(qboCustomerSnapshots, ({ 
   customer: one(customers, {
     fields: [qboCustomerSnapshots.customerId],
     references: [customers.id],
+  }),
+}));
+
+export const customerScoresRelations = relations(customerScores, ({ one }) => ({
+  customer: one(customers, {
+    fields: [customerScores.customerId],
+    references: [customers.id],
+  }),
+}));
+
+export const crmTasksRelations = relations(crmTasks, ({ one }) => ({
+  customer: one(customers, {
+    fields: [crmTasks.customerId],
+    references: [customers.id],
+  }),
+  opportunity: one(opportunities, {
+    fields: [crmTasks.opportunityId],
+    references: [opportunities.id],
+  }),
+  ticket: one(tickets, {
+    fields: [crmTasks.ticketId],
+    references: [tickets.id],
+  }),
+  assignee: one(users, {
+    fields: [crmTasks.assignedToId],
+    references: [users.id],
+  }),
+}));
+
+export const shipmentsRelations = relations(shipments, ({ one }) => ({
+  customer: one(customers, {
+    fields: [shipments.customerId],
+    references: [customers.id],
+  }),
+  order: one(orders, {
+    fields: [shipments.orderId],
+    references: [orders.id],
   }),
 }));
 

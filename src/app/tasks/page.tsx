@@ -13,8 +13,6 @@ export default async function TasksPage() {
   const tasks = await getOpenTasks({ limit: 100 });
 
   return (
-    <main className="min-h-screen bg-background p-6">
-      <TasksPageClient initialTasks={tasks} />
-    </main>
+    <TasksPageClient initialTasks={tasks} />
   );
 }

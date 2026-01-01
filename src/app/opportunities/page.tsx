@@ -2,6 +2,8 @@ import { listOpportunities } from '@/services/opportunityService';
 import { getPipelineHealth } from '@/services/crm/crmDashboardService';
 import { OpportunitiesListClient } from '@/components/opportunities/OpportunitiesListClient';
 import type { Metadata } from 'next';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { PageShell } from '@/components/layout/PageShell';
 
 // Force dynamic rendering since we fetch from database
 export const dynamic = 'force-dynamic';
@@ -23,12 +25,15 @@ export default async function OpportunitiesPage() {
   }));
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Opportunities</h1>
+    <PageShell size="wide">
+      <PageHeader
+        title="Opportunities"
+        description="Track pipeline health, stale quotes, and owner performance."
+      />
       <OpportunitiesListClient
         initial={initial as any}
         pipelineHealth={pipelineHealth}
       />
-    </div>
+    </PageShell>
   );
 }

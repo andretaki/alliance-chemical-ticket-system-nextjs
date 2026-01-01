@@ -32,12 +32,12 @@ export default function Navbar() {
     };
 
     return (
-        <nav 
-            className="fixed top-0 left-0 right-0 z-30 bg-white/5 border-b border-white/10 backdrop-blur-lg"
+        <nav
+            className="fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 dark:bg-gray-900/95 dark:border-gray-700 backdrop-blur-lg"
         >
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-16">
-                    <Link href="/" className="flex items-center gap-2 text-white">
+                    <Link href="/" className="flex items-center gap-2 text-gray-900 dark:text-white">
                         <Image src="/assets/logo.png" alt="Logo" width={24} height={24} />
                         <span className="font-bold text-lg">Ticket System</span>
                     </Link>

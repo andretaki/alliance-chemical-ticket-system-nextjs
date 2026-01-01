@@ -1,7 +1,9 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getOpportunityById } from '@/services/opportunityService';
+import { getOpenTasksForOpportunity } from '@/services/crm/crmDashboardService';
 import { OpportunityDetailClient } from '@/components/opportunities/OpportunityDetailClient';
+import { PageShell } from '@/components/layout/PageShell';
 
 interface PageProps {
   params: any;
@@ -20,7 +22,12 @@ export default async function OpportunityDetailPage({ params }: PageProps) {
   const { id: idParam } = await params;
   const id = Number(idParam);
   if (Number.isNaN(id)) notFound();
-  const opportunity = await getOpportunityById(id);
+
+  const [opportunity, openTasks] = await Promise.all([
+    getOpportunityById(id),
+    getOpenTasksForOpportunity(id),
+  ]);
+
   if (!opportunity) notFound();
 
   const serialized = {
@@ -28,11 +35,18 @@ export default async function OpportunityDetailPage({ params }: PageProps) {
     createdAt: opportunity.createdAt instanceof Date ? opportunity.createdAt.toISOString() : opportunity.createdAt,
     updatedAt: opportunity.updatedAt instanceof Date ? opportunity.updatedAt.toISOString() : opportunity.updatedAt,
     closedAt: opportunity.closedAt instanceof Date ? opportunity.closedAt.toISOString() : opportunity.closedAt,
+    stageChangedAt: opportunity.stageChangedAt instanceof Date ? opportunity.stageChangedAt.toISOString() : opportunity.stageChangedAt,
   };
 
+  const serializedTasks = openTasks.map((t) => ({
+    ...t,
+    dueAt: t.dueAt instanceof Date ? t.dueAt.toISOString() : t.dueAt ? String(t.dueAt) : null,
+    createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : String(t.createdAt),
+  }));
+
   return (
-    <div className="p-6">
-      <OpportunityDetailClient opportunity={serialized as any} />
-    </div>
+    <PageShell size="wide">
+      <OpportunityDetailClient opportunity={serialized as any} openTasks={serializedTasks} />
+    </PageShell>
   );
 }

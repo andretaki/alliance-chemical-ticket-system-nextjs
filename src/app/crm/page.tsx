@@ -27,15 +27,13 @@ export default async function CrmPage() {
   ]);
 
   return (
-    <main className="min-h-screen bg-background p-6">
-      <CrmDashboardClient
-        stats={stats}
-        whoToTalk={whoToTalk}
-        pipelineHealth={pipelineHealth}
-        staleOpportunities={staleOpportunities}
-        openTasks={openTasks}
-        winRate={winRate}
-      />
-    </main>
+    <CrmDashboardClient
+      stats={stats}
+      whoToTalk={whoToTalk}
+      pipelineHealth={pipelineHealth}
+      staleOpportunities={staleOpportunities}
+      openTasks={openTasks}
+      winRate={winRate}
+    />
   );
 }

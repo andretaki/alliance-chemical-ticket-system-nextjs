@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Badge } from '@/components/ui/badge';
-import { Circle, Clock, CheckCircle2, AlertCircle, Pause, XCircle } from 'lucide-react';
+import { StatusPill } from '@/components/ui/status-pill';
+import { Circle, Clock, CheckCircle2, AlertCircle, Pause } from 'lucide-react';
 
 type TicketStatus = 'new' | 'open' | 'in_progress' | 'pending_customer' | 'closed';
 type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -20,92 +20,84 @@ interface PriorityBadgeProps {
   size?: 'sm' | 'default';
 }
 
-const statusConfig: Record<TicketStatus, { label: string; className: string; icon: React.ElementType }> = {
+const statusConfig: Record<TicketStatus, { label: string; tone: 'info' | 'warning' | 'success'; icon: React.ElementType }> = {
   new: {
     label: 'New',
-    className: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+    tone: 'info',
     icon: Circle,
   },
   open: {
     label: 'Open',
-    className: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+    tone: 'info',
     icon: Clock,
   },
   in_progress: {
     label: 'In Progress',
-    className: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+    tone: 'info',
     icon: Clock,
   },
   pending_customer: {
     label: 'Pending',
-    className: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    tone: 'warning',
     icon: Pause,
   },
   closed: {
     label: 'Closed',
-    className: 'bg-white/[0.06] text-white/50 border-white/10',
+    tone: 'success',
     icon: CheckCircle2,
   },
 };
 
-const priorityConfig: Record<TicketPriority, { label: string; className: string; icon: React.ElementType }> = {
+const priorityConfig: Record<TicketPriority, { label: string; tone: 'neutral' | 'info' | 'warning' | 'danger'; icon: React.ElementType }> = {
   low: {
     label: 'Low',
-    className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    tone: 'neutral',
     icon: Circle,
   },
   medium: {
     label: 'Medium',
-    className: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+    tone: 'info',
     icon: Circle,
   },
   high: {
     label: 'High',
-    className: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+    tone: 'warning',
     icon: AlertCircle,
   },
   urgent: {
     label: 'Urgent',
-    className: 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse',
+    tone: 'danger',
     icon: AlertCircle,
   },
 };
 
 export function StatusBadge({ status, className, showIcon = true, size = 'default' }: StatusBadgeProps) {
   const config = statusConfig[status] || statusConfig.new;
-  const Icon = config.icon;
 
   return (
-    <Badge
-      variant="outline"
-      className={cn(
-        config.className,
-        size === 'sm' ? 'text-[10px] px-1.5 py-0' : 'text-xs px-2 py-0.5',
-        className
-      )}
+    <StatusPill
+      tone={config.tone}
+      size={size}
+      icon={showIcon ? config.icon : undefined}
+      className={className}
     >
-      {showIcon && <Icon className={cn('mr-1', size === 'sm' ? 'h-2.5 w-2.5' : 'h-3 w-3')} />}
       {config.label}
-    </Badge>
+    </StatusPill>
   );
 }
 
 export function PriorityBadge({ priority, className, showIcon = true, size = 'default' }: PriorityBadgeProps) {
   const config = priorityConfig[priority] || priorityConfig.medium;
-  const Icon = config.icon;
 
   return (
-    <Badge
-      variant="outline"
-      className={cn(
-        config.className,
-        size === 'sm' ? 'text-[10px] px-1.5 py-0' : 'text-xs px-2 py-0.5',
-        className
-      )}
+    <StatusPill
+      tone={config.tone}
+      size={size}
+      icon={showIcon ? config.icon : undefined}
+      className={className}
     >
-      {showIcon && <Icon className={cn('mr-1', size === 'sm' ? 'h-2.5 w-2.5' : 'h-3 w-3')} />}
       {config.label}
-    </Badge>
+    </StatusPill>
   );
 }
 

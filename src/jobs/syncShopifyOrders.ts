@@ -1,7 +1,37 @@
-import { db, orders, orderItems } from '@/lib/db';
+import { db, orders, orderItems, ragSyncCursors } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { ShopifyService, type ShopifyOrderNode } from '@/services/shopify/ShopifyService';
 import { identityService } from '@/services/crm/identityService';
+
+interface ShopifySyncCursor {
+  cursor?: string;
+  lastSyncAt?: string;
+}
+
+async function getCursor(): Promise<ShopifySyncCursor | null> {
+  const cursor = await db.query.ragSyncCursors.findFirst({
+    where: eq(ragSyncCursors.sourceType, 'shopify_order'),
+  });
+  return cursor?.cursorValue as ShopifySyncCursor | null;
+}
+
+async function updateCursor(cursorValue: ShopifySyncCursor, itemsSynced: number, error?: string) {
+  await db.insert(ragSyncCursors).values({
+    sourceType: 'shopify_order',
+    cursorValue,
+    itemsSynced,
+    lastSuccessAt: error ? undefined : new Date(),
+    lastError: error || null,
+  }).onConflictDoUpdate({
+    target: ragSyncCursors.sourceType,
+    set: {
+      cursorValue,
+      itemsSynced,
+      lastSuccessAt: error ? undefined : new Date(),
+      lastError: error || null,
+    },
+  });
+}
 
 const mapFulfillmentStatus = (status?: string | null) => {
   switch (status) {
@@ -116,33 +146,63 @@ const upsertOrder = async (order: ShopifyOrderNode) => {
   });
 };
 
-export async function syncShopifyOrders({ maxPages = 10 }: { maxPages?: number } = {}) {
+export interface SyncShopifyOrdersOptions {
+  maxPages?: number;
+  fullSync?: boolean;
+}
+
+export async function syncShopifyOrders({ maxPages = 10, fullSync = false }: SyncShopifyOrdersOptions = {}) {
   console.log('[syncShopifyOrders] Starting Shopify order sync...');
   const shopifyService = new ShopifyService();
 
-  let cursor: string | undefined = undefined;
+  // Load cursor from DB for incremental sync
+  const savedCursor = fullSync ? null : await getCursor();
+  let cursor: string | undefined = savedCursor?.cursor;
   let page = 0;
   let total = 0;
+  let lastCursor: string | undefined;
 
-  while (true) {
-    const { orders: shopifyOrders, hasNextPage, nextCursor } = await shopifyService.fetchOrdersPage(cursor);
-    if (!shopifyOrders.length) break;
+  try {
+    while (true) {
+      const { orders: shopifyOrders, hasNextPage, nextCursor } = await shopifyService.fetchOrdersPage(cursor);
+      if (!shopifyOrders.length) break;
 
-    for (const order of shopifyOrders) {
-      try {
-        await upsertOrder(order);
-        total += 1;
-      } catch (err) {
-        console.error(`[syncShopifyOrders] Failed to upsert order ${order.name} (${order.id}):`, err);
+      for (const order of shopifyOrders) {
+        try {
+          await upsertOrder(order);
+          total += 1;
+          // Track the last successful order cursor for persistence
+          lastCursor = order.cursor || nextCursor;
+        } catch (err) {
+          console.error(`[syncShopifyOrders] Failed to upsert order ${order.name} (${order.id}):`, err);
+        }
       }
+
+      page += 1;
+      if (!hasNextPage || page >= maxPages) break;
+      cursor = nextCursor;
     }
 
-    page += 1;
-    if (!hasNextPage || page >= maxPages) break;
-    cursor = nextCursor;
-  }
+    // Persist cursor for next run
+    await updateCursor({
+      cursor: lastCursor || cursor,
+      lastSyncAt: new Date().toISOString(),
+    }, total);
 
-  console.log(`[syncShopifyOrders] Completed. Upserted ${total} orders across ${page} page(s).`);
+    console.log(`[syncShopifyOrders] Completed. Upserted ${total} orders across ${page} page(s).`);
+    return { success: true, total, pages: page };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[syncShopifyOrders] Failed:', error);
+
+    // Save error state to cursor
+    await updateCursor({
+      cursor: savedCursor?.cursor,
+      lastSyncAt: savedCursor?.lastSyncAt,
+    }, total, errorMessage);
+
+    return { success: false, error: errorMessage, total, pages: page };
+  }
 }
 
 // Allow running directly

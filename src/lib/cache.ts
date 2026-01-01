@@ -8,6 +8,8 @@ export const CACHE_TTL = {
   ORDER_STATUS: 300,     // 5 minutes - order status (balance freshness vs load)
   USER_SESSION: 86400,   // 24 hours - user preferences
   SHIPPING_RATES: 900,   // 15 minutes - shipping rate calculations
+  RAG_QUERY: 300,        // 5 minutes - RAG query results
+  RAG_EMBEDDING: 86400,  // 24 hours - embedding cache (override with custom TTL)
 } as const;
 
 // Cache key prefixes
@@ -18,6 +20,8 @@ const PREFIXES = {
   ORDER: 'order:',
   USER: 'user:',
   SHIPPING: 'shipping:',
+  RAG_QUERY: 'rag:query:',
+  RAG_EMBEDDING: 'rag:embedding:',
 } as const;
 
 type CacheCategory = keyof typeof PREFIXES;
@@ -44,6 +48,8 @@ export class CacheService {
       ORDER: CACHE_TTL.ORDER_STATUS,
       USER: CACHE_TTL.USER_SESSION,
       SHIPPING: CACHE_TTL.SHIPPING_RATES,
+      RAG_QUERY: CACHE_TTL.RAG_QUERY,
+      RAG_EMBEDDING: CACHE_TTL.RAG_EMBEDDING,
     };
     return ttlMap[category];
   }

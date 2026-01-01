@@ -201,8 +201,8 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary text-2xl mx-auto mb-4">
             <i className="fas fa-brain animate-pulse" />
           </div>
-          <h3 className="text-white font-medium mb-2">AI is analyzing the inquiry...</h3>
-          <p className="text-white/70">Identifying products, pricing, and best quote option</p>
+          <h3 className="text-gray-900 dark:text-white font-medium mb-2">AI is analyzing the inquiry...</h3>
+          <p className="text-gray-600 dark:text-gray-300">Identifying products, pricing, and best quote option</p>
         </CardContent>
       </Card>
     );
@@ -225,13 +225,13 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <h4 className="text-white font-medium mb-2">Estimated Value</h4>
+                <h4 className="text-gray-900 dark:text-white font-medium mb-2">Estimated Value</h4>
                 <p className="text-2xl font-bold text-primary">
                   ${quoteIntelligence.estimatedTotalValue?.toLocaleString() || 'TBD'}
                 </p>
               </div>
               <div>
-                <h4 className="text-white font-medium mb-2">Customer Urgency</h4>
+                <h4 className="text-gray-900 dark:text-white font-medium mb-2">Customer Urgency</h4>
                 <Badge variant={
                   quoteIntelligence.customerInsights?.urgency === 'high' ? 'danger' :
                   quoteIntelligence.customerInsights?.urgency === 'medium' ? 'warning' : 'success'
@@ -240,7 +240,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
                 </Badge>
               </div>
               <div>
-                <h4 className="text-white font-medium mb-2">Risk Level</h4>
+                <h4 className="text-gray-900 dark:text-white font-medium mb-2">Risk Level</h4>
                 <Badge variant={
                   quoteIntelligence.riskAssessment?.creditRisk === 'high' ? 'danger' :
                   quoteIntelligence.riskAssessment?.creditRisk === 'medium' ? 'warning' : 'success'
@@ -282,15 +282,15 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <h3 className="text-white font-bold">{option.title}</h3>
+                        <h3 className="text-gray-900 dark:text-white font-bold">{option.title}</h3>
                         {option.recommended && (
                           <Badge variant="success" size="sm">AI Recommended</Badge>
                         )}
                       </div>
-                      <p className="text-white/70 text-sm mb-3">{option.description}</p>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm mb-3">{option.description}</p>
                       <ul className="space-y-1">
                         {option.benefits.slice(0, 3).map((benefit, index) => (
-                          <li key={index} className="text-white/60 text-xs flex items-center gap-2">
+                          <li key={index} className="text-gray-500 dark:text-gray-400 text-xs flex items-center gap-2">
                             <i className="fas fa-check text-success w-3" />
                             {benefit}
                           </li>
@@ -314,11 +314,11 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
           <CardContent>
             <div className="space-y-4">
               {products.map((product) => (
-                <div key={product.id} className="bg-white/5 rounded-lg p-4">
+                <div key={product.id} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex-1">
-                      <h4 className="text-white font-medium">{product.name}</h4>
-                      <p className="text-white/60 text-sm">SKU: {product.sku}</p>
+                      <h4 className="text-gray-900 dark:text-white font-medium">{product.name}</h4>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">SKU: {product.sku}</p>
                       <Badge variant="outline" size="sm">
                         {Math.round(product.confidence * 100)}% confidence
                       </Badge>
@@ -327,15 +327,15 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => removeProduct(product.id)}
-                      className="text-red-400 hover:text-red-300"
+                      className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
                     >
                       <i className="fas fa-trash" />
                     </Button>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-white/70 text-sm">Quantity</label>
+                      <label className="text-gray-600 dark:text-gray-300 text-sm">Quantity</label>
                       <Input
                         type="number"
                         value={product.quantity}
@@ -344,7 +344,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="text-white/70 text-sm">Unit Price ($)</label>
+                      <label className="text-gray-600 dark:text-gray-300 text-sm">Unit Price ($)</label>
                       <Input
                         type="number"
                         value={product.unitPrice}
@@ -354,18 +354,18 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
                       />
                     </div>
                     <div>
-                      <label className="text-white/70 text-sm">Total</label>
-                      <div className="h-10 px-3 py-2 bg-white/10 rounded-lg text-white font-bold">
+                      <label className="text-gray-600 dark:text-gray-300 text-sm">Total</label>
+                      <div className="h-10 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-900 dark:text-white font-bold">
                         ${product.totalPrice.toFixed(2)}
                       </div>
                     </div>
                   </div>
                 </div>
               ))}
-              
+
               <div className="bg-primary/10 rounded-lg p-4 border border-primary/30">
                 <div className="flex justify-between items-center">
-                  <span className="text-white font-bold">Total Quote Value:</span>
+                  <span className="text-gray-900 dark:text-white font-bold">Total Quote Value:</span>
                   <span className="text-2xl font-bold text-primary">
                     ${getTotalValue().toFixed(2)}
                   </span>
@@ -396,23 +396,23 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
         size="lg"
       >
         <div className="space-y-4">
-          <p className="text-white/70">
-            You&apos;re about to create a {selectedOption === 'shopify_draft' ? 'Shopify Draft Order' : 'QuickBooks Estimate'} 
+          <p className="text-gray-600 dark:text-gray-300">
+            You&apos;re about to create a {selectedOption === 'shopify_draft' ? 'Shopify Draft Order' : 'QuickBooks Estimate'}
             for {customerEmail} with a total value of ${getTotalValue().toFixed(2)}.
           </p>
-          
-          <div className="bg-white/5 rounded-lg p-4">
-            <h4 className="text-white font-medium mb-2">Quote Summary:</h4>
+
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+            <h4 className="text-gray-900 dark:text-white font-medium mb-2">Quote Summary:</h4>
             <ul className="space-y-1">
               {products.map(product => (
-                <li key={product.id} className="text-white/70 text-sm flex justify-between">
+                <li key={product.id} className="text-gray-600 dark:text-gray-300 text-sm flex justify-between">
                   <span>{product.name} (x{product.quantity})</span>
                   <span>${product.totalPrice.toFixed(2)}</span>
                 </li>
               ))}
             </ul>
           </div>
-          
+
           <div className="flex gap-3 justify-end">
             <Button variant="ghost" onClick={() => setShowConfirmModal(false)}>
               Cancel

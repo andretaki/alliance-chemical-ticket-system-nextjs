@@ -41,33 +41,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
-        <Script 
-          src="https://kit.fontawesome.com/17af746abc.js" 
+        <Script
+          src="https://kit.fontawesome.com/17af746abc.js"
           crossOrigin="anonymous"
           strategy="beforeInteractive"
         />
-        <meta name="theme-color" content="#667eea" />
-        <meta name="color-scheme" content="dark" />
+        <meta name="theme-color" content="#2563eb" />
+        <meta name="color-scheme" content="light dark" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground min-h-screen`}
       >
         <AuthSessionProvider>
           <KeyboardShortcutsProvider>
             {/* Toast Notifications */}
             <Toaster
               position="bottom-right"
-              theme="dark"
+              theme="light"
               richColors
               closeButton
               toastOptions={{
                 style: {
-                  background: 'rgba(13, 17, 23, 0.95)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: 'hsl(var(--card))',
+                  color: 'hsl(var(--card-foreground))',
+                  border: '1px solid hsl(var(--border))',
                   borderRadius: '12px',
-                  backdropFilter: 'blur(20px)',
+                  boxShadow: 'var(--shadow-lg)',
                 },
               }}
             />
@@ -81,13 +82,6 @@ export default function RootLayout({
             <main className="main-content">
               {/* Content Container */}
               <div className="content-container">
-                {/* Dynamic Background Effects */}
-                <div className="background-effects">
-                  <div className="bg-gradient-1"></div>
-                  <div className="bg-gradient-2"></div>
-                  <div className="bg-gradient-3"></div>
-                </div>
-                
                 {/* Page Content */}
                 <div className="page-content">
                   {children}
@@ -101,18 +95,9 @@ export default function RootLayout({
 
           {/* Global Loading Overlay */}
           <div id="global-loading" className="global-loading">
-            <div className="loading-content">
-              <div className="loading-logo">
-                <div className="logo-spinner">
-                  <div className="spinner-ring"></div>
-                  <div className="spinner-ring"></div>
-                  <div className="spinner-ring"></div>
-                </div>
-                <div className="loading-text">
-                  <h3>Loading...</h3>
-                  <p>Preparing your premium experience</p>
-                </div>
-              </div>
+            <div className="flex flex-col items-center gap-4">
+              <div className="loading-spinner" />
+              <p className="text-sm text-gray-500">Loading...</p>
             </div>
           </div>
 

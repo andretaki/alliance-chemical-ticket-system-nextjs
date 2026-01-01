@@ -33,7 +33,7 @@ interface TicketViewClientProps {
 
 const LoadingSpinner = () => (
   <div className="ticket-view-page flex items-center justify-center">
-    <div className="text-center text-white">
+    <div className="text-center text-gray-700 dark:text-white">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
       <h5 className="font-semibold">Loading Ticket...</h5>
     </div>

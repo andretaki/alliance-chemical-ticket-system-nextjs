@@ -4,7 +4,7 @@ version: '3.8'
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     container_name: alliance-tickets-db
     environment:
       POSTGRES_DB: alliance_tickets_dev
@@ -24,7 +24,7 @@ services:
 
   # Test Database
   postgres-test:
-    image: postgres:15
+    image: pgvector/pgvector:pg15
     container_name: alliance-tickets-test-db
     environment:
       POSTGRES_DB: alliance_tickets_test

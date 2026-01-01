@@ -49,11 +49,14 @@ export default async function CreateQuotePage({ params }: CreateQuotePageProps) 
     notFound();
   }
 
+  // Extract reporter - handle potential array type from Drizzle ORM inference
+  const reporter = Array.isArray(ticket.reporter) ? ticket.reporter[0] : ticket.reporter;
+
   // Extract customer info from ticket
   const initialCustomer = {
-    email: ticket.senderEmail || ticket.reporter?.email || '',
-    firstName: ticket.senderName?.split(' ')[0] || ticket.reporter?.name?.split(' ')[0] || '',
-    lastName: ticket.senderName?.split(' ').slice(1).join(' ') || ticket.reporter?.name?.split(' ').slice(1).join(' ') || '',
+    email: ticket.senderEmail || reporter?.email || '',
+    firstName: ticket.senderName?.split(' ')[0] || reporter?.name?.split(' ')[0] || '',
+    lastName: ticket.senderName?.split(' ').slice(1).join(' ') || reporter?.name?.split(' ').slice(1).join(' ') || '',
     phone: ticket.senderPhone || '',
     company: ticket.senderCompany || '',
   };

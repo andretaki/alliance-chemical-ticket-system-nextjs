@@ -3,10 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { EmptyState } from '@/components/layout/EmptyState';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { PageShell } from '@/components/layout/PageShell';
+import { Section } from '@/components/layout/Section';
+import { StatusPill, statusToneIconClasses } from '@/components/ui/status-pill';
 import {
   ListTodo,
   CheckCircle2,
@@ -32,12 +34,12 @@ const taskTypeLabels: Record<string, string> = {
   SLA_BREACH: 'SLA Breach',
 };
 
-const taskTypeColors: Record<string, string> = {
-  FOLLOW_UP: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-  CHURN_WATCH: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400',
-  VIP_TICKET: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-  AR_OVERDUE: 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-900/30 dark:text-orange-400',
-  SLA_BREACH: 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-400',
+const taskTypeTones: Record<string, 'neutral' | 'warning' | 'danger'> = {
+  FOLLOW_UP: 'neutral',
+  CHURN_WATCH: 'danger',
+  VIP_TICKET: 'warning',
+  AR_OVERDUE: 'warning',
+  SLA_BREACH: 'danger',
 };
 
 const taskTypeIcons: Record<string, React.ElementType> = {
@@ -75,6 +77,7 @@ function TaskRow({
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const Icon = taskTypeIcons[task.type] || ListTodo;
+  const tone = taskTypeTones[task.type] || 'neutral';
 
   // Determine link destination
   let href = '#';
@@ -123,42 +126,39 @@ function TaskRow({
       className={cn(
         'group flex items-center gap-4 rounded-lg border px-4 py-4 transition-all',
         isOverdue
-          ? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:border-gray-600 dark:hover:bg-gray-700'
+          ? 'border-red-200 bg-red-50 dark:border-red-900/60 dark:bg-red-900/20'
+          : 'border-border bg-card hover:border-border/80 hover:bg-muted/60'
       )}
     >
-      <div className={cn('rounded-lg bg-gray-100 p-2 dark:bg-gray-700', taskTypeColors[task.type]?.split(' ')[2] || 'text-gray-500 dark:text-gray-400')}>
+      <div className={cn('rounded-lg bg-muted/60 p-2', statusToneIconClasses[tone])}>
         <Icon className="h-5 w-5" />
       </div>
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <Badge
-            variant="outline"
-            className={cn('text-[10px]', taskTypeColors[task.type] || 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400')}
-          >
+          <StatusPill tone={tone} size="sm" className="text-[10px]">
             {taskTypeLabels[task.type] || task.type}
-          </Badge>
+          </StatusPill>
           {task.reason && (
-            <span className="text-xs text-gray-500 dark:text-gray-400">{task.reason.replace(/_/g, ' ')}</span>
+            <span className="text-xs text-muted-foreground">{task.reason.replace(/_/g, ' ')}</span>
           )}
         </div>
         <div className="mt-1 flex items-center gap-2">
           <Link
             href={href}
-            className="text-sm font-medium text-gray-800 hover:text-gray-900 hover:underline dark:text-gray-200 dark:hover:text-white"
+            className="text-sm font-medium text-foreground hover:underline"
           >
             {linkLabel}
           </Link>
-          <ArrowRight className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+          <ArrowRight className="h-3 w-3 text-muted-foreground" />
         </div>
         {task.assigneeName && (
-          <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">Assigned to {task.assigneeName}</div>
+          <div className="mt-1 text-xs text-muted-foreground">Assigned to {task.assigneeName}</div>
         )}
       </div>
 
       <div className="flex items-center gap-3">
-        <div className={cn('text-xs', isOverdue ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400')}>
+        <div className={cn('text-xs', isOverdue ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground')}>
           {timeAgo(task.dueAt)}
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -175,7 +175,7 @@ function TaskRow({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+            className="h-8 w-8 p-0 text-muted-foreground hover:bg-muted hover:text-foreground"
             onClick={handleDismiss}
             disabled={isLoading}
             title="Dismiss"
@@ -215,77 +215,73 @@ export default function TasksPageClient({ initialTasks }: TasksPageClientProps) 
   }, {} as Record<string, OpenTask[]>);
 
   return (
-    <div className="mx-auto max-w-4xl">
-      {/* Header */}
-      <header className="mb-8">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Tasks</h1>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              {tasks.length} open tasks requiring action
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            asChild
-          >
+    <PageShell size="narrow">
+      <PageHeader
+        title="Tasks"
+        description={`${tasks.length} open tasks requiring action.`}
+        actions={
+          <Button variant="outline" size="sm" className="gap-2" asChild>
             <Link href="/crm">
               <Target className="h-4 w-4" />
               Back to CRM
             </Link>
           </Button>
-        </div>
-      </header>
+        }
+      />
 
-      {/* Filter Pills */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Button
-          variant={filter === null ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setFilter(null)}
-        >
-          All ({tasks.length})
-        </Button>
-        {taskTypes.map((type) => {
-          const count = tasks.filter((t) => t.type === type).length;
-          return (
-            <Button
-              key={type}
-              variant={filter === type ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilter(type)}
-            >
-              {taskTypeLabels[type] || type} ({count})
-            </Button>
-          );
-        })}
-      </div>
-
-      {/* Tasks List */}
-      {filteredTasks.length === 0 ? (
-        <Card className="border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <CheckCircle2 className="mb-4 h-12 w-12 text-emerald-500/50 dark:text-emerald-400/50" />
-            <p className="text-lg font-medium text-gray-700 dark:text-gray-300">All caught up!</p>
-            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              No open tasks need your attention right now. Tasks are auto-generated from customer activity, SLA breaches, and pipeline events.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {filteredTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              onComplete={handleComplete}
-              onDismiss={handleDismiss}
-            />
-          ))}
+      <Section title="Filter tasks" description="Slice by type or view all.">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={filter === null ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter(null)}
+          >
+            All ({tasks.length})
+          </Button>
+          {taskTypes.map((type) => {
+            const count = tasks.filter((t) => t.type === type).length;
+            return (
+              <Button
+                key={type}
+                variant={filter === type ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilter(type)}
+              >
+                {taskTypeLabels[type] || type} ({count})
+              </Button>
+            );
+          })}
         </div>
-      )}
-    </div>
+      </Section>
+
+      <Section
+        title="Open tasks"
+        description="Tasks appear when churn risk spikes, invoices go overdue, or SLAs breach."
+      >
+        {filteredTasks.length === 0 ? (
+          <EmptyState
+            icon={CheckCircle2}
+            title="No open tasks"
+            description="Tasks are generated from customer activity, SLA breaches, and pipeline events. Check back after the next sync."
+            action={
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/crm">Back to CRM</Link>
+              </Button>
+            }
+          />
+        ) : (
+          <div className="space-y-3">
+            {filteredTasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                onComplete={handleComplete}
+                onDismiss={handleDismiss}
+              />
+            ))}
+          </div>
+        )}
+      </Section>
+    </PageShell>
   );
 }

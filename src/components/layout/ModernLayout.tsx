@@ -112,10 +112,10 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
   }, [sidebarOpen]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
@@ -123,10 +123,10 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={cn(
           'fixed inset-y-0 left-0 z-50 transition-all duration-300 ease-in-out',
-          'bg-white/10 backdrop-blur-xl border-r border-white/20',
+          'bg-white border-r border-gray-200 dark:bg-gray-900/95 dark:backdrop-blur-xl dark:border-gray-700',
           'lg:translate-x-0',
           sidebarCollapsed ? 'w-16' : 'w-64',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
@@ -135,10 +135,10 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center justify-between h-16 px-4 border-b border-white/10">
-            <Link 
-              href="/dashboard" 
-              className="flex items-center gap-3 text-white font-bold text-lg"
+          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-3 text-gray-900 dark:text-white font-bold text-lg"
               aria-label="Alliance Chemical Ticket System"
             >
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-hover rounded-lg flex items-center justify-center">
@@ -146,20 +146,20 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
               </div>
               {!sidebarCollapsed && <span>Alliance Chemical</span>}
             </Link>
-            
+
             {/* Collapse Toggle (Desktop) */}
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+              className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
               aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <i className={`fas fa-angle-${sidebarCollapsed ? 'right' : 'left'}`} />
             </button>
-            
+
             {/* Close Button (Mobile) */}
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+              className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
               aria-label="Close sidebar"
             >
               <i className="fas fa-times" />
@@ -174,10 +174,10 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
                   href={item.href}
                   className={cn(
                     'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-                    'hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-ring',
-                    item.isActive 
-                      ? 'bg-white/20 text-white shadow-lg' 
-                      : 'text-white/70 hover:text-white'
+                    'hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-ring',
+                    item.isActive
+                      ? 'bg-indigo-50 text-indigo-700 dark:bg-gray-800 dark:text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                   )}
                   aria-current={item.isActive ? 'page' : undefined}
                 >
@@ -193,7 +193,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
                     </>
                   )}
                 </Link>
-                
+
                 {/* Sub Items */}
                 {item.subItems && !sidebarCollapsed && item.isActive && (
                   <div className="ml-8 mt-2 space-y-1">
@@ -203,10 +203,10 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
                         href={subItem.href}
                         className={cn(
                           'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200',
-                          'hover:bg-white/10 hover:text-white focus:outline-none focus:ring-2 focus:ring-ring',
-                          subItem.isActive 
-                            ? 'bg-white/10 text-white' 
-                            : 'text-white/60 hover:text-white'
+                          'hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-ring',
+                          subItem.isActive
+                            ? 'bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white'
+                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
                         )}
                         aria-current={subItem.isActive ? 'page' : undefined}
                       >
@@ -221,17 +221,17 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
           </nav>
 
           {/* User Menu */}
-          <div className="p-4 border-t border-white/10">
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 bg-gradient-to-br from-secondary to-secondary-hover rounded-full flex items-center justify-center text-white text-sm font-semibold">
                 {session?.user?.name?.charAt(0) || 'U'}
               </div>
               {!sidebarCollapsed && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">
+                  <p className="text-gray-900 dark:text-white text-sm font-medium truncate">
                     {session?.user?.name || 'User'}
                   </p>
-                  <p className="text-white/60 text-xs truncate">
+                  <p className="text-gray-500 dark:text-gray-400 text-xs truncate">
                     {session?.user?.email}
                   </p>
                 </div>
@@ -272,19 +272,19 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
         sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
       )}>
         {/* Top Bar */}
-        <header className="h-16 bg-white/5 backdrop-blur-xl border-b border-white/10 flex items-center justify-between px-4">
+        <header className="h-16 bg-white border-b border-gray-200 dark:bg-gray-900/95 dark:backdrop-blur-xl dark:border-gray-700 flex items-center justify-between px-4">
           <div className="flex items-center gap-4">
             {/* Mobile Menu Toggle */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors"
+              className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
               aria-label="Open sidebar"
             >
               <i className="fas fa-bars" />
             </button>
-            
+
             {/* Page Title */}
-            <h1 className="text-xl font-bold text-white">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
               {sidebarItems.find(item => item.isActive)?.label || 'Dashboard'}
             </h1>
           </div>

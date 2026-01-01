@@ -30,6 +30,9 @@ const envSchema = z.object({
   GOOGLE_API_KEY: z.string().optional(),
   GROQ_API_KEY: z.string().optional(),
   GEMINI_MODEL_NAME: z.string().default('models/gemini-2.5-flash-preview-05-20'),
+  RAG_EMBEDDING_PROVIDER: z.string().optional(),
+  RAG_EMBEDDING_MODEL: z.string().optional(),
+  RAG_RERANK_ENABLED: z.string().optional(),
 
   // Shopify
   SHOPIFY_STORE_URL: z.string().url().optional(),
@@ -40,6 +43,13 @@ const envSchema = z.object({
   // ShipStation
   SHIPSTATION_API_KEY: z.string().optional(),
   SHIPSTATION_API_SECRET: z.string().optional(),
+
+  // Amazon SP-API
+  AMAZON_SP_CLIENT_ID: z.string().optional(),
+  AMAZON_SP_CLIENT_SECRET: z.string().optional(),
+  AMAZON_SP_REFRESH_TOKEN: z.string().optional(),
+  AMAZON_SP_MARKETPLACE_ID: z.string().default('ATVPDKIKX0DER'), // US marketplace
+  AMAZON_SP_SELLER_ID: z.string().optional(),
 
   // QuickBooks
   QBO_CLIENT_ID: z.string().optional(),
@@ -101,4 +111,5 @@ export const integrations = {
   microsoft: !!env.MICROSOFT_CLIENT_ID && !!env.MICROSOFT_CLIENT_SECRET,
   shipstation: !!env.SHIPSTATION_API_KEY && !!env.SHIPSTATION_API_SECRET,
   microsoftGraph: !!env.MICROSOFT_GRAPH_CLIENT_ID && !!env.MICROSOFT_GRAPH_CLIENT_SECRET,
+  amazonSpApi: !!env.AMAZON_SP_CLIENT_ID && !!env.AMAZON_SP_CLIENT_SECRET && !!env.AMAZON_SP_REFRESH_TOKEN,
 } as const;

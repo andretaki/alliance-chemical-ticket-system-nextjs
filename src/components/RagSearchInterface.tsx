@@ -40,17 +40,14 @@ export const RagSearchInterface: React.FC<RagSearchInterfaceProps> = ({
             const currentFilters: RagFilters = {};
             
             if (selectedSourceTypes.length > 0) {
-                currentFilters.source_type_in = selectedSourceTypes;
-            }
-            
-            // Only include customer email if no order number is provided
-            if (customerEmail && !orderNumber) {
-                currentFilters.customer_email_exact = customerEmail;
+                currentFilters.sourceTypeIn = selectedSourceTypes as RagFilters['sourceTypeIn'];
             }
 
-            // Always include order number in filters if it exists
+            // Include order number in identifiers filter if it exists
             if (orderNumber) {
-                currentFilters.order_id_exact = orderNumber;
+                currentFilters.identifiers = {
+                    orderNumber: orderNumber,
+                };
             }
 
             const response = await fetch('/api/rag/search', {

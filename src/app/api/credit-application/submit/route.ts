@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, tickets, users } from '@/lib/db';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
+import { outboxService } from '@/services/outboxService';
 
 // Define the shape of the incoming data from the external form
 const creditAppSchema = z.object({
@@ -96,7 +97,22 @@ export async function POST(request: NextRequest) {
       senderPhone: appData.phone,
       senderCompany: appData.companyName,
     }).returning();
-    
+
+    // 6. Enqueue customer sync for identity resolution
+    try {
+      await outboxService.enqueue('customer.sync', {
+        ticketId: newTicket.id,
+        senderEmail: appData.email,
+        senderPhone: appData.phone,
+        senderCompany: appData.companyName,
+        reporterId: reporter.id,
+        source: 'credit-application',
+        title: newTicket.title,
+      });
+    } catch (err) {
+      console.error(`[CreditApp] Failed to enqueue customer sync for ticket ${newTicket.id}:`, err);
+    }
+
     return NextResponse.json({ success: true, message: 'Application received and ticket created.', ticketId: newTicket.id }, { status: 201 });
 
   } catch (error: any) {

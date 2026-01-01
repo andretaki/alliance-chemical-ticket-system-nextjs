@@ -1,4 +1,4 @@
-import { db, tickets } from '@/lib/db';
+import { db, tickets, crmTasks } from '@/lib/db';
 import { eq, and, inArray } from 'drizzle-orm';
 import { outboxService } from '@/services/outboxService';
 import { identityService } from '@/services/crm/identityService';
@@ -150,6 +150,18 @@ async function handleArOverdueTicket(job: OutboxJob) {
       invoiceNumber: payload.invoiceNumber,
       orderNumber: payload.orderNumber,
     },
+  });
+
+  // Create AR_OVERDUE CRM task for visibility in task list
+  await db.insert(crmTasks).values({
+    customerId: payload.customerId,
+    ticketId: ticket.id,
+    type: 'AR_OVERDUE',
+    reason: 'LATE_INVOICE',
+    status: 'open',
+    dueAt: new Date(), // Due immediately
+    createdAt: new Date(),
+    updatedAt: new Date(),
   });
 
   logInfo('outbox.ar_ticket_created', {

@@ -36,6 +36,69 @@
       "when": 1764616368178,
       "tag": "0004_rainy_glorian",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1764616368200,
+      "tag": "0005_contacts_and_qbo_snapshots",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1764616368300,
+      "tag": "0006_opportunities_pipeline",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1764616368400,
+      "tag": "0007_telephony_calls",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1764616368500,
+      "tag": "0008_crm_spine",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1764616368600,
+      "tag": "0009_rag_system",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1764616368700,
+      "tag": "0010_rag_reliability",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1764616368800,
+      "tag": "0011_rag_perf_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1764616368900,
+      "tag": "0012_unified_shipments_spine",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1764616369000,
+      "tag": "0013_customer_identity_spine",
+      "breakpoints": true
     }
   ]
 }

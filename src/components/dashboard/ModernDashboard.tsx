@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, StatusBadge, PriorityBadge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui';
+import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
 import { cn } from '@/utils/cn';
 
 interface DashboardStats {
@@ -156,35 +157,35 @@ const ModernDashboard: React.FC = () => {
               <CardContent className="p-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <div className="w-12 h-12 bg-white/10 rounded-lg" />
-                    <div className="w-16 h-6 bg-white/10 rounded" />
+                    <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg" />
+                    <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded" />
                   </div>
                   <div className="space-y-2">
-                    <div className="w-20 h-4 bg-white/10 rounded" />
-                    <div className="w-24 h-8 bg-white/10 rounded" />
+                    <div className="w-20 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                    <div className="w-24 h-8 bg-gray-200 dark:bg-gray-700 rounded" />
                   </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
-        
+
         {/* Recent Tickets Skeleton */}
         <Card className="animate-pulse">
           <CardHeader>
-            <div className="w-32 h-6 bg-white/10 rounded" />
+            <div className="w-32 h-6 bg-gray-200 dark:bg-gray-700 rounded" />
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                <div key={i} className="flex items-center justify-between p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                   <div className="space-y-2">
-                    <div className="w-48 h-4 bg-white/10 rounded" />
-                    <div className="w-32 h-3 bg-white/10 rounded" />
+                    <div className="w-48 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
+                    <div className="w-32 h-3 bg-gray-200 dark:bg-gray-700 rounded" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-16 h-6 bg-white/10 rounded" />
-                    <div className="w-16 h-6 bg-white/10 rounded" />
+                    <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded" />
+                    <div className="w-16 h-6 bg-gray-200 dark:bg-gray-700 rounded" />
                   </div>
                 </div>
               ))}
@@ -199,8 +200,8 @@ const ModernDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">Welcome back! 👋</h1>
-        <p className="text-white/70">Here&apos;s what&apos;s happening with your tickets today.</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome back! 👋</h1>
+        <p className="text-gray-600 dark:text-gray-300">Here&apos;s what&apos;s happening with your tickets today.</p>
       </div>
 
       {/* Stats Grid */}
@@ -239,8 +240,8 @@ const ModernDashboard: React.FC = () => {
               </div>
               
               <div>
-                <h3 className="text-sm font-medium text-white/70 mb-1">{stat.title}</h3>
-                <p className="text-2xl font-bold text-white">{stat.value}</p>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{stat.title}</h3>
+                <p className="text-2xl font-bold text-gray-900 dark:text-white">{stat.value}</p>
               </div>
             </CardContent>
           </Card>
@@ -280,14 +281,14 @@ const ModernDashboard: React.FC = () => {
                 >
                   <TableCell>
                     <div>
-                      <div className="font-medium text-white">#{ticket.id}</div>
-                      <div className="text-sm text-white/70 truncate max-w-xs">
+                      <div className="font-medium text-gray-900 dark:text-white">#{ticket.id}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 truncate max-w-xs">
                         {ticket.title}
                       </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-white/90">{ticket.customer}</div>
+                    <div className="text-gray-700 dark:text-gray-200">{ticket.customer}</div>
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={ticket.status} />
@@ -300,11 +301,11 @@ const ModernDashboard: React.FC = () => {
                       <div className="w-6 h-6 bg-secondary rounded-full flex items-center justify-center text-white text-xs">
                         {ticket.assignee.charAt(0)}
                       </div>
-                      <span className="text-white/90">{ticket.assignee}</span>
+                      <span className="text-gray-700 dark:text-gray-200">{ticket.assignee}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-white/70 text-sm">
+                    <div className="text-gray-500 dark:text-gray-400 text-sm">
                       {formatDate(ticket.updatedAt)}
                     </div>
                   </TableCell>
@@ -335,8 +336,8 @@ const ModernDashboard: React.FC = () => {
             <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-primary text-xl mx-auto mb-4">
               <i className="fas fa-plus" />
             </div>
-            <h3 className="text-white font-medium mb-2">New Ticket</h3>
-            <p className="text-white/60 text-sm">Create a new support ticket</p>
+            <h3 className="text-gray-900 dark:text-white font-medium mb-2">New Ticket</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Create a new support ticket</p>
           </CardContent>
         </Card>
 
@@ -345,8 +346,8 @@ const ModernDashboard: React.FC = () => {
             <div className="w-12 h-12 bg-success/20 rounded-lg flex items-center justify-center text-success text-xl mx-auto mb-4">
               <i className="fas fa-file-invoice-dollar" />
             </div>
-            <h3 className="text-white font-medium mb-2">Generate Quote</h3>
-            <p className="text-white/60 text-sm">Create a customer quote</p>
+            <h3 className="text-gray-900 dark:text-white font-medium mb-2">Generate Quote</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Create a customer quote</p>
           </CardContent>
         </Card>
 
@@ -355,8 +356,8 @@ const ModernDashboard: React.FC = () => {
             <div className="w-12 h-12 bg-warning/20 rounded-lg flex items-center justify-center text-warning text-xl mx-auto mb-4">
               <i className="fas fa-users" />
             </div>
-            <h3 className="text-white font-medium mb-2">Manage Customers</h3>
-            <p className="text-white/60 text-sm">View and edit customer data</p>
+            <h3 className="text-gray-900 dark:text-white font-medium mb-2">Manage Customers</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">View and edit customer data</p>
           </CardContent>
         </Card>
 
@@ -365,8 +366,8 @@ const ModernDashboard: React.FC = () => {
             <div className="w-12 h-12 bg-secondary/20 rounded-lg flex items-center justify-center text-secondary text-xl mx-auto mb-4">
               <i className="fas fa-chart-bar" />
             </div>
-            <h3 className="text-white font-medium mb-2">View Reports</h3>
-            <p className="text-white/60 text-sm">Analytics and insights</p>
+            <h3 className="text-gray-900 dark:text-white font-medium mb-2">View Reports</h3>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Analytics and insights</p>
           </CardContent>
         </Card>
       </div>

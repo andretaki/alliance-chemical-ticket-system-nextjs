@@ -209,6 +209,7 @@ export const circuitBreakers = {
   quickbooks: new CircuitBreaker('quickbooks', { failureThreshold: 3, timeout: 60000 }),
   microsoftGraph: new CircuitBreaker('microsoft-graph', { failureThreshold: 3, timeout: 30000 }),
   geminiAI: new CircuitBreaker('gemini-ai', { failureThreshold: 5, timeout: 15000 }),
+  amazonSpApi: new CircuitBreaker('amazon-sp-api', { failureThreshold: 5, timeout: 30000 }),
 };
 
 /**

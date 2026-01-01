@@ -2,7 +2,7 @@ import QuickBooks from 'node-quickbooks';
 import OAuthClient from 'intuit-oauth';
 import { qboConfig } from '@/config/qboConfig';
 import { getToken, setToken, QboToken } from './qboTokenStore';
-import { db, qboCustomerSnapshots } from '@/lib/db';
+import { db, qboCustomerSnapshots, qboEstimates, qboInvoices } from '@/lib/db';
 
 let oauthClient: OAuthClient | null = null;
 
@@ -174,5 +174,147 @@ export const upsertQboCustomerSnapshots = async (snapshots: QboSnapshotUpsert[])
                     snapshotTakenAt: snap.snapshotTakenAt ?? now,
                 },
             });
+    }
+};
+
+export interface QboInvoiceRecord {
+    qboInvoiceId: string;
+    qboCustomerId: string | null;
+    customerId?: number | null;
+    docNumber: string | null;
+    status: string | null;
+    totalAmount: string;
+    balance: string;
+    currency: string;
+    txnDate: Date | null;
+    dueDate: Date | null;
+    lastUpdatedAt: Date;
+    metadata: Record<string, unknown>;
+}
+
+export interface QboEstimateRecord {
+    qboEstimateId: string;
+    qboCustomerId: string | null;
+    customerId?: number | null;
+    docNumber: string | null;
+    status: string | null;
+    totalAmount: string;
+    currency: string;
+    txnDate: Date | null;
+    expirationDate: Date | null;
+    lastUpdatedAt: Date;
+    metadata: Record<string, unknown>;
+}
+
+export const fetchQboInvoices = async (since?: Date): Promise<QboInvoiceRecord[]> => {
+    const sinceClause = since ? ` WHERE MetaData.LastUpdatedTime > '${since.toISOString()}'` : '';
+    const query = `SELECT Id, DocNumber, Balance, TotalAmt, TxnDate, DueDate, CustomerRef, CurrencyRef, PrivateNote, MetaData.LastUpdatedTime FROM Invoice${sinceClause}`;
+    const response = await runQboQuery<any>(query);
+    const invoices = response?.QueryResponse?.Invoice || [];
+
+    return invoices.map((inv: any) => ({
+        qboInvoiceId: String(inv.Id),
+        qboCustomerId: inv.CustomerRef?.value ? String(inv.CustomerRef.value) : null,
+        customerId: null,
+        docNumber: inv.DocNumber ? String(inv.DocNumber) : null,
+        status: inv.EmailStatus || inv.Status || null,
+        totalAmount: String(inv.TotalAmt ?? '0'),
+        balance: String(inv.Balance ?? '0'),
+        currency: inv.CurrencyRef?.value || 'USD',
+        txnDate: inv.TxnDate ? new Date(inv.TxnDate) : null,
+        dueDate: inv.DueDate ? new Date(inv.DueDate) : null,
+        lastUpdatedAt: inv.MetaData?.LastUpdatedTime ? new Date(inv.MetaData.LastUpdatedTime) : new Date(),
+        metadata: inv,
+    }));
+};
+
+export const fetchQboEstimates = async (since?: Date): Promise<QboEstimateRecord[]> => {
+    const sinceClause = since ? ` WHERE MetaData.LastUpdatedTime > '${since.toISOString()}'` : '';
+    const query = `SELECT Id, DocNumber, TotalAmt, TxnDate, ExpirationDate, CustomerRef, CurrencyRef, PrivateNote, MetaData.LastUpdatedTime, Status FROM Estimate${sinceClause}`;
+    const response = await runQboQuery<any>(query);
+    const estimates = response?.QueryResponse?.Estimate || [];
+
+    return estimates.map((est: any) => ({
+        qboEstimateId: String(est.Id),
+        qboCustomerId: est.CustomerRef?.value ? String(est.CustomerRef.value) : null,
+        customerId: null,
+        docNumber: est.DocNumber ? String(est.DocNumber) : null,
+        status: est.Status || null,
+        totalAmount: String(est.TotalAmt ?? '0'),
+        currency: est.CurrencyRef?.value || 'USD',
+        txnDate: est.TxnDate ? new Date(est.TxnDate) : null,
+        expirationDate: est.ExpirationDate ? new Date(est.ExpirationDate) : null,
+        lastUpdatedAt: est.MetaData?.LastUpdatedTime ? new Date(est.MetaData.LastUpdatedTime) : new Date(),
+        metadata: est,
+    }));
+};
+
+export const upsertQboInvoices = async (records: QboInvoiceRecord[]) => {
+    if (!records.length) return;
+    for (const record of records) {
+        await db.insert(qboInvoices).values({
+            customerId: record.customerId ?? null,
+            qboInvoiceId: record.qboInvoiceId,
+            qboCustomerId: record.qboCustomerId,
+            docNumber: record.docNumber,
+            status: record.status,
+            totalAmount: record.totalAmount,
+            balance: record.balance,
+            currency: record.currency,
+            txnDate: record.txnDate,
+            dueDate: record.dueDate,
+            metadata: record.metadata,
+            updatedAt: new Date(),
+            createdAt: new Date(),
+        }).onConflictDoUpdate({
+            target: qboInvoices.qboInvoiceId,
+            set: {
+                customerId: record.customerId ?? null,
+                qboCustomerId: record.qboCustomerId,
+                docNumber: record.docNumber,
+                status: record.status,
+                totalAmount: record.totalAmount,
+                balance: record.balance,
+                currency: record.currency,
+                txnDate: record.txnDate,
+                dueDate: record.dueDate,
+                metadata: record.metadata,
+                updatedAt: new Date(),
+            },
+        });
+    }
+};
+
+export const upsertQboEstimates = async (records: QboEstimateRecord[]) => {
+    if (!records.length) return;
+    for (const record of records) {
+        await db.insert(qboEstimates).values({
+            customerId: record.customerId ?? null,
+            qboEstimateId: record.qboEstimateId,
+            qboCustomerId: record.qboCustomerId,
+            docNumber: record.docNumber,
+            status: record.status,
+            totalAmount: record.totalAmount,
+            currency: record.currency,
+            txnDate: record.txnDate,
+            expirationDate: record.expirationDate,
+            metadata: record.metadata,
+            updatedAt: new Date(),
+            createdAt: new Date(),
+        }).onConflictDoUpdate({
+            target: qboEstimates.qboEstimateId,
+            set: {
+                customerId: record.customerId ?? null,
+                qboCustomerId: record.qboCustomerId,
+                docNumber: record.docNumber,
+                status: record.status,
+                totalAmount: record.totalAmount,
+                currency: record.currency,
+                txnDate: record.txnDate,
+                expirationDate: record.expirationDate,
+                metadata: record.metadata,
+                updatedAt: new Date(),
+            },
+        });
     }
 };

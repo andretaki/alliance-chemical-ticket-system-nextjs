@@ -8,7 +8,6 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { CommandMenu, useCommandMenu } from '@/components/CommandMenu';
 import { Kbd } from '@/components/ui/kbd';
@@ -32,6 +31,8 @@ import {
   Wifi,
   WifiOff,
   Keyboard,
+  Target,
+  ListTodo,
 } from 'lucide-react';
 import { useRealtime } from '@/hooks/useRealtime';
 
@@ -59,13 +60,18 @@ function NavItem({
   const content = (
     <div
       className={cn(
-        'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200',
+        'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150',
         isActive
-          ? 'bg-white/[0.08] text-white'
-          : 'text-white/60 hover:bg-white/[0.04] hover:text-white'
+          ? 'bg-primary/10 text-primary'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
       )}
     >
-      <Icon className={cn('h-4 w-4 flex-shrink-0', isActive ? 'text-indigo-400' : '')} />
+      <Icon
+        className={cn(
+          'h-[18px] w-[18px] flex-shrink-0',
+          isActive ? 'text-primary' : 'text-muted-foreground'
+        )}
+      />
       {!isCollapsed && (
         <>
           <span className="flex-1 truncate">{label}</span>
@@ -74,16 +80,16 @@ function NavItem({
               variant="outline"
               className={cn(
                 'ml-auto h-5 min-w-[20px] justify-center px-1.5 text-[10px] font-medium',
-                badgeVariant === 'destructive' && 'border-red-500/30 bg-red-500/15 text-red-400',
-                badgeVariant === 'warning' && 'border-amber-500/30 bg-amber-500/15 text-amber-400',
-                badgeVariant === 'default' && 'border-white/10 bg-white/[0.06] text-white/60'
+                badgeVariant === 'destructive' && 'border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-900/30 dark:text-red-300',
+                badgeVariant === 'warning' && 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-900/30 dark:text-amber-300',
+                badgeVariant === 'default' && 'border-border bg-muted text-muted-foreground'
               )}
             >
               {badge}
             </Badge>
           )}
           {external && (
-            <ExternalLink className="h-3 w-3 text-white/30 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
           )}
         </>
       )}
@@ -102,7 +108,7 @@ function NavItem({
             <Link href={href}>{content}</Link>
           )}
         </TooltipTrigger>
-        <TooltipContent side="right" className="flex items-center gap-2 bg-[#1c2128] border-white/10">
+        <TooltipContent side="right" className="flex items-center gap-2 border border-border bg-popover text-popover-foreground shadow-sm">
           {label}
           {badge !== undefined && (
             <Badge variant="outline" className="h-4 px-1 text-[10px]">
@@ -173,11 +179,11 @@ export default function Sidebar() {
     return (
       <aside
         className={cn(
-          'sticky top-0 h-screen flex-shrink-0 border-r border-white/[0.06] bg-[#0a0d12] z-50 flex items-center justify-center transition-all duration-300',
-          isCollapsed ? 'w-16' : 'w-60'
+          'sticky top-0 h-screen flex-shrink-0 border-r border-border bg-card z-50 flex items-center justify-center transition-all duration-300',
+          isCollapsed ? 'w-[68px]' : 'w-64'
         )}
       >
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-indigo-500" />
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-border border-t-primary" />
       </aside>
     );
   }
@@ -186,8 +192,8 @@ export default function Sidebar() {
     <TooltipProvider>
       <aside
         className={cn(
-          'sticky top-0 h-screen flex-shrink-0 border-r border-white/[0.06] bg-[#0a0d12] z-50 flex flex-col transition-all duration-300',
-          isCollapsed ? 'w-16' : 'w-60'
+          'sticky top-0 h-screen flex-shrink-0 border-r border-border bg-card z-50 flex flex-col transition-all duration-300',
+          isCollapsed ? 'w-[68px]' : 'w-64'
         )}
       >
         {/* Command Menu */}
@@ -196,7 +202,7 @@ export default function Sidebar() {
         {/* Collapse Toggle */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-6 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-white/[0.08] bg-[#0a0d12] text-white/40 transition-colors hover:bg-[#161b22] hover:text-white/70"
+          className="absolute -right-3 top-7 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground"
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <ChevronLeft
@@ -205,25 +211,25 @@ export default function Sidebar() {
         </button>
 
         {/* Header */}
-        <div className="flex h-14 items-center gap-3 border-b border-white/[0.06] px-4">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600">
-            <Sparkles className="h-4 w-4 text-white" />
+        <div className="flex h-16 items-center gap-3 border-b border-border/60 px-4">
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
           {!isCollapsed && (
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-sm font-semibold text-white">Alliance</h1>
-              <p className="text-[11px] text-white/40">Ticket System</p>
+              <h1 className="truncate text-sm font-semibold text-foreground">Alliance Chemical</h1>
+              <p className="text-xs text-muted-foreground">Ticket System</p>
             </div>
           )}
         </div>
 
         {/* Search Trigger */}
         {isAuthenticated && (
-          <div className="px-3 py-3">
+          <div className="px-3 py-4">
             <button
               onClick={() => setCommandOpen(true)}
               className={cn(
-                'flex w-full items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-sm text-white/40 transition-colors hover:border-white/[0.1] hover:bg-white/[0.04] hover:text-white/60',
+                'flex w-full items-center gap-2 rounded-lg border border-input bg-background px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground',
                 isCollapsed && 'justify-center px-2'
               )}
             >
@@ -266,11 +272,25 @@ export default function Sidebar() {
                 isCollapsed={isCollapsed}
                 isActive={isPartiallyActive('/customers')}
               />
+              <NavItem
+                href="/crm"
+                icon={Target}
+                label="CRM"
+                isCollapsed={isCollapsed}
+                isActive={isActive('/crm')}
+              />
+              <NavItem
+                href="/tasks"
+                icon={ListTodo}
+                label="Tasks"
+                isCollapsed={isCollapsed}
+                isActive={isActive('/tasks')}
+              />
 
               {/* Quick Actions */}
-              <div className="pt-4">
+              <div className="pt-6">
                 {!isCollapsed && (
-                  <p className="mb-2 px-3 text-[10px] font-medium uppercase tracking-wider text-white/30">
+                  <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Quick Actions
                   </p>
                 )}
@@ -291,9 +311,9 @@ export default function Sidebar() {
               </div>
 
               {/* External Links */}
-              <div className="pt-4">
+              <div className="pt-6">
                 {!isCollapsed && (
-                  <p className="mb-2 px-3 text-[10px] font-medium uppercase tracking-wider text-white/30">
+                  <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     External
                   </p>
                 )}
@@ -325,25 +345,25 @@ export default function Sidebar() {
 
               {/* Admin */}
               {isAdmin && (
-                <div className="pt-4">
+                <div className="pt-6">
                   {!isCollapsed && (
-                    <p className="mb-2 px-3 text-[10px] font-medium uppercase tracking-wider text-white/30">
+                    <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                       Admin
                     </p>
                   )}
                   <NavItem
-                    href="/admin/manage-users"
+                    href="/manage-users"
                     icon={UserCog}
                     label="Users"
                     isCollapsed={isCollapsed}
-                    isActive={isActive('/admin/manage-users')}
+                    isActive={isActive('/manage-users')}
                   />
                   <NavItem
-                    href="/admin/orders"
+                    href="/admin/quarantine"
                     icon={Package}
-                    label="Orders"
+                    label="Quarantine"
                     isCollapsed={isCollapsed}
-                    isActive={isActive('/admin/orders')}
+                    isActive={isActive('/admin/quarantine')}
                   />
                   <NavItem
                     href="/admin/settings"
@@ -368,53 +388,54 @@ export default function Sidebar() {
 
         {/* Status & User Section */}
         {isAuthenticated && (
-          <div className="border-t border-white/[0.06] p-3">
+          <div className="border-t border-border/60 p-3">
             {/* Status Indicators */}
-            <div className={cn(
-              'mb-3 flex items-center gap-2 rounded-lg bg-white/[0.02] px-3 py-2',
-              isCollapsed && 'justify-center px-2'
-            )}>
+            <div
+              className={cn(
+                'mb-3 flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2',
+                isCollapsed && 'justify-center px-2'
+              )}
+            >
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-1.5">
                     {isRealtimeConnected ? (
-                      <Wifi className="h-3.5 w-3.5 text-emerald-400" />
+                      <Wifi className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
                     ) : (
-                      <WifiOff className="h-3.5 w-3.5 text-amber-400" />
+                      <WifiOff className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
                     )}
                     {!isCollapsed && (
                       <span className={cn(
-                        'text-[10px]',
-                        isRealtimeConnected ? 'text-emerald-400' : 'text-amber-400'
+                        'text-[11px] font-medium',
+                        isRealtimeConnected ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
                       )}>
                         {isRealtimeConnected ? 'Live' : 'Offline'}
                       </span>
                     )}
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="bg-[#1c2128] border-white/10">
+                <TooltipContent side="right" className="border border-border bg-popover text-popover-foreground shadow-sm">
                   {isRealtimeConnected ? 'Real-time updates active' : 'Reconnecting...'}
                 </TooltipContent>
               </Tooltip>
 
               {!isCollapsed && (
                 <>
-                  <div className="h-3 w-px bg-white/10" />
+                  <div className="h-3 w-px bg-border" />
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
                         onClick={() => {
-                          // Dispatch to keyboard shortcuts provider
                           const event = new KeyboardEvent('keydown', { key: '?', shiftKey: true });
                           document.dispatchEvent(event);
                         }}
-                        className="flex items-center gap-1.5 text-white/40 hover:text-white/60"
+                        className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
                       >
                         <Keyboard className="h-3.5 w-3.5" />
                         <Kbd className="text-[9px]">?</Kbd>
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="right" className="bg-[#1c2128] border-white/10">
+                    <TooltipContent side="right" className="border border-border bg-popover text-popover-foreground shadow-sm">
                       Keyboard shortcuts
                     </TooltipContent>
                   </Tooltip>
@@ -425,21 +446,21 @@ export default function Sidebar() {
             {/* User Info */}
             <div
               className={cn(
-                'flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-white/[0.04]',
+                'flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60',
                 isCollapsed && 'justify-center'
               )}
             >
-              <Avatar className="h-8 w-8 flex-shrink-0">
-                <AvatarFallback className="bg-white/[0.08] text-xs font-medium text-white/70">
+              <Avatar className="h-9 w-9 flex-shrink-0">
+                <AvatarFallback className="bg-muted text-sm font-medium text-primary">
                   {session?.user?.name?.charAt(0)?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               {!isCollapsed && (
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-white/90">
+                  <p className="truncate text-sm font-medium text-foreground">
                     {session?.user?.name || 'User'}
                   </p>
-                  <p className="text-[11px] capitalize text-white/40">{userRole || 'User'}</p>
+                  <p className="text-xs capitalize text-muted-foreground">{userRole || 'User'}</p>
                 </div>
               )}
             </div>
@@ -448,7 +469,7 @@ export default function Sidebar() {
               size="sm"
               onClick={handleLogout}
               className={cn(
-                'mt-2 w-full justify-start gap-2 text-white/50 hover:bg-red-500/10 hover:text-red-400',
+                'mt-2 w-full justify-start gap-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
                 isCollapsed && 'justify-center px-2'
               )}
             >

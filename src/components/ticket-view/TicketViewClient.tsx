@@ -4,6 +4,7 @@
 import React, { useState, useMemo, useCallback, useOptimistic } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { X } from 'lucide-react';
 
 // UI Components (shadcn/ui)
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -20,6 +21,8 @@ import { ReplyComposer } from './ReplyComposer';
 import { TicketSidebar } from './TicketSidebar';
 import { AICopilotPanel } from './AICopilotPanel';
 import { CustomerSnapshotCard } from '@/components/customers/CustomerSnapshotCard';
+import { SimilarRepliesPanel } from '@/components/rag/SimilarRepliesPanel';
+import { SimilarTicketsPanel } from '@/components/rag/SimilarTicketsPanel';
 
 // Types
 import type { Ticket, TicketComment, TicketUser } from '@/types/ticket';
@@ -283,32 +286,38 @@ export function TicketViewClient({
   }, [optimisticTicket.id, optimisticTicket.orderNumber]);
 
   return (
-    <div className="flex h-[calc(100vh-56px)] overflow-hidden bg-[#0c0f16]">
+    <div className="flex h-[calc(100vh-56px)] overflow-hidden bg-gray-50 dark:bg-gray-900">
       {/* Left Sidebar - Ticket List */}
-      <aside className="w-64 border-r border-white/[0.06] bg-[#0d1117] flex flex-col">
-        <div className="px-4 py-3 border-b border-white/[0.06]">
-          <h2 className="text-sm font-medium text-white/60">Recent Tickets</h2>
+      <aside className="w-72 border-r border-gray-200 bg-white flex flex-col dark:border-gray-700 dark:bg-gray-800">
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Recent Tickets</h2>
         </div>
         <ScrollArea className="flex-1">
-          <div className="p-2 space-y-0.5">
+          <div className="p-2 space-y-1">
             {sidebarTickets.map((ticket) => (
               <Link
                 key={ticket.id}
                 href={`/tickets/${ticket.id}`}
-                className={`block px-3 py-2.5 rounded-md transition-colors ${
+                className={`block px-3 py-2.5 rounded-lg transition-colors ${
                   ticket.id === optimisticTicket.id
-                    ? 'bg-white/[0.06]'
-                    : 'hover:bg-white/[0.03]'
+                    ? 'bg-blue-50 border border-blue-100 dark:bg-blue-900/20 dark:border-blue-800'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
                 }`}
               >
                 <p className={`text-sm font-medium truncate ${
-                  ticket.id === optimisticTicket.id ? 'text-white' : 'text-white/70'
+                  ticket.id === optimisticTicket.id
+                    ? 'text-blue-900 dark:text-blue-100'
+                    : 'text-gray-900 dark:text-gray-100'
                 }`}>
                   {ticket.title}
                 </p>
-                <div className="flex items-center justify-between mt-1">
-                  <span className="text-[11px] text-white/40 truncate">{ticket.senderName || 'Unknown'}</span>
-                  <span className="text-[11px] text-white/30">{new Date(ticket.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                <div className="flex items-center justify-between mt-1.5">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {ticket.senderName || 'Unknown'}
+                  </span>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    {new Date(ticket.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
                 </div>
               </Link>
             ))}
@@ -317,7 +326,7 @@ export function TicketViewClient({
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-gray-800">
         <TicketHeader
           ticket={optimisticTicket}
           currentUser={currentUser}
@@ -330,7 +339,7 @@ export function TicketViewClient({
 
         {/* Customer context */}
         {customerOverview && (
-          <div className="px-5 py-3 border-b border-white/[0.06] bg-white/[0.01]">
+          <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50">
             <CustomerSnapshotCard overview={customerOverview} />
           </div>
         )}
@@ -344,8 +353,8 @@ export function TicketViewClient({
         />
 
         {/* Conversation */}
-        <ScrollArea className="flex-1">
-          <div className="p-5">
+        <ScrollArea className="flex-1 bg-gray-50 dark:bg-gray-900">
+          <div className="p-6">
             <ConversationThread
               comments={conversationHistory}
               ticket={optimisticTicket}
@@ -356,30 +365,34 @@ export function TicketViewClient({
 
       {/* Right Sidebar */}
       {showCopilot && (
-        <aside className="w-80 border-l border-white/[0.06] bg-[#0d1117] flex flex-col overflow-hidden">
-          <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-            <h2 className="text-sm font-medium text-white/70">Details</h2>
+        <aside className="w-96 border-l border-gray-200 bg-gray-50 flex flex-col overflow-hidden dark:border-gray-700 dark:bg-gray-900">
+          <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between dark:border-gray-700 dark:bg-gray-800">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Details & AI</h2>
             <button
               onClick={() => setShowCopilot(false)}
-              className="w-6 h-6 flex items-center justify-center text-white/30 hover:text-white/60 transition-colors"
+              className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-700"
             >
-              <i className="fas fa-times text-xs" />
+              <X className="h-4 w-4" />
             </button>
           </div>
           <ScrollArea className="flex-1">
-            <div className="p-4">
+            <div className="p-4 space-y-6">
               <AICopilotPanel
                 ticket={optimisticTicket}
                 aiSuggestion={aiSuggestion}
                 onApplySuggestion={() => setAiSuggestion(null)}
                 onDismiss={() => setAiSuggestion(null)}
               />
-              <Separator className="my-4 bg-white/[0.06]" />
+              <Separator className="bg-gray-200 dark:bg-gray-700" />
               <TicketSidebar
                 ticket={optimisticTicket}
                 relatedQuote={relatedQuote}
                 quoteAdminUrl={quoteAdminUrl}
               />
+              <Separator className="bg-gray-200 dark:bg-gray-700" />
+              <SimilarTicketsPanel ticketId={optimisticTicket.id} />
+              <Separator className="bg-gray-200 dark:bg-gray-700" />
+              <SimilarRepliesPanel ticketId={optimisticTicket.id} />
             </div>
           </ScrollArea>
         </aside>

@@ -246,9 +246,9 @@ export function KeyboardShortcutsProvider({ children }: { children: React.ReactN
 
       {/* Pending key indicator */}
       {pendingKey && (
-        <div className="fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-lg border border-white/10 bg-[#0d1117]/95 px-3 py-2 text-sm text-white/70 shadow-lg backdrop-blur">
+        <div className="fixed bottom-20 right-6 z-50 flex items-center gap-2 rounded-lg border border-gray-200 bg-white/95 px-3 py-2 text-sm text-gray-700 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 dark:text-gray-300">
           <Kbd>{pendingKey.toUpperCase()}</Kbd>
-          <span className="text-white/40">...</span>
+          <span className="text-gray-400 dark:text-gray-500">...</span>
         </div>
       )}
 
@@ -268,15 +268,15 @@ function KeyboardShortcutsHelp({ open, onOpenChange }: { open: boolean; onOpenCh
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl border-white/10 bg-[#0d1117]/95 backdrop-blur">
+      <DialogContent className="max-w-2xl border-gray-200 bg-white/95 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-white">Keyboard Shortcuts</DialogTitle>
+          <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-white">Keyboard Shortcuts</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-6 py-4 md:grid-cols-3">
           {categories.map(category => (
             <div key={category.id}>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 {category.label}
               </h3>
               <div className="space-y-2">
@@ -285,19 +285,19 @@ function KeyboardShortcutsHelp({ open, onOpenChange }: { open: boolean; onOpenCh
                   .map(shortcut => (
                     <div
                       key={shortcut.key}
-                      className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-white/[0.04]"
+                      className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                     >
                       <div className="flex items-center gap-2">
                         {shortcut.icon && (
-                          <shortcut.icon className="h-3.5 w-3.5 text-white/40" />
+                          <shortcut.icon className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
                         )}
-                        <span className="text-sm text-white/70">{shortcut.description}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{shortcut.description}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         {shortcut.label.includes(' then ') ? (
                           shortcut.label.split(' then ').map((k, i) => (
                             <React.Fragment key={i}>
-                              {i > 0 && <span className="text-[10px] text-white/30">+</span>}
+                              {i > 0 && <span className="text-[10px] text-gray-400 dark:text-gray-500">+</span>}
                               <Kbd className="min-w-[24px] justify-center">{k}</Kbd>
                             </React.Fragment>
                           ))
@@ -312,8 +312,8 @@ function KeyboardShortcutsHelp({ open, onOpenChange }: { open: boolean; onOpenCh
           ))}
         </div>
 
-        <div className="border-t border-white/[0.06] pt-4">
-          <p className="text-center text-xs text-white/40">
+        <div className="border-t border-gray-100 pt-4 dark:border-gray-800">
+          <p className="text-center text-xs text-gray-500 dark:text-gray-400">
             Press <Kbd>?</Kbd> anytime to show this help
           </p>
         </div>

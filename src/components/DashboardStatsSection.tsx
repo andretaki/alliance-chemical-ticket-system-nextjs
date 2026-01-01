@@ -23,22 +23,22 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon, href, variant = 'default', isLoading }: StatCardProps) {
   const variantStyles = {
-    default: 'text-indigo-400',
-    danger: 'text-red-400',
-    success: 'text-emerald-400',
-    warning: 'text-amber-400',
+    default: 'text-indigo-500 dark:text-indigo-400',
+    danger: 'text-red-500 dark:text-red-400',
+    success: 'text-emerald-500 dark:text-emerald-400',
+    warning: 'text-amber-500 dark:text-amber-400',
   };
 
   const content = (
-    <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-4 hover:bg-white/[0.04] transition-colors">
+    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 shadow-sm transition-colors dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700/50">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-white/40 uppercase tracking-wide">{label}</span>
+        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">{label}</span>
         <i className={`${icon} text-sm ${variantStyles[variant]}`} />
       </div>
       {isLoading ? (
-        <div className="h-8 w-16 bg-white/[0.05] rounded animate-pulse" />
+        <div className="h-8 w-16 bg-gray-100 rounded animate-pulse dark:bg-gray-700" />
       ) : (
-        <p className="text-2xl font-semibold text-white tabular-nums">{value}</p>
+        <p className="text-2xl font-semibold text-gray-900 tabular-nums dark:text-white">{value}</p>
       )}
     </div>
   );
@@ -105,11 +105,11 @@ const DashboardStatsSection: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 text-center">
-        <p className="text-red-400 text-sm">{error}</p>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center dark:bg-red-900/20 dark:border-red-800">
+        <p className="text-red-600 text-sm dark:text-red-400">{error}</p>
         <button
           onClick={fetchStats}
-          className="mt-2 text-xs text-white/50 hover:text-white/70"
+          className="mt-2 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         >
           Retry
         </button>

@@ -4,14 +4,15 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const cardVariants = cva(
-  "flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+  "flex flex-col gap-6 rounded-xl border border-border bg-card py-6 text-card-foreground shadow-sm transition-shadow duration-150",
   {
     variants: {
       variant: {
-        default: "bg-card text-card-foreground",
-        glass: "bg-slate-900/60 backdrop-blur border-slate-800 text-white",
-        gradient: "bg-gradient-to-br from-slate-900 to-slate-800 border-slate-700 text-white",
-        outline: "bg-transparent border-slate-700 text-white",
+        default: "",
+        glass: "",
+        gradient: "",
+        outline: "",
+        subtle: "",
       },
     },
     defaultVariants: {
@@ -30,7 +31,7 @@ function Card({ className, variant, interactive, ...props }: CardProps) {
       data-slot="card"
       className={cn(
         cardVariants({ variant }),
-        interactive && "cursor-pointer hover:border-slate-600 transition-all",
+        interactive && "cursor-pointer hover:border-border/80 hover:shadow-md",
         className
       )}
       {...props}
@@ -67,7 +68,11 @@ function CardTitle({ className, level, ...props }: CardTitleProps) {
   return (
     <div
       data-slot="card-title"
-      className={cn("leading-none font-semibold", level && sizeClasses[level], className)}
+      className={cn(
+        "leading-none font-semibold text-foreground",
+        level && sizeClasses[level],
+        className
+      )}
       {...props}
     />
   )

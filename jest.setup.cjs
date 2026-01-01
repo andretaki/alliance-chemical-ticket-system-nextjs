@@ -1,4 +1,9 @@
-import '@testing-library/jest-dom'
+require('@testing-library/jest-dom')
+const path = require('path')
+const dotenv = require('dotenv')
+
+// Load .env.local before anything else so DATABASE_URL is available
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') })
 
 // Mock Next.js router
 jest.mock('next/router', () => ({
@@ -43,10 +48,10 @@ jest.mock('next/navigation', () => ({
   },
 }))
 
-// Mock NextAuth
-jest.mock('next-auth/react', () => ({
-  useSession: jest.fn(() => ({
-    data: {
+// Mock authentication (better-auth)
+jest.mock('@/lib/auth-helpers', () => ({
+  getServerSession: jest.fn(() => Promise.resolve({
+    session: {
       user: {
         id: 'test-user-id',
         email: 'test@example.com',
@@ -54,18 +59,17 @@ jest.mock('next-auth/react', () => ({
         role: 'user',
       },
     },
-    status: 'authenticated',
+    error: null,
   })),
-  signIn: jest.fn(),
-  signOut: jest.fn(),
-  getSession: jest.fn(),
 }))
 
 // Mock environment variables
 process.env.NODE_ENV = 'test'
 process.env.NEXTAUTH_URL = 'http://localhost:3001'
 process.env.NEXTAUTH_SECRET = 'test-secret'
-process.env.DATABASE_URL = 'postgresql://postgres:password@localhost:5433/alliance_tickets_test'
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgresql://postgres:password@localhost:5433/alliance_tickets_test'
+}
 
 // Global test utilities
 global.fetch = jest.fn()

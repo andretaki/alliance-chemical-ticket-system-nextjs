@@ -1,4 +1,4 @@
-import { db, customers, orders, tickets, contacts, qboCustomerSnapshots, orderItems, opportunities, users, calls } from '@/lib/db';
+import { db, customers, orders, tickets, contacts, qboCustomerSnapshots, orderItems, opportunities, users, calls, customerScores, crmTasks } from '@/lib/db';
 import { and, asc, count, desc, eq, ne, sql, inArray } from 'drizzle-orm';
 
 export interface CustomerOverview {
@@ -71,6 +71,8 @@ export interface CustomerOverview {
     contactName: string | null;
     ticketId: number | null;
     opportunityId: number | null;
+    recordingUrl: string | null;
+    notes: string | null;
   }>;
   qboSnapshot: {
     balance: string;
@@ -89,6 +91,28 @@ export interface CustomerOverview {
   lateOrdersCount: number;
   openTicketsCount: number;
   totalOrders: number;
+  // CRM Spine additions
+  scores: {
+    healthScore: number | null;
+    churnRisk: 'low' | 'medium' | 'high' | null;
+    ltv: string | null;
+    last12MonthsRevenue: string | null;
+    rScore: number | null;
+    fScore: number | null;
+    mScore: number | null;
+    lastCalculatedAt: string | null;
+  } | null;
+  openTasks: Array<{
+    id: number;
+    type: string;
+    reason: string | null;
+    status: string;
+    dueAt: string | null;
+    opportunityId: number | null;
+    opportunityTitle: string | null;
+    ticketId: number | null;
+    createdAt: string;
+  }>;
 }
 
 class CustomerService {
@@ -102,7 +126,7 @@ class CustomerService {
 
     if (!customer) return null;
 
-    const [recentOrders, openTickets, lateOrdersAgg, totalOrdersAgg, snapshot, contactList, frequentProducts, opportunitiesList, recentCalls] =
+    const [recentOrders, openTickets, lateOrdersAgg, totalOrdersAgg, snapshot, contactList, frequentProducts, opportunitiesList, recentCalls, scores, openTasksList] =
       await Promise.all([
         db.query.orders.findMany({
           where: eq(orders.customerId, customerId),
@@ -163,13 +187,36 @@ class CustomerService {
           durationSeconds: calls.durationSeconds,
           ticketId: calls.ticketId,
           opportunityId: calls.opportunityId,
+          recordingUrl: calls.recordingUrl,
+          notes: calls.notes,
           contactName: contacts.name,
         })
           .from(calls)
           .leftJoin(contacts, eq(contacts.id, calls.contactId))
           .where(eq(calls.customerId, customerId))
           .orderBy(desc(calls.startedAt))
-          .limit(5),
+          .limit(10),
+        // Customer scores
+        db.query.customerScores.findFirst({
+          where: eq(customerScores.customerId, customerId),
+        }),
+        // Open CRM tasks for this customer
+        db.select({
+          id: crmTasks.id,
+          type: crmTasks.type,
+          reason: crmTasks.reason,
+          status: crmTasks.status,
+          dueAt: crmTasks.dueAt,
+          opportunityId: crmTasks.opportunityId,
+          opportunityTitle: opportunities.title,
+          ticketId: crmTasks.ticketId,
+          createdAt: crmTasks.createdAt,
+        })
+          .from(crmTasks)
+          .leftJoin(opportunities, eq(opportunities.id, crmTasks.opportunityId))
+          .where(and(eq(crmTasks.customerId, customerId), eq(crmTasks.status, 'open')))
+          .orderBy(asc(crmTasks.dueAt), desc(crmTasks.createdAt))
+          .limit(10),
       ]);
 
     const lateOrdersCount = lateOrdersAgg[0]?.count ?? 0;
@@ -246,6 +293,8 @@ class CustomerService {
         contactName: c.contactName ?? null,
         ticketId: c.ticketId ?? null,
         opportunityId: c.opportunityId ?? null,
+        recordingUrl: c.recordingUrl ?? null,
+        notes: c.notes ?? null,
       })),
       qboSnapshot: snapshot
         ? {
@@ -266,6 +315,30 @@ class CustomerService {
       lateOrdersCount,
       openTicketsCount,
       totalOrders,
+      // CRM Spine additions
+      scores: scores
+        ? {
+            healthScore: scores.healthScore,
+            churnRisk: scores.churnRisk,
+            ltv: scores.ltv?.toString() ?? null,
+            last12MonthsRevenue: scores.last12MonthsRevenue?.toString() ?? null,
+            rScore: scores.rScore,
+            fScore: scores.fScore,
+            mScore: scores.mScore,
+            lastCalculatedAt: scores.lastCalculatedAt ? scores.lastCalculatedAt.toISOString() : null,
+          }
+        : null,
+      openTasks: openTasksList.map((t) => ({
+        id: t.id,
+        type: t.type,
+        reason: t.reason ?? null,
+        status: t.status,
+        dueAt: t.dueAt instanceof Date ? t.dueAt.toISOString() : t.dueAt ? String(t.dueAt) : null,
+        opportunityId: t.opportunityId ?? null,
+        opportunityTitle: t.opportunityTitle ?? null,
+        ticketId: t.ticketId ?? null,
+        createdAt: t.createdAt instanceof Date ? t.createdAt.toISOString() : String(t.createdAt),
+      })),
     };
   }
 }

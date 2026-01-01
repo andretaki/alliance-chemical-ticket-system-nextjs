@@ -109,7 +109,7 @@ export function TicketHeader({
 
   return (
     <TooltipProvider>
-      <div className="border-b border-white/[0.06] bg-[#0a0d12]">
+      <div className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
         {/* Top Bar */}
         <div className="flex items-center justify-between px-5 py-3">
           <div className="flex items-center gap-3">
@@ -117,7 +117,7 @@ export function TicketHeader({
               <TooltipTrigger asChild>
                 <Link
                   href="/tickets"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white/70"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-300"
                 >
                   <ArrowLeft className="h-4 w-4" />
                 </Link>
@@ -130,7 +130,7 @@ export function TicketHeader({
                 <TooltipTrigger asChild>
                   <button
                     onClick={copyTicketId}
-                    className="font-mono text-sm text-white/40 transition-colors hover:text-white/70"
+                    className="font-mono text-sm text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                   >
                     #{ticket.id}
                   </button>
@@ -143,19 +143,19 @@ export function TicketHeader({
                 <DropdownMenuTrigger asChild>
                   <button className="group flex items-center gap-1">
                     <StatusBadge status={ticket.status} />
-                    <ChevronDown className="h-3 w-3 text-white/30 opacity-0 transition-opacity group-hover:opacity-100" />
+                    <ChevronDown className="h-3 w-3 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-600" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-48 border-white/10 bg-[#161b22]">
-                  <DropdownMenuLabel className="text-white/50">Change Status</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-white/[0.06]" />
+                <DropdownMenuContent className="w-48 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <DropdownMenuLabel className="text-gray-500 dark:text-gray-400">Change Status</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
                   {statusOptions.map((option) => (
                     <DropdownMenuItem
                       key={option.value}
                       onClick={() => onStatusChange(option.value)}
                       className={cn(
-                        'text-white/70 focus:bg-white/[0.06] focus:text-white',
-                        ticket.status === option.value && 'bg-white/[0.04]'
+                        'text-gray-700 focus:bg-gray-100 focus:text-gray-900 dark:text-gray-300 dark:focus:bg-gray-700 dark:focus:text-white',
+                        ticket.status === option.value && 'bg-gray-50 dark:bg-gray-700/50'
                       )}
                     >
                       <StatusBadge status={option.value} size="sm" />
@@ -169,19 +169,19 @@ export function TicketHeader({
                 <DropdownMenuTrigger asChild>
                   <button className="group flex items-center gap-1">
                     <PriorityBadge priority={ticket.priority} size="sm" />
-                    <ChevronDown className="h-3 w-3 text-white/30 opacity-0 transition-opacity group-hover:opacity-100" />
+                    <ChevronDown className="h-3 w-3 text-gray-300 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-600" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-40 border-white/10 bg-[#161b22]">
-                  <DropdownMenuLabel className="text-white/50">Change Priority</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-white/[0.06]" />
+                <DropdownMenuContent className="w-40 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                  <DropdownMenuLabel className="text-gray-500 dark:text-gray-400">Change Priority</DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
                   {priorityOptions.map((option) => (
                     <DropdownMenuItem
                       key={option.value}
                       onClick={() => onPriorityChange?.(option.value)}
                       className={cn(
-                        'text-white/70 focus:bg-white/[0.06] focus:text-white',
-                        ticket.priority === option.value && 'bg-white/[0.04]'
+                        'text-gray-700 focus:bg-gray-100 focus:text-gray-900 dark:text-gray-300 dark:focus:bg-gray-700 dark:focus:text-white',
+                        ticket.priority === option.value && 'bg-gray-50 dark:bg-gray-700/50'
                       )}
                     >
                       <PriorityBadge priority={option.value} size="sm" />
@@ -201,12 +201,12 @@ export function TicketHeader({
                   size="sm"
                   onClick={onDraftReply}
                   disabled={isLoadingAI}
-                  className="gap-2 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]"
+                  className="gap-2 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   {isLoadingAI ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Sparkles className="h-4 w-4 text-indigo-400" />
+                    <Sparkles className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
                   )}
                   AI Draft
                 </Button>
@@ -223,9 +223,9 @@ export function TicketHeader({
                     size="sm"
                     onClick={onCheckOrderStatus}
                     disabled={isLoadingAI}
-                    className="gap-2 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]"
+                    className="gap-2 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                   >
-                    <Package className="h-4 w-4 text-emerald-400" />
+                    <Package className="h-4 w-4 text-emerald-500 dark:text-emerald-400" />
                     Order
                   </Button>
                 </TooltipTrigger>
@@ -240,7 +240,7 @@ export function TicketHeader({
                   variant="outline"
                   size="sm"
                   asChild
-                  className="gap-2 border-white/[0.08] bg-white/[0.02] text-white/70 hover:bg-white/[0.04]"
+                  className="gap-2 border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <Link href={`/tickets/${ticket.id}/edit`}>
                     <Pencil className="h-4 w-4" />
@@ -257,22 +257,22 @@ export function TicketHeader({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 w-8 border-white/[0.08] bg-white/[0.02] p-0 text-white/70 hover:bg-white/[0.04]"
+                  className="h-8 w-8 border-gray-200 bg-white p-0 text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                 >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 border-white/10 bg-[#161b22]">
-                <DropdownMenuItem className="text-white/70 focus:bg-white/[0.06] focus:text-white">
+              <DropdownMenuContent align="end" className="w-48 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                <DropdownMenuItem className="text-gray-700 focus:bg-gray-100 focus:text-gray-900 dark:text-gray-300 dark:focus:bg-gray-700 dark:focus:text-white">
                   <Copy className="mr-2 h-4 w-4" />
                   Copy Link
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-white/70 focus:bg-white/[0.06] focus:text-white">
+                <DropdownMenuItem className="text-gray-700 focus:bg-gray-100 focus:text-gray-900 dark:text-gray-300 dark:focus:bg-gray-700 dark:focus:text-white">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Open in New Tab
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-white/[0.06]" />
-                <DropdownMenuItem className="text-red-400 focus:bg-red-500/10 focus:text-red-400">
+                <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
+                <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-700 dark:text-red-400 dark:focus:bg-red-900/20 dark:focus:text-red-400">
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete Ticket
                 </DropdownMenuItem>
@@ -283,33 +283,33 @@ export function TicketHeader({
 
         {/* Title & Meta */}
         <div className="px-5 pb-4">
-          <h1 className="text-lg font-semibold text-white">{ticket.title}</h1>
-          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-white/50">
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{ticket.title}</h1>
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
             {/* Sender */}
             <div className="flex items-center gap-2">
               <Avatar className="h-5 w-5">
-                <AvatarFallback className="bg-white/[0.08] text-[10px] text-white/60">
+                <AvatarFallback className="bg-gray-100 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                   {(ticket.senderName || ticket.senderEmail || 'U').charAt(0).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <span>{ticket.senderName || ticket.senderEmail || 'Unknown'}</span>
             </div>
 
-            <span className="text-white/20">·</span>
+            <span className="text-gray-300 dark:text-gray-600">·</span>
 
             {/* Created time */}
             <span>{timeAgo(ticket.createdAt)}</span>
 
-            <span className="text-white/20">·</span>
+            <span className="text-gray-300 dark:text-gray-600">·</span>
 
             {/* Assignee */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="group flex items-center gap-2 transition-colors hover:text-white/70">
+                <button className="group flex items-center gap-2 transition-colors hover:text-gray-700 dark:hover:text-gray-200">
                   {ticket.assignee ? (
                     <>
                       <Avatar className="h-5 w-5">
-                        <AvatarFallback className="bg-indigo-500/20 text-[10px] text-indigo-400">
+                        <AvatarFallback className="bg-indigo-100 text-[10px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
                           {ticket.assignee.name?.charAt(0).toUpperCase() || 'U'}
                         </AvatarFallback>
                       </Avatar>
@@ -317,22 +317,22 @@ export function TicketHeader({
                     </>
                   ) : (
                     <>
-                      <UserPlus className="h-4 w-4 text-amber-400" />
-                      <span className="text-amber-400">Unassigned</span>
+                      <UserPlus className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+                      <span className="text-amber-500 dark:text-amber-400">Unassigned</span>
                     </>
                   )}
                   <ChevronDown className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 border-white/10 bg-[#161b22]">
-                <DropdownMenuLabel className="text-white/50">Assign to</DropdownMenuLabel>
-                <DropdownMenuSeparator className="bg-white/[0.06]" />
+              <DropdownMenuContent className="w-56 border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+                <DropdownMenuLabel className="text-gray-500 dark:text-gray-400">Assign to</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
                 <DropdownMenuItem
                   onClick={() => onAssigneeChange(currentUser.id, currentUser)}
-                  className="text-white/70 focus:bg-white/[0.06] focus:text-white"
+                  className="text-gray-700 focus:bg-gray-100 focus:text-gray-900 dark:text-gray-300 dark:focus:bg-gray-700 dark:focus:text-white"
                 >
                   <Avatar className="mr-2 h-5 w-5">
-                    <AvatarFallback className="bg-indigo-500/20 text-[10px] text-indigo-400">
+                    <AvatarFallback className="bg-indigo-100 text-[10px] text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400">
                       {currentUser.name?.charAt(0).toUpperCase() || 'M'}
                     </AvatarFallback>
                   </Avatar>
@@ -341,26 +341,26 @@ export function TicketHeader({
                 {ticket.assignee && (
                   <DropdownMenuItem
                     onClick={() => onAssigneeChange(null, null)}
-                    className="text-white/70 focus:bg-white/[0.06] focus:text-white"
+                    className="text-gray-700 focus:bg-gray-100 focus:text-gray-900 dark:text-gray-300 dark:focus:bg-gray-700 dark:focus:text-white"
                   >
-                    <XCircle className="mr-2 h-4 w-4 text-white/40" />
+                    <XCircle className="mr-2 h-4 w-4 text-gray-400 dark:text-gray-500" />
                     Unassign
                   </DropdownMenuItem>
                 )}
                 {users.length > 0 && (
                   <>
-                    <DropdownMenuSeparator className="bg-white/[0.06]" />
+                    <DropdownMenuSeparator className="bg-gray-100 dark:bg-gray-700" />
                     {users.slice(0, 5).map((user) => (
                       <DropdownMenuItem
                         key={user.id}
                         onClick={() => onAssigneeChange(user.id, user)}
                         className={cn(
-                          'text-white/70 focus:bg-white/[0.06] focus:text-white',
-                          ticket.assignee?.id === user.id && 'bg-white/[0.04]'
+                          'text-gray-700 focus:bg-gray-100 focus:text-gray-900 dark:text-gray-300 dark:focus:bg-gray-700 dark:focus:text-white',
+                          ticket.assignee?.id === user.id && 'bg-gray-50 dark:bg-gray-700/50'
                         )}
                       >
                         <Avatar className="mr-2 h-5 w-5">
-                          <AvatarFallback className="bg-white/[0.08] text-[10px] text-white/60">
+                          <AvatarFallback className="bg-gray-100 text-[10px] text-gray-600 dark:bg-gray-700 dark:text-gray-300">
                             {user.name?.charAt(0).toUpperCase() || 'U'}
                           </AvatarFallback>
                         </Avatar>

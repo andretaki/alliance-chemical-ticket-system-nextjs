@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const json = await request.json();
     const parsed = CaptureSchema.parse(json);
 
-    const customer = await identityService.resolveOrCreateCustomer({
+    const customerResult = await identityService.resolveOrCreateCustomer({
       provider: 'self_reported',
       email: parsed.email,
       phone: parsed.phone || undefined,
@@ -30,6 +30,9 @@ export async function POST(request: NextRequest) {
       company: parsed.company || undefined,
       metadata: parsed.orderNumber ? { orderNumber: parsed.orderNumber } : undefined,
     });
+
+    // Handle potential array type from Drizzle ORM relation inference
+    const customer = Array.isArray(customerResult) ? customerResult[0] : customerResult;
 
     await identityService.recordInteraction({
       customerId: customer.id,

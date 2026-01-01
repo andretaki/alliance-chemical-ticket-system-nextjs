@@ -23,8 +23,6 @@ export default async function DashboardPage() {
   // }
 
   return (
-    <main className="flex-grow-1" style={{ minHeight: '100vh' }}>
-      <DashboardClient />
-    </main>
+    <DashboardClient />
   );
 }

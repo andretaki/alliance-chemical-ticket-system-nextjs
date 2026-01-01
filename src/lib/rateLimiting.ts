@@ -239,6 +239,12 @@ export const rateLimiters = {
     maxRequests: 10 // 10 emails processed per 5 minutes per IP
   }),
 
+  // RAG queries (cost control)
+  rag: new RateLimiter({
+    windowMs: 60 * 1000, // 1 minute
+    maxRequests: 30 // 30 requests per minute per identifier
+  }),
+
   // Admin endpoints (very strict)
   admin: new RateLimiter({
     windowMs: 60 * 60 * 1000, // 1 hour

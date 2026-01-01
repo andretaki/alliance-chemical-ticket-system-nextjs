@@ -10,6 +10,8 @@ SET search_path TO ticketing_prod, public;
 -- Create extensions if they don't exist
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "vector";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
 -- Grant necessary permissions
 GRANT ALL PRIVILEGES ON SCHEMA ticketing_prod TO postgres;

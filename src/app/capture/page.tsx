@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { CheckCircle, Loader2 } from 'lucide-react';
 
 type FormState = 'idle' | 'submitting' | 'success' | 'error';
 
@@ -63,60 +64,72 @@ function CaptureForm() {
   const disabled = status === 'submitting';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-950 to-black text-white flex items-center justify-center px-4">
-      <div className="w-full max-w-xl bg-slate-900/70 border border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/50 p-8 backdrop-blur">
-        <div className="mb-6">
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-400">Alliance Chemical</p>
-          <h1 className="text-3xl font-semibold mt-2">Confirm your info</h1>
-          <p className="text-slate-400 mt-2">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-blue-50 flex items-center justify-center px-4 py-12">
+      <div className="w-full max-w-xl bg-white border border-gray-200 rounded-2xl shadow-xl shadow-gray-200/50 p-8">
+        <div className="mb-8">
+          <p className="text-sm uppercase tracking-wider text-blue-600 font-semibold">Alliance Chemical</p>
+          <h1 className="text-3xl font-bold text-gray-900 mt-2">Confirm your info</h1>
+          <p className="text-gray-600 mt-3 leading-relaxed">
             Drop your details so we can keep your orders and support together. This helps us serve you faster and keep you updated.
           </p>
         </div>
 
-        <form className="grid grid-cols-1 gap-4" onSubmit={onSubmit}>
+        <form className="grid grid-cols-1 gap-5" onSubmit={onSubmit}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm text-slate-300 mb-1">First name</label>
-              <input value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white" />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">First name</label>
+              <input value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full rounded-lg bg-white border border-gray-300 px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors" />
             </div>
             <div>
-              <label className="block text-sm text-slate-300 mb-1">Last name</label>
-              <input value={lastName} onChange={e => setLastName(e.target.value)} className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white" />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Last name</label>
+              <input value={lastName} onChange={e => setLastName(e.target.value)} className="w-full rounded-lg bg-white border border-gray-300 px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors" />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm text-slate-300 mb-1">Email *</label>
-            <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white" />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email <span className="text-red-500">*</span></label>
+            <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full rounded-lg bg-white border border-gray-300 px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors" />
           </div>
 
           <div>
-            <label className="block text-sm text-slate-300 mb-1">Phone</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white" />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
+            <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full rounded-lg bg-white border border-gray-300 px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors" />
           </div>
 
           <div>
-            <label className="block text-sm text-slate-300 mb-1">Company</label>
-            <input value={company} onChange={e => setCompany(e.target.value)} className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white" />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Company</label>
+            <input value={company} onChange={e => setCompany(e.target.value)} className="w-full rounded-lg bg-white border border-gray-300 px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors" />
           </div>
 
           <div>
-            <label className="block text-sm text-slate-300 mb-1">Order number</label>
-            <input value={orderNumber} onChange={e => setOrderNumber(e.target.value)} className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-white" />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Order number</label>
+            <input value={orderNumber} onChange={e => setOrderNumber(e.target.value)} className="w-full rounded-lg bg-white border border-gray-300 px-4 py-2.5 text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-colors" />
           </div>
 
           <button
             type="submit"
             disabled={disabled}
-            className="mt-2 inline-flex justify-center rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-4 py-2 transition disabled:opacity-60 disabled:cursor-not-allowed"
+            className="mt-2 inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 transition-colors disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
           >
-            {status === 'submitting' ? 'Submitting…' : 'Submit'}
+            {status === 'submitting' ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Submit'
+            )}
           </button>
 
           {message && (
-            <p className={`text-sm ${status === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
+            <div className={`flex items-center gap-2 text-sm p-3 rounded-lg ${
+              status === 'error'
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            }`}>
+              {status === 'success' && <CheckCircle className="h-4 w-4" />}
               {message}
-            </p>
+            </div>
           )}
         </form>
       </div>
@@ -127,8 +140,11 @@ function CaptureForm() {
 export default function CapturePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-950 to-black text-white flex items-center justify-center">
-        <p className="text-slate-400">Loading...</p>
+      <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-gray-500">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Loading...
+        </div>
       </div>
     }>
       <CaptureForm />

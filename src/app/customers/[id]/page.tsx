@@ -4,9 +4,17 @@ import type { Metadata } from 'next';
 import { getServerSession } from '@/lib/auth-helpers';
 import { customerService } from '@/services/crm/customerService';
 import { CustomerSnapshotCard } from '@/components/customers/CustomerSnapshotCard';
+import { CustomerMemoryPanel } from '@/components/rag/CustomerMemoryPanel';
+import { StatusBadge } from '@/components/StatusBadge';
+import { EmptyState } from '@/components/layout/EmptyState';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { PageShell } from '@/components/layout/PageShell';
+import { Section } from '@/components/layout/Section';
+import { StatCard } from '@/components/layout/StatCard';
 import { Badge } from '@/components/ui/badge';
+import { StatusPill } from '@/components/ui/status-pill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ShoppingBag, Ticket, Wallet, Users, Phone, Mail, Info } from 'lucide-react';
+import { Package, ShoppingBag, Ticket, Wallet, Users, Phone, Mail, Info, PhoneMissed, PhoneIncoming, PhoneOutgoing, Play, TrendingDown, ListTodo, Activity, DollarSign } from 'lucide-react';
 
 interface PageProps {
   params: any;
@@ -54,281 +62,559 @@ export default async function CustomerPage({ params }: PageProps) {
     return digits.startsWith('+') ? `tel:${digits}` : `tel:+${digits}`;
   };
 
+  // Format duration as mm:ss
+  const formatDuration = (seconds: number | null) => {
+    if (seconds == null) return null;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Determine if a call was missed (inbound, ended, very short or no duration)
+  const isMissedCall = (call: typeof overview.recentCalls[0]) => {
+    if (call.direction !== 'inbound') return false;
+    if (!call.endedAt) return false; // Still in progress
+    if (call.durationSeconds == null || call.durationSeconds < 5) return true;
+    return false;
+  };
+
+  const formatRiskLabel = (risk: 'low' | 'medium' | 'high' | null) => {
+    if (!risk) return 'Unknown';
+    return risk.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  const getChurnTone = (risk: 'low' | 'medium' | 'high' | null) => {
+    if (risk === 'low') return 'success';
+    if (risk === 'medium') return 'warning';
+    if (risk === 'high') return 'danger';
+    return 'default';
+  };
+
+  // Format currency
+  const formatCurrency = (value: string | null) => {
+    if (!value) return '$0';
+    const num = parseFloat(value);
+    if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `$${(num / 1000).toFixed(0)}K`;
+    return `$${num.toFixed(0)}`;
+  };
+
+  // Task type labels
+  const taskTypeLabels: Record<string, string> = {
+    FOLLOW_UP: 'Follow Up',
+    CHURN_WATCH: 'Churn Watch',
+    VIP_TICKET: 'VIP Ticket',
+    AR_OVERDUE: 'AR Overdue',
+    SLA_BREACH: 'SLA Breach',
+  };
+
+  const taskTypeTones: Record<string, 'neutral' | 'warning' | 'danger'> = {
+    FOLLOW_UP: 'neutral',
+    CHURN_WATCH: 'danger',
+    VIP_TICKET: 'warning',
+    AR_OVERDUE: 'warning',
+    SLA_BREACH: 'danger',
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex flex-col gap-6">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Customer 360</p>
-              <h1 className="text-3xl font-semibold">{name}</h1>
-              {overview.company && <p className="text-slate-300">{overview.company}</p>}
-              <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-300">
-                {overview.primaryEmail && <span className="px-3 py-1 rounded-full bg-slate-800">{overview.primaryEmail}</span>}
-                {overview.primaryPhone && (
-                  <a href={toTel(overview.primaryPhone) || undefined} className="px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700">
-                    {overview.primaryPhone}
-                  </a>
-                )}
-              </div>
-            </div>
-            <div className="w-full md:w-80">
-              <CustomerSnapshotCard overview={overview} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card className="border-slate-800 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Wallet className="h-4 w-4 text-emerald-300" />
-                  AR Snapshot
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-slate-200">
-                {overview.qboSnapshot ? (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span>Balance</span>
-                      <span className="font-semibold">{overview.qboSnapshot.currency} {overview.qboSnapshot.balance}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Terms</span>
-                      <span className="text-slate-300">{overview.qboSnapshot.terms || '—'}</span>
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      Snapshot: {new Date(overview.qboSnapshot.snapshotTakenAt).toLocaleString()}
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-slate-400 text-sm">No AR snapshot yet.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-800 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Ticket className="h-4 w-4 text-indigo-300" />
-                  Open Tickets
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {overview.openTickets.length === 0 && (
-                  <p className="text-sm text-slate-400">No open tickets.</p>
-                )}
-                {overview.openTickets.slice(0, 4).map(ticket => (
-                  <Link key={ticket.id} href={`/tickets/${ticket.id}`} className="block rounded-lg border border-slate-800/80 bg-slate-900/70 p-3 hover:bg-slate-800/60 transition">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold">#{ticket.id} — {ticket.title}</p>
-                        <p className="text-xs text-slate-400">Updated {new Date(ticket.updatedAt).toLocaleString()}</p>
-                      </div>
-                      <Badge variant="outline" className="text-xs bg-slate-800 border-slate-700">{ticket.status}</Badge>
-                    </div>
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-800 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <ShoppingBag className="h-4 w-4 text-amber-300" />
-                  Frequent Products
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {overview.frequentProducts.length === 0 && (
-                  <p className="text-sm text-slate-400">No order history yet.</p>
-                )}
-                {overview.frequentProducts.map((item) => (
-                  <div key={`${item.sku || item.title || 'item'}-${item.quantity}`} className="flex items-center justify-between text-sm text-slate-200">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{item.title || item.sku || 'Unknown product'}</p>
-                      {item.sku && <p className="text-xs text-slate-500">SKU: {item.sku}</p>}
-                    </div>
-                    <Badge variant="outline" className="bg-slate-800 border-slate-700 text-xs">x{item.quantity}</Badge>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="border-slate-800 bg-slate-900/60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Ticket className="h-4 w-4 text-emerald-200" />
-                  Open Opportunities
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {overview.openOpportunities.length === 0 && (
-                  <p className="text-sm text-slate-400">No open opportunities.</p>
-                )}
-                {overview.openOpportunities.slice(0, 5).map((opp) => (
-                  <Link key={opp.id} href={`/opportunities/${opp.id}`} className="block rounded-lg border border-slate-800/80 bg-slate-900/70 p-3 hover:bg-slate-800/60 transition">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold truncate">{opp.title}</p>
-                        <p className="text-xs text-slate-400">{opp.stage}</p>
-                      </div>
-                      <Badge variant="outline" className="text-xs bg-slate-800 border-slate-700">
-                        {opp.currency} {opp.estimatedValue ?? '—'}
-                      </Badge>
-                    </div>
-                    {opp.ownerName && <p className="text-xs text-slate-400 mt-1">Owner: {opp.ownerName}</p>}
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold flex items-center gap-2"><Users className="h-4 w-4 text-sky-300" /> Contacts</h2>
-                <span className="text-xs text-slate-400">{overview.contacts.length} saved</span>
-              </div>
-              <div className="space-y-3">
-                {overview.contacts.map((contact) => (
-                  <div key={contact.id} className="rounded-lg border border-slate-800/80 bg-slate-900/70 p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{contact.name}</span>
-                      {contact.role && <Badge variant="outline" className="bg-slate-800 border-slate-700 text-xs">{contact.role}</Badge>}
-                    </div>
-                    <div className="mt-1 text-sm text-slate-300 space-y-1">
-                      {contact.email && <div className="flex items-center gap-2 text-slate-300"><Mail className="h-3 w-3" /> {contact.email}</div>}
-                      {contact.phone && (
-                        <div className="flex items-center gap-2 text-slate-300">
-                          <Phone className="h-3 w-3" />
-                          <a href={toTel(contact.phone) || undefined} className="hover:underline">
-                            {contact.phone}
-                          </a>
-                        </div>
-                      )}
-                      {contact.notes && <p className="text-xs text-slate-400">{contact.notes}</p>}
-                    </div>
-                  </div>
-                ))}
-                {overview.contacts.length === 0 && (
-                  <p className="text-sm text-slate-400">No contacts yet.</p>
-                )}
-              </div>
-            </section>
-
-            <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold flex items-center gap-2"><Info className="h-4 w-4 text-indigo-300" /> Identities</h2>
-                <span className="text-xs text-slate-400">{overview.identities.length} linked</span>
-              </div>
-              <div className="space-y-3">
-                {overview.identities.map((identity) => (
-                  <div key={identity.id} className="rounded-lg border border-slate-800/80 bg-slate-900/70 p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium capitalize">{identity.provider}</span>
-                      {identity.externalId && <span className="text-xs text-slate-400 truncate max-w-[140px]">{identity.externalId}</span>}
-                    </div>
-                    <div className="mt-1 text-sm text-slate-300 space-y-1">
-                      {identity.email && <p>{identity.email}</p>}
-                      {identity.phone && <p>{identity.phone}</p>}
-                    </div>
-                  </div>
-                ))}
-                {overview.identities.length === 0 && (
-                  <p className="text-sm text-slate-400">No identities linked yet.</p>
-                )}
-              </div>
-            </section>
-          </div>
-
-          <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><Phone className="h-4 w-4 text-emerald-300" /> Recent Calls</h2>
-              <span className="text-xs text-slate-400">{overview.recentCalls.length} loaded</span>
-            </div>
-            <div className="space-y-3">
-              {overview.recentCalls.length === 0 && (
-                <p className="text-sm text-slate-400">No calls recorded yet.</p>
-              )}
-              {overview.recentCalls.map((call) => (
-                <div key={call.id} className="rounded-lg border border-slate-800/80 bg-slate-900/70 p-3">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="bg-slate-800 border-slate-700 text-xs capitalize">
-                      {call.direction}
-                    </Badge>
-                    <span className="text-xs text-slate-400">
-                      {new Date(call.startedAt).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="mt-2 text-sm text-slate-200">
-                    {call.direction === 'inbound' ? 'From' : 'To'}: {call.direction === 'inbound' ? call.fromNumber : call.toNumber}
-                  </div>
-                  {call.durationSeconds != null && (
-                    <p className="text-xs text-slate-400">Duration: {call.durationSeconds}s</p>
-                  )}
-                  {call.contactName && <p className="text-xs text-slate-400">Contact: {call.contactName}</p>}
-                  <div className="mt-2 flex gap-3 text-xs">
-                    {call.ticketId && (
-                      <Link href={`/tickets/${call.ticketId}`} className="text-indigo-300 hover:underline">
-                        Ticket #{call.ticketId}
-                      </Link>
-                    )}
-                    {call.opportunityId && (
-                      <Link href={`/opportunities/${call.opportunityId}`} className="text-indigo-300 hover:underline">
-                        Opportunity #{call.opportunityId}
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold flex items-center gap-2"><Package className="h-4 w-4 text-amber-300" /> Recent Orders</h2>
-              <span className="text-xs text-slate-400">{overview.recentOrders.length} loaded</span>
-            </div>
-            <div className="overflow-hidden rounded-lg border border-slate-800">
-              <table className="min-w-full divide-y divide-slate-800">
-                <thead className="bg-slate-900/70 text-xs uppercase text-slate-400">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Order</th>
-                    <th className="px-4 py-2 text-left">Total</th>
-                    <th className="px-4 py-2 text-left">Placed</th>
-                    <th className="px-4 py-2 text-left">Status</th>
-                    <th className="px-4 py-2 text-left">Items</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-900/80 text-sm">
-                  {overview.recentOrders.map(order => (
-                    <tr key={order.id} className="hover:bg-slate-900/50">
-                      <td className="px-4 py-3 font-semibold text-white">{order.orderNumber || `Order ${order.id}`}</td>
-                      <td className="px-4 py-3 text-slate-200">
-                        {order.currency} {order.total}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">{order.placedAt ? new Date(order.placedAt).toLocaleDateString() : '—'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded-full text-xs ${order.lateFlag ? 'bg-rose-500/20 text-rose-200' : 'bg-slate-800 text-slate-200'}`}>
-                          {order.financialStatus}{order.lateFlag ? ' • late' : ''}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">
-                        {order.items.length > 0 ? order.items.map(i => `${i.title || i.sku || 'Item'} x${i.quantity}`).join(', ') : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                  {overview.recentOrders.length === 0 && (
-                    <tr>
-                      <td className="px-4 py-3 text-slate-400" colSpan={5}>No orders yet.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+    <PageShell size="wide">
+      <div className="space-y-3 border-b border-border/60 pb-5">
+        <PageHeader
+          eyebrow="Customer 360"
+          title={name}
+          description={overview.company || 'Customer record'}
+          className="border-b-0 pb-0"
+        />
+        <div className="flex flex-wrap gap-2">
+          {overview.primaryEmail && (
+            <Badge variant="secondary" size="sm" asChild className="gap-1.5">
+              <a href={`mailto:${overview.primaryEmail}`} className="max-w-[240px] truncate">
+                <Mail className="h-3.5 w-3.5" />
+                {overview.primaryEmail}
+              </a>
+            </Badge>
+          )}
+          {overview.primaryPhone && (
+            <Badge variant="secondary" size="sm" asChild className="gap-1.5">
+              <a href={toTel(overview.primaryPhone) || undefined} className="max-w-[180px] truncate">
+                <Phone className="h-3.5 w-3.5" />
+                {overview.primaryPhone}
+              </a>
+            </Badge>
+          )}
         </div>
       </div>
-    </div>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-8">
+          {overview.scores && (
+            <Section
+              title="Health and revenue"
+              description="Signals pulled from service, revenue, and payment history."
+            >
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  title="Health Score"
+                  value={overview.scores.healthScore ?? '—'}
+                  description="/100 score"
+                  icon={Activity}
+                />
+                <StatCard
+                  title="Churn Risk"
+                  value={formatRiskLabel(overview.scores.churnRisk)}
+                  description="90-day risk band"
+                  icon={TrendingDown}
+                  tone={getChurnTone(overview.scores.churnRisk)}
+                />
+                <StatCard
+                  title="Lifetime Value"
+                  value={formatCurrency(overview.scores.ltv)}
+                  description="Total spend"
+                  icon={DollarSign}
+                />
+                <StatCard
+                  title="Last 12 Months"
+                  value={formatCurrency(overview.scores.last12MonthsRevenue)}
+                  description="Trailing revenue"
+                  icon={DollarSign}
+                />
+              </div>
+            </Section>
+          )}
+
+          <Section title="Operational snapshot" description="Recent activity and pipeline touchpoints.">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle level={5} className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                      <Wallet className="h-4 w-4" />
+                    </span>
+                    AR Snapshot
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  {overview.qboSnapshot ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Balance</span>
+                        <span className="font-semibold text-foreground">
+                          {overview.qboSnapshot.currency} {overview.qboSnapshot.balance}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Terms</span>
+                        <span className="text-foreground/80">{overview.qboSnapshot.terms || '—'}</span>
+                      </div>
+                      <div className="border-t border-border/60 pt-2 text-xs text-muted-foreground">
+                        Updated {new Date(overview.qboSnapshot.snapshotTakenAt).toLocaleDateString()}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No AR snapshot yet. Sync QBO to populate.</p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle level={5} className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                      <Ticket className="h-4 w-4" />
+                    </span>
+                    Open Tickets
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {overview.openTickets.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No open tickets. New tickets appear when inbox sync runs.
+                    </p>
+                  )}
+                  {overview.openTickets.slice(0, 4).map(ticket => (
+                    <Link
+                      key={ticket.id}
+                      href={`/tickets/${ticket.id}`}
+                      className="block rounded-lg border border-border/60 bg-muted/30 p-3 transition-colors hover:border-border/80 hover:bg-muted/50"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">#{ticket.id} — {ticket.title}</p>
+                          <p className="text-xs text-muted-foreground">Updated {new Date(ticket.updatedAt).toLocaleDateString()}</p>
+                        </div>
+                        <StatusBadge status={ticket.status as any} size="sm" showIcon={false} />
+                      </div>
+                    </Link>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle level={5} className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                      <ShoppingBag className="h-4 w-4" />
+                    </span>
+                    Frequent Products
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {overview.frequentProducts.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No order history yet. Connect commerce sources to populate.
+                    </p>
+                  )}
+                  {overview.frequentProducts.map((item) => (
+                    <div key={`${item.sku || item.title || 'item'}-${item.quantity}`} className="flex items-center justify-between text-sm">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-foreground">{item.title || item.sku || 'Unknown product'}</p>
+                        {item.sku && <p className="text-xs text-muted-foreground">SKU: {item.sku}</p>}
+                      </div>
+                      <Badge variant="secondary" size="sm">x{item.quantity}</Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle level={5} className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                      <Ticket className="h-4 w-4" />
+                    </span>
+                    Open Opportunities
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {overview.openOpportunities.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No open opportunities. Pipeline updates surface here.
+                    </p>
+                  )}
+                  {overview.openOpportunities.slice(0, 5).map((opp) => (
+                    <Link
+                      key={opp.id}
+                      href={`/opportunities/${opp.id}`}
+                      className="block rounded-lg border border-border/60 bg-muted/30 p-3 transition-colors hover:border-border/80 hover:bg-muted/50"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">{opp.title}</p>
+                          <p className="text-xs text-muted-foreground">{opp.stage}</p>
+                        </div>
+                        <Badge variant="outline" size="sm" className="text-xs shrink-0">
+                          {opp.currency} {opp.estimatedValue ?? '—'}
+                        </Badge>
+                      </div>
+                      {opp.ownerName && (
+                        <p className="mt-1 text-xs text-muted-foreground">Owner: {opp.ownerName}</p>
+                      )}
+                    </Link>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </Section>
+
+          <CustomerMemoryPanel customerId={id} />
+
+          {overview.openTasks.length > 0 && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                      <ListTodo className="h-4 w-4" />
+                    </span>
+                    Open Tasks
+                  </CardTitle>
+                  <StatusPill tone="warning" size="sm">
+                    {overview.openTasks.length} pending
+                  </StatusPill>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {overview.openTasks.map((task) => {
+                  let href = '#';
+                  if (task.ticketId) href = `/tickets/${task.ticketId}`;
+                  else if (task.opportunityId) href = `/opportunities/${task.opportunityId}`;
+
+                  return (
+                    <Link
+                      key={task.id}
+                      href={href}
+                      className="block rounded-lg border border-border/60 bg-card p-3 transition-colors hover:border-border/80 hover:bg-muted/50"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <StatusPill tone={taskTypeTones[task.type] || 'neutral'} size="sm">
+                            {taskTypeLabels[task.type] || task.type}
+                          </StatusPill>
+                          {task.reason && (
+                            <span className="text-xs text-muted-foreground">{task.reason.replace(/_/g, ' ')}</span>
+                          )}
+                        </div>
+                        {task.dueAt && (
+                          <span className="text-xs text-muted-foreground">
+                            Due {new Date(task.dueAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      {task.opportunityTitle && (
+                        <p className="mt-1 text-sm text-foreground/80">{task.opportunityTitle}</p>
+                      )}
+                    </Link>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          <Section title="Contacts and identities" description="Who we talk to and how they’re connected.">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                        <Users className="h-4 w-4" />
+                      </span>
+                      Contacts
+                    </CardTitle>
+                    <span className="text-xs text-muted-foreground">{overview.contacts.length} saved</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {overview.contacts.map((contact) => (
+                    <div key={contact.id} className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-foreground">{contact.name}</span>
+                        {contact.role && <Badge variant="secondary" size="sm">{contact.role}</Badge>}
+                      </div>
+                      <div className="space-y-1.5 text-sm">
+                        {contact.email && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                            {contact.email}
+                          </div>
+                        )}
+                        {contact.phone && (
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                            <a href={toTel(contact.phone) || undefined} className="hover:underline">
+                              {contact.phone}
+                            </a>
+                          </div>
+                        )}
+                        {contact.notes && <p className="text-xs text-muted-foreground">{contact.notes}</p>}
+                      </div>
+                    </div>
+                  ))}
+                  {overview.contacts.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No contacts yet. Add one from a ticket or CRM import.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                        <Info className="h-4 w-4" />
+                      </span>
+                      Identities
+                    </CardTitle>
+                    <span className="text-xs text-muted-foreground">{overview.identities.length} linked</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {overview.identities.map((identity) => (
+                    <div key={identity.id} className="rounded-lg border border-border/60 bg-muted/30 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium capitalize text-foreground">{identity.provider}</span>
+                        {identity.externalId && (
+                          <span className="text-xs text-muted-foreground truncate max-w-[140px] font-mono">
+                            {identity.externalId}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-1.5 space-y-0.5 text-sm text-muted-foreground">
+                        {identity.email && <p>{identity.email}</p>}
+                        {identity.phone && <p>{identity.phone}</p>}
+                      </div>
+                    </div>
+                  ))}
+                  {overview.identities.length === 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      No identities linked yet. They appear after account syncs.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </Section>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                    <Phone className="h-4 w-4" />
+                  </span>
+                  Recent Calls
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">{overview.recentCalls.length} loaded</span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {overview.recentCalls.length === 0 ? (
+                <EmptyState
+                  title="No calls recorded"
+                  description="Calls appear once 3CX sync is enabled."
+                  icon={Phone}
+                />
+              ) : (
+                overview.recentCalls.map((call) => {
+                  const missed = isMissedCall(call);
+                  const CallIcon = missed
+                    ? PhoneMissed
+                    : call.direction === 'inbound'
+                      ? PhoneIncoming
+                      : PhoneOutgoing;
+                  const callTone = missed
+                    ? 'danger'
+                    : call.direction === 'inbound'
+                      ? 'info'
+                      : 'neutral';
+                  const callLabel = missed
+                    ? 'Missed'
+                    : call.direction === 'inbound'
+                      ? 'Inbound'
+                      : 'Outbound';
+
+                  return (
+                    <div
+                      key={call.id}
+                      className={`rounded-lg border p-4 ${missed ? 'border-destructive/30 bg-destructive/10' : 'border-border/60 bg-muted/30'}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <StatusPill tone={callTone} size="sm" icon={CallIcon}>
+                          {callLabel}
+                        </StatusPill>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(call.startedAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm text-foreground/80">
+                        {call.direction === 'inbound' ? 'From' : 'To'}: {call.direction === 'inbound' ? call.fromNumber : call.toNumber}
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                        {call.durationSeconds != null && (
+                          <span>Duration: {formatDuration(call.durationSeconds)}</span>
+                        )}
+                        {call.contactName && <span>Contact: {call.contactName}</span>}
+                      </div>
+                      {call.recordingUrl && (
+                        <a
+                          href={call.recordingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                        >
+                          <Play className="h-3 w-3" /> Play recording
+                        </a>
+                      )}
+                      {call.notes && (
+                        <p className="mt-2 border-l-2 border-border pl-2 text-xs italic text-muted-foreground">
+                          {call.notes}
+                        </p>
+                      )}
+                      <div className="mt-2 flex gap-3 text-xs">
+                        {call.ticketId && (
+                          <Link href={`/tickets/${call.ticketId}`} className="text-primary hover:underline">
+                            Ticket #{call.ticketId}
+                          </Link>
+                        )}
+                        {call.opportunityId && (
+                          <Link href={`/opportunities/${call.opportunityId}`} className="text-primary hover:underline">
+                            Opportunity #{call.opportunityId}
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="overflow-hidden">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
+                    <Package className="h-4 w-4" />
+                  </span>
+                  Recent Orders
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">{overview.recentOrders.length} loaded</span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-border">
+                  <thead className="bg-muted/40">
+                    <tr>
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Order</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Placed</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
+                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Items</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {overview.recentOrders.map(order => (
+                      <tr key={order.id} className="transition-colors hover:bg-muted/50">
+                        <td className="px-5 py-4 text-sm font-semibold text-foreground">{order.orderNumber || `Order ${order.id}`}</td>
+                        <td className="px-5 py-4 text-sm text-foreground/80">
+                          {order.currency} {order.total}
+                        </td>
+                        <td className="px-5 py-4 text-sm text-foreground/80">{order.placedAt ? new Date(order.placedAt).toLocaleDateString() : '—'}</td>
+                        <td className="px-5 py-4">
+                          <StatusPill tone={order.lateFlag ? 'danger' : 'neutral'} size="sm">
+                            {order.financialStatus}{order.lateFlag ? ' • late' : ''}
+                          </StatusPill>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-foreground/80 max-w-xs truncate">
+                          {order.items.length > 0 ? order.items.map(i => `${i.title || i.sku || 'Item'} x${i.quantity}`).join(', ') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                    {overview.recentOrders.length === 0 && (
+                      <tr>
+                        <td className="px-5 py-6" colSpan={5}>
+                          <EmptyState
+                            title="No orders yet"
+                            description="Orders appear once commerce sources are linked."
+                            icon={Package}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <aside className="space-y-6">
+          <CustomerSnapshotCard overview={overview} showCta={false} />
+        </aside>
+      </div>
+    </PageShell>
   );
 }

@@ -7,7 +7,7 @@ import { circuitBreakers } from '@/lib/circuitBreaker';
 const SHIPSTATION_BASE_URL = 'https://ssapi.shipstation.com';
 
 // --- Types ---
-interface ShipStationShipment {
+export interface ShipStationShipment {
     shipmentId: number;
     trackingNumber: string | null;
     shipDate: string;
@@ -36,7 +36,7 @@ interface ShipStationOrderResponse {
     pages: number;
 }
 
-interface ShipStationShipmentsResponse {
+export interface ShipStationShipmentsResponse {
     shipments: ShipStationShipment[];
     total: number;
     page: number;
@@ -227,3 +227,19 @@ export async function searchShipStationOrdersAndMap(
 
     return [];
 } 
+
+export async function fetchShipStationShipmentsPage(params: {
+    page: number;
+    pageSize: number;
+    modifyDateStart?: string;
+    modifyDateEnd?: string;
+    orderNumber?: string;
+}): Promise<ShipStationShipmentsResponse> {
+    return shipstationRequest<ShipStationShipmentsResponse>('/shipments', {
+        page: params.page,
+        pageSize: params.pageSize,
+        modifyDateStart: params.modifyDateStart,
+        modifyDateEnd: params.modifyDateEnd,
+        orderNumber: params.orderNumber,
+    });
+}

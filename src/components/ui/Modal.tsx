@@ -6,7 +6,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/utils/cn';
 
 const modalVariants = cva(
-  'relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl shadow-black/50 transition-all duration-300 ease-in-out',
+  'relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl shadow-black/20 dark:shadow-black/50 transition-all duration-300 ease-in-out',
   {
     variants: {
       size: {
@@ -173,23 +173,23 @@ const Modal = forwardRef<HTMLDivElement, ModalProps>(
             <button
               type="button"
               onClick={onClose}
-              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring"
               aria-label="Close modal"
             >
               <i className="fas fa-times" />
             </button>
           )}
-          
+
           {/* Content */}
           <div className="p-6">
             {title && (
-              <h2 id="modal-title" className="text-xl font-bold text-white mb-2">
+              <h2 id="modal-title" className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                 {title}
               </h2>
             )}
-            
+
             {description && (
-              <p id="modal-description" className="text-white/70 mb-4">
+              <p id="modal-description" className="text-gray-600 dark:text-gray-300 mb-4">
                 {description}
               </p>
             )}
@@ -211,7 +211,7 @@ const ModalHeader = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col space-y-1.5 pb-4 border-b border-white/10', className)}
+      className={cn('flex flex-col space-y-1.5 pb-4 border-b border-gray-200 dark:border-gray-700', className)}
       {...props}
     />
   )
@@ -222,7 +222,7 @@ const ModalTitle = forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTMLHeadi
   ({ className, ...props }, ref) => (
     <h2
       ref={ref}
-      className={cn('text-lg font-semibold text-white', className)}
+      className={cn('text-lg font-semibold text-gray-900 dark:text-white', className)}
       {...props}
     />
   )
@@ -233,7 +233,7 @@ const ModalDescription = forwardRef<HTMLParagraphElement, React.HTMLAttributes<H
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn('text-sm text-white/70', className)}
+      className={cn('text-sm text-gray-600 dark:text-gray-300', className)}
       {...props}
     />
   )
@@ -255,7 +255,7 @@ const ModalFooter = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivEleme
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t border-white/10', className)}
+      className={cn('flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4 border-t border-gray-200 dark:border-gray-700', className)}
       {...props}
     />
   )

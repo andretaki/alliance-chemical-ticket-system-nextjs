@@ -56,6 +56,7 @@ export async function updateOpportunity(id: number, updates: OpportunityUpdateIn
   if (!existing) throw new Error('Opportunity not found');
 
   const nextStage = updates.stage || existing.stage;
+  const stageChanged = nextStage !== existing.stage;
   const closedAt = setClosedAt(nextStage)
     ? (existing.closedAt || now)
     : null;
@@ -65,6 +66,7 @@ export async function updateOpportunity(id: number, updates: OpportunityUpdateIn
       title: updates.title ?? existing.title,
       description: updates.description !== undefined ? updates.description : existing.description,
       stage: nextStage,
+      stageChangedAt: stageChanged ? now : existing.stageChangedAt,
       source: updates.source !== undefined ? updates.source : existing.source,
       division: updates.division !== undefined ? updates.division : existing.division,
       estimatedValue: updates.estimatedValue !== undefined ? updates.estimatedValue : existing.estimatedValue,
@@ -121,6 +123,7 @@ export async function listOpportunities(filter: OpportunityListFilter = {}) {
     closedAt: opportunities.closedAt,
     createdAt: opportunities.createdAt,
     updatedAt: opportunities.updatedAt,
+    stageChangedAt: opportunities.stageChangedAt,
     customerId: opportunities.customerId,
     contactId: opportunities.contactId,
     lostReason: opportunities.lostReason,
@@ -155,6 +158,7 @@ export async function getOpportunityById(id: number) {
     closedAt: opportunities.closedAt,
     createdAt: opportunities.createdAt,
     updatedAt: opportunities.updatedAt,
+    stageChangedAt: opportunities.stageChangedAt,
     customerId: opportunities.customerId,
     contactId: opportunities.contactId,
     lostReason: opportunities.lostReason,

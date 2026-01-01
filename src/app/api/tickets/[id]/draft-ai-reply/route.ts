@@ -72,12 +72,12 @@ export async function POST(
         // commenterId: c.commenterId, // Example if TicketComment expects it
         createdAt: c.createdAt.toISOString(),
         commenter: toTicketUser(c.commenter), // This is TicketUser
-        attachments: (c.attachments || []).map(a => ({
+        attachments: (c.attachments || []).map((a: any) => ({
           ...a,
           uploadedAt: a.uploadedAt.toISOString(),
         })) as AttachmentData[],
       })) as TicketComment[],
-       attachments: (ticketFromDb.attachments || []).map(a => ({
+       attachments: (ticketFromDb.attachments || []).map((a: any) => ({
         ...a,
         uploadedAt: a.uploadedAt.toISOString(),
       })) as AttachmentData[],

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, tickets } from '@/lib/db';
+import { db, tickets, crmTasks } from '@/lib/db';
 import { and, isNull, lte, eq, or, inArray } from 'drizzle-orm';
 import { sendNotificationEmail } from '@/lib/email'; // Assuming this exists
 
@@ -14,7 +14,9 @@ export async function GET(request: Request) {
   
   const ticketsToFlag = await db.select({
       id: tickets.id,
-      title: tickets.title
+      title: tickets.title,
+      customerId: tickets.customerId,
+      assigneeId: tickets.assigneeId,
   }).from(tickets).where(
     and(
       eq(tickets.slaBreached, false),
@@ -35,6 +37,23 @@ export async function GET(request: Request) {
   await db.update(tickets)
     .set({ slaBreached: true, slaNotified: true }) // Also set notified to prevent re-alerting
     .where(inArray(tickets.id, breachedIds));
+
+  // Create SLA_BREACH CRM tasks for each breached ticket
+  const taskValues = ticketsToFlag.map(t => ({
+    customerId: t.customerId,
+    ticketId: t.id,
+    type: 'SLA_BREACH',
+    reason: 'RESPONSE_TIME_EXCEEDED',
+    status: 'open' as const,
+    dueAt: new Date(), // Due immediately
+    assignedToId: t.assigneeId,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  }));
+
+  if (taskValues.length > 0) {
+    await db.insert(crmTasks).values(taskValues);
+  }
     
   // Send a single summary notification to a manager (more efficient than individual emails)
   const managerEmail = process.env.SLA_ALERT_EMAIL || 'manager@alliancechemical.com';
