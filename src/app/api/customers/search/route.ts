@@ -1,174 +1,284 @@
 export const runtime = 'nodejs';
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { getServerSession } from '@/lib/auth-helpers';
-import { Shopify, ApiVersion, LATEST_API_VERSION, shopifyApi, LogSeverity } from '@shopify/shopify-api';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { customerRepository } from '@/repositories/CustomerRepository';
+import { shopifyApi, ApiVersion, LATEST_API_VERSION, LogSeverity } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import { Config } from '@/config/appConfig';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
-import { 
-  searchShipStationCustomerByEmail, 
-  searchShipStationCustomerByName, 
-  convertShipStationToShopifyFormat 
+import {
+  searchShipStationCustomerByEmail,
+  searchShipStationCustomerByName,
+  convertShipStationToShopifyFormat,
 } from '@/lib/shipstationCustomerService';
 
+// -----------------------------------------------------------------------------
+// Request validation
+// -----------------------------------------------------------------------------
+const SearchQuerySchema = z.object({
+  query: z.string().min(3, 'Query must be at least 3 characters'),
+  type: z.enum(['auto', 'name', 'email', 'phone', 'order']).default('auto'),
+  source: z.enum(['all', 'unified', 'external']).default('all'),
+  limit: z.coerce.number().min(1).max(50).default(20),
+});
+
+// -----------------------------------------------------------------------------
+// Response types
+// -----------------------------------------------------------------------------
+interface UnifiedCustomer {
+  id: number;
+  primaryEmail: string | null;
+  primaryPhone: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  company: string | null;
+  isVip: boolean;
+  source: 'unified';
+  linkedProviders: string[];
+}
+
+interface ExternalCustomer {
+  id: string;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  company: string;
+  source: 'shopify' | 'shipstation';
+  existsInUnified: boolean;
+  unifiedCustomerId?: number;
+  defaultAddress?: {
+    firstName: string | null;
+    lastName: string | null;
+    address1: string | null;
+    address2: string | null;
+    city: string | null;
+    province: string | null;
+    country: string | null;
+    zip: string | null;
+    company: string | null;
+    phone: string | null;
+  };
+}
+
+interface SearchResponse {
+  unified: UnifiedCustomer[];
+  external: ExternalCustomer[];
+  searchType: string;
+  query: string;
+  meta: {
+    unifiedCount: number;
+    externalCount: number;
+    externalAlreadyLinked: number;
+  };
+}
+
+// -----------------------------------------------------------------------------
+// Main handler
+// -----------------------------------------------------------------------------
 export async function GET(req: NextRequest) {
+  // Auth check
+  const { session, error } = await getServerSession();
+  if (error || !session?.user?.id) {
+    return apiError('unauthorized', error || 'Unauthorized', undefined, { status: 401 });
+  }
+
+  // Parse and validate query params
+  const url = new URL(req.url);
+  const parsed = SearchQuerySchema.safeParse({
+    query: url.searchParams.get('query'),
+    type: url.searchParams.get('type') || 'auto',
+    source: url.searchParams.get('source') || 'all',
+    limit: url.searchParams.get('limit') || '20',
+  });
+
+  if (!parsed.success) {
+    return apiError('invalid_request', 'Invalid search parameters', parsed.error.flatten(), { status: 400 });
+  }
+
+  const { query, type, source, limit } = parsed.data;
+  console.log(`[customer-search] Query="${query}" type="${type}" source="${source}"`);
+
   try {
-    // Check authentication
-    const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
-    }
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const response: SearchResponse = {
+      unified: [],
+      external: [],
+      searchType: type,
+      query,
+      meta: { unifiedCount: 0, externalCount: 0, externalAlreadyLinked: 0 },
+    };
 
-    // Get query parameters
-    const url = new URL(req.url);
-    const queryParam = url.searchParams.get('query');
-    const searchType = url.searchParams.get('type') || 'auto'; // auto, name, email, phone, order
+    // Step 1: Search unified customer database (unless source=external)
+    if (source !== 'external') {
+      const unifiedResult = await customerRepository.searchCustomers(query, {
+        limit,
+        type: type === 'order' ? 'auto' : type,
+      });
 
-    if (!queryParam || queryParam.trim().length < 3) {
-      return NextResponse.json({ error: 'Query must be at least 3 characters' }, { status: 400 });
-    }
-
-    const query = queryParam.trim();
-    console.log(`Customer Search: Searching for "${query}" with type "${searchType}"`);
-
-    // Initialize Shopify client
-    const shopify = shopifyApi({
-      apiKey: process.env.SHOPIFY_API_KEY || "dummyAPIKeyIfNotUsedForAuth",
-      apiSecretKey: process.env.SHOPIFY_API_SECRET || "dummySecretIfNotUsedForAuth",
-      scopes: ['read_products', 'write_draft_orders', 'read_draft_orders', 'write_orders', 'read_orders', 'read_customers'],
-      hostName: Config.shopify.storeUrl.replace(/^https?:\/\//, ''),
-      apiVersion: Config.shopify.apiVersion as ApiVersion || LATEST_API_VERSION,
-      isEmbeddedApp: false,
-      logger: { level: LogSeverity.Info },
-    });
-
-    // Create a session
-    const shopifyStoreDomain = Config.shopify.storeUrl.replace(/^https?:\/\//, '');
-    const adminAccessToken = Config.shopify.adminAccessToken;
-    const shopifySession = shopify.session.customAppSession(shopifyStoreDomain);
-    shopifySession.accessToken = adminAccessToken;
-
-    // Create GraphQL client
-    const graphqlClient = new shopify.clients.Graphql({ session: shopifySession });
-
-    let customers: any[] = [];
-    let searchMethod = '';
-
-    // Detect search type automatically if set to 'auto'
-    const detectedSearchType = detectSearchType(query);
-    const finalSearchType = searchType === 'auto' ? detectedSearchType : searchType;
-
-    console.log(`Customer Search: Using search type "${finalSearchType}" for query "${query}"`);
-
-    if (finalSearchType === 'order') {
-      // Search by order number - first try ShipStation, then Shopify orders
-      const result = await searchByOrderNumber(query, graphqlClient);
-      customers = result.customers;
-      searchMethod = result.method;
-    } else if (finalSearchType === 'phone') {
-      // Search by phone number
-      const result = await searchByPhone(query, graphqlClient);
-      customers = result.customers;
-      searchMethod = result.method;
-    } else {
-      // Default search by email/name - now with ShipStation fallback
-      const result = await searchByEmailOrName(query, graphqlClient);
-      customers = result.customers;
-      searchMethod = result.method;
+      response.unified = unifiedResult.customers.map(c => ({
+        id: c.id,
+        primaryEmail: c.primaryEmail,
+        primaryPhone: c.primaryPhone,
+        firstName: c.firstName,
+        lastName: c.lastName,
+        company: c.company,
+        isVip: c.isVip,
+        source: 'unified' as const,
+        linkedProviders: c.linkedProviders,
+      }));
+      response.searchType = unifiedResult.searchType;
+      response.meta.unifiedCount = unifiedResult.totalCount;
     }
 
-    console.log(`Customer Search: Found ${customers.length} customers using method: ${searchMethod}`);
+    // Step 2: Search external sources if:
+    // - source=all or source=external
+    // - AND (no unified results OR source=external)
+    const shouldSearchExternal = source === 'external' || (source === 'all' && response.unified.length === 0);
 
-    return NextResponse.json({ 
-      customers, 
-      searchMethod,
-      searchType: finalSearchType,
-      query: query
-    });
-  } catch (error: any) {
-    console.error('Error searching customers:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to search customers' },
-      { status: 500 }
-    );
+    if (shouldSearchExternal) {
+      const externalResults = await searchExternalSources(query, type);
+
+      // Deduplicate: check which external customers already exist in our DB
+      const emails = externalResults
+        .map(c => c.email)
+        .filter((e): e is string => !!e);
+      const phones = externalResults
+        .map(c => c.phone)
+        .filter((p): p is string => !!p);
+
+      const existingMap = await customerRepository.findExistingByEmailsOrPhones(emails, phones);
+
+      response.external = externalResults.map(c => {
+        const emailKey = c.email?.toLowerCase();
+        const phoneKey = c.phone?.replace(/\D/g, '').slice(-10);
+        const existingId = (emailKey && existingMap.get(emailKey)) ||
+                          (phoneKey && existingMap.get(phoneKey)) ||
+                          undefined;
+
+        return {
+          ...c,
+          existsInUnified: !!existingId,
+          unifiedCustomerId: existingId || undefined,
+        };
+      });
+
+      response.meta.externalCount = response.external.length;
+      response.meta.externalAlreadyLinked = response.external.filter(c => c.existsInUnified).length;
+    }
+
+    console.log(`[customer-search] Found unified=${response.meta.unifiedCount} external=${response.meta.externalCount} (${response.meta.externalAlreadyLinked} already linked)`);
+
+    return apiSuccess(response);
+  } catch (err) {
+    console.error('[customer-search] Error:', err);
+    return apiError('server_error', 'Failed to search customers', undefined, { status: 500 });
   }
 }
 
-// Helper function to detect what type of search this might be
+// -----------------------------------------------------------------------------
+// External source search (Shopify + ShipStation)
+// -----------------------------------------------------------------------------
+async function searchExternalSources(query: string, searchType: string): Promise<ExternalCustomer[]> {
+  const results: ExternalCustomer[] = [];
+
+  try {
+    // Initialize Shopify client
+    const shopify = shopifyApi({
+      apiKey: process.env.SHOPIFY_API_KEY || 'dummyAPIKeyIfNotUsedForAuth',
+      apiSecretKey: process.env.SHOPIFY_API_SECRET || 'dummySecretIfNotUsedForAuth',
+      scopes: ['read_customers', 'read_orders'],
+      hostName: Config.shopify.storeUrl.replace(/^https?:\/\//, ''),
+      apiVersion: Config.shopify.apiVersion as ApiVersion || LATEST_API_VERSION,
+      isEmbeddedApp: false,
+      logger: { level: LogSeverity.Warning },
+    });
+
+    const shopifyStoreDomain = Config.shopify.storeUrl.replace(/^https?:\/\//, '');
+    const shopifySession = shopify.session.customAppSession(shopifyStoreDomain);
+    shopifySession.accessToken = Config.shopify.adminAccessToken;
+    const graphqlClient = new shopify.clients.Graphql({ session: shopifySession });
+
+    // Detect search type if auto
+    const detectedType = searchType === 'auto' ? detectSearchType(query) : searchType;
+
+    if (detectedType === 'order') {
+      const orderResults = await searchByOrderNumber(query, graphqlClient);
+      results.push(...orderResults);
+    } else if (detectedType === 'phone') {
+      const phoneResults = await searchByPhone(query, graphqlClient);
+      results.push(...phoneResults);
+    } else {
+      // Email or name search
+      const nameEmailResults = await searchByEmailOrName(query, graphqlClient);
+      results.push(...nameEmailResults);
+    }
+  } catch (err) {
+    console.error('[customer-search] External search error:', err);
+  }
+
+  return results;
+}
+
+// -----------------------------------------------------------------------------
+// Search type detection
+// -----------------------------------------------------------------------------
 function detectSearchType(query: string): string {
-  // Clean the query
   const cleanQuery = query.trim();
-  
+
   // Order number patterns
-  if (/^\d{4,}$/.test(cleanQuery) || // Pure numeric (4+ digits)
-      /^#?\d{4,}$/.test(cleanQuery) || // With optional #
-      /^\d{3}-\d{7}-\d{7}$/.test(cleanQuery) || // Amazon pattern
-      /order\s*#?\s*\d+/i.test(cleanQuery)) { // Contains "order"
+  if (/^\d{4,}$/.test(cleanQuery) ||
+      /^#?\d{4,}$/.test(cleanQuery) ||
+      /^\d{3}-\d{7}-\d{7}$/.test(cleanQuery) ||
+      /order\s*#?\s*\d+/i.test(cleanQuery)) {
     return 'order';
   }
-  
-  // Phone number patterns - make this much more natural
-  // Count total digits in the string
+
+  // Phone number patterns
   const digitCount = (cleanQuery.match(/\d/g) || []).length;
-  
-  // If it has 10+ digits and looks like a phone number, treat as phone
-  if (digitCount >= 10 && 
-      /[\d\s\-\(\)\.]{8,}/.test(cleanQuery) && // Has phone-like characters (removed + requirement)
-      !/[a-zA-Z]/.test(cleanQuery)) { // No letters (distinguishes from email/name)
+  if (digitCount >= 10 &&
+      /[\d\s\-\(\)\.]{8,}/.test(cleanQuery) &&
+      !/[a-zA-Z]/.test(cleanQuery)) {
     return 'phone';
   }
-  
-  // Also detect shorter phone patterns that are clearly phones
-  if (/^\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/.test(cleanQuery)) { // US phone format
+  if (/^\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/.test(cleanQuery)) {
     return 'phone';
   }
-  
+
   // Email pattern
   if (/@/.test(cleanQuery)) {
     return 'email';
   }
-  
-  // Default to name search
+
   return 'name';
 }
 
-// Enhanced search by order number
-async function searchByOrderNumber(orderQuery: string, graphqlClient: any) {
-  let customers: any[] = [];
-  let method = 'order_number_not_found';
-
-  // Clean the order number
+// -----------------------------------------------------------------------------
+// Shopify search functions
+// -----------------------------------------------------------------------------
+async function searchByOrderNumber(orderQuery: string, graphqlClient: any): Promise<ExternalCustomer[]> {
   const cleanOrderNumber = orderQuery.replace(/[#\s]/g, '');
-  
+
   try {
-    // First, try ShipStation to get customer email from order
-    console.log(`Customer Search: Checking ShipStation for order ${cleanOrderNumber}`);
+    // First check ShipStation for the order
     const shipstationOrder = await getOrderTrackingInfo(cleanOrderNumber);
-    
+
     if (shipstationOrder?.found) {
-      // Try to find Shopify order by order number to get customer info
-      const shopifyOrderQuery = `
+      // Try to find the customer via Shopify order
+      const orderResponse = await graphqlClient.request(`
         query SearchOrderByNumber($query: String!) {
-          orders(first: 10, query: $query) {
+          orders(first: 5, query: $query) {
             edges {
               node {
-                id
-                name
-                email
-                phone
                 customer {
                   id
                   email
                   firstName
                   lastName
                   phone
-                  displayName
                   defaultAddress {
-                    id
                     firstName
                     lastName
                     company
@@ -176,9 +286,7 @@ async function searchByOrderNumber(orderQuery: string, graphqlClient: any) {
                     address2
                     city
                     province
-                    provinceCode
                     country
-                    countryCodeV2
                     zip
                     phone
                   }
@@ -187,91 +295,29 @@ async function searchByOrderNumber(orderQuery: string, graphqlClient: any) {
             }
           }
         }
-      `;
+      `, { variables: { query: `name:${cleanOrderNumber} OR name:#${cleanOrderNumber}` } });
 
-      const orderResponse = await graphqlClient.request(shopifyOrderQuery, {
-        variables: { query: `name:${cleanOrderNumber} OR name:#${cleanOrderNumber}` }
-      });
-
-      if (orderResponse?.data?.orders?.edges?.length > 0) {
-        const order = orderResponse.data.orders.edges[0].node;
-        if (order.customer) {
-          customers = [processShopifyCustomer(order.customer)];
-          method = 'shopify_order_lookup';
-          console.log(`Customer Search: Found customer via Shopify order lookup`);
+      const edges = orderResponse?.data?.orders?.edges || [];
+      for (const edge of edges) {
+        if (edge.node?.customer) {
+          return [processShopifyCustomer(edge.node.customer)];
         }
       }
     }
-
-    // If no customer found via ShipStation/Shopify order lookup, try searching order notes/tags
-    if (customers.length === 0) {
-      const customerSearchQuery = `
-        query SearchCustomersByTag($query: String!) {
-          customers(first: 20, query: $query) {
-            edges {
-              node {
-                id
-                email
-                firstName
-                lastName
-                phone
-                displayName
-                tags
-                note
-                defaultAddress {
-                  id
-                  firstName
-                  lastName
-                  company
-                  address1
-                  address2
-                  city
-                  province
-                  provinceCode
-                  country
-                  countryCodeV2
-                  zip
-                  phone
-                }
-              }
-            }
-          }
-        }
-      `;
-
-      // Search for customers that might have this order number in tags or notes
-      const tagResponse = await graphqlClient.request(customerSearchQuery, {
-        variables: { query: `tag:*${cleanOrderNumber}* OR note:*${cleanOrderNumber}*` }
-      });
-
-      if (tagResponse?.data?.customers?.edges?.length > 0) {
-        customers = tagResponse.data.customers.edges.map((edge: any) => processShopifyCustomer(edge.node));
-        method = 'customer_tags_notes';
-        console.log(`Customer Search: Found ${customers.length} customers via tags/notes search`);
-      }
-    }
-
-  } catch (error) {
-    console.error('Error in order number search:', error);
+  } catch (err) {
+    console.error('[customer-search] Order search error:', err);
   }
 
-  return { customers, method };
+  return [];
 }
 
-// Enhanced search by phone number
-async function searchByPhone(phoneQuery: string, graphqlClient: any) {
-  let customers: any[] = [];
-  let method = 'phone_not_found';
-
-  // Clean the phone number - remove all non-digit characters
+async function searchByPhone(phoneQuery: string, graphqlClient: any): Promise<ExternalCustomer[]> {
   const cleanPhone = phoneQuery.replace(/\D/g, '');
-  
-  // Try different phone number formats
   const phoneVariations = generatePhoneVariations(cleanPhone);
-  
-  try {
-    for (const phoneVariation of phoneVariations) {
-      const phoneSearchQuery = `
+
+  for (const variation of phoneVariations) {
+    try {
+      const response = await graphqlClient.request(`
         query SearchCustomersByPhone($query: String!) {
           customers(first: 10, query: $query) {
             edges {
@@ -281,9 +327,7 @@ async function searchByPhone(phoneQuery: string, graphqlClient: any) {
                 firstName
                 lastName
                 phone
-                displayName
                 defaultAddress {
-                  id
                   firstName
                   lastName
                   company
@@ -291,9 +335,7 @@ async function searchByPhone(phoneQuery: string, graphqlClient: any) {
                   address2
                   city
                   province
-                  provinceCode
                   country
-                  countryCodeV2
                   zip
                   phone
                 }
@@ -301,195 +343,172 @@ async function searchByPhone(phoneQuery: string, graphqlClient: any) {
             }
           }
         }
-      `;
+      `, { variables: { query: `phone:*${variation}*` } });
 
-      const response = await graphqlClient.request(phoneSearchQuery, {
-        variables: { query: `phone:*${phoneVariation}*` }
-      });
-
-      if (response?.data?.customers?.edges?.length > 0) {
-        customers = response.data.customers.edges.map((edge: any) => processShopifyCustomer(edge.node));
-        method = `phone_found_${phoneVariation}`;
-        console.log(`Customer Search: Found ${customers.length} customers via phone search (${phoneVariation})`);
-        break; // Stop at first successful match
+      const edges = response?.data?.customers?.edges || [];
+      if (edges.length > 0) {
+        return edges.map((e: any) => processShopifyCustomer(e.node));
       }
+    } catch (err) {
+      console.error('[customer-search] Phone search error:', err);
     }
-  } catch (error) {
-    console.error('Error in phone search:', error);
   }
 
-  return { customers, method };
+  return [];
 }
 
-// Enhanced email/name search with ShipStation fallback
-async function searchByEmailOrName(query: string, graphqlClient: any) {
-  let customers: any[] = [];
-  let method = 'email_name_not_found';
+async function searchByEmailOrName(query: string, graphqlClient: any): Promise<ExternalCustomer[]> {
+  // Try Shopify first
+  const searchVariations = [
+    query,
+    `email:*${query}*`,
+    `first_name:*${query}* OR last_name:*${query}*`,
+  ];
 
-  try {
-    // First try Shopify search
-    const shopifyResult = await searchShopifyByEmailOrName(query, graphqlClient);
-    customers = shopifyResult.customers;
-    method = shopifyResult.method;
-
-    // If no customers found in Shopify, try ShipStation as fallback
-    if (customers.length === 0) {
-      console.log(`Customer Search: No results in Shopify, trying ShipStation for query: ${query}`);
-      
-      const isEmail = query.includes('@');
-      
-      if (isEmail) {
-        // Search ShipStation by email
-        console.log(`Customer Search: Searching ShipStation by email: ${query}`);
-        const shipStationCustomer = await searchShipStationCustomerByEmail(query);
-        
-        if (shipStationCustomer) {
-          const convertedCustomer = convertShipStationToShopifyFormat(shipStationCustomer);
-          customers = [convertedCustomer];
-          method = 'shipstation_email_found';
-          console.log(`Customer Search: Found customer in ShipStation by email`);
-        }
-      } else {
-        // Search ShipStation by name
-        console.log(`Customer Search: Searching ShipStation by name: ${query}`);
-        const shipStationCustomers = await searchShipStationCustomerByName(query);
-        
-        if (shipStationCustomers.length > 0) {
-          customers = shipStationCustomers.map(convertShipStationToShopifyFormat);
-          method = 'shipstation_name_found';
-          console.log(`Customer Search: Found ${customers.length} customers in ShipStation by name`);
-        }
-      }
-    }
-
-  } catch (error) {
-    console.error('Error in email/name search:', error);
-  }
-
-  return { customers, method };
-}
-
-// Original Shopify-only email/name search with enhancements
-async function searchShopifyByEmailOrName(query: string, graphqlClient: any) {
-  let customers: any[] = [];
-  let method = 'email_name_not_found';
-
-  try {
-    // Enhanced search query to include partial matches and company search
-    const searchQuery = `
-      query SearchCustomers($query: String!) {
-        customers(first: 10, query: $query) {
-          edges {
-            node {
-              id
-              email
-              firstName
-              lastName
-              phone
-              displayName
-              defaultAddress {
+  for (const searchVariation of searchVariations) {
+    try {
+      const response = await graphqlClient.request(`
+        query SearchCustomers($query: String!) {
+          customers(first: 10, query: $query) {
+            edges {
+              node {
                 id
+                email
                 firstName
                 lastName
-                company
-                address1
-                address2
-                city
-                province
-                provinceCode
-                country
-                countryCodeV2
-                zip
                 phone
+                defaultAddress {
+                  firstName
+                  lastName
+                  company
+                  address1
+                  address2
+                  city
+                  province
+                  country
+                  zip
+                  phone
+                }
               }
             }
           }
         }
+      `, { variables: { query: searchVariation } });
+
+      const edges = response?.data?.customers?.edges || [];
+      if (edges.length > 0) {
+        return edges.map((e: any) => processShopifyCustomer(e.node));
       }
-    `;
-
-    // Try multiple search variations
-    const searchVariations = [
-      query, // Original query
-      `email:*${query}*`, // Email contains
-      `first_name:*${query}* OR last_name:*${query}*`, // Name contains
-      `${query.toLowerCase()}`, // Lowercase
-      `${query.toUpperCase()}`, // Uppercase
-    ];
-
-    for (const searchVariation of searchVariations) {
-      const response = await graphqlClient.request(searchQuery, {
-        variables: { query: searchVariation }
-      });
-
-      if (response?.data?.customers?.edges?.length > 0) {
-        customers = response.data.customers.edges.map((edge: any) => processShopifyCustomer(edge.node));
-        method = `shopify_email_name_found_${searchVariation === query ? 'exact' : 'variation'}`;
-        console.log(`Customer Search: Found ${customers.length} customers via Shopify email/name search`);
-        break; // Stop at first successful match
-      }
+    } catch (err) {
+      console.error('[customer-search] Email/name search error:', err);
     }
-  } catch (error) {
-    console.error('Error in Shopify email/name search:', error);
   }
 
-  return { customers, method };
+  // Fallback to ShipStation
+  try {
+    const isEmail = query.includes('@');
+
+    if (isEmail) {
+      const ssCustomer = await searchShipStationCustomerByEmail(query);
+      if (ssCustomer) {
+        const converted = convertShipStationToShopifyFormat(ssCustomer);
+        return [convertToExternalCustomer(converted, 'shipstation')];
+      }
+    } else {
+      const ssCustomers = await searchShipStationCustomerByName(query);
+      return ssCustomers.map(ss => {
+        const converted = convertShipStationToShopifyFormat(ss);
+        return convertToExternalCustomer(converted, 'shipstation');
+      });
+    }
+  } catch (err) {
+    console.error('[customer-search] ShipStation fallback error:', err);
+  }
+
+  return [];
 }
 
-// Helper function to generate phone number variations
-function generatePhoneVariations(cleanPhone: string): string[] {
-  const variations = [cleanPhone];
-  
-  if (cleanPhone.length >= 10) {
-    // Add US format variations - NO + signs required!
-    const last10 = cleanPhone.slice(-10);
-    const areaCode = last10.slice(0, 3);
-    const exchange = last10.slice(3, 6);
-    const number = last10.slice(6, 10);
-    
-    variations.push(
-      last10, // Just 10 digits
-      `1${last10}`, // With country code (no +)
-      `${areaCode}-${exchange}-${number}`, // Dashed format
-      `(${areaCode}) ${exchange}-${number}`, // Formatted
-      `${areaCode}.${exchange}.${number}`, // Dotted
-      `${areaCode} ${exchange} ${number}`, // Spaced
-      `${areaCode}${exchange}${number}`, // All together
-      `${areaCode}-${exchange}${number}`, // Partial dash
-      `${areaCode} ${exchange}-${number}`, // Mixed format
-    );
-  }
-  
-  // Also try partial matches for shorter numbers
-  if (cleanPhone.length >= 7) {
-    const last7 = cleanPhone.slice(-7);
-    variations.push(last7);
-  }
-  
-  return [...new Set(variations)]; // Remove duplicates
-}
-
-// Helper function to process Shopify customer data
-function processShopifyCustomer(customer: any) {
-  return {
-    id: customer.id.split('/').pop(), // Extract ID from GraphQL ID
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
+function processShopifyCustomer(customer: any): ExternalCustomer {
+  return convertToExternalCustomer({
+    id: customer.id.split('/').pop(),
     email: customer.email,
     firstName: customer.firstName,
     lastName: customer.lastName,
     phone: customer.phone,
-    company: '',  // Shopify customer object doesn't have a company field at the top level
-    source: 'shopify', // Add source indicator
+    defaultAddress: customer.defaultAddress,
+  }, 'shopify');
+}
+
+function convertToExternalCustomer(
+  customer: {
+    id: string;
+    email?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+    defaultAddress?: {
+      firstName?: string | null;
+      lastName?: string | null;
+      address1?: string | null;
+      address2?: string | null;
+      city?: string | null;
+      province?: string | null;
+      country?: string | null;
+      zip?: string | null;
+      company?: string | null;
+      phone?: string | null;
+    } | null;
+  },
+  source: 'shopify' | 'shipstation'
+): ExternalCustomer {
+  return {
+    id: customer.id,
+    email: customer.email ?? null,
+    firstName: customer.firstName ?? null,
+    lastName: customer.lastName ?? null,
+    phone: customer.phone ?? null,
+    company: customer.defaultAddress?.company || '',
+    source,
+    existsInUnified: false,
     defaultAddress: customer.defaultAddress ? {
-      firstName: customer.defaultAddress.firstName,
-      lastName: customer.defaultAddress.lastName,
-      address1: customer.defaultAddress.address1,
-      address2: customer.defaultAddress.address2,
-      city: customer.defaultAddress.city,
-      province: customer.defaultAddress.province || customer.defaultAddress.provinceCode,
-      country: customer.defaultAddress.country || customer.defaultAddress.countryCodeV2,
-      zip: customer.defaultAddress.zip,
-      company: customer.defaultAddress.company,
-      phone: customer.defaultAddress.phone
-    } : undefined
+      firstName: customer.defaultAddress.firstName ?? null,
+      lastName: customer.defaultAddress.lastName ?? null,
+      address1: customer.defaultAddress.address1 ?? null,
+      address2: customer.defaultAddress.address2 ?? null,
+      city: customer.defaultAddress.city ?? null,
+      province: customer.defaultAddress.province ?? null,
+      country: customer.defaultAddress.country ?? null,
+      zip: customer.defaultAddress.zip ?? null,
+      company: customer.defaultAddress.company ?? null,
+      phone: customer.defaultAddress.phone ?? null,
+    } : undefined,
   };
-} 
+}
+
+function generatePhoneVariations(cleanPhone: string): string[] {
+  const variations = [cleanPhone];
+
+  if (cleanPhone.length >= 10) {
+    const last10 = cleanPhone.slice(-10);
+    const areaCode = last10.slice(0, 3);
+    const exchange = last10.slice(3, 6);
+    const number = last10.slice(6, 10);
+
+    variations.push(
+      last10,
+      `1${last10}`,
+      `${areaCode}-${exchange}-${number}`,
+      `(${areaCode}) ${exchange}-${number}`,
+      `${areaCode}.${exchange}.${number}`,
+    );
+  }
+
+  if (cleanPhone.length >= 7) {
+    variations.push(cleanPhone.slice(-7));
+  }
+
+  return [...new Set(variations)];
+}

@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse) {
   const getPrice = (moneySet?: { shopMoney: { amount: string; currencyCode: string } }): number | undefined => {
@@ -71,7 +72,7 @@ export async function GET(
     const { id } = await params;
     numericId = id;
     if (!numericId) {
-      return NextResponse.json({ error: 'Draft order ID is required' }, { status: 400 });
+      return apiError('validation_error', 'Draft order ID is required', null, { status: 400 });
     }
 
     const draftOrderGid = `gid://shopify/DraftOrder/${numericId}`;
@@ -80,14 +81,14 @@ export async function GET(
     const draftOrder = await shopifyService.getDraftOrderById(draftOrderGid);
 
     if (!draftOrder) {
-      return NextResponse.json({ error: 'Draft order not found' }, { status: 404 });
+      return apiError('not_found', 'Draft order not found', null, { status: 404 });
     }
 
     const output = mapShopifyResponseToOutput(draftOrder);
-    return NextResponse.json(output);
+    return apiSuccess(output);
 
   } catch (error: any) {
     console.error(`[API /api/draft-orders/${numericId}] Error:`, error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return apiError('internal_error', error.message || 'Internal Server Error', null, { status: 500 });
   }
 } 

@@ -1,13 +1,13 @@
 export const runtime = 'nodejs';
 
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db'; // Use the consolidated db instance
+import { db } from '@/lib/db';
 import { users } from '@/db/schema';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { sendEmail } from '@/lib/graphService'; // Import sendEmail from graphService
+import { sendEmail } from '@/lib/graphService';
 import { SecurityValidator, securitySchemas } from '@/lib/security';
 import { rateLimiters } from '@/lib/rateLimiting';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 async function sendApprovalRequestEmail(userName: string, userEmail: string) {
   const subject = 'New User Registration - Approval Required';
@@ -43,12 +43,9 @@ export async function POST(request: Request) {
     
     // Basic validation
     if (!name || !email || !password) {
-      return NextResponse.json(
-        { message: 'Name, email, and password are required' },
-        { status: 400 }
-      );
+      return apiError('validation_error', 'Name, email, and password are required', null, { status: 400 });
     }
-    
+
     // Validate input using security schemas
     try {
       securitySchemas.allianceEmail.parse(email);
@@ -56,27 +53,18 @@ export async function POST(request: Request) {
       securitySchemas.password.parse(password);
     } catch (validationError: any) {
       const errorMessage = validationError.errors?.[0]?.message || 'Invalid input';
-      return NextResponse.json(
-        { message: errorMessage },
-        { status: 400 }
-      );
+      return apiError('validation_error', errorMessage, null, { status: 400 });
     }
 
     // Additional security checks
     if (!SecurityValidator.validateAllianceEmail(email)) {
-      return NextResponse.json(
-        { message: 'Registration is restricted to @alliancechemical.com email addresses only' },
-        { status: 403 }
-      );
+      return apiError('forbidden', 'Registration is restricted to @alliancechemical.com email addresses only', null, { status: 403 });
     }
-    
+
     if (password.length < 8) {
-      return NextResponse.json(
-        { message: 'Password must be at least 8 characters' },
-        { status: 400 }
-      );
+      return apiError('validation_error', 'Password must be at least 8 characters', null, { status: 400 });
     }
-    
+
     // Check if user already exists using Drizzle query builder
     const existingUser = await db.query.users.findFirst({
       where: (dbUsers, { eq }) => eq(dbUsers.email, email.toLowerCase()),
@@ -84,10 +72,7 @@ export async function POST(request: Request) {
     });
 
     if (existingUser) {
-      return NextResponse.json(
-        { message: 'Email already registered' },
-        { status: 409 }
-      );
+      return apiError('conflict', 'Email already registered', null, { status: 409 });
     }
 
     // Hash password
@@ -111,29 +96,20 @@ export async function POST(request: Request) {
 
       // Send notification email using Graph API
       await sendApprovalRequestEmail(name, email.toLowerCase());
-      
+
       // Return success response
-      return NextResponse.json(
-        { 
-          message: 'User registered successfully. Your account is pending approval.',
-          userId
-        },
-        { status: 201 }
-      );
+      return apiSuccess({
+        message: 'User registered successfully. Your account is pending approval.',
+        userId
+      }, { status: 201 });
     } catch (error) {
       console.error('Database error during user creation:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      return NextResponse.json(
-        { message: `Database error: ${errorMessage}` },
-        { status: 500 }
-      );
+      return apiError('internal_error', `Database error: ${errorMessage}`, null, { status: 500 });
     }
-    
+
   } catch (error) {
     console.error('Registration error:', error);
-    return NextResponse.json(
-      { message: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
-      { status: 500 }
-    );
+    return apiError('internal_error', `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}`, null, { status: 500 });
   }
 } 

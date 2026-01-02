@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { identityService } from '@/services/crm/identityService';
 import { rateLimiters } from '@/lib/rateLimiting';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const CaptureSchema = z.object({
   email: z.string().email(),
@@ -44,16 +45,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       customerId: customer.id,
       message: 'Thanks! We have linked your info.',
     });
   } catch (err: any) {
     console.error('[capture-self-id] error', err);
     if (err?.name === 'ZodError') {
-      return NextResponse.json({ error: 'Invalid input', details: err.issues }, { status: 400 });
+      return apiError('validation_error', 'Invalid input', err.issues, { status: 400 });
     }
-    return NextResponse.json({ error: 'Failed to capture identity' }, { status: 500 });
+    return apiError('internal_error', 'Failed to capture identity', null, { status: 500 });
   }
 }

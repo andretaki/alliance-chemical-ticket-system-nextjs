@@ -1,17 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, calls } from '@/lib/db';
 import { eq } from 'drizzle-orm';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const UpdateCallSchema = z.object({
   notes: z.string().optional(),
   ticketId: z.number().int().nullable().optional(),
   opportunityId: z.number().int().nullable().optional(),
 });
-
-function json(data: unknown, status = 200) {
-  return NextResponse.json(data, { status });
-}
 
 export async function PATCH(
   req: NextRequest,
@@ -21,13 +18,13 @@ export async function PATCH(
     const { id: idParam } = await params;
     const callId = parseInt(idParam, 10);
     if (isNaN(callId)) {
-      return json({ error: 'Invalid call ID' }, 400);
+      return apiError('validation_error', 'Invalid call ID', null, { status: 400 });
     }
 
     const body = await req.json();
     const parsed = UpdateCallSchema.safeParse(body);
     if (!parsed.success) {
-      return json({ error: 'Invalid payload', details: parsed.error.flatten() }, 400);
+      return apiError('validation_error', 'Invalid payload', parsed.error.flatten(), { status: 400 });
     }
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -48,13 +45,13 @@ export async function PATCH(
       .returning();
 
     if (!updated) {
-      return json({ error: 'Call not found' }, 404);
+      return apiError('not_found', 'Call not found', null, { status: 404 });
     }
 
-    return json({ ok: true, call: updated });
+    return apiSuccess({ call: updated });
   } catch (err) {
     console.error('[api/calls/[id]] error', err);
-    return json({ error: 'Internal server error' }, 500);
+    return apiError('internal_error', 'Internal server error', null, { status: 500 });
   }
 }
 
@@ -66,7 +63,7 @@ export async function GET(
     const { id: idParam } = await params;
     const callId = parseInt(idParam, 10);
     if (isNaN(callId)) {
-      return json({ error: 'Invalid call ID' }, 400);
+      return apiError('validation_error', 'Invalid call ID', null, { status: 400 });
     }
 
     const call = await db.query.calls.findFirst({
@@ -80,12 +77,12 @@ export async function GET(
     });
 
     if (!call) {
-      return json({ error: 'Call not found' }, 404);
+      return apiError('not_found', 'Call not found', null, { status: 404 });
     }
 
-    return json({ call });
+    return apiSuccess({ call });
   } catch (err) {
     console.error('[api/calls/[id]] error', err);
-    return json({ error: 'Internal server error' }, 500);
+    return apiError('internal_error', 'Internal server error', null, { status: 500 });
   }
 }

@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { getServerSession } from '@/lib/auth-helpers';
 import { checkTicketViewAccess } from '@/lib/ticket-auth';
 import { validateAttachmentId, ValidationError } from '@/lib/validators';
+import { apiError } from '@/lib/apiResponse';
 
 export async function GET(
   request: NextRequest,
@@ -12,10 +13,10 @@ export async function GET(
   try {
     const { session, error } = await getServerSession();
     if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session || !session.user) {
-      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const { id } = await params;
@@ -33,15 +34,13 @@ export async function GET(
     });
 
     if (!attachment || !attachment.storagePath || !attachment.ticketId) {
-      return new NextResponse('Attachment not found or has no valid storage path', { status: 404 });
+      return apiError('not_found', 'Attachment not found or has no valid storage path', null, { status: 404 });
     }
 
     // Check if user has access to the ticket this attachment belongs to
     const authResult = await checkTicketViewAccess(attachment.ticketId);
     if (!authResult.authorized) {
-      return NextResponse.json({
-        error: 'Forbidden - You do not have access to this attachment'
-      }, { status: 403 });
+      return apiError('forbidden', 'You do not have access to this attachment', null, { status: 403 });
     }
 
     // --- VERCEL BLOB INTEGRATION WITH SIGNED URLS ---
@@ -65,13 +64,13 @@ export async function GET(
       return NextResponse.redirect(url.toString());
     } catch (blobError) {
       console.error('Error generating download URL:', blobError);
-      return NextResponse.json({ error: 'Failed to generate download URL' }, { status: 500 });
+      return apiError('internal_error', 'Failed to generate download URL', null, { status: 500 });
     }
   } catch (error) {
     if (error instanceof ValidationError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return apiError('validation_error', error.message, null, { status: 400 });
     }
     console.error('Error downloading attachment:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return apiError('internal_error', 'Internal Server Error', null, { status: 500 });
   }
 } 

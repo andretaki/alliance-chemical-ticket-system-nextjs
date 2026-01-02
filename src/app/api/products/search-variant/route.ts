@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
-import { ShopifyService } from '@/services/shopify/ShopifyService'; // Import ShopifyService
-import { Config } from '@/config/appConfig'; // For default currency and store URL
+import { ShopifyService } from '@/services/shopify/ShopifyService';
+import { Config } from '@/config/appConfig';
 import type { ProductVariantData, ParentProductData } from '@/agents/quoteAssistant/quoteInterfaces';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // Helper interface for the structure expected by the frontend
 interface ProductVariantSearchResult {
@@ -14,10 +15,10 @@ export async function GET(request: NextRequest) {
   try {
     const { session, error } = await getServerSession();
     console.log('[API /api/products/search-variant] Session check:', !!session?.user, 'User:', session?.user?.email);
-    
+
     if (!session?.user) {
       console.log('[API /api/products/search-variant] Unauthorized: No valid session');
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -27,11 +28,11 @@ export async function GET(request: NextRequest) {
 
     if (!query || query.length < 1) { // Allow single character for SKU/ID like searches
          console.log('[API /api/products/search-variant] Empty or too short query, returning empty results');
-         return NextResponse.json({ results: [] });
+         return apiSuccess({ results: [] });
     }
     if (query.length < 2 && !/^[a-zA-Z0-9#]$/.test(query)) { // If single char but not alphanumeric or #
         console.log('[API /api/products/search-variant] Single non-alphanumeric character, returning empty results');
-        return NextResponse.json({ results: [] });
+        return apiSuccess({ results: [] });
     }
 
     const shopifyService = new ShopifyService();
@@ -85,13 +86,10 @@ export async function GET(request: NextRequest) {
     });
 
     console.log(`[API /api/products/search-variant] Found ${results.length} results from Shopify.`);
-    return NextResponse.json({ results });
+    return apiSuccess({ results });
 
   } catch (error) {
     console.error('[API /api/products/search-variant] Error in Shopify product search:', error);
-    return NextResponse.json(
-      { error: 'Internal server error during product search', results: [] }, 
-      { status: 500 }
-    );
+    return apiError('internal_error', 'Internal server error during product search', { results: [] }, { status: 500 });
   }
 } 

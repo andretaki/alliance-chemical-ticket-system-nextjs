@@ -1,18 +1,16 @@
-import { NextResponse } from 'next/server';
-import { db, cannedResponses } from '@/lib/db';
-import { desc, eq } from 'drizzle-orm';
-import { z } from 'zod';
+import { db } from '@/lib/db';
 import { getServerSession } from '@/lib/auth-helpers';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
     // Basic authentication check
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const responses = await db.query.cannedResponses.findMany({
@@ -25,10 +23,10 @@ export async function GET(request: Request) {
       }
     });
 
-    return NextResponse.json(responses);
+    return apiSuccess(responses);
   } catch (error) {
     console.error("API Error [GET /api/canned-responses]:", error);
-    return NextResponse.json({ error: 'Failed to fetch canned responses' }, { status: 500 });
+    return apiError('internal_error', 'Failed to fetch canned responses', null, { status: 500 });
   }
 }
 

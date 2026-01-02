@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { sendNotificationEmail } from '@/lib/email';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 /**
  * Send QuickBooks Estimate to Customer
@@ -10,7 +11,7 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const { session, error } = await getServerSession();
     if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+      return apiError('unauthorized', error, null, { status: 401 });
     }
 
     const body = await request.json();
@@ -128,8 +129,7 @@ export async function POST(request: NextRequest) {
 
     if (emailSent) {
       console.log('[Email Estimate] Successfully sent to:', customerEmail);
-      return NextResponse.json({
-        success: true,
+      return apiSuccess({
         message: 'Estimate email sent successfully'
       });
     } else {
@@ -138,12 +138,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[Email Estimate] Error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to send estimate email',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return apiError('email_error', 'Failed to send estimate email', { details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }
 }

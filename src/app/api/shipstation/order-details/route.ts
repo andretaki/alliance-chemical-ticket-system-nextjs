@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import axios from 'axios';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY;
 const SHIPSTATION_API_SECRET = process.env.SHIPSTATION_API_SECRET;
@@ -9,15 +10,15 @@ const SHIPSTATION_BASE_URL = 'https://ssapi.shipstation.com';
 export async function GET(req: NextRequest) {
   try {
     console.log(`[ShipStation Order Details] API endpoint hit!`);
-    
+
     // Check authentication
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id) {
       console.log(`[ShipStation Order Details] Unauthorized access attempt`);
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     // Get query parameters
@@ -26,12 +27,12 @@ export async function GET(req: NextRequest) {
 
     if (!orderNumber) {
       console.log(`[ShipStation Order Details] Missing order number`);
-      return NextResponse.json({ error: 'Order number is required' }, { status: 400 });
+      return apiError('validation_error', 'Order number is required', null, { status: 400 });
     }
 
     if (!SHIPSTATION_API_KEY || !SHIPSTATION_API_SECRET) {
       console.error('ShipStation API credentials not configured');
-      return NextResponse.json({ error: 'ShipStation API not configured' }, { status: 500 });
+      return apiError('configuration_error', 'ShipStation API not configured', null, { status: 500 });
     }
 
     console.log(`[ShipStation Order Details] Looking up order: ${orderNumber}`);
@@ -57,10 +58,7 @@ export async function GET(req: NextRequest) {
 
     if (!response.data?.orders || response.data.orders.length === 0) {
       console.log(`[ShipStation Order Details] No orders found for ${orderNumber}`);
-      return NextResponse.json({ 
-        error: `Order #${orderNumber} not found in ShipStation`,
-        order: null 
-      }, { status: 404 });
+      return apiError('not_found', `Order #${orderNumber} not found in ShipStation`, { order: null }, { status: 404 });
     }
 
     // Get the first matching order
@@ -90,7 +88,7 @@ export async function GET(req: NextRequest) {
       console.log(`[ShipStation Order Details] No shipping address found in order data`);
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       order: {
         orderNumber: order.orderNumber,
         orderStatus: order.orderStatus,
@@ -102,23 +100,20 @@ export async function GET(req: NextRequest) {
         })) || [],
         shippingAddress: transformedShippingAddress
       },
-      message: transformedShippingAddress 
-        ? `Found shipping address for order ${orderNumber}` 
+      message: transformedShippingAddress
+        ? `Found shipping address for order ${orderNumber}`
         : `Order ${orderNumber} found but no shipping address available`
     });
 
   } catch (error: any) {
     console.error('[ShipStation Order Details] Error:', error);
-    
+
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       console.error('[ShipStation Order Details] Axios error status:', status);
       console.error('[ShipStation Order Details] Axios error data:', error.response?.data);
     }
-    
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch order details from ShipStation' },
-      { status: 500 }
-    );
+
+    return apiError('internal_error', error.message || 'Failed to fetch order details from ShipStation', null, { status: 500 });
   }
 } 

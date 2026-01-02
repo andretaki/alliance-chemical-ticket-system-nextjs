@@ -1,9 +1,9 @@
-import { NextResponse, NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
-import { aiCustomerCommunicationService, CustomerProfile } from '@/services/aiCustomerCommunicationService';
 import { z } from 'zod';
 import { rateLimiters } from '@/lib/rateLimiting';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // Validation schema for customer creation
 const createCustomerSchema = z.object({
@@ -52,23 +52,19 @@ export async function POST(request: NextRequest) {
 
     // Authentication check
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session || session.user?.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     // Parse and validate request body
     const body = await request.json();
     const validationResult = createCustomerSchema.safeParse(body);
-    
+
     if (!validationResult.success) {
-      return NextResponse.json({
-        success: false,
-        error: 'Validation failed',
-        details: validationResult.error.errors
-      }, { status: 400 });
+      return apiError('validation_error', 'Validation failed', validationResult.error.errors, { status: 400 });
     }
 
     const customerData = validationResult.data;
@@ -106,10 +102,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!shopifyResult.success) {
-      return NextResponse.json({
-        success: false,
-        error: shopifyResult.error || 'Failed to create customer in Shopify'
-      }, { status: 500 });
+      return apiError('shopify_error', shopifyResult.error || 'Failed to create customer in Shopify', null, { status: 500 });
     }
 
     // If customer was created successfully, add addresses
@@ -162,8 +155,7 @@ export async function POST(request: NextRequest) {
     // Log the successful creation
     console.log(`[AdminCustomerCreation] Customer ${shopifyResult.alreadyExists ? 'found' : 'created'}: ${customerData.email} (ID: ${shopifyResult.customerId})`);
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       customerId: shopifyResult.customerId,
       customer: shopifyResult.customer,
       alreadyExists: shopifyResult.alreadyExists
@@ -171,36 +163,29 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[AdminCustomerCreation] Error creating customer:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'An unexpected error occurred'
-    }, { status: 500 });
+    return apiError('internal_error', error.message || 'An unexpected error occurred', null, { status: 500 });
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Authentication check
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session || session.user?.role !== 'admin') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     // This endpoint could be used to list customers or get customer details
     // For now, return a basic status
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       message: 'Customer API endpoint is active'
     });
 
   } catch (error: any) {
     console.error('[AdminCustomerAPI] Error:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || 'An unexpected error occurred'
-    }, { status: 500 });
+    return apiError('internal_error', error.message || 'An unexpected error occurred', null, { status: 500 });
   }
 } 

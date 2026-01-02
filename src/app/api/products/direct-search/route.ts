@@ -1,17 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // API endpoint to search products directly from Shopify
 export async function GET(request: NextRequest) {
   try {
     // Authenticate the request
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (!query || query.length < 2) {
       // Allow single character search if it's likely part of a SKU/ID
       if (!query || (query.length < 1 && !/^[a-zA-Z0-9]$/.test(query))) {
-         return NextResponse.json({ results: [] }); // Return empty for too short query
+         return apiSuccess({ results: [] }); // Return empty for too short query
       }
     }
 
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
             handleShopify: product.handle,
             pageUrl: product.onlineStoreUrl || `https://${process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL}/products/${product.handle}`,
             primaryImageUrl: product.featuredImage?.url || null,
-            description: product.descriptionHtml ? 
+            description: product.descriptionHtml ?
               product.descriptionHtml.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim() : null,
           },
           variant: {
@@ -65,13 +66,10 @@ export async function GET(request: NextRequest) {
     });
 
     console.log('[API /api/products/direct-search] Found results:', results.length);
-    return NextResponse.json({ results });
+    return apiSuccess({ results });
 
   } catch (error) {
     console.error('Error in direct Shopify product search API:', error);
-    return NextResponse.json(
-      { error: 'Internal server error', results: [] }, 
-      { status: 500 }
-    );
+    return apiError('internal_error', 'Internal server error', { results: [] }, { status: 500 });
   }
 } 

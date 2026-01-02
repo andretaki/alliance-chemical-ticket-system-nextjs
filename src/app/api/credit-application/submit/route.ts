@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db, tickets, users } from '@/lib/db';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { outboxService } from '@/services/outboxService';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // Define the shape of the incoming data from the external form
 const creditAppSchema = z.object({
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
   // 1. Security Check: Validate API Key
   const apiKey = request.headers.get('x-api-key');
   if (apiKey !== process.env.CREDIT_APP_API_KEY) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
   }
 
   try {
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
     // 2. Data Validation
     const validation = creditAppSchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json({ error: 'Invalid data payload.', details: validation.error.format() }, { status: 400 });
+      return apiError('validation_error', 'Invalid data payload.', validation.error.format(), { status: 400 });
     }
     const appData = validation.data;
 
@@ -113,10 +114,10 @@ export async function POST(request: NextRequest) {
       console.error(`[CreditApp] Failed to enqueue customer sync for ticket ${newTicket.id}:`, err);
     }
 
-    return NextResponse.json({ success: true, message: 'Application received and ticket created.', ticketId: newTicket.id }, { status: 201 });
+    return apiSuccess({ message: 'Application received and ticket created.', ticketId: newTicket.id }, { status: 201 });
 
   } catch (error: any) {
     console.error('Credit App Submission Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error', details: error.message }, { status: 500 });
+    return apiError('internal_error', 'Internal Server Error', { details: error.message }, { status: 500 });
   }
 } 

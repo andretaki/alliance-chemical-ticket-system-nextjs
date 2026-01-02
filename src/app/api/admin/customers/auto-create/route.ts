@@ -1,35 +1,34 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
-import { db, tickets, users } from '@/lib/db';
-import { and, isNotNull, gte, eq, sql, count } from 'drizzle-orm';
+import { db, tickets } from '@/lib/db';
+import { and, isNotNull, gte, count } from 'drizzle-orm';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // POST: Batch create customers from existing tickets
 export async function POST(request: NextRequest) {
   try {
     // Check authentication and admin permissions
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id || !['admin', 'manager'].includes(session.user.role || '')) {
-      return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized. Admin access required.', null, { status: 401 });
     }
 
     const body = await request.json();
-    const { 
-      createFromExisting = false, 
-      limitToRecent = true, 
+    const {
+      createFromExisting = false,
+      limitToRecent = true,
       daysBack = 30,
-      dryRun = false 
+      dryRun = false
     } = body;
 
     console.log(`[Admin CustomerAutoCreate] Starting ${dryRun ? 'dry run' : 'actual'} batch creation process`);
 
     if (!createFromExisting) {
-      return NextResponse.json({ 
-        error: 'This endpoint is for creating customers from existing tickets. Set createFromExisting=true.' 
-      }, { status: 400 });
+      return apiError('validation_error', 'This endpoint is for creating customers from existing tickets. Set createFromExisting=true.', null, { status: 400 });
     }
 
     // Build query conditions
@@ -71,7 +70,7 @@ export async function POST(request: NextRequest) {
         createdAt: ticket.createdAt
       }));
 
-      return NextResponse.json({
+      return apiSuccess({
         dryRun: true,
         totalTickets: ticketsToProcess.length,
         preview,
@@ -106,8 +105,7 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Admin CustomerAutoCreate] Batch creation completed: ${result.success} created, ${result.failed} failed, ${result.skipped} skipped`);
 
-    return NextResponse.json({
-      success: true,
+    return apiSuccess({
       summary: {
         totalProcessed: customersToCreate.length,
         customersCreated: result.success,
@@ -119,35 +117,32 @@ export async function POST(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[Admin CustomerAutoCreate] Error in batch creation:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create customers' },
-      { status: 500 }
-    );
+    return apiError('internal_error', error.message || 'Failed to create customers', null, { status: 500 });
   }
 }
 
 // GET: Get status and configuration
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Check authentication
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const isEnabled = customerAutoCreateService.isAutoCreateEnabled();
-    
+
     // Get some stats about tickets with customer emails
     const totalTicketsWithEmailsResult = await db.select({ count: count() }).from(tickets).where(isNotNull(tickets.senderEmail));
     const totalTicketsWithEmails = totalTicketsWithEmailsResult[0]?.count || 0;
-    
+
     // Get recent tickets (last 30 days) with emails
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const recentTicketsWithEmailsResult = await db.select({ count: count() }).from(tickets).where(
       and(
         isNotNull(tickets.senderEmail),
@@ -156,7 +151,7 @@ export async function GET(request: NextRequest) {
     );
     const recentTicketsWithEmails = recentTicketsWithEmailsResult[0]?.count || 0;
 
-    return NextResponse.json({
+    return apiSuccess({
       autoCreateEnabled: isEnabled,
       statistics: {
         totalTicketsWithEmails,
@@ -170,9 +165,6 @@ export async function GET(request: NextRequest) {
 
   } catch (error: any) {
     console.error('[Admin CustomerAutoCreate] Error getting status:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to get status' },
-      { status: 500 }
-    );
+    return apiError('internal_error', error.message || 'Failed to get status', null, { status: 500 });
   }
 } 

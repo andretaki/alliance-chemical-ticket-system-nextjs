@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server';
-import { db, userSignatures, users } from '@/lib/db';
+import { db, userSignatures } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { getServerSession } from '@/lib/auth-helpers';
 import { z } from 'zod';
-import { NextRequest } from 'next/server';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // Schema for signature validation
 const signatureSchema = z.object({
@@ -15,11 +14,11 @@ const signatureSchema = z.object({
 export async function GET() {
   try {
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const signatures = await db.query.userSignatures.findMany({
@@ -27,13 +26,10 @@ export async function GET() {
       orderBy: (signatures, { desc }) => [desc(signatures.isDefault), desc(signatures.updatedAt)],
     });
 
-    return NextResponse.json(signatures);
+    return apiSuccess(signatures);
   } catch (error) {
     console.error('Error fetching signatures:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch signatures' },
-      { status: 500 }
-    );
+    return apiError('internal_error', 'Failed to fetch signatures', null, { status: 500 });
   }
 }
 
@@ -41,11 +37,11 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const body = await request.json();
@@ -70,18 +66,12 @@ export async function POST(request: Request) {
       isDefault: validatedData.isDefault,
     }).returning();
 
-    return NextResponse.json(newSignature[0], { status: 201 });
+    return apiSuccess(newSignature[0], { status: 201 });
   } catch (error) {
     console.error('Error creating signature:', error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid signature data', details: error.errors },
-        { status: 400 }
-      );
+      return apiError('validation_error', 'Invalid signature data', error.errors, { status: 400 });
     }
-    return NextResponse.json(
-      { error: 'Failed to create signature' },
-      { status: 500 }
-    );
+    return apiError('internal_error', 'Failed to create signature', null, { status: 500 });
   }
 } 

@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 interface HealthCheckResult {
   status: 'healthy' | 'unhealthy' | 'degraded';
@@ -22,7 +23,7 @@ interface HealthCheckResult {
   };
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse<HealthCheckResult>> {
+export async function GET(): Promise<NextResponse<HealthCheckResult | { success: boolean; data: HealthCheckResult }>> {
   const startTime = Date.now();
   let overallStatus: 'healthy' | 'unhealthy' | 'degraded' = 'healthy';
   
@@ -79,10 +80,11 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthChec
   };
 
   // Set appropriate HTTP status based on health
-  const httpStatus = overallStatus === 'healthy' ? 200 : 
+  const httpStatus = overallStatus === 'healthy' ? 200 :
                     overallStatus === 'degraded' ? 200 : 503;
 
-  return NextResponse.json(healthResult, { 
+  // Health endpoint uses custom headers, so we use NextResponse directly
+  return NextResponse.json({ success: true, data: healthResult }, {
     status: httpStatus,
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',

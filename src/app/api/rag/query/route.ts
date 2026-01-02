@@ -1,53 +1,14 @@
 import crypto from 'crypto';
-import { NextResponse, type NextRequest } from 'next/server';
-import { z } from 'zod';
+import { type NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { rateLimiters } from '@/lib/rateLimiting';
 import { CacheService } from '@/lib/cache';
 import { db, ragQueryLog } from '@/lib/db';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
+import { RagQueryRequestSchema, RagQueryResponseSchema } from '@/lib/contracts';
 import { getViewerScope } from '@/services/rag/ragRbac';
-import { queryRag, RagAccessError } from '@/services/rag/ragRetrievalService';
-
-const idSchema = z.preprocess((value) => {
-  if (value === undefined || value === null || value === '') return undefined;
-  const parsed = Number(value);
-  return Number.isNaN(parsed) ? undefined : parsed;
-}, z.number().int().positive().optional());
-
-const filtersSchema = z.object({
-  sourceTypeIn: z.array(z.string()).optional(),
-  includeInternal: z.preprocess((value) => {
-    if (value === undefined || value === null || value === '') return undefined;
-    return value === true || value === 'true';
-  }, z.boolean().optional()),
-  allowGlobal: z.preprocess((value) => {
-    if (value === undefined || value === null || value === '') return undefined;
-    return value === true || value === 'true';
-  }, z.boolean().optional()),
-  departments: z.array(z.string()).optional(),
-  createdAfter: z.string().optional(),
-  createdBefore: z.string().optional(),
-  identifiers: z.object({
-    orderNumber: z.string().optional(),
-    invoiceNumber: z.string().optional(),
-    trackingNumber: z.string().optional(),
-    sku: z.string().optional(),
-    poNumber: z.string().optional(),
-  }).optional(),
-}).passthrough();
-
-const querySchema = z.object({
-  queryText: z.string().min(1),
-  customerId: idSchema,
-  ticketId: idSchema,
-  filters: filtersSchema.optional(),
-  topK: z.preprocess((value) => {
-    if (value === undefined || value === null || value === '') return undefined;
-    const parsed = Number(value);
-    return Number.isNaN(parsed) ? undefined : parsed;
-  }, z.number().int().min(1).max(50).optional()),
-  debug: z.boolean().optional(),
-});
+import { ragRepository } from '@/repositories/RagRepository';
+import { RagAccessError } from '@/services/rag/ragRetrievalService';
 
 function getClientIP(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -70,17 +31,17 @@ function getClientIP(request: Request): string {
 export async function POST(request: NextRequest) {
   const { session, error } = await getServerSession();
   if (error || !session?.user?.id) {
-    return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 });
+    return apiError('unauthorized', error || 'Unauthorized', undefined, { status: 401 });
   }
 
   const scope = await getViewerScope();
   if (!scope) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('unauthorized', 'Unauthorized', undefined, { status: 401 });
   }
 
-  const parsed = querySchema.safeParse(await request.json());
+  const parsed = RagQueryRequestSchema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400 });
+    return apiError('invalid_request', 'Invalid request', parsed.error.flatten(), { status: 400 });
   }
 
   const { queryText, customerId, ticketId, filters, topK, debug } = parsed.data;
@@ -92,12 +53,10 @@ export async function POST(request: NextRequest) {
 
   if (!userLimiter.allowed || !ipLimiter.allowed) {
     const reset = Math.min(userLimiter.resetTime, ipLimiter.resetTime);
-    return NextResponse.json(
-      {
-        error: 'Too Many Requests',
-        message: 'RAG rate limit exceeded. Please try again later.',
-        resetTime: new Date(reset).toISOString(),
-      },
+    return apiError(
+      'rate_limited',
+      'RAG rate limit exceeded. Please try again later.',
+      { resetTime: new Date(reset).toISOString() },
       {
         status: 429,
         headers: {
@@ -114,12 +73,15 @@ export async function POST(request: NextRequest) {
 
   const cached = await CacheService.get<any>('RAG_QUERY', cacheKey);
   if (cached) {
-    return NextResponse.json(allowDebug ? cached : { ...cached, debug: undefined });
+    const parsedResult = RagQueryResponseSchema.parse(
+      allowDebug ? cached : { ...cached, debug: undefined }
+    );
+    return apiSuccess(parsedResult);
   }
 
   let result;
   try {
-    result = await queryRag({
+    result = await ragRepository.query({
       queryText,
       scope,
       filters: filters as any,
@@ -130,8 +92,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof RagAccessError) {
-      return NextResponse.json(
-        { error: 'Forbidden', reason: error.denyReason },
+      return apiError(
+        'rag_access_denied',
+        'RAG access denied',
+        { denyReason: error.denyReason },
         { status: error.status }
       );
     }
@@ -178,8 +142,10 @@ export async function POST(request: NextRequest) {
   await CacheService.set('RAG_QUERY', cacheKey, result);
 
   if (!allowDebug) {
-    return NextResponse.json({ ...result, debug: undefined });
+    const parsedResult = RagQueryResponseSchema.parse({ ...result, debug: undefined });
+    return apiSuccess(parsedResult);
   }
 
-  return NextResponse.json(result);
+  const parsedResult = RagQueryResponseSchema.parse(result);
+  return apiSuccess(parsedResult);
 }

@@ -1,9 +1,11 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getServerSession } from '@/lib/auth-helpers';
 import { rateLimiters } from '@/lib/rateLimiting';
+import { apiError, apiSuccess } from '@/lib/apiResponse';
+import { RagSimilarResultsResponseSchema } from '@/lib/contracts';
 import { getViewerScope } from '@/services/rag/ragRbac';
-import { findSimilarTickets } from '@/services/rag/ragRetrievalService';
+import { ragRepository } from '@/repositories/RagRepository';
 
 const schema = z.object({
   ticketId: z.preprocess((value) => Number(value), z.number().int().positive()),
@@ -31,17 +33,17 @@ function getClientIP(request: Request): string {
 async function handle(request: NextRequest, payload: unknown) {
   const { session, error } = await getServerSession();
   if (error || !session?.user?.id) {
-    return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 });
+    return apiError('unauthorized', error || 'Unauthorized', undefined, { status: 401 });
   }
 
   const scope = await getViewerScope();
   if (!scope) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return apiError('unauthorized', 'Unauthorized', undefined, { status: 401 });
   }
 
   const parsed = schema.safeParse(payload);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400 });
+    return apiError('invalid_request', 'Invalid request', parsed.error.flatten(), { status: 400 });
   }
 
   const ip = getClientIP(request);
@@ -49,16 +51,27 @@ async function handle(request: NextRequest, payload: unknown) {
   const ipLimiter = await rateLimiters.rag.check(`rag:ip:${ip}`);
   if (!userLimiter.allowed || !ipLimiter.allowed) {
     const reset = Math.min(userLimiter.resetTime, ipLimiter.resetTime);
-    return NextResponse.json({ error: 'Too Many Requests', resetTime: new Date(reset).toISOString() }, { status: 429 });
+    return apiError(
+      'rate_limited',
+      'RAG rate limit exceeded. Please try again later.',
+      { resetTime: new Date(reset).toISOString() },
+      { status: 429 }
+    );
   }
 
-  const results = await findSimilarTickets({
-    ticketId: parsed.data.ticketId,
-    scope,
-    topK: parsed.data.topK,
-  });
+  try {
+    const results = await ragRepository.findSimilarTickets({
+      ticketId: parsed.data.ticketId,
+      scope,
+      topK: parsed.data.topK,
+    });
 
-  return NextResponse.json({ results });
+    const payloadData = RagSimilarResultsResponseSchema.parse({ results });
+    return apiSuccess(payloadData);
+  } catch (err) {
+    console.error('[rag.similar-tickets] Failed to load results:', err);
+    return apiError('server_error', 'Failed to load similar tickets', undefined, { status: 500 });
+  }
 }
 
 export async function GET(request: NextRequest) {

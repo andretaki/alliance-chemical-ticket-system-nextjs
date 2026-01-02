@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
+import { apiError } from '@/lib/apiResponse';
 
 /**
  * Create QuickBooks Online Estimate
@@ -10,24 +11,23 @@ export async function POST(request: NextRequest) {
     // Check authentication
     const { session, error } = await getServerSession();
     if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+      return apiError('unauthorized', error, null, { status: 401 });
     }
 
     // Check if QBO credentials are configured
     const requiredEnvVars = [
       'QBO_CONSUMER_KEY',
-      'QBO_CONSUMER_SECRET', 
+      'QBO_CONSUMER_SECRET',
       'QBO_ACCESS_TOKEN',
       'QBO_ACCESS_TOKEN_SECRET',
       'QBO_REALM_ID'
     ];
 
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-    
+
     if (missingVars.length > 0) {
       console.log('[QBO Estimates] Missing environment variables:', missingVars);
-      return NextResponse.json({
-        error: 'QuickBooks Online integration is not configured',
+      return apiError('configuration_error', 'QuickBooks Online integration is not configured', {
         message: 'Please configure QBO credentials in environment variables. See setup guide for instructions.',
         missingVariables: missingVars,
         setupGuide: '/admin/qbo-setup'
@@ -61,13 +61,9 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('[QBO Estimates] Error:', error);
-    return NextResponse.json(
-      { 
-        error: 'Failed to create QuickBooks estimate',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        setupGuide: '/admin/qbo-setup'
-      },
-      { status: 500 }
-    );
+    return apiError('internal_error', 'Failed to create QuickBooks estimate', {
+      details: error instanceof Error ? error.message : 'Unknown error',
+      setupGuide: '/admin/qbo-setup'
+    }, { status: 500 });
   }
 }

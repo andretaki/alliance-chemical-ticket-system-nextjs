@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import axios from 'axios';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY;
 const SHIPSTATION_API_SECRET = process.env.SHIPSTATION_API_SECRET;
@@ -78,11 +79,11 @@ export async function GET(req: NextRequest) {
   try {
     // Check authentication
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     // Get query parameters
@@ -91,12 +92,12 @@ export async function GET(req: NextRequest) {
     const customerName = url.searchParams.get('name');
 
     if (!customerEmail && !customerName) {
-      return NextResponse.json({ error: 'Customer email or name is required' }, { status: 400 });
+      return apiError('validation_error', 'Customer email or name is required', null, { status: 400 });
     }
 
     if (!SHIPSTATION_API_KEY || !SHIPSTATION_API_SECRET) {
       console.error('ShipStation API credentials not configured');
-      return NextResponse.json({ error: 'ShipStation API not configured' }, { status: 500 });
+      return apiError('configuration_error', 'ShipStation API not configured', null, { status: 500 });
     }
 
     const authHeader = `Basic ${Buffer.from(`${SHIPSTATION_API_KEY}:${SHIPSTATION_API_SECRET}`).toString('base64')}`;
@@ -133,8 +134,8 @@ export async function GET(req: NextRequest) {
 
     if (!response.data?.orders) {
       console.log(`[ShipStation Customer Orders] No orders array in response`);
-      return NextResponse.json({ 
-        orders: [], 
+      return apiSuccess({
+        orders: [],
         message: 'No orders found',
         limitation: 'ShipStation API limitation: Cannot search by email address directly. Try searching by customer name instead.'
       });
@@ -144,15 +145,15 @@ export async function GET(req: NextRequest) {
     let filteredOrders = response.data.orders;
     if (customerEmail) {
       const emailLower = customerEmail.toLowerCase();
-      filteredOrders = response.data.orders.filter(order => 
+      filteredOrders = response.data.orders.filter(order =>
         order.customerEmail?.toLowerCase() === emailLower
       );
-      
+
       console.log(`[ShipStation Customer Orders] Filtered to ${filteredOrders.length} orders matching email ${customerEmail}`);
-      
+
       if (filteredOrders.length === 0) {
-        return NextResponse.json({ 
-          orders: [], 
+        return apiSuccess({
+          orders: [],
           message: `No orders found for ${customerEmail}`,
           limitation: 'ShipStation API limitation: Cannot search by email directly. The system searched by customer name and filtered results, but found no matching orders. Try providing the customer name for better results.',
           suggestion: 'To find orders for this customer, try searching by their name instead of email address.'
@@ -194,11 +195,11 @@ export async function GET(req: NextRequest) {
 
     console.log(`[ShipStation Customer Orders] Returning ${transformedOrders.length} orders`);
 
-    const resultMessage = customerEmail 
+    const resultMessage = customerEmail
       ? `Found ${transformedOrders.length} orders for ${customerEmail}`
       : `Found ${transformedOrders.length} orders for customer name: ${customerName}`;
 
-    return NextResponse.json({
+    return apiSuccess({
       orders: transformedOrders,
       total: transformedOrders.length,
       message: resultMessage,
@@ -207,25 +208,22 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[ShipStation Customer Orders] Error:', error);
-    
+
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
       if (status === 401) {
-        return NextResponse.json({ error: 'ShipStation API authentication failed' }, { status: 500 });
+        return apiError('shipstation_error', 'ShipStation API authentication failed', null, { status: 500 });
       } else if (status === 429) {
-        return NextResponse.json({ error: 'ShipStation API rate limit exceeded' }, { status: 429 });
+        return apiError('rate_limit', 'ShipStation API rate limit exceeded', null, { status: 429 });
       } else if (status === 404) {
-        return NextResponse.json({ 
-          orders: [], 
+        return apiSuccess({
+          orders: [],
           message: 'No orders found for this customer',
           limitation: 'ShipStation API limitation: Cannot search by email address directly.'
         });
       }
     }
-    
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch customer orders from ShipStation' },
-      { status: 500 }
-    );
+
+    return apiError('internal_error', error.message || 'Failed to fetch customer orders from ShipStation', null, { status: 500 });
   }
 } 

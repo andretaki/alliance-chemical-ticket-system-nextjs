@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
-import type { DraftOrderLineItemInput, DraftOrderAddressInput, ShopifyMoney } from '@/agents/quoteAssistant/quoteInterfaces';
+import type { DraftOrderLineItemInput, ShopifyMoney } from '@/agents/quoteAssistant/quoteInterfaces';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // Interface for Shopify shipping rate response
 interface ShippingRateResponse {
@@ -28,11 +29,11 @@ export async function POST(request: NextRequest) {
   try {
     // Authenticate the request
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     // Parse request body
@@ -41,18 +42,12 @@ export async function POST(request: NextRequest) {
 
     // Validate inputs
     if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
-      return NextResponse.json(
-        { error: 'Valid line items are required' },
-        { status: 400 }
-      );
+      return apiError('validation_error', 'Valid line items are required', null, { status: 400 });
     }
 
-    if (!shippingAddress || !shippingAddress.address1 || !shippingAddress.city || 
+    if (!shippingAddress || !shippingAddress.address1 || !shippingAddress.city ||
         !shippingAddress.country || !shippingAddress.zip || !shippingAddress.province) {
-      return NextResponse.json(
-        { error: 'Complete shipping address is required' },
-        { status: 400 }
-      );
+      return apiError('validation_error', 'Complete shipping address is required', null, { status: 400 });
     }
 
     // Create a temporary draft order to calculate shipping
@@ -83,28 +78,14 @@ export async function POST(request: NextRequest) {
       }));
 
       // Return the transformed rates
-      return NextResponse.json({ rates: transformedRates });
+      return apiSuccess({ rates: transformedRates });
     } catch (error: any) {
       console.error('Error calculating shipping rates:', error);
-      
-      let errorMessage = 'Failed to calculate shipping rates';
-      if(error.message) {
-        errorMessage += `: ${error.message}`;
-      }
 
-      return NextResponse.json(
-        { 
-          error: 'Failed to calculate shipping rates',
-          message: error.message || 'Unknown error' 
-        },
-        { status: 500 }
-      );
+      return apiError('shopify_error', 'Failed to calculate shipping rates', { message: error.message || 'Unknown error' }, { status: 500 });
     }
   } catch (error) {
     console.error('API error in shipping calculation:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return apiError('internal_error', 'Internal server error', null, { status: 500 });
   }
 } 

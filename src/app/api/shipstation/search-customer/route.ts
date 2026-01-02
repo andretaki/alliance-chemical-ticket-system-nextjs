@@ -1,21 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
-import { 
-  searchShipStationCustomerByEmail, 
+import {
+  searchShipStationCustomerByEmail,
   searchShipStationCustomerByName,
   convertShipStationToShopifyFormat,
   type ShipStationCustomerInfo
 } from '@/lib/shipstationCustomerService';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 export async function GET(req: NextRequest) {
   try {
     // Check authentication
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     // Get query parameters
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     const searchType = url.searchParams.get('type') || 'auto'; // auto, email, name, phone
 
     if (!searchQuery || searchQuery.trim().length < 3) {
-      return NextResponse.json({ error: 'Query must be at least 3 characters' }, { status: 400 });
+      return apiError('validation_error', 'Query must be at least 3 characters', null, { status: 400 });
     }
 
     const query = searchQuery.trim();
@@ -79,23 +80,23 @@ export async function GET(req: NextRequest) {
 
       console.log(`[ShipStation Customer Search] Found ${convertedCustomers.length} customers using method: ${searchMethod}`);
 
-      return NextResponse.json({
+      return apiSuccess({
         customers: convertedCustomers,
         searchMethod,
         searchType: finalSearchType,
         query: query,
         source: 'shipstation',
-        message: convertedCustomers.length > 0 
-          ? `Found ${convertedCustomers.length} customer(s) in ShipStation` 
+        message: convertedCustomers.length > 0
+          ? `Found ${convertedCustomers.length} customer(s) in ShipStation`
           : 'No customers found in ShipStation',
-        limitation: shipStationCustomers.length === 0 
+        limitation: shipStationCustomers.length === 0
           ? 'Customer not found in ShipStation. They may not have placed any orders through this system.'
           : undefined
       });
 
     } catch (error: any) {
       console.error('[ShipStation Customer Search] Search error:', error);
-      return NextResponse.json({
+      return apiSuccess({
         customers: [],
         searchMethod: 'error',
         searchType: finalSearchType,
@@ -108,10 +109,7 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[ShipStation Customer Search] General error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to search ShipStation customers' },
-      { status: 500 }
-    );
+    return apiError('internal_error', error.message || 'Failed to search ShipStation customers', null, { status: 500 });
   }
 }
 

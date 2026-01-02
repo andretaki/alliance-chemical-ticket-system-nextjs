@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import axios from 'axios';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     const name = searchParams.get('name');
 
     if (!name) {
-      return NextResponse.json({ error: 'Name parameter is required' }, { status: 400 });
+      return apiError('validation_error', 'Name parameter is required', null, { status: 400 });
     }
 
     // Search for draft orders by name using Shopify Admin API
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     const matchingOrder = draftOrders.find((order: any) => order.name === name);
 
     if (!matchingOrder) {
-      return NextResponse.json({ error: 'Draft order not found' }, { status: 404 });
+      return apiError('not_found', 'Draft order not found', null, { status: 404 });
     }
 
     // Return the full draft order details by fetching it individually
@@ -43,17 +44,17 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    return NextResponse.json(detailResponse.data.draft_order);
+    return apiSuccess(detailResponse.data.draft_order);
 
   } catch (error) {
     console.error('Error searching draft orders:', error);
-    
+
     if (axios.isAxiosError(error)) {
       const status = error.response?.status || 500;
       const message = error.response?.data?.message || 'Failed to search draft orders';
-      return NextResponse.json({ error: message }, { status });
+      return apiError('shopify_error', message, null, { status });
     }
-    
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    return apiError('internal_error', 'Internal server error', null, { status: 500 });
   }
 } 

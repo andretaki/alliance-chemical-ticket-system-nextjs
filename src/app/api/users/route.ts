@@ -1,10 +1,17 @@
-import { NextResponse } from 'next/server';
 import { db, users } from '@/lib/db';
-import { eq, asc } from 'drizzle-orm';
-import { unstable_cache } from 'next/cache'; // Import the cache helper
+import { eq } from 'drizzle-orm';
+import { unstable_cache } from 'next/cache';
+import { getServerSession } from '@/lib/auth-helpers';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // GET /api/users - Fetches all users (for dropdowns, etc.)
 export async function GET() {
+  // Auth check - only authenticated users can view user list
+  const { session, error } = await getServerSession();
+  if (error || !session?.user?.id) {
+    return apiError('unauthorized', 'Authentication required', null, { status: 401 });
+  }
+
   try {
     // Wrap the database query in unstable_cache
     // This will cache the result for 60 seconds.
@@ -31,10 +38,10 @@ export async function GET() {
 
     const allUsers = await getCachedUsers();
 
-    return NextResponse.json(allUsers);
+    return apiSuccess(allUsers);
   } catch (error) {
     console.error('API Error [GET /api/users]:', error);
-    return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+    return apiError('internal_error', 'Failed to fetch users', null, { status: 500 });
   }
 }
 

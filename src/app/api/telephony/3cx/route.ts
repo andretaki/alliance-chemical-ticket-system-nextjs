@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { recordCallEnded, recordCallStarted } from '@/services/telephony/TelephonyService';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const WEBHOOK_SECRET = process.env.TELEPHONY_WEBHOOK_SECRET;
 
@@ -16,10 +17,6 @@ const EventSchema = z.object({
   durationSeconds: z.number().int().optional(),
   recordingUrl: z.string().optional(),
 });
-
-function json(data: any, status = 200) {
-  return NextResponse.json(data, { status });
-}
 
 function log(
   level: 'info' | 'warn' | 'error',
@@ -50,13 +47,13 @@ export async function POST(req: NextRequest) {
       log('error', 'Missing X-Telephony-Secret header', {
         ip: req.headers.get('x-forwarded-for') || 'unknown',
       });
-      return json({ ok: false, error: 'unauthorized' }, 401);
+      return apiError('unauthorized', 'unauthorized', null, { status: 401 });
     }
     if (providedSecret !== WEBHOOK_SECRET) {
       log('error', 'Invalid X-Telephony-Secret header', {
         ip: req.headers.get('x-forwarded-for') || 'unknown',
       });
-      return json({ ok: false, error: 'unauthorized' }, 401);
+      return apiError('unauthorized', 'unauthorized', null, { status: 401 });
     }
   }
 
@@ -68,7 +65,7 @@ export async function POST(req: NextRequest) {
         errors: parsed.error.flatten(),
         bodySnapshot: JSON.stringify(body).slice(0, 200),
       });
-      return json({ ok: false, error: 'invalid payload' }, 400);
+      return apiError('validation_error', 'invalid payload', null, { status: 400 });
     }
 
     const payload = parsed.data;
@@ -100,11 +97,11 @@ export async function POST(req: NextRequest) {
       log('warn', 'Unknown eventType', { eventType: payload.eventType });
     }
 
-    return json({ ok: true });
+    return apiSuccess({ ok: true });
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     log('error', 'Unhandled error processing webhook', { error });
     // Return 200 to prevent 3CX from retrying on internal errors
-    return json({ ok: false }, 200);
+    return apiSuccess({ ok: false });
   }
 }

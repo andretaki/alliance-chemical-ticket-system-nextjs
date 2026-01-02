@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { ShopifyService, ShopifyOrderNode } from '@/services/shopify/ShopifyService';
 import { getOrderTrackingInfo, constructShipStationUrl } from '@/lib/shipstationService';
 import { db, tickets } from '@/lib/db';
@@ -6,6 +6,8 @@ import { eq, inArray } from 'drizzle-orm';
 import { OrderSearchResult } from '@/types/orderSearch';
 import { AdvancedSearchProcessor } from '@/lib/advancedSearch';
 import { CacheService } from '@/lib/cache';
+import { getServerSession } from '@/lib/auth-helpers';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 let _shopifyService: ShopifyService | null = null;
 function getShopifyService() {
@@ -54,19 +56,25 @@ async function enrichShopifyOrder(order: ShopifyOrderNode): Promise<OrderSearchR
 }
 
 export async function GET(request: NextRequest) {
+  // Auth check - only authenticated users can search orders
+  const { session, error } = await getServerSession();
+  if (error || !session?.user?.id) {
+    return apiError('unauthorized', 'Authentication required', null, { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const queryParam = searchParams.get('query');
 
   if (!queryParam) {
-    return NextResponse.json({ error: 'Search query is required' }, { status: 400 });
+    return apiError('validation_error', 'Search query is required', null, { status: 400 });
   }
 
   const query = queryParam.trim();
-  
+
   // Check cache first
   const cachedResults = await CacheService.get<OrderSearchResult[]>('SEARCH', query);
   if (cachedResults) {
-    return NextResponse.json({ results: cachedResults, source: 'cache' });
+    return apiSuccess({ results: cachedResults, source: 'cache' });
   }
 
   try {
@@ -158,12 +166,10 @@ export async function GET(request: NextRequest) {
     // Store in cache for next time
     await CacheService.set('SEARCH', query, allResults);
 
-    return NextResponse.json({
-      results: allResults,
-    });
+    return apiSuccess({ results: allResults });
 
   } catch (error: any) {
     console.error('[UnifiedSearch] Unhandled error in search route:', error);
-    return NextResponse.json({ error: 'An unexpected error occurred during the search.', details: error.message }, { status: 500 });
+    return apiError('internal_error', 'An unexpected error occurred during the search.', { details: error.message }, { status: 500 });
   }
 } 

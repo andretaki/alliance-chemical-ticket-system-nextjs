@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont } from 'pdf-lib';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 import fs from 'fs';
 import path from 'path';
 import axios from 'axios';
@@ -773,13 +774,13 @@ export async function POST(request: Request) {
     const { draftOrderId, recipientEmail } = body;
 
     if (!draftOrderId || !recipientEmail) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+      return apiError('validation_error', 'Missing required fields', null, { status: 400 });
     }
 
     // Extract the numeric ID from the Shopify GID
     const numericId = draftOrderId.split('/').pop();
     if (!numericId) {
-      return NextResponse.json({ error: 'Invalid draft order ID format' }, { status: 400 });
+      return apiError('validation_error', 'Invalid draft order ID format', null, { status: 400 });
     }
 
     // Get the host from the request headers
@@ -790,10 +791,10 @@ export async function POST(request: Request) {
 
     // 1. Get draft order details from Shopify (using existing API)
     const draftOrderResponse = await axios.get(`${baseUrl}/api/draft-orders/${numericId}`);
-    const draftOrder = draftOrderResponse.data;
+    const draftOrder = draftOrderResponse.data?.data || draftOrderResponse.data;
 
     if (!draftOrder) {
-      return NextResponse.json({ error: 'Draft order not found' }, { status: 404 });
+      return apiError('not_found', 'Draft order not found', null, { status: 404 });
     }
 
     // 2. Generate PDF invoice using the improved generator
@@ -815,13 +816,10 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json({ message: 'Invoice email sent successfully' });
+    return apiSuccess({ message: 'Invoice email sent successfully' });
   } catch (error) {
     console.error('Error sending invoice email:', error);
-    return NextResponse.json(
-      { error: 'Failed to send invoice email' },
-      { status: 500 }
-    );
+    return apiError('email_error', 'Failed to send invoice email', null, { status: 500 });
   }
 }
 
