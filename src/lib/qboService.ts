@@ -1,14 +1,20 @@
 import QuickBooks from 'node-quickbooks';
 import OAuthClient from 'intuit-oauth';
 import { qboConfig } from '@/config/qboConfig';
-import { getToken, setToken, QboToken } from './qboTokenStore';
+import { getToken, setToken, QboToken, isTokenExpired } from './qboTokenStore';
 import { db, qboCustomerSnapshots, qboEstimates, qboInvoices } from '@/lib/db';
 import { withResilience } from '@/lib/resilience';
+import {
+    withTokenRefreshLock,
+    ensureProviderLockEntry,
+    getTokenFromLockTable,
+} from './tokenRefreshLock';
 
 // Resilience configuration for QuickBooks API
 const QBO_TIMEOUT_MS = 30000; // 30 seconds
 
 let oauthClient: OAuthClient | null = null;
+let cachedQboToken: QboToken | null = null;
 
 const getOAuthClient = (): OAuthClient => {
     if (oauthClient) return oauthClient;
@@ -41,24 +47,69 @@ export const handleCallback = async (url: string): Promise<void> => {
     }
 };
 
+/**
+ * Refresh QBO tokens with distributed locking to prevent race conditions
+ * in multi-instance deployments.
+ */
 export const refreshTokens = async (): Promise<QboToken> => {
-    const oauthClient = getOAuthClient();
-    try {
-        const token = await getToken();
-        if(!token) throw new Error('No token to refresh.');
-        
-        oauthClient.setToken(token as any); // Set old token
-        const authResponse = await oauthClient.refresh();
-        const newToken = authResponse.getJson();
-        await setToken({ ...newToken, realmId: oauthClient.getToken().realmId });
-        return (await getToken())!;
-    } catch (e) {
-        console.error('The error message is :', e);
-        throw new Error('Could not refresh QBO tokens.');
-    }
+    return withTokenRefreshLock(
+        'qbo',
+        async () => {
+            const oauthClient = getOAuthClient();
+            const token = await getToken();
+            if (!token) throw new Error('No token to refresh.');
+
+            console.log('[QboService] Refreshing token with lock...');
+            oauthClient.setToken(token as any);
+            const authResponse = await oauthClient.refresh();
+            const newToken = authResponse.getJson();
+            await setToken({ ...newToken, realmId: oauthClient.getToken().realmId });
+
+            const refreshedToken = await getToken();
+            if (!refreshedToken) throw new Error('Failed to get token after refresh.');
+
+            cachedQboToken = refreshedToken;
+            console.log('[QboService] Token refreshed successfully');
+            return refreshedToken;
+        },
+        {
+            tokenExpiryCheck: (row: { access_token_expires_at: Date | string | null }) => {
+                if (!row.access_token_expires_at) return true;
+                const expiresAt = new Date(row.access_token_expires_at);
+                const buffer = 5 * 60 * 1000; // 5 min buffer
+                return expiresAt.getTime() - buffer < Date.now();
+            },
+            getTokenFromRow: (row: { metadata: QboToken | null }) => {
+                if (!row.metadata || typeof row.metadata !== 'object') return null;
+                const token = row.metadata as QboToken;
+                if (!token.access_token) return null;
+                const expiresAt = new Date(token.createdAt + (token.expires_in || 3600) * 1000);
+                return { accessToken: token.access_token, expiresAt };
+            },
+            onTokenFromCache: (cached) => {
+                // Another process refreshed the token, reconstruct QboToken from cached data
+                // We'll need to fetch the full token from DB
+                console.log('[QboService] Using token refreshed by another process');
+                return getToken().then(t => {
+                    if (!t) throw new Error('Failed to get token from cache');
+                    cachedQboToken = t;
+                    return t;
+                });
+            },
+        }
+    );
 };
 
 export const getQboClient = async (): Promise<QuickBooks> => {
+    // Initialize provider lock entry if needed
+    await ensureProviderLockEntry('qbo');
+
+    // Check memory cache first
+    if (cachedQboToken && !isTokenExpired(cachedQboToken)) {
+        return createQboClient(cachedQboToken);
+    }
+
+    // Get token from DB
     let token = await getToken();
     if (!token) {
         throw new Error('QBO not connected. Please connect to QuickBooks.');
@@ -68,20 +119,21 @@ export const getQboClient = async (): Promise<QuickBooks> => {
     oauthClient.setToken(token as any);
 
     // Check if token is expired (or close to expiring)
-    const tokenCreateTime = token.createdAt || 0;
-    const expiresIn = (token.expires_in || 3600) * 1000; // in ms
-    const buffer = 5 * 60 * 1000; // 5 minute buffer
-
-    if (Date.now() - tokenCreateTime > expiresIn - buffer) {
-        console.log('QBO token expired or nearing expiration, refreshing...');
+    if (isTokenExpired(token)) {
+        console.log('[QboService] Token expired or nearing expiration, refreshing...');
         try {
             token = await refreshTokens();
         } catch (e) {
-            console.error('Failed to refresh QBO token:', e);
+            console.error('[QboService] Failed to refresh token:', e);
             throw new Error('Your QuickBooks connection has expired. Please reconnect.');
         }
     }
 
+    cachedQboToken = token;
+    return createQboClient(token);
+};
+
+function createQboClient(token: QboToken): QuickBooks {
     return new QuickBooks(
         qboConfig.clientId,
         qboConfig.clientSecret,
@@ -94,7 +146,7 @@ export const getQboClient = async (): Promise<QuickBooks> => {
         '2.0', // oauthversion
         token.refresh_token
     );
-};
+}
 
 export interface QboCustomerBalance {
     qboCustomerId: string;

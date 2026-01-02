@@ -2,6 +2,7 @@
  * Amazon Selling Partner API (SP-API) Service
  * Handles OAuth token refresh, order fetching, and fulfillment data retrieval.
  * Pattern follows shipstationService.ts with exponential backoff and circuit breaker.
+ * Uses distributed locking for token refresh in multi-instance deployments.
  */
 
 import axios, { AxiosError } from 'axios';
@@ -10,6 +11,12 @@ import { circuitBreakers } from '@/lib/circuitBreaker';
 import { db } from '@/lib/db';
 import { amazonSpTokens } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import {
+    withTokenRefreshLock,
+    ensureProviderLockEntry,
+    updateTokenAfterRefresh,
+    getTokenFromLockTable,
+} from './tokenRefreshLock';
 
 const AMAZON_SP_BASE_URL = 'https://sellingpartnerapi-na.amazon.com';
 const TOKEN_URL = 'https://api.amazon.com/auth/o2/token';
@@ -76,12 +83,11 @@ interface TokenData {
 // --- Token Management ---
 let cachedToken: TokenData | null = null;
 
-async function refreshAccessToken(): Promise<string> {
-  if (!integrations.amazonSpApi) {
-    throw new Error('Amazon SP-API credentials are not configured');
-  }
-
-  console.log('[AmazonSpService] Refreshing access token...');
+/**
+ * Internal function to perform the actual token refresh (without locking).
+ */
+async function performTokenRefresh(): Promise<string> {
+  console.log('[AmazonSpService] Performing token refresh...');
 
   const response = await axios.post(TOKEN_URL, new URLSearchParams({
     grant_type: 'refresh_token',
@@ -99,7 +105,12 @@ async function refreshAccessToken(): Promise<string> {
   // Cache in memory
   cachedToken = { accessToken: access_token, expiresAt };
 
-  // Persist to DB for multi-instance scenarios
+  // Persist to oauth_token_locks table for distributed locking
+  await updateTokenAfterRefresh('amazon_sp', access_token, expiresAt, {
+    marketplaceId: env.AMAZON_SP_MARKETPLACE_ID,
+  });
+
+  // Also persist to amazonSpTokens for backwards compatibility
   try {
     await db.insert(amazonSpTokens).values({
       marketplaceId: env.AMAZON_SP_MARKETPLACE_ID,
@@ -116,19 +127,69 @@ async function refreshAccessToken(): Promise<string> {
       },
     });
   } catch (err) {
-    console.warn('[AmazonSpService] Failed to persist token to DB:', err);
+    console.warn('[AmazonSpService] Failed to persist token to amazonSpTokens:', err);
   }
 
+  console.log('[AmazonSpService] Token refresh completed');
   return access_token;
 }
 
+/**
+ * Refresh access token with distributed locking to prevent race conditions
+ * in multi-instance deployments.
+ */
+async function refreshAccessToken(): Promise<string> {
+  if (!integrations.amazonSpApi) {
+    throw new Error('Amazon SP-API credentials are not configured');
+  }
+
+  return withTokenRefreshLock(
+    'amazon_sp',
+    performTokenRefresh,
+    {
+      tokenExpiryCheck: (row: { access_token_expires_at: Date | string | null }) => {
+        if (!row.access_token_expires_at) return true;
+        const expiresAt = new Date(row.access_token_expires_at);
+        return expiresAt.getTime() < Date.now();
+      },
+      getTokenFromRow: (row: { access_token: string | null; access_token_expires_at: Date | string | null }) => {
+        if (!row.access_token || !row.access_token_expires_at) return null;
+        return {
+          accessToken: row.access_token,
+          expiresAt: new Date(row.access_token_expires_at),
+        };
+      },
+      onTokenFromCache: (cached) => {
+        // Another process refreshed the token, use it
+        console.log('[AmazonSpService] Using token refreshed by another process');
+        cachedToken = cached;
+        return cached.accessToken;
+      },
+    }
+  );
+}
+
 async function getAccessToken(): Promise<string> {
+  // Ensure provider lock entry exists
+  await ensureProviderLockEntry('amazon_sp');
+
   // Check memory cache first
   if (cachedToken && cachedToken.expiresAt > new Date()) {
     return cachedToken.accessToken;
   }
 
-  // Check DB cache
+  // Check oauth_token_locks table first (for distributed scenarios)
+  try {
+    const lockToken = await getTokenFromLockTable('amazon_sp');
+    if (lockToken) {
+      cachedToken = { accessToken: lockToken.accessToken, expiresAt: lockToken.expiresAt };
+      return lockToken.accessToken;
+    }
+  } catch (err) {
+    console.warn('[AmazonSpService] Failed to read token from lock table:', err);
+  }
+
+  // Fallback to amazonSpTokens table
   try {
     const stored = await db.query.amazonSpTokens.findFirst({
       where: eq(amazonSpTokens.marketplaceId, env.AMAZON_SP_MARKETPLACE_ID),
@@ -139,7 +200,7 @@ async function getAccessToken(): Promise<string> {
       return stored.accessToken;
     }
   } catch (err) {
-    console.warn('[AmazonSpService] Failed to read token from DB:', err);
+    console.warn('[AmazonSpService] Failed to read token from amazonSpTokens:', err);
   }
 
   return refreshAccessToken();
