@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { updateResolutionMetrics } from '@/utils/resolutionMetricsUtil';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
 /**
  * Cron handler for updating resolution metrics
@@ -7,44 +9,24 @@ import { updateResolutionMetrics } from '@/utils/resolutionMetricsUtil';
  * regularly update the metrics for dashboard display
  */
 export async function GET(req: NextRequest) {
+  // Validate cron secret
+  const authHeader = req.headers.get('authorization');
+  if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
+    return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
+  }
+
   try {
-    // Verify authorization - check for API key
-    const authHeader = req.headers.get('authorization');
-    const apiKey = process.env.CRON_SECRET;
-    
-    if (!apiKey) {
-      console.error('Missing CRON_SECRET environment variable');
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-    }
-    
-    if (authHeader !== `Bearer ${apiKey}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
-    // Update metrics
     console.log('Starting metrics update...');
     const metrics = await updateResolutionMetrics();
-    
-    // Return results
-    return NextResponse.json({
-      success: true,
-      message: 'Metrics update completed',
-      metrics
-    });
+
+    return apiSuccess({ updated: true, metrics });
   } catch (error) {
     console.error('Error in cron job for metrics update:', error);
-    return NextResponse.json({ 
-      error: 'Failed to update metrics', 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return apiError(
+      'cron_failed',
+      'Failed to update metrics',
+      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
   }
-}
-
-/**
- * Disable Next.js default body parsing for this route
- */
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}; 
+} 

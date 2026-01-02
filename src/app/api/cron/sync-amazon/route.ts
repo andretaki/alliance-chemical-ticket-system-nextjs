@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
 import { syncAmazonOrders } from '@/jobs/syncAmazonOrders';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
 // This is a Vercel Cron Job handler
 // The cron schedule is configured in vercel.json
@@ -9,13 +10,10 @@ export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
 
 export async function GET(request: Request) {
-  // Verify the request is from Vercel Cron
+  // Validate cron secret
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json(
-      { success: false, message: 'Unauthorized' },
-      { status: 401 }
-    );
+  if (authHeader !== `Bearer ${env.CRON_SECRET}`) {
+    return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
   }
 
   try {
@@ -24,21 +22,14 @@ export async function GET(request: Request) {
       sinceDays: 30,
     });
 
-    return NextResponse.json({
-      success: result.success,
-      message: result.success ? 'Amazon order sync completed successfully' : 'Amazon order sync failed',
-      data: result,
-    });
+    if (result.success) {
+      return apiSuccess(result);
+    } else {
+      return apiError('sync_failed', 'Amazon order sync failed', result, { status: 500 });
+    }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error('[Cron] Amazon order sync failed:', error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Amazon order sync failed',
-        error: errorMessage,
-      },
-      { status: 500 }
-    );
+    return apiError('cron_failed', 'Amazon order sync failed', { error: errorMessage }, { status: 500 });
   }
 }

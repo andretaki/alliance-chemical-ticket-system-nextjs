@@ -3,6 +3,10 @@ import OAuthClient from 'intuit-oauth';
 import { qboConfig } from '@/config/qboConfig';
 import { getToken, setToken, QboToken } from './qboTokenStore';
 import { db, qboCustomerSnapshots, qboEstimates, qboInvoices } from '@/lib/db';
+import { withResilience } from '@/lib/resilience';
+
+// Resilience configuration for QuickBooks API
+const QBO_TIMEOUT_MS = 30000; // 30 seconds
 
 let oauthClient: OAuthClient | null = null;
 
@@ -103,15 +107,24 @@ export interface QboCustomerBalance {
 
 export const runQboQuery = async <T = any>(query: string): Promise<T> => {
     const client = await getQboClient();
-    return new Promise<T>((resolve, reject) => {
-        (client as any).query(query, (err: any, data: T) => {
-            if (err) {
-                reject(err);
-                return;
-            }
-            resolve(data);
-        });
-    });
+
+    return withResilience(
+        () =>
+            new Promise<T>((resolve, reject) => {
+                (client as any).query(query, (err: any, data: T) => {
+                    if (err) {
+                        reject(err);
+                        return;
+                    }
+                    resolve(data);
+                });
+            }),
+        {
+            timeout: QBO_TIMEOUT_MS,
+            name: 'QuickBooks-Query',
+            // No fallback for QBO queries - fail loudly so callers can handle
+        }
+    );
 };
 
 /**

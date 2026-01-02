@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
 import { calculateCustomerScores } from '@/jobs/calculateCustomerScores';
 import { logError, logInfo } from '@/utils/logger';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for scoring job
@@ -19,23 +20,21 @@ export const maxDuration = 300; // 5 minutes for scoring job
  * }
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const header = request.headers.get('authorization');
-    if (header !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  // Validate cron secret
+  const header = request.headers.get('authorization');
+  if (header !== `Bearer ${env.CRON_SECRET}`) {
+    return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
   }
 
   try {
     logInfo('cron.customer_scores.start', {});
     await calculateCustomerScores();
     logInfo('cron.customer_scores.success', {});
-    return NextResponse.json({ success: true });
+    return apiSuccess({ calculated: true });
   } catch (err) {
     logError('cron.customer_scores.error', {
       error: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: 'Failed to calculate customer scores' }, { status: 500 });
+    return apiError('cron_failed', 'Failed to calculate customer scores', null, { status: 500 });
   }
 }

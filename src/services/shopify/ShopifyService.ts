@@ -3,6 +3,7 @@ import '@shopify/shopify-api/adapters/node';
 import { Config } from '@/config/appConfig';
 import type { AppDraftOrderInput, ShopifyDraftOrderGQLResponse, ShopifyMoney, DraftOrderLineItemInput, DraftOrderAddressInput } from '@/agents/quoteAssistant/quoteInterfaces';
 import { mapCountryToCode, mapProvinceToCode } from '@/utils/addressUtils';
+import { withResilience } from '@/lib/resilience';
 
 // Define types for Shopify Product and Variant Nodes
 interface ShopifyProductNode {
@@ -43,7 +44,7 @@ export interface ShopifyOrderNode {
   createdAt: string; // ISO 8601 date string
   processedAt?: string | null;
   closedAt?: string | null;
-  financialStatus?: string | null;
+  displayFinancialStatus?: string | null;
   displayFulfillmentStatus: 'FULFILLED' | 'UNFULFILLED' | 'PARTIALLY_FULFILLED' | 'SCHEDULED' | 'ON_HOLD';
   totalPriceSet: {
     shopMoney: {
@@ -189,6 +190,7 @@ function getShopifyApi() {
 export class ShopifyService {
   private shopifyStoreDomain: string;
   private adminAccessToken: string;
+  private apiVersion: string;
   private graphqlClient: any;
   private readonly REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 
@@ -201,6 +203,7 @@ export class ShopifyService {
 
     this.shopifyStoreDomain = Config.shopify.storeUrl!.replace(/^https?:\/\//, '');
     this.adminAccessToken = Config.shopify.adminAccessToken!;
+    this.apiVersion = Config.shopify.apiVersion || '2024-04';
 
     // Create a custom app session
     const session = shopify.session.customAppSession(this.shopifyStoreDomain);
@@ -216,19 +219,20 @@ export class ShopifyService {
   }
 
   /**
-   * Wrapper for GraphQL requests with timeout protection
+   * Wrapper for GraphQL requests with timeout and circuit breaker protection
    */
   private async requestWithTimeout(
     query: string,
     options?: { variables?: any; retries?: number }
   ): Promise<any> {
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Shopify API request timed out')), this.REQUEST_TIMEOUT_MS)
+    return withResilience(
+      () => this.graphqlClient.request(query, options),
+      {
+        timeout: this.REQUEST_TIMEOUT_MS,
+        name: 'Shopify-GraphQL',
+        // No fallback - let callers handle failures
+      }
     );
-
-    const requestPromise = this.graphqlClient.request(query, options);
-
-    return Promise.race([requestPromise, timeoutPromise]);
   }
 
   private getNumericId(gid: string): bigint {
@@ -1553,8 +1557,8 @@ export class ShopifyService {
    */
   public async fetchOrdersPage(cursor?: string, pageSize: number = 50): Promise<{ orders: ShopifyOrderNode[]; nextCursor?: string; hasNextPage: boolean; }> {
     const query = `
-      query FetchOrders($cursor: String, $pageSize: Int!) {
-        orders(first: $pageSize, after: $cursor, sortKey: CREATED_AT, reverse: true) {
+      query FetchOrders($cursor: String, $first: Int!) {
+        orders(first: $first, after: $cursor, sortKey: CREATED_AT, reverse: true) {
           edges {
             cursor
             node {
@@ -1564,7 +1568,7 @@ export class ShopifyService {
               createdAt
               processedAt
               closedAt
-              financialStatus
+              displayFinancialStatus
               displayFulfillmentStatus
               totalPriceSet { shopMoney { amount currencyCode } }
               customer {
@@ -1596,13 +1600,26 @@ export class ShopifyService {
       }
     `;
 
-    const response = await this.graphqlClient.query({
-      data: query,
-      variables: { cursor, pageSize },
+    const variables = { cursor: cursor || null, first: pageSize ?? 50 };
+
+    // Use native fetch instead of deprecated SDK query method
+    const response = await fetch(`https://${this.shopifyStoreDomain}/admin/api/${this.apiVersion}/graphql.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': this.adminAccessToken,
+      },
+      body: JSON.stringify({ query, variables }),
     });
 
-    const edges = response?.body?.data?.orders?.edges || [];
-    const pageInfo = response?.body?.data?.orders?.pageInfo || {};
+    const result = await response.json();
+    if (result.errors) {
+      console.error('[ShopifyService] fetchOrdersPage errors:', result.errors);
+      throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+    }
+
+    const edges = result?.data?.orders?.edges || [];
+    const pageInfo = result?.data?.orders?.pageInfo || {};
 
     const orders: ShopifyOrderNode[] = edges.map((edge: any) => ({
       ...edge.node,
