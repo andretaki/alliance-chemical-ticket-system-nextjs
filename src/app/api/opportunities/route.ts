@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getServerSession } from '@/lib/auth-helpers';
 import { rateLimiters } from '@/lib/rateLimiting';
 import { createOpportunity, listOpportunities } from '@/services/opportunityService';
 import { opportunityStageEnum } from '@/lib/db';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const CreateSchema = z.object({
   customerId: z.number(),
@@ -21,16 +22,14 @@ const CreateSchema = z.object({
   lostReason: z.string().nullable().optional(),
 });
 
-function json(data: any, status = 200) {
-  return NextResponse.json(data, { status });
-}
-
 export async function GET(request: NextRequest) {
   const rateLimitResponse = await rateLimiters.api.middleware(request);
   if (rateLimitResponse) return rateLimitResponse;
 
   const { session, error } = await getServerSession();
-  if (error || !session?.user) return json({ error: 'Unauthorized' }, 401);
+  if (error || !session?.user) {
+    return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
+  }
 
   const url = new URL(request.url);
   const stage = url.searchParams.get('stage') || undefined;
@@ -47,7 +46,7 @@ export async function GET(request: NextRequest) {
     search,
   });
 
-  return json({ data: opportunities });
+  return apiSuccess({ data: opportunities });
 }
 
 export async function POST(request: NextRequest) {
@@ -55,19 +54,21 @@ export async function POST(request: NextRequest) {
   if (rateLimitResponse) return rateLimitResponse;
 
   const { session, error } = await getServerSession();
-  if (error || !session?.user) return json({ error: 'Unauthorized' }, 401);
+  if (error || !session?.user) {
+    return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
+  }
 
   const body = await request.json();
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) {
-    return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, 400);
+    return apiError('validation_error', 'Invalid input', parsed.error.flatten().fieldErrors, { status: 400 });
   }
 
   try {
     const opp = await createOpportunity(parsed.data);
-    return json({ opportunity: opp }, 201);
+    return apiSuccess({ opportunity: opp }, { status: 201 });
   } catch (err: any) {
     console.error('[POST /api/opportunities] error', err);
-    return json({ error: 'Failed to create opportunity' }, 500);
+    return apiError('internal_error', 'Failed to create opportunity', null, { status: 500 });
   }
 }

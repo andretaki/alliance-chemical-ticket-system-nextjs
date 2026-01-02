@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getServerSession } from '@/lib/auth-helpers';
 import { rateLimiters } from '@/lib/rateLimiting';
 import { getOpportunityById, updateOpportunity } from '@/services/opportunityService';
 import { opportunityStageEnum } from '@/lib/db';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const UpdateSchema = z.object({
   title: z.string().max(255).optional(),
@@ -20,23 +21,25 @@ const UpdateSchema = z.object({
   lostReason: z.string().nullable().optional(),
 });
 
-function json(data: any, status = 200) {
-  return NextResponse.json(data, { status });
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { session, error } = await getServerSession();
-  if (error || !session?.user) return json({ error: 'Unauthorized' }, 401);
+  if (error || !session?.user) {
+    return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
+  }
 
   const id = Number((await params).id);
-  if (Number.isNaN(id)) return json({ error: 'Invalid id' }, 400);
+  if (Number.isNaN(id)) {
+    return apiError('invalid_id', 'Invalid id', null, { status: 400 });
+  }
 
   const opp = await getOpportunityById(id);
-  if (!opp) return json({ error: 'Not found' }, 404);
-  return json(opp);
+  if (!opp) {
+    return apiError('not_found', 'Not found', null, { status: 404 });
+  }
+  return apiSuccess(opp);
 }
 
 export async function PUT(
@@ -47,20 +50,28 @@ export async function PUT(
   if (rateLimitResponse) return rateLimitResponse;
 
   const { session, error } = await getServerSession();
-  if (error || !session?.user) return json({ error: 'Unauthorized' }, 401);
+  if (error || !session?.user) {
+    return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
+  }
 
   const id = Number((await params).id);
-  if (Number.isNaN(id)) return json({ error: 'Invalid id' }, 400);
+  if (Number.isNaN(id)) {
+    return apiError('invalid_id', 'Invalid id', null, { status: 400 });
+  }
 
   const body = await request.json();
   const parsed = UpdateSchema.safeParse(body);
-  if (!parsed.success) return json({ error: 'Invalid input', details: parsed.error.flatten().fieldErrors }, 400);
+  if (!parsed.success) {
+    return apiError('validation_error', 'Invalid input', parsed.error.flatten().fieldErrors, { status: 400 });
+  }
 
   try {
     const opp = await updateOpportunity(id, parsed.data);
-    return json({ opportunity: opp });
+    return apiSuccess({ opportunity: opp });
   } catch (err: any) {
     console.error(`[PUT /api/opportunities/${id}]`, err);
-    return json({ error: err?.message || 'Failed to update opportunity' }, err?.message === 'Opportunity not found' ? 404 : 500);
+    const status = err?.message === 'Opportunity not found' ? 404 : 500;
+    const code = status === 404 ? 'not_found' : 'internal_error';
+    return apiError(code, err?.message || 'Failed to update opportunity', null, { status });
   }
 }

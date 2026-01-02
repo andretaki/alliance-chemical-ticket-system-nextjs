@@ -1,12 +1,13 @@
 export const runtime = 'nodejs';
 
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 import type { AppDraftOrderInput, DraftOrderOutput, ShopifyDraftOrderGQLResponse, ShopifyMoney, DraftOrderAddressInput, DraftOrderLineItemInput } from '@/agents/quoteAssistant/quoteInterfaces';
 import { Config } from '@/config/appConfig';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
 import { rateLimiters } from '@/lib/rateLimiting';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 function mapShopifyResponseToOutput(gqlResponse: ShopifyDraftOrderGQLResponse): DraftOrderOutput {
   const getPrice = (moneySet?: { shopMoney: ShopifyMoney }): number | undefined => {
@@ -85,26 +86,24 @@ export async function POST(request: NextRequest) {
     }
 
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user?.id || (session.user.role !== 'admin' && session.user.role !== 'manager')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const body = await request.json() as AppDraftOrderInput;
     console.log('[API /api/draft-orders POST] Received request body:', JSON.stringify(body, null, 2));
 
     if (!body.lineItems || body.lineItems.length === 0) {
-      return NextResponse.json({ error: 'Line items are required' }, { status: 400 });
+      return apiError('validation_error', 'Line items are required', null, { status: 400 });
     }
     if (!body.shippingAddress && !body.customer?.email) {
-        // Shopify might require more for customer creation if it's a new one.
-        // For calculating shipping, shippingAddress is definitely needed.
-        return NextResponse.json({ error: 'Shipping address or customer email is required' }, { status: 400 });
+      return apiError('validation_error', 'Shipping address or customer email is required', null, { status: 400 });
     }
     if (!body.shippingAddress) {
-        return NextResponse.json({ error: 'Shipping address is required to calculate shipping rates.' }, { status: 400 });
+      return apiError('validation_error', 'Shipping address is required to calculate shipping rates.', null, { status: 400 });
     }
 
     // --- Idempotency Check: Prevent duplicate draft orders for the same ticket ---
@@ -123,10 +122,10 @@ export async function POST(request: NextRequest) {
           console.log(`[POST /api/draft-orders] Found existing draft order for ticket ${ticketId}: ${existingDraftOrder.name}`);
 
           // Return the existing draft order instead of creating a duplicate
-          return NextResponse.json({
+          return apiSuccess({
             ...existingDraftOrder,
             _note: 'Existing draft order returned (idempotency protection)'
-          }, { status: 200 });
+          });
         }
       } catch (searchError) {
         console.warn(`[POST /api/draft-orders] Could not check for existing draft orders: ${searchError}`);
@@ -221,7 +220,7 @@ export async function POST(request: NextRequest) {
 
     if (!shopifyDraftOrder) {
       console.error('[API /api/draft-orders POST] Failed to create draft order in Shopify (initial creation)');
-      return NextResponse.json({ error: 'Failed to create draft order in Shopify (initial creation)' }, { status: 500 });
+      return apiError('shopify_error', 'Failed to create draft order in Shopify (initial creation)', null, { status: 500 });
     }
     
     console.log('[API /api/draft-orders POST] Draft order created successfully:', JSON.stringify(shopifyDraftOrder, null, 2));
@@ -331,10 +330,10 @@ export async function POST(request: NextRequest) {
         }
     }
 
-    return NextResponse.json(outputData, { status: 201 });
+    return apiSuccess(outputData, { status: 201 });
 
   } catch (error: any) {
     console.error('[API /api/draft-orders POST] Error:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    return apiError('internal_error', error.message || 'Internal Server Error', null, { status: 500 });
   }
 } 
