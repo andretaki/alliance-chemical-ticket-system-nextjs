@@ -1,8 +1,9 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { desc, eq, sql } from 'drizzle-orm';
 import { getServerSession } from '@/lib/auth-helpers';
 import { rateLimiters } from '@/lib/rateLimiting';
 import { db, ragChunks, ragIngestionJobs, ragSyncCursors } from '@/lib/db';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 function getClientIP(request: Request): string {
   const forwarded = request.headers.get('x-forwarded-for');
@@ -25,16 +26,16 @@ function getClientIP(request: Request): string {
 export async function GET(request: NextRequest) {
   const { session, error } = await getServerSession();
   if (error || !session?.user?.id) {
-    return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 });
+    return apiError('unauthorized', error || 'Unauthorized', null, { status: 401 });
   }
   if (session.user.role !== 'admin') {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    return apiError('forbidden', 'Admin access required', null, { status: 403 });
   }
 
   const ip = getClientIP(request);
   const limiter = await rateLimiters.admin.check(`rag:admin:${ip}`);
   if (!limiter.allowed) {
-    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+    return apiError('rate_limited', 'Rate limit exceeded', null, { status: 429 });
   }
 
   const [failedJobs, jobStats, cursors, missingEmbeddingRows] = await Promise.all([
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
     return acc;
   }, {});
 
-  return NextResponse.json({
+  return apiSuccess({
     jobs: {
       stats,
       failed: failedJobs,

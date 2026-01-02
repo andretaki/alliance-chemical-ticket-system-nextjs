@@ -1,11 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db, ticketComments, tickets, users, ticketAttachments } from '@/lib/db';
-import { and, eq, or, isNull, desc, sql } from 'drizzle-orm';
+import { and, eq, or, desc, sql } from 'drizzle-orm';
 import { getServerSession } from '@/lib/auth-helpers';
 import { sendTicketReplyEmail } from '@/lib/email';
 import { InferSelectModel } from 'drizzle-orm';
 import { checkTicketCommentAccess } from '@/lib/ticket-auth';
 import { validateTicketId, sanitizeHtmlContent, ValidationError } from '@/lib/validators';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // Define types for database models
 type TicketComment = InferSelectModel<typeof ticketComments>;
@@ -31,10 +32,10 @@ export async function POST(
   try {
     const { session, error } = await getServerSession();
     if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const { id } = await params;
@@ -43,7 +44,7 @@ export async function POST(
     // Check authorization to comment on this ticket
     const authResult = await checkTicketCommentAccess(ticketId);
     if (!authResult.authorized) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status || 403 });
+      return apiError('forbidden', authResult.error || 'Access denied', null, { status: authResult.status || 403 });
     }
 
     // Get the current user
@@ -52,7 +53,7 @@ export async function POST(
     });
 
     if (!currentUser) {
-      return new NextResponse('User not found', { status: 404 });
+      return apiError('not_found', 'User not found', null, { status: 404 });
     }
 
     // Verify the ticket exists AND fetch necessary fields for threading
@@ -74,7 +75,7 @@ export async function POST(
     });
 
     if (!ticket) {
-      return new NextResponse('Ticket not found', { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
 
     // Parse the request body
@@ -82,7 +83,7 @@ export async function POST(
 
     // Check if content is provided when not attaching files
     if (!requestBody.content && (!requestBody.attachmentIds || requestBody.attachmentIds.length === 0)) {
-      return new NextResponse('Comment content is required if no attachments', { status: 400 });
+      return apiError('validation_error', 'Comment content is required if no attachments', null, { status: 400 });
     }
 
     // Sanitize HTML content to prevent XSS
@@ -139,9 +140,12 @@ export async function POST(
     // Assert non-null for the disabled email block below
     const verifiedTicket = ticket!;
 
+    const emailRequested = Boolean(requestBody.sendAsEmail && verifiedTicket.senderEmail);
+    let emailSent = false;
+
     // EMAIL INTEGRATION DISABLED - Comment saved but email not sent
     // If this is an email reply, send it
-    if (false && requestBody.sendAsEmail && verifiedTicket.senderEmail) { // DISABLED
+    if (false && emailRequested) { // DISABLED
       try {
         // --- Determine Threading Headers ---
         let inReplyToId: string | undefined = undefined;
@@ -204,6 +208,7 @@ export async function POST(
         }
 
         console.log(`Email reply sent successfully for ticket ${ticketId} to ${verifiedTicket.senderEmail}`);
+        emailSent = true;
 
         // TRANSACTION: Update ticket and comment after successful email send
         await db.transaction(async (tx) => {
@@ -237,7 +242,7 @@ export async function POST(
           .where(eq(ticketComments.id, newComment.id));
 
         // Return a response indicating the comment was saved but email failed
-        return NextResponse.json({
+        return apiSuccess({
           ...newComment,
           warning: 'Comment saved but email delivery failed',
           error: (emailError as Error).message || String(emailError) || 'Unknown error'
@@ -245,12 +250,18 @@ export async function POST(
       }
     }
 
-    return NextResponse.json(newComment);
+    const responsePayload = {
+      ...newComment,
+      ...(emailRequested ? { emailSent } : {}),
+      ...((emailRequested && !emailSent) ? { warning: 'Email delivery is currently disabled.' } : {}),
+    };
+
+    return apiSuccess(responsePayload);
   } catch (error) {
     if (error instanceof ValidationError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
+      return apiError('validation_error', error.message, null, { status: 400 });
     }
     console.error('Error creating reply:', error);
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return apiError('internal_error', 'Internal Server Error', null, { status: 500 });
   }
 } 

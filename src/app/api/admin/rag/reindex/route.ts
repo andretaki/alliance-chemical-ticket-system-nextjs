@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { and, eq, inArray } from 'drizzle-orm';
 import { getServerSession } from '@/lib/auth-helpers';
@@ -7,6 +7,7 @@ import { db, customerIdentities, orders, qboCustomerSnapshots, qboEstimates, qbo
 import { enqueueRagJob } from '@/services/rag/ragIngestionService';
 import { syncGraphEmails, syncOrders, syncQboCustomers, syncQboEstimates, syncQboInvoices, syncShipstationShipments, syncShopifyCustomers, syncTickets, syncTicketComments, syncInteractions } from '@/services/rag/ragSyncService';
 import type { RagSourceType } from '@/services/rag/ragTypes';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const schema = z.object({
   customerId: z.preprocess((value) => value === undefined ? undefined : Number(value), z.number().int().positive().optional()),
@@ -147,33 +148,33 @@ async function reindexSourceType(sourceType: RagSourceType, sinceDays?: number) 
 export async function POST(request: NextRequest) {
   const { session, error } = await getServerSession();
   if (error || !session?.user?.id) {
-    return NextResponse.json({ error: error || 'Unauthorized' }, { status: 401 });
+    return apiError('unauthorized', error || 'Unauthorized', null, { status: 401 });
   }
   if (session.user.role !== 'admin') {
-    return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    return apiError('forbidden', 'Admin access required', null, { status: 403 });
   }
 
   const ip = getClientIP(request);
   const limiter = await rateLimiters.admin.check(`rag:admin:${ip}`);
   if (!limiter.allowed) {
-    return NextResponse.json({ error: 'Rate limit exceeded' }, { status: 429 });
+    return apiError('rate_limited', 'Rate limit exceeded', null, { status: 429 });
   }
 
   const parsed = schema.safeParse(await request.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400 });
+    return apiError('validation_error', 'Invalid request', parsed.error.flatten(), { status: 400 });
   }
 
   const { customerId, sourceType, sinceDays } = parsed.data;
 
   if (customerId) {
     const counts = await reindexCustomer(customerId);
-    return NextResponse.json({ status: 'queued', scope: 'customer', customerId, counts });
+    return apiSuccess({ status: 'queued', scope: 'customer', customerId, counts });
   }
 
   if (sourceType) {
     await reindexSourceType(sourceType as RagSourceType, sinceDays);
-    return NextResponse.json({ status: 'queued', scope: 'sourceType', sourceType, sinceDays });
+    return apiSuccess({ status: 'queued', scope: 'sourceType', sourceType, sinceDays });
   }
 
   await Promise.all([
@@ -189,5 +190,5 @@ export async function POST(request: NextRequest) {
     syncGraphEmails(),
   ]);
 
-  return NextResponse.json({ status: 'queued', scope: 'all' });
+  return apiSuccess({ status: 'queued', scope: 'all' });
 }

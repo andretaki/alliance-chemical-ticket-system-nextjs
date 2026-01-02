@@ -1,6 +1,6 @@
 export const runtime = 'nodejs';
 
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db, ticketAttachments, tickets, users } from '@/lib/db';
 import { eq, and } from 'drizzle-orm';
 import { getServerSession } from '@/lib/auth-helpers';
@@ -8,6 +8,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { put } from '@vercel/blob';
 import { SecurityValidator } from '@/lib/security';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // Vercel serverless limits
 const MAX_FILE_SIZE = 4.5 * 1024 * 1024; // 4.5MB (Vercel payload limit)
@@ -25,17 +26,17 @@ export async function POST(
 ) {
   try {
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user) {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const { id } = await params;
     const ticketId = parseInt(id);
     if (isNaN(ticketId)) {
-      return new NextResponse('Invalid ticket ID', { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID', null, { status: 400 });
     }
 
     // Verify ticket exists
@@ -45,7 +46,7 @@ export async function POST(
     });
 
     if (!ticket) {
-      return new NextResponse('Ticket not found', { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
 
     // Parse form data with size limit check
@@ -53,12 +54,12 @@ export async function POST(
     const files = formData.getAll('files') as File[];
 
     if (!files || files.length === 0) {
-      return new NextResponse('No files provided', { status: 400 });
+      return apiError('validation_error', 'No files provided', null, { status: 400 });
     }
 
     // Validate file count for serverless
     if (files.length > MAX_FILES_PER_REQUEST) {
-      return new NextResponse(`Too many files. Maximum ${MAX_FILES_PER_REQUEST} files allowed per request.`, { status: 400 });
+      return apiError('validation_error', `Too many files. Maximum ${MAX_FILES_PER_REQUEST} files allowed per request.`, null, { status: 400 });
     }
 
     // Validate each file before processing
@@ -111,10 +112,7 @@ export async function POST(
     }
 
     if (validationErrors.length > 0) {
-      return NextResponse.json({ 
-        error: 'File validation failed', 
-        details: validationErrors 
-      }, { status: 400 });
+      return apiError('validation_error', 'File validation failed', validationErrors, { status: 400 });
     }
 
     const savedAttachments = [];
@@ -149,28 +147,25 @@ export async function POST(
       } catch (fileError) {
         console.error(`Error processing file ${file.name}:`, fileError);
         // Add specific error handling for Vercel Blob if needed
-        return NextResponse.json({ error: `Failed to process file: ${file.name}`, details: fileError instanceof Error ? fileError.message : 'Unknown error' }, { status: 500 });
+        return apiError('upload_failed', `Failed to process file: ${file.name}`, { details: fileError instanceof Error ? fileError.message : 'Unknown error' }, { status: 500 });
       }
     }
 
-    return NextResponse.json({
+    return apiSuccess({
       message: `Successfully uploaded ${savedAttachments.length} file(s)`,
       attachments: savedAttachments
     });
 
   } catch (error) {
     console.error('Error uploading attachments:', error);
-    
+
     // More specific error handling for serverless
     if (error instanceof Error) {
       if (error.message.includes('PayloadTooLargeError')) {
-        return NextResponse.json({ 
-          error: 'Request payload too large for serverless function',
-          maxSize: `${MAX_FILE_SIZE / (1024 * 1024)}MB`
-        }, { status: 413 });
+        return apiError('payload_too_large', 'Request payload too large for serverless function', { maxSize: `${MAX_FILE_SIZE / (1024 * 1024)}MB` }, { status: 413 });
       }
     }
 
-    return new NextResponse('Internal Server Error', { status: 500 });
+    return apiError('internal_error', 'Internal Server Error', null, { status: 500 });
   }
 } 

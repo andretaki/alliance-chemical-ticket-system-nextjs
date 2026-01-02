@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { db, tickets, ticketComments } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { ticketEventEmitter } from '@/lib/eventEmitter';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 /**
  * POST handler to reopen a closed ticket
@@ -14,20 +15,20 @@ export async function POST(
   try {
     // Check authentication and permissions
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session || !session.user || session.user.role !== 'admin') {
-      return new NextResponse('Unauthorized', { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
-    
+
     // Parse ticket ID - await params since it's now a Promise
     const { id } = await params;
     const ticketId = parseInt(id, 10);
     if (isNaN(ticketId)) {
-      return new NextResponse('Invalid ticket ID', { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID', null, { status: 400 });
     }
-    
+
     // Check if ticket exists and is closed
     const ticket = await db.query.tickets.findFirst({
       where: eq(tickets.id, ticketId),
@@ -36,16 +37,13 @@ export async function POST(
         title: true
       }
     });
-    
+
     if (!ticket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
-    
+
     if (ticket.status !== 'closed') {
-      return NextResponse.json({ 
-        error: 'Ticket is not closed and cannot be reopened',
-        status: ticket.status
-      }, { status: 400 });
+      return apiError('validation_error', 'Ticket is not closed and cannot be reopened', { status: ticket.status }, { status: 400 });
     }
     
     // Update the ticket status to open
@@ -75,14 +73,14 @@ export async function POST(
     });
     
     console.log(`Ticket #${ticketId} (${ticket.title}) reopened by ${session.user.name || session.user.email}`);
-    
-    return NextResponse.json({
+
+    return apiSuccess({
       success: true,
       message: 'Ticket reopened successfully',
       ticketId
     });
   } catch (error) {
     console.error(`Error reopening ticket:`, error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return apiError('internal_error', 'Internal Server Error', null, { status: 500 });
   }
 }

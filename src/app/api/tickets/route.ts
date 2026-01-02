@@ -1,12 +1,13 @@
 // src/app/api/tickets/route.ts
 // Thin API layer - delegates to Service Layer
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getServerSession } from '@/lib/auth-helpers';
 import { TicketService } from '@/services/TicketService';
 import { rateLimiters } from '@/lib/rateLimiting';
 import { ValidationError } from '@/lib/validators';
 import { ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum, ticketSentimentEnum } from '@/lib/db';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // --- Zod Validation Schemas ---
 const CreateTicketSchema = z.object({
@@ -30,27 +31,6 @@ const CreateTicketSchema = z.object({
   ai_suggested_assignee_id: z.string().nullable().optional(),
 });
 
-// --- Standardized Response Builder ---
-function jsonResponse(data: any, status: number = 200) {
-  return NextResponse.json(data, {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Response-Time': String(Date.now()),
-    },
-  });
-}
-
-function errorResponse(message: string, status: number = 500, details?: any) {
-  return jsonResponse(
-    {
-      error: message,
-      ...(details && { details }),
-    },
-    status
-  );
-}
-
 // --- GET: Fetch tickets with filtering and pagination ---
 export async function GET(request: NextRequest) {
   // Rate Limiting
@@ -61,7 +41,7 @@ export async function GET(request: NextRequest) {
     const { session, error } = await getServerSession();
 
     if (error || !session?.user) {
-      return errorResponse('Unauthorized - Please sign in', 401);
+      return apiError('unauthorized', 'Unauthorized - Please sign in', null, { status: 401 });
     }
 
     // Extract and validate query parameters
@@ -90,16 +70,16 @@ export async function GET(request: NextRequest) {
       userRole: session.user.role,
     });
 
-    return jsonResponse(result);
+    return apiSuccess(result);
 
   } catch (error) {
     console.error('[API GET /api/tickets] Error:', error);
 
     if (error instanceof ValidationError) {
-      return errorResponse('Validation Error', 400, { field: error.field, message: error.message });
+      return apiError('validation_error', 'Validation Error', { field: error.field, message: error.message }, { status: 400 });
     }
 
-    return errorResponse('Failed to fetch tickets', 500);
+    return apiError('internal_error', 'Failed to fetch tickets', null, { status: 500 });
   }
 }
 
@@ -113,7 +93,7 @@ export async function POST(request: NextRequest) {
     const { session, error } = await getServerSession();
 
     if (error || !session?.user) {
-      return errorResponse('Unauthorized - Please sign in to create a ticket', 401);
+      return apiError('unauthorized', 'Unauthorized - Please sign in to create a ticket', null, { status: 401 });
     }
 
     // Parse and validate request body
@@ -122,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     if (!validationResult.success) {
       const errors = validationResult.error.flatten().fieldErrors;
-      return errorResponse('Invalid input', 400, errors);
+      return apiError('validation_error', 'Invalid input', errors, { status: 400 });
     }
 
     const {
@@ -164,25 +144,19 @@ export async function POST(request: NextRequest) {
 
     console.log(`[API POST /api/tickets] Ticket ${newTicket.id} created successfully by user ${session.user.id}`);
 
-    return jsonResponse(
-      {
-        message: 'Ticket created successfully',
-        ticket: newTicket,
-      },
-      201
-    );
+    return apiSuccess({ ticket: newTicket }, { status: 201 });
 
   } catch (error) {
     console.error('[API POST /api/tickets] Error:', error);
 
     if (error instanceof ValidationError) {
-      return errorResponse('Validation Error', 400, { field: error.field, message: error.message });
+      return apiError('validation_error', 'Validation Error', { field: error.field, message: error.message }, { status: 400 });
     }
 
     if (error instanceof Error && error.message.includes('not found')) {
-      return errorResponse(error.message, 404);
+      return apiError('not_found', error.message, null, { status: 404 });
     }
 
-    return errorResponse('Failed to create ticket', 500);
+    return apiError('internal_error', 'Failed to create ticket', null, { status: 500 });
   }
 }

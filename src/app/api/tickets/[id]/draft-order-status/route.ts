@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db, tickets } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
 import { AIOrderStatusService } from '@/services/aiOrderStatusService';
 import { extractOrderIds } from '@/lib/orderResponseService';
 import { getServerSession } from '@/lib/auth-helpers';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 export async function GET(
     request: NextRequest,
@@ -16,18 +17,18 @@ export async function GET(
     try {
         // Authenticate the user (agent)
         const { session, error } = await getServerSession();
-            if (error) {
-      return NextResponse.json({ error }, { status: 401 });
-    }
-    if (!session?.user) {
-            return new NextResponse('Unauthorized', { status: 401 });
+        if (error) {
+            return apiError('unauthorized', error, null, { status: 401 });
+        }
+        if (!session?.user) {
+            return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
         }
 
         const { id } = await params;
         ticketIdString = id; // Assign raw string ID for logging
         ticketId = parseInt(id, 10);
         if (isNaN(ticketId)) {
-            return new NextResponse('Invalid ticket ID', { status: 400 });
+            return apiError('invalid_id', 'Invalid ticket ID', null, { status: 400 });
         }
 
         // Fetch ticket details from database
@@ -43,7 +44,7 @@ export async function GET(
         });
 
         if (!ticket) {
-            return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+            return apiError('not_found', 'Ticket not found', null, { status: 404 });
         }
 
         let orderNumber = ticket.orderNumber;
@@ -54,8 +55,7 @@ export async function GET(
             const extractedOrderIds = extractOrderIds(combinedText);
             
             if (extractedOrderIds.length === 0) {
-                return NextResponse.json({ 
-                    error: 'No order number found for this ticket',
+                return apiError('no_order_number', 'No order number found for this ticket', {
                     draftMessage: 'I notice you\'re asking about an order, but I don\'t see an order number in your message. Could you please provide your order number so I can look up the current status for you?'
                 }, { status: 400 });
             }
@@ -87,14 +87,14 @@ export async function GET(
         if (!orderInfo) {
             console.error(`[OrderStatusAPI] ShipStation service returned null for order ${orderNumber}`);
             const draftNotFound = await aiOrderStatusService.generateOrderStatusDraft(
-                { 
-                    found: false, 
-                    errorMessage: `We encountered a technical issue looking up order #${orderNumber}. Our team will investigate and get back to you shortly.` 
+                {
+                    found: false,
+                    errorMessage: `We encountered a technical issue looking up order #${orderNumber}. Our team will investigate and get back to you shortly.`
                 },
                 customerName,
                 customerQueryContext
             );
-            return NextResponse.json(draftNotFound);
+            return apiSuccess(draftNotFound);
         }
         
         // Generate AI draft using the order information
@@ -112,19 +112,18 @@ export async function GET(
         };
 
         console.log(`[OrderStatusAPI] Successfully generated draft for order ${orderNumber}, confidence: ${draftData.confidence}`);
-        return NextResponse.json(response);
+        return apiSuccess(response);
 
     } catch (error) {
         console.error(`[OrderStatusAPI] Error in /api/tickets/${ticketIdString || 'unknown'}/draft-order-status:`, error);
-        
+
         let errorMessage = 'Failed to generate order status draft.';
         if (error instanceof Error) {
             errorMessage = error.message;
         }
-        
+
         // Return error response with fallback draft message
-        return NextResponse.json({ 
-            error: errorMessage,
+        return apiError('internal_error', errorMessage, {
             draftMessage: `I apologize, but I'm experiencing a technical issue while looking up your order information. Let me investigate this for you personally and get back to you with an update shortly. Thank you for your patience.`,
             confidence: 'low' as const
         }, { status: 500 });

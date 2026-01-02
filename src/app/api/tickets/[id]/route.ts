@@ -1,10 +1,12 @@
-import { NextResponse, NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db, tickets, users, ticketPriorityEnum, ticketStatusEnum, ticketSentimentEnum } from '@/lib/db';
-import { eq, and, ne } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { sendTicketReplyEmail, sendNotificationEmail } from '@/lib/email';
+import { sendNotificationEmail } from '@/lib/email';
 import { checkTicketViewAccess, checkTicketModifyAccess, checkTicketDeleteAccess } from '@/lib/ticket-auth';
 import { rateLimiters } from '@/lib/rateLimiting';
+import { enqueueRagJob } from '@/services/rag/ragIngestionService';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // --- Zod Schema for Validation ---
 const updateTicketSchema = z.object({
@@ -44,7 +46,7 @@ export async function GET(
     // Check authorization first
     const authResult = await checkTicketViewAccess(ticketId);
     if (!authResult.authorized) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status || 403 });
+      return apiError('forbidden', authResult.error || 'Access denied', null, { status: authResult.status || 403 });
     }
 
     const ticket = await db.query.tickets.findFirst({
@@ -87,21 +89,18 @@ export async function GET(
     });
 
     if (!ticket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
 
-    return NextResponse.json(ticket);
+    return apiSuccess(ticket);
   } catch (error) {
     console.error(`API Error [GET /api/tickets/${ticketIdStr}]:`, error);
 
     if (error instanceof Error && error.message === 'Invalid ticket ID format') {
-      return NextResponse.json({ error: 'Invalid ticket ID format' }, { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID format', null, { status: 400 });
     }
 
-    return NextResponse.json(
-      { error: 'Failed to fetch ticket' },
-      { status: 500 }
-    );
+    return apiError('internal_error', 'Failed to fetch ticket', null, { status: 500 });
   }
 }
 
@@ -125,7 +124,7 @@ export async function PUT(
     // Check authorization first
     const authResult = await checkTicketModifyAccess(ticketId);
     if (!authResult.authorized) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status || 403 });
+      return apiError('forbidden', authResult.error || 'Access denied', null, { status: authResult.status || 403 });
     }
 
     const body = await request.json();
@@ -133,7 +132,7 @@ export async function PUT(
     const validationResult = updateTicketSchema.safeParse(body);
     if (!validationResult.success) {
       const errors = validationResult.error.flatten().fieldErrors;
-      return NextResponse.json({ error: "Invalid input", details: errors }, { status: 400 });
+      return apiError('validation_error', 'Invalid input', errors, { status: 400 });
     }
 
     const {
@@ -158,7 +157,7 @@ export async function PUT(
     });
 
     if (!currentTicket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
     
     const oldAssigneeId = currentTicket.assigneeId;
@@ -188,7 +187,7 @@ export async function PUT(
           columns: { id: true }
         });
         if (!assignee) {
-          return NextResponse.json({ error: `Assignee with ID "${assigneeId}" not found` }, { status: 404 });
+          return apiError('not_found', `Assignee with ID "${assigneeId}" not found`, null, { status: 404 });
         }
         newAssigneeId = assigneeId;
         updateData.assigneeId = assigneeId;
@@ -203,7 +202,7 @@ export async function PUT(
           columns: { id: true }
         });
         if (!assignee) {
-          return NextResponse.json({ error: `Assignee with email "${assigneeEmail}" not found` }, { status: 404 });
+          return apiError('not_found', `Assignee with email "${assigneeEmail}" not found`, null, { status: 404 });
         }
         newAssigneeId = assignee.id;
         updateData.assigneeId = assignee.id;
@@ -250,14 +249,14 @@ export async function PUT(
       .returning();
     
     console.log(`API Info [PUT /api/tickets/${ticketIdStr}]: Ticket updated successfully. Notification sent: ${notificationSent}`);
-    return NextResponse.json({ message: 'Ticket updated successfully', ticket: updatedTicket }, { status: 200 });
-    
+    return apiSuccess({ ticket: updatedTicket });
+
   } catch (error) {
     console.error(`API Error [PUT /api/tickets/${ticketIdStr}]:`, error);
     if (error instanceof Error && error.message === 'Invalid ticket ID format') {
-      return NextResponse.json({ error: 'Invalid ticket ID format' }, { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID format', null, { status: 400 });
     }
-    return NextResponse.json({ error: 'Failed to update ticket' }, { status: 500 });
+    return apiError('internal_error', 'Failed to update ticket', null, { status: 500 });
   }
 }
 
@@ -281,19 +280,23 @@ export async function DELETE(
     // Check authorization first (admin only)
     const authResult = await checkTicketDeleteAccess(ticketId);
     if (!authResult.authorized) {
-      return NextResponse.json({ error: authResult.error }, { status: authResult.status || 403 });
+      return apiError('forbidden', authResult.error || 'Access denied', null, { status: authResult.status || 403 });
     }
+
+    // Enqueue RAG cleanup job BEFORE deleting the ticket
+    // This ensures the RAG source is cleaned up to prevent orphaned sources
+    await enqueueRagJob('ticket', ticketId.toString(), 'delete');
 
     await db.delete(tickets).where(eq(tickets.id, ticketId));
 
     console.log(`API Info [DELETE /api/tickets/${ticketIdStr}]: Ticket deleted successfully.`);
-    return NextResponse.json({ message: 'Ticket deleted successfully' }, { status: 200 });
+    return apiSuccess({ deleted: true });
 
   } catch (error) {
     console.error(`API Error [DELETE /api/tickets/${ticketIdStr}]:`, error);
     if (error instanceof Error && error.message === 'Invalid ticket ID format') {
-      return NextResponse.json({ error: 'Invalid ticket ID format' }, { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID format', null, { status: 400 });
     }
-    return NextResponse.json({ error: 'Failed to delete ticket' }, { status: 500 });
+    return apiError('internal_error', 'Failed to delete ticket', null, { status: 500 });
   }
 } 

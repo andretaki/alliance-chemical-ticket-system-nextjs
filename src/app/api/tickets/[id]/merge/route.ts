@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db, tickets, ticketComments, ticketAttachments } from '@/lib/db';
 import { eq, inArray, and, ne, isNull } from 'drizzle-orm';
 import { getServerSession } from '@/lib/auth-helpers';
 import { z } from 'zod';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 const mergeTicketsSchema = z.object({
   sourceTicketIds: z.array(z.number().int().positive()).min(1, 'At least one source ticket ID is required.'),
@@ -15,29 +16,29 @@ export async function POST(
   const resolvedParams = await params;
   try {
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user || !['admin', 'manager'].includes(session.user.role)) {
-      return NextResponse.json({ error: 'Forbidden: You do not have permission to merge tickets.' }, { status: 403 });
+      return apiError('forbidden', 'Forbidden: You do not have permission to merge tickets.', null, { status: 403 });
     }
 
     const primaryTicketId = parseInt(resolvedParams.id, 10);
     if (isNaN(primaryTicketId)) {
-      return NextResponse.json({ error: 'Invalid primary ticket ID.' }, { status: 400 });
+      return apiError('invalid_id', 'Invalid primary ticket ID.', null, { status: 400 });
     }
 
     const body = await request.json();
     const validation = mergeTicketsSchema.safeParse(body);
 
     if (!validation.success) {
-      return NextResponse.json({ error: 'Invalid request body.', details: validation.error.format() }, { status: 400 });
+      return apiError('validation_error', 'Invalid request body.', validation.error.format(), { status: 400 });
     }
 
     const { sourceTicketIds } = validation.data;
 
     if (sourceTicketIds.includes(primaryTicketId)) {
-      return NextResponse.json({ error: 'A ticket cannot be merged into itself.' }, { status: 400 });
+      return apiError('validation_error', 'A ticket cannot be merged into itself.', null, { status: 400 });
     }
 
     // --- Database Transaction ---
@@ -100,12 +101,12 @@ export async function POST(
       return { success: true, primaryTicketId };
     });
 
-    return NextResponse.json({
+    return apiSuccess({
       message: `Successfully merged ${sourceTicketIds.length} ticket(s) into ticket #${primaryTicketId}.`,
       data: mergeResult,
     });
   } catch (error: any) {
     console.error('Error merging tickets:', error);
-    return NextResponse.json({ error: error.message || 'An internal error occurred while merging tickets.' }, { status: 500 });
+    return apiError('internal_error', error.message || 'An internal error occurred while merging tickets.', null, { status: 500 });
   }
 } 

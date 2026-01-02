@@ -1,8 +1,9 @@
-import { NextResponse, NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db, ticketComments, tickets, users } from '@/lib/db';
 import { eq, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import { getServerSession } from '@/lib/auth-helpers';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // --- Zod Schema for Validation ---
 const createCommentSchema = z.object({
@@ -27,11 +28,11 @@ export async function POST(
   try {
     // --- Authentication Check ---
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session || !session.user || !session.user.id) {
-      return NextResponse.json({ error: 'Unauthorized. Please sign in to comment.' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized. Please sign in to comment.', null, { status: 401 });
     }
     // --- End Authentication Check ---
 
@@ -46,7 +47,7 @@ export async function POST(
     });
 
     if (!ticketExists) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
 
     // Get request body
@@ -56,7 +57,7 @@ export async function POST(
     const validationResult = createCommentSchema.safeParse(body);
     if (!validationResult.success) {
       const errors = validationResult.error.flatten().fieldErrors;
-      return NextResponse.json({ error: "Invalid input", details: errors }, { status: 400 });
+      return apiError('validation_error', 'Invalid input', errors, { status: 400 });
     }
 
     const { content } = validationResult.data;
@@ -71,7 +72,7 @@ export async function POST(
     });
 
     if (!commenter) {
-      return NextResponse.json({ error: 'Commenter not found' }, { status: 404 });
+      return apiError('not_found', 'Commenter not found', null, { status: 404 });
     }
 
     // Create the comment
@@ -103,22 +104,16 @@ export async function POST(
     });
 
     console.log(`API Info [POST /api/tickets/${ticketId}/comments]: Comment ${newComment.id} created successfully.`);
-    return NextResponse.json(
-      { message: 'Comment added successfully', comment: commentWithDetails },
-      { status: 201 }
-    );
+    return apiSuccess({ message: 'Comment added successfully', comment: commentWithDetails }, { status: 201 });
   } catch (error) {
     console.error(`API Error [POST /api/tickets/comments]:`, error);
-    
+
     // Handle specific error types
     if (error instanceof Error && error.message === 'Invalid ticket ID') {
-      return NextResponse.json({ error: 'Invalid ticket ID format' }, { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID format', null, { status: 400 });
     }
-    
-    return NextResponse.json(
-      { error: 'Failed to add comment' },
-      { status: 500 }
-    );
+
+    return apiError('internal_error', 'Failed to add comment', null, { status: 500 });
   }
 }
 
@@ -128,6 +123,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Get current user session for role-based filtering
+    const { session } = await getServerSession();
+    const userRole = session?.user?.role;
+
     // Parse and validate ID
     const { id } = await params;
     const ticketId = getTicketId({ id });
@@ -139,7 +138,7 @@ export async function GET(
     });
 
     if (!ticketExists) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
 
     // Fetch all comments for this ticket with commenter information
@@ -157,25 +156,22 @@ export async function GET(
       orderBy: (comments, { asc }) => [asc(comments.createdAt)]
     });
 
-    // Optional: Filter internal notes based on user role
-    // TODO: Add role-based filtering for internal notes
-    // const currentUser = await getCurrentUser();
-    // const visibleComments = comments.filter(comment => 
-    //   !comment.isInternalNote || currentUser.role === 'admin' || currentUser.role === 'staff'
-    // );
+    // Filter internal notes based on user role
+    // Only admin and staff can see internal notes
+    const canSeeInternalNotes = userRole === 'admin' || userRole === 'staff';
+    const visibleComments = comments.filter(comment =>
+      !comment.isInternalNote || canSeeInternalNotes
+    );
 
-    return NextResponse.json(comments);
+    return apiSuccess(visibleComments);
   } catch (error) {
     console.error(`API Error [GET /api/tickets/comments]:`, error);
-    
+
     // Handle specific error types
     if (error instanceof Error && error.message === 'Invalid ticket ID') {
-      return NextResponse.json({ error: 'Invalid ticket ID format' }, { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID format', null, { status: 400 });
     }
-    
-    return NextResponse.json(
-      { error: 'Failed to fetch comments' },
-      { status: 500 }
-    );
+
+    return apiError('internal_error', 'Failed to fetch comments', null, { status: 500 });
   }
 } 

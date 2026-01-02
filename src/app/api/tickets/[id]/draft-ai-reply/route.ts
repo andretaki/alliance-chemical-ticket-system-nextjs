@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { db } from '@/lib/db';
 import { tickets, ticketComments as ticketCommentsSchema } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { aiGeneralReplyService } from '@/services/aiGeneralReplyService';
 import type { Ticket, TicketComment, TicketUser, AttachmentData } from '@/types/ticket';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 // Helper to convert DB user to TicketUser
 const toTicketUser = (user: any): TicketUser | null => {
@@ -23,16 +24,16 @@ export async function POST(
   const { id } = await params;
   try {
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const ticketIdInt = parseInt(id, 10);
     if (isNaN(ticketIdInt)) {
-      return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID', null, { status: 400 });
     }
 
     const ticketFromDb = await db.query.tickets.findFirst({
@@ -52,7 +53,7 @@ export async function POST(
     });
 
     if (!ticketFromDb) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
     
     // --- Start Type Conversion ---
@@ -116,22 +117,19 @@ export async function POST(
     }
 
     if (!messageToReplyTo) {
-      return NextResponse.json({ error: 'No substantive customer message found to reply to.' }, { status: 400 });
+      return apiError('no_content', 'No substantive customer message found to reply to.', null, { status: 400 });
     }
 
     const draftedReply = await aiGeneralReplyService.generateReply(ticketForAI, messageToReplyTo);
 
     if (!draftedReply) {
-      return NextResponse.json({ error: 'Failed to generate AI reply.' }, { status: 500 });
+      return apiError('generation_failed', 'Failed to generate AI reply.', null, { status: 500 });
     }
 
-    return NextResponse.json({ draftMessage: draftedReply });
+    return apiSuccess({ draftMessage: draftedReply });
 
   } catch (error: any) {
     console.error(`[DraftAIReply] Error drafting AI reply for ticket ${id}:`, error);
-    return NextResponse.json({
-      error: 'An unexpected error occurred while drafting the AI reply.',
-      details: error.message
-    }, { status: 500 });
+    return apiError('internal_error', 'An unexpected error occurred while drafting the AI reply.', { details: error.message }, { status: 500 });
   }
 }

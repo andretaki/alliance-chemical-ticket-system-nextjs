@@ -1,17 +1,18 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { db } from '@/lib/db';
 import { users } from '@/db/schema';
-import { eq, or, and, sql } from 'drizzle-orm'; // Import eq, or, and, sql for filtering
+import { eq, or, and, sql } from 'drizzle-orm';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 export async function GET(request: NextRequest) {
   try {
     const { session, error } = await getServerSession();
-        if (error) {
-      return NextResponse.json({ error }, { status: 401 });
+    if (error) {
+      return apiError('unauthorized', error, null, { status: 401 });
     }
     if (!session || session.user?.role !== 'admin') {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+      return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
     }
 
     const url = new URL(request.url);
@@ -55,10 +56,10 @@ export async function GET(request: NextRequest) {
       orderBy: (users, { desc }) => [desc(users.createdAt)],
     });
 
-    return NextResponse.json(userList);
+    return apiSuccess(userList);
 
   } catch (error) {
     console.error('Error fetching users:', error);
-    return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    return apiError('internal_error', 'Internal server error', null, { status: 500 });
   }
 } 

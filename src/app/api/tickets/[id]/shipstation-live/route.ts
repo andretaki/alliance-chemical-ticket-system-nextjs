@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 import { db, tickets } from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
+import { apiSuccess, apiError } from '@/lib/apiResponse';
 
 export async function GET(
   request: NextRequest,
@@ -12,26 +13,26 @@ export async function GET(
     const ticketId = parseInt(id, 10);
 
     if (isNaN(ticketId)) {
-      return NextResponse.json({ error: 'Invalid ticket ID' }, { status: 400 });
+      return apiError('invalid_id', 'Invalid ticket ID', null, { status: 400 });
     }
 
     // Get the ticket to extract order number
     const ticket = await db.query.tickets.findFirst({
       where: eq(tickets.id, ticketId),
-      columns: { 
-        id: true, 
+      columns: {
+        id: true,
         orderNumber: true,
-        title: true 
+        title: true
       },
     });
 
     if (!ticket) {
-      return NextResponse.json({ error: 'Ticket not found' }, { status: 404 });
+      return apiError('not_found', 'Ticket not found', null, { status: 404 });
     }
 
     // If no order number, return empty result
     if (!ticket.orderNumber) {
-      return NextResponse.json({ 
+      return apiSuccess({
         hasOrderNumber: false,
         orderNumber: null,
         shipstationData: null,
@@ -44,7 +45,7 @@ export async function GET(
     // Fetch live ShipStation data
     const shipstationData = await getOrderTrackingInfo(ticket.orderNumber);
 
-    return NextResponse.json({
+    return apiSuccess({
       hasOrderNumber: true,
       orderNumber: ticket.orderNumber,
       shipstationData,
@@ -54,9 +55,6 @@ export async function GET(
 
   } catch (error) {
     console.error('Error fetching live ShipStation data:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch live ShipStation data' },
-      { status: 500 }
-    );
+    return apiError('internal_error', 'Failed to fetch live ShipStation data', null, { status: 500 });
   }
 } 
