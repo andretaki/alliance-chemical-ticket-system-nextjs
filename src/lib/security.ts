@@ -360,9 +360,18 @@ export class SecurityValidator {
   static validateCSRFToken(request: Request, expectedToken: string): boolean {
     const tokenFromHeader = request.headers.get('x-csrf-token');
     const tokenFromForm = request.headers.get('x-requested-with');
-    
-    // Check for explicit CSRF token or XHR header
-    return (tokenFromHeader === expectedToken) || (tokenFromForm === 'XMLHttpRequest');
+
+    // Check for XHR header first (fast path, no timing concern)
+    if (tokenFromForm === 'XMLHttpRequest') {
+      return true;
+    }
+
+    // Use timing-safe comparison for CSRF token
+    if (tokenFromHeader && tokenFromHeader.length === expectedToken.length) {
+      return this.secureCompare(tokenFromHeader, expectedToken);
+    }
+
+    return false;
   }
 
   /**
