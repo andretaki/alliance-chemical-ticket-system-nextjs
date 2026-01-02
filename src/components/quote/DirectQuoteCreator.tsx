@@ -93,7 +93,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
       
       // Convert AI recommendations to products
       const productItems: ProductItem[] = intelligence.recommendedProducts?.map((rec: any) => ({
-        id: rec.productId || Math.random().toString(),
+        id: rec.productId || crypto.randomUUID(),
         name: rec.productName || 'Unknown Product',
         sku: rec.sku || 'N/A',
         quantity: 1,

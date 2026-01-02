@@ -25,7 +25,7 @@ interface LineItemSearchData {
 }
 
 const createNewLineItemSearchData = (): LineItemSearchData => ({
-  id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  id: crypto.randomUUID(),
   searchTerm: '',
   searchResults: [],
   isSearching: false,
