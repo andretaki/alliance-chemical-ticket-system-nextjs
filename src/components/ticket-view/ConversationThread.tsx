@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import DOMPurify from 'dompurify';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -190,7 +191,7 @@ function Message({ comment, isFirst }: { comment: Comment; isFirst: boolean }) {
                     prose-strong:text-gray-900 dark:prose-strong:text-white prose-strong:font-semibold
                     prose-ul:my-2 prose-ol:my-2
                     prose-li:my-0.5"
-                  dangerouslySetInnerHTML={{ __html: comment.commentText }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(comment.commentText) }}
                 />
               ) : (
                 <p className="text-sm italic text-gray-400 dark:text-gray-500">No content</p>

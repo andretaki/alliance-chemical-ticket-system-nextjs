@@ -72,7 +72,9 @@ export function OpportunitiesListClient({ initial, pipelineHealth = [] }: Props)
     fetch('/api/users')
       .then(res => res.json())
       .then(setOwners)
-      .catch(() => {});
+      .catch((err) => {
+        console.error('[OpportunitiesListClient] Failed to fetch users:', err);
+      });
   }, []);
 
   const refresh = async () => {
