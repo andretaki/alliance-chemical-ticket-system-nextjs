@@ -1,4 +1,5 @@
 import { kv } from '@vercel/kv';
+import { env } from '@/lib/env';
 
 // Cache TTL configurations (in seconds)
 export const CACHE_TTL = {
@@ -61,7 +62,7 @@ export class CacheService {
     try {
       const key = this.getKey(category, identifier);
       const value = await kv.get<T>(key);
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         console.log(`[Cache] ${category}:${identifier} ${value ? 'HIT' : 'MISS'}`);
       }
       return value;
@@ -79,7 +80,7 @@ export class CacheService {
       const key = this.getKey(category, identifier);
       const ttl = customTTL ?? this.getTTL(category);
       await kv.set(key, value, { ex: ttl });
-      if (process.env.NODE_ENV === 'development') {
+      if (env.NODE_ENV === 'development') {
         console.log(`[Cache] SET ${category}:${identifier} TTL=${ttl}s`);
       }
     } catch (error) {

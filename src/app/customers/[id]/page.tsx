@@ -5,6 +5,8 @@ import { getServerSession } from '@/lib/auth-helpers';
 import { customerService } from '@/services/crm/customerService';
 import { CustomerSnapshotCard } from '@/components/customers/CustomerSnapshotCard';
 import { CustomerMemoryPanel } from '@/components/rag/CustomerMemoryPanel';
+import { CustomerMergeReviewPanel } from '@/components/customers/CustomerMergeReviewPanel';
+import { UnifiedOrdersPanel } from '@/components/customers/UnifiedOrdersPanel';
 import { StatusBadge } from '@/components/StatusBadge';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -106,6 +108,8 @@ export default async function CustomerPage({ params }: PageProps) {
     VIP_TICKET: 'VIP Ticket',
     AR_OVERDUE: 'AR Overdue',
     SLA_BREACH: 'SLA Breach',
+    MERGE_REVIEW: 'Duplicate Review',
+    MERGE_REQUIRED: 'Merge Required',
   };
 
   const taskTypeTones: Record<string, 'neutral' | 'warning' | 'danger'> = {
@@ -114,7 +118,13 @@ export default async function CustomerPage({ params }: PageProps) {
     VIP_TICKET: 'warning',
     AR_OVERDUE: 'warning',
     SLA_BREACH: 'danger',
+    MERGE_REVIEW: 'warning',
+    MERGE_REQUIRED: 'warning',
   };
+
+  const mergeTask = overview.openTasks?.find(
+    (task) => task.type === 'MERGE_REVIEW' || task.type === 'MERGE_REQUIRED'
+  );
 
   return (
     <PageShell size="wide">
@@ -318,6 +328,10 @@ export default async function CustomerPage({ params }: PageProps) {
 
           <CustomerMemoryPanel customerId={id} />
 
+          {mergeTask && (
+            <CustomerMergeReviewPanel customerId={id} taskId={mergeTask.id} />
+          )}
+
           {overview.openTasks.length > 0 && (
             <Card>
               <CardHeader>
@@ -335,9 +349,21 @@ export default async function CustomerPage({ params }: PageProps) {
               </CardHeader>
               <CardContent className="space-y-3">
                 {overview.openTasks.map((task) => {
+                  // Determine link destination based on task type
                   let href = '#';
-                  if (task.ticketId) href = `/tickets/${task.ticketId}`;
-                  else if (task.opportunityId) href = `/opportunities/${task.opportunityId}`;
+                  let actionHint = '';
+
+                  if (task.type === 'MERGE_REVIEW' || task.type === 'MERGE_REQUIRED') {
+                    // Link merge tasks to the tasks page with type filter pre-selected
+                    href = `/tasks?type=${task.type}`;
+                    actionHint = 'Review duplicate identities to merge customer records.';
+                  } else if (task.ticketId) {
+                    href = `/tickets/${task.ticketId}`;
+                  } else if (task.opportunityId) {
+                    href = `/opportunities/${task.opportunityId}`;
+                  }
+
+                  const isMergeTask = task.type === 'MERGE_REVIEW' || task.type === 'MERGE_REQUIRED';
 
                   return (
                     <Link
@@ -362,6 +388,9 @@ export default async function CustomerPage({ params }: PageProps) {
                       </div>
                       {task.opportunityTitle && (
                         <p className="mt-1 text-sm text-foreground/80">{task.opportunityTitle}</p>
+                      )}
+                      {isMergeTask && actionHint && (
+                        <p className="mt-1 text-xs text-muted-foreground italic">{actionHint}</p>
                       )}
                     </Link>
                   );
@@ -551,64 +580,7 @@ export default async function CustomerPage({ params }: PageProps) {
             </CardContent>
           </Card>
 
-          <Card className="overflow-hidden">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted/60 text-primary">
-                    <Package className="h-4 w-4" />
-                  </span>
-                  Recent Orders
-                </CardTitle>
-                <span className="text-xs text-muted-foreground">{overview.recentOrders.length} loaded</span>
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-border">
-                  <thead className="bg-muted/40">
-                    <tr>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Order</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Placed</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</th>
-                      <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Items</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {overview.recentOrders.map(order => (
-                      <tr key={order.id} className="transition-colors hover:bg-muted/50">
-                        <td className="px-5 py-4 text-sm font-semibold text-foreground">{order.orderNumber || `Order ${order.id}`}</td>
-                        <td className="px-5 py-4 text-sm text-foreground/80">
-                          {order.currency} {order.total}
-                        </td>
-                        <td className="px-5 py-4 text-sm text-foreground/80">{order.placedAt ? new Date(order.placedAt).toLocaleDateString() : '—'}</td>
-                        <td className="px-5 py-4">
-                          <StatusPill tone={order.lateFlag ? 'danger' : 'neutral'} size="sm">
-                            {order.financialStatus}{order.lateFlag ? ' • late' : ''}
-                          </StatusPill>
-                        </td>
-                        <td className="px-5 py-4 text-sm text-foreground/80 max-w-xs truncate">
-                          {order.items.length > 0 ? order.items.map(i => `${i.title || i.sku || 'Item'} x${i.quantity}`).join(', ') : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                    {overview.recentOrders.length === 0 && (
-                      <tr>
-                        <td className="px-5 py-6" colSpan={5}>
-                          <EmptyState
-                            title="No orders yet"
-                            description="Orders appear once commerce sources are linked."
-                            icon={Package}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+          <UnifiedOrdersPanel orders={overview.recentOrders} />
         </div>
 
         <aside className="space-y-6">

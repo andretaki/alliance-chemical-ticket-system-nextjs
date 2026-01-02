@@ -11,6 +11,7 @@ import { db, ticketComments, users } from '@/lib/db';
 import { headers } from 'next/headers';
 import * as graphService from '@/lib/graphService';
 import { eq } from 'drizzle-orm';
+import { env } from '@/lib/env';
 
 interface Margins {
   top: number;
@@ -750,9 +751,9 @@ async function generateImprovedPDF(draftOrder: any): Promise<Buffer> {
 const getGraphClient = () => {
   // Create an authentication provider
   const credential = new ClientSecretCredential(
-    process.env.MICROSOFT_GRAPH_TENANT_ID!,
-    process.env.MICROSOFT_GRAPH_CLIENT_ID!,
-    process.env.MICROSOFT_GRAPH_CLIENT_SECRET!
+    env.MICROSOFT_GRAPH_TENANT_ID!,
+    env.MICROSOFT_GRAPH_CLIENT_ID!,
+    env.MICROSOFT_GRAPH_CLIENT_SECRET!
   );
 
   // Create a Graph client
@@ -786,7 +787,7 @@ export async function POST(request: Request) {
     // Get the host from the request headers
     const headersList = await headers();
     const host = headersList.get('host');
-    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const protocol = env.NODE_ENV === 'development' ? 'http' : 'https';
     const baseUrl = `${protocol}://${host}`;
 
     // 1. Get draft order details from Shopify (using existing API)
@@ -858,7 +859,7 @@ async function sendEmailWithGraph(to: string, draftOrder: any, pdfBuffer: Buffer
     to,
     subject,
     messageContent,
-    process.env.SHARED_MAILBOX_ADDRESS || '',
+    env.SHARED_MAILBOX_ADDRESS || '',
     [attachment]
   );
 }

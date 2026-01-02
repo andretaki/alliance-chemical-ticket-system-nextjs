@@ -1,5 +1,9 @@
 # Customer Identity Spine - Handoff Document
 
+> **Last Updated**: December 2024
+>
+> **What This Does**: Links customers across Shopify, Amazon, QBO, and ShipStation into a single unified customer record, even when Amazon restricts buyer email (uses shipping address hash fallback).
+
 ## Overview
 
 We built a **unified customer identity system** that links customers across multiple commerce platforms (Shopify, QBO, Amazon, ShipStation) into a single customer record. This solves the problem of the same person appearing as different customers in different systems.
@@ -87,14 +91,31 @@ const hash = computeAddressHash({
 | `src/jobs/syncCustomers.ts` | Orchestrator: runs all syncs in order |
 | `tests/integration/identityResolution.test.ts` | Integration tests for identity matching |
 | `tests/integration/customerSync.test.ts` | Integration tests for sync idempotency |
+| `src/components/customers/UnifiedOrdersPanel.tsx` | Groups orders by provider with expandable sections |
+| `src/app/api/customers/[id]/360/route.ts` | API for full customer 360 data |
 
 ### Modified Files
 
 | File | Changes |
 |------|---------|
 | `src/db/schema.ts` | Added 'shipstation' to providerEnum |
-| `src/services/crm/identityService.ts` | Added computeAddressHash, resolveCustomerAdvanced, improveCustomerPrimaries, ensureIdentityLinked, upsertCustomerWithMetrics |
+| `src/services/crm/identityService.ts` | Added computeAddressHash, resolveCustomerAdvanced, resolveOrCreateCustomerWithAddressHash, improveCustomerPrimaries, ensureIdentityLinked, upsertCustomerWithMetrics |
 | `src/jobs/ragSync.ts` | Calls syncCustomers() BEFORE order/shipment sync |
+| `src/jobs/syncAmazonOrders.ts` | Uses address hash fallback when buyer email missing |
+| `src/app/customers/[id]/page.tsx` | Uses UnifiedOrdersPanel for provider-grouped orders |
+
+### API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/customers/[id]/360` | Full customer 360 view with orders, identities, tickets, shipments grouped by provider |
+| `POST /api/rag/query` | RAG-powered search scoped to customer history |
+
+### Scripts
+
+| Script | Usage |
+|--------|-------|
+| `scripts/report-ambiguous-customers.ts` | `npx tsx scripts/report-ambiguous-customers.ts [--json]` - Finds duplicate emails/phones across customers |
 
 ## Key Functions in identityService.ts
 
@@ -178,11 +199,26 @@ npx jest tests/integration/identityResolution.test.ts --runInBand
 
 ## What's Left To Do
 
-1. **Run the migration** in production
-2. **Run initial full sync** to populate customer identities
-3. **Monitor ambiguous matches** - they're logged but need manual review
-4. **Backfill orders.customerId** - existing orders need linking to customers
-5. **Add UI** for viewing customer across all platforms
+1. **Run the migration** in production:
+   ```bash
+   psql $DATABASE_URL -f src/db/migrations/0013_customer_identity_spine.sql
+   ```
+2. **Run initial full sync** to populate customer identities:
+   ```bash
+   npx tsx src/jobs/syncCustomers.ts --full
+   ```
+3. **Monitor ambiguous matches** - run the report:
+   ```bash
+   npx tsx scripts/report-ambiguous-customers.ts
+   ```
+
+## What's Already Done
+
+- ✅ Order sync jobs link customerId during insert (Shopify + Amazon)
+- ✅ Amazon uses address hash fallback when buyer email missing
+- ✅ Customer 360 API endpoint: `GET /api/customers/[id]/360`
+- ✅ Unified Orders Panel groups orders by provider (Shopify/Amazon/QBO)
+- ✅ Customer 360 page with RAG-powered memory search
 
 ## Gotchas / Things to Know
 

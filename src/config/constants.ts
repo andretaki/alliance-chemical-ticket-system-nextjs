@@ -1,7 +1,8 @@
 import { ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum, ticketSentimentEnum } from '@/db/schema';
+import { env } from '@/lib/env';
 
 // Email processing constants
-export const INTERNAL_DOMAIN = process.env.INTERNAL_EMAIL_DOMAIN || "alliancechemical.com";
+export const INTERNAL_DOMAIN = env.INTERNAL_EMAIL_DOMAIN;
 export const DEFAULT_PRIORITY = ticketPriorityEnum.enumValues[1]; // 'medium'
 export const DEFAULT_STATUS = ticketStatusEnum.enumValues[0];     // 'new'
 export const OPEN_STATUS = ticketStatusEnum.enumValues[1];        // 'open' (Used when a reply comes in)

@@ -21,28 +21,57 @@ function extractDepartments(user: { role: string; ticketingRole?: string | null 
   return Array.from(new Set(departments));
 }
 
-async function fetchScopedCustomerIds(userId: string): Promise<number[]> {
-  const [ticketRows, commentRows, taskRows, opportunityRows] = await Promise.all([
-    db.select({ customerId: tickets.customerId })
-      .from(tickets)
-      .where(or(eq(tickets.assigneeId, userId), eq(tickets.reporterId, userId))),
-    db.select({ customerId: tickets.customerId })
-      .from(ticketComments)
-      .leftJoin(tickets, eq(ticketComments.ticketId, tickets.id))
-      .where(eq(ticketComments.commenterId, userId)),
-    db.select({ customerId: crmTasks.customerId })
-      .from(crmTasks)
-      .where(eq(crmTasks.assignedToId, userId)),
-    db.select({ customerId: opportunities.customerId })
-      .from(opportunities)
-      .where(eq(opportunities.ownerId, userId)),
-  ]);
+// Cache for scoped customer IDs (5 minute TTL)
+const scopedCustomerIdsCache = new Map<string, { ids: number[]; expiry: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
-  const ids = new Set<number>();
-  [...ticketRows, ...commentRows, ...taskRows, ...opportunityRows].forEach((row) => {
-    if (row.customerId != null) ids.add(row.customerId);
-  });
-  return Array.from(ids);
+async function fetchScopedCustomerIds(userId: string): Promise<number[]> {
+  // Check cache first
+  const cached = scopedCustomerIdsCache.get(userId);
+  if (cached && cached.expiry > Date.now()) {
+    return cached.ids;
+  }
+
+  // Optimized: Single UNION query instead of 4 parallel queries
+  // This reduces round-trip overhead and allows the DB to optimize the execution plan
+  const result = await db.execute(sql`
+    SELECT DISTINCT customer_id
+    FROM (
+      SELECT customer_id FROM ticketing_prod.tickets
+      WHERE (assignee_id = ${userId} OR reporter_id = ${userId})
+        AND customer_id IS NOT NULL
+      UNION
+      SELECT t.customer_id FROM ticketing_prod.ticket_comments tc
+      JOIN ticketing_prod.tickets t ON t.id = tc.ticket_id
+      WHERE tc.commenter_id = ${userId}
+        AND t.customer_id IS NOT NULL
+      UNION
+      SELECT customer_id FROM ticketing_prod.crm_tasks
+      WHERE assigned_to_id = ${userId}
+        AND customer_id IS NOT NULL
+      UNION
+      SELECT customer_id FROM ticketing_prod.opportunities
+      WHERE owner_id = ${userId}
+        AND customer_id IS NOT NULL
+    ) AS scoped_customers
+    LIMIT 1000
+  `);
+
+  const rows = Array.isArray(result) ? result : (result as any).rows || [];
+  const ids = rows.map((r: any) => r.customer_id as number).filter(Boolean);
+
+  // Cache the result
+  scopedCustomerIdsCache.set(userId, { ids, expiry: Date.now() + CACHE_TTL_MS });
+
+  return ids;
+}
+
+/**
+ * Invalidate the scoped customer ID cache for a user.
+ * Call this when tickets/tasks/opportunities are assigned/reassigned.
+ */
+export function invalidateScopedCustomerCache(userId: string): void {
+  scopedCustomerIdsCache.delete(userId);
 }
 
 export async function getViewerScope(): Promise<ViewerScope | null> {
@@ -115,7 +144,7 @@ export function buildRagAccessWhere(scope: ViewerScope, options?: {
     ? sql`TRUE`
     : scope.allowedDepartments.length === 0
       ? sql`${ragSources.metadata}->>'dept' IS NULL`
-      : sql`(${ragSources.metadata}->>'dept' IS NULL OR ${ragSources.metadata}->>'dept' = ANY(ARRAY[${sql.join(scope.allowedDepartments.map(d => sql`${d}`), sql`, `)}]::text[]))`;
+      : sql`(${ragSources.metadata}->>'dept' IS NULL OR LOWER(${ragSources.metadata}->>'dept') = ANY(ARRAY[${sql.join(scope.allowedDepartments.map(d => sql`${d}`), sql`, `)}]::text[]))`;
 
   conditions.push(customerScope);
   if (sensitivityAllowed) {

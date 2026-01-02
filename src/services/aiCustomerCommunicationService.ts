@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, GenerationConfig, GenerativeModel } from "@google/generative-ai";
+import { env, getGoogleApiKey } from '@/lib/env';
 
 // Lazy initialization to avoid build-time errors
 let _model: GenerativeModel | null = null;
@@ -6,14 +7,14 @@ let _model: GenerativeModel | null = null;
 function getModel(): GenerativeModel {
   if (_model) return _model;
 
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = getGoogleApiKey();
   if (!apiKey) {
     throw new Error("AI Customer Communication Service: GOOGLE_API_KEY is missing.");
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
   _model = genAI.getGenerativeModel({
-    model: "models/gemini-2.5-flash-preview-05-20",
+    model: env.GEMINI_MODEL_NAME,
   });
   return _model;
 }

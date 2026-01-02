@@ -218,10 +218,12 @@ async function fetchInteractionSource(sourceId: string) {
 
 async function fetchOrderSource(sourceType: RagSourceType, sourceId: string) {
   const numericId = Number(sourceId);
+  // PostgreSQL integer max is 2147483647 - avoid overflow when comparing with orders.id
+  const isValidIntegerId = !Number.isNaN(numericId) && numericId <= 2147483647 && numericId > 0;
   const order = await db.query.orders.findFirst({
     where: or(
       eq(orders.externalId, sourceId),
-      Number.isNaN(numericId) ? sql`FALSE` : eq(orders.id, numericId),
+      isValidIntegerId ? eq(orders.id, numericId) : sql`FALSE`,
       eq(orders.orderNumber, sourceId)
     ),
     with: {

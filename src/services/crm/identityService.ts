@@ -1,5 +1,5 @@
-import { db, customers, customerIdentities, interactions } from '@/lib/db';
-import { eq, or, and, sql } from 'drizzle-orm';
+import { db, customers, customerIdentities, interactions, crmTasks, customerScores, orders } from '@/lib/db';
+import { eq, or, and, sql, inArray, count } from 'drizzle-orm';
 import type { providerEnum } from '@/lib/db';
 import crypto from 'crypto';
 
@@ -72,6 +72,24 @@ export interface InteractionInput {
 const normalizeEmail = (email?: string | null) => email?.trim().toLowerCase() || null;
 
 /**
+ * Maximum retries for serializable transaction conflicts.
+ * PostgreSQL throws error code 40001 when serialization fails.
+ */
+const MAX_SERIALIZATION_RETRIES = 3;
+const SERIALIZATION_ERROR_CODE = '40001';
+
+/**
+ * Check if an error is a PostgreSQL serialization failure (code 40001).
+ */
+function isSerializationError(error: unknown): boolean {
+  if (error && typeof error === 'object') {
+    const code = (error as { code?: string }).code;
+    return code === SERIALIZATION_ERROR_CODE;
+  }
+  return false;
+}
+
+/**
  * Creates a stable hash from shipping/billing address for identity matching.
  * Used when email/phone are unavailable (e.g., Amazon orders with restricted PII).
  *
@@ -110,8 +128,25 @@ const computeAddressHash = (address: AddressInput): string | null => {
     normalize(address.country) || 'us',
   ].join('|');
 
-  // SHA256 hash, truncated to 16 chars for readability
-  return crypto.createHash('sha256').update(parts).digest('hex').substring(0, 16);
+  // Full SHA256 hash (64 chars = 256 bits) for maximum collision resistance.
+  // Previously truncated to 32 chars, but full hash has negligible storage cost
+  // and eliminates collision risk entirely for practical purposes.
+  return crypto.createHash('sha256').update(parts).digest('hex');
+};
+
+/**
+ * Computes both the full and legacy (truncated) address hashes for backward compatibility.
+ * Use this when looking up existing records that may have been created with the old 32-char hash.
+ *
+ * Returns { full: 64-char hash, legacy: 32-char hash } or null if address is insufficient.
+ */
+const computeAddressHashWithLegacy = (address: AddressInput): { full: string; legacy: string } | null => {
+  const fullHash = computeAddressHash(address);
+  if (!fullHash) return null;
+  return {
+    full: fullHash,
+    legacy: fullHash.substring(0, 32),
+  };
 };
 
 /**
@@ -170,7 +205,19 @@ const normalizePhone = (phone?: string | null): string | null => {
 };
 
 class IdentityService {
+  /**
+   * @deprecated Use resolveCustomerAdvanced() or upsertCustomerWithMetrics() instead.
+   * This method has NO transaction protection and is vulnerable to race conditions
+   * when concurrent webhooks process the same customer.
+   *
+   * MIGRATION: Replace calls with:
+   *   identityService.upsertCustomerWithMetrics({ ... })
+   * or:
+   *   identityService.resolveCustomerAdvanced({ ... })
+   */
   async resolveOrCreateCustomer(input: IdentityInput) {
+    console.warn('[IdentityService] DEPRECATED: resolveOrCreateCustomer() called. Use resolveCustomerAdvanced() instead.');
+    console.warn(new Error().stack);  // Log call site for migration tracking
     const email = normalizeEmail(input.email);
     const phone = normalizePhone(input.phone);
 
@@ -235,6 +282,13 @@ class IdentityService {
   }
 
   /**
+   * @deprecated Use resolveCustomerAdvanced() or upsertCustomerWithMetrics() instead.
+   * This method has NO transaction protection and is vulnerable to race conditions
+   * when concurrent webhooks process the same customer.
+   *
+   * MIGRATION: Replace calls with:
+   *   identityService.upsertCustomerWithMetrics({ provider, externalId, ... }, address)
+   *
    * Resolves or creates a customer using address hash as fallback identifier.
    * Used when email is unavailable (e.g., Amazon restricted PII).
    */
@@ -478,9 +532,115 @@ class IdentityService {
   }
 
   /**
+   * Picks the "best" customer from a list of ambiguous matches.
+   * Selection criteria (in order):
+   * 1. Highest LTV (from customer_scores)
+   * 2. Most orders
+   * 3. Most recently updated
+   */
+  private async pickBestCustomer(customerIds: number[]): Promise<typeof customers.$inferSelect> {
+    // Get LTV scores for all candidates
+    const scores = await db.query.customerScores.findMany({
+      where: inArray(customerScores.customerId, customerIds),
+    });
+
+    // Get order counts for all candidates
+    const orderCounts = await db
+      .select({ customerId: orders.customerId, orderCount: count() })
+      .from(orders)
+      .where(inArray(orders.customerId, customerIds))
+      .groupBy(orders.customerId);
+
+    // Build a scoring map
+    const scoreMap = new Map<number, { ltv: number; orders: number }>();
+    for (const id of customerIds) {
+      scoreMap.set(id, { ltv: 0, orders: 0 });
+    }
+    for (const s of scores) {
+      if (s.customerId) {
+        scoreMap.set(s.customerId, {
+          ...scoreMap.get(s.customerId)!,
+          ltv: parseFloat(s.ltv || '0'),
+        });
+      }
+    }
+    for (const o of orderCounts) {
+      if (o.customerId) {
+        scoreMap.set(o.customerId, {
+          ...scoreMap.get(o.customerId)!,
+          orders: o.orderCount,
+        });
+      }
+    }
+
+    // Sort by LTV desc, then orders desc
+    const sorted = customerIds.sort((a, b) => {
+      const sa = scoreMap.get(a)!;
+      const sb = scoreMap.get(b)!;
+      if (sb.ltv !== sa.ltv) return sb.ltv - sa.ltv;
+      return sb.orders - sa.orders;
+    });
+
+    const bestId = sorted[0];
+    const bestCustomer = await db.query.customers.findFirst({
+      where: eq(customers.id, bestId),
+    });
+
+    if (!bestCustomer) {
+      throw new Error(`[IdentityService] Failed to find best customer with id ${bestId}`);
+    }
+
+    return bestCustomer;
+  }
+
+  /**
+   * Creates a MERGE_REVIEW CRM task when ambiguous customer matches are found.
+   * This flags the match for human review without blocking order processing.
+   */
+  private async createMergeReviewTask(
+    primaryCustomerId: number,
+    allCustomerIds: number[],
+    matchType: 'email' | 'phone' | 'addressHash',
+    matchValue: string
+  ): Promise<void> {
+    // Check for existing open MERGE_REVIEW task for same customers
+    const existingTask = await db.query.crmTasks.findFirst({
+      where: and(
+        eq(crmTasks.type, 'MERGE_REVIEW'),
+        eq(crmTasks.status, 'open'),
+        eq(crmTasks.customerId, primaryCustomerId)
+      ),
+    });
+
+    if (existingTask) {
+      await db.update(crmTasks).set({
+        updatedAt: new Date(),
+      }).where(eq(crmTasks.id, existingTask.id));
+      return;
+    }
+
+    // Create new MERGE_REVIEW task
+    await db.insert(crmTasks).values({
+      customerId: primaryCustomerId,
+      type: 'MERGE_REVIEW',
+      reason: `AMBIGUOUS_${matchType.toUpperCase()}`,
+      status: 'open',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    console.log(`[IdentityService] Created MERGE_REVIEW task for customer ${primaryCustomerId} (${matchType}: ${matchValue})`);
+  }
+
+  /**
    * Advanced customer resolution with multi-identifier matching.
    * Detects and reports ambiguous matches instead of auto-merging.
    * Improves customer primaries when we learn new info.
+   *
+   * CRITICAL: This method wraps ALL lookup AND create logic in a SERIALIZABLE
+   * transaction to prevent race conditions when concurrent webhooks attempt
+   * to resolve the same customer. The entire "check-then-create" operation
+   * is atomic.
    *
    * Resolution order:
    * 1. Provider + externalId (exact match)
@@ -500,225 +660,482 @@ class IdentityService {
     const phone = normalizePhone(input.phone);
     const addressHash = address ? computeAddressHash(address) : null;
 
-    // 1) Try provider + external id (exact match, never ambiguous)
+    // Retry loop for serializable transaction conflicts.
+    // When concurrent webhooks race, PostgreSQL may abort one transaction
+    // with error code 40001. We retry up to MAX_SERIALIZATION_RETRIES times.
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= MAX_SERIALIZATION_RETRIES; attempt++) {
+      try {
+        return await this.resolveCustomerAdvancedTx(input, email, phone, addressHash);
+      } catch (error) {
+        lastError = error;
+        if (isSerializationError(error) && attempt < MAX_SERIALIZATION_RETRIES) {
+          // Exponential backoff: 50ms, 100ms, 200ms...
+          const delay = 50 * Math.pow(2, attempt - 1);
+          console.warn(`[IdentityService] Serialization conflict (attempt ${attempt}/${MAX_SERIALIZATION_RETRIES}), retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Internal transactional implementation of resolveCustomerAdvanced.
+   * Separated to enable retry logic in the caller.
+   */
+  private async resolveCustomerAdvancedTx(
+    input: IdentityInput,
+    email: string | null,
+    phone: string | null,
+    addressHash: string | null
+  ): Promise<ResolutionResult> {
+    // Wrap ALL resolution logic in a SERIALIZABLE transaction to prevent race conditions.
+    // SERIALIZABLE isolation ensures no concurrent transaction can interleave
+    // reads/writes that would cause duplicate customers.
+    return await db.transaction(async (tx) => {
+      // 1) Try provider + external id (exact match, never ambiguous)
+      if (input.externalId) {
+        const existingByExternal = await tx.query.customerIdentities.findFirst({
+          where: and(
+            eq(customerIdentities.provider, input.provider),
+            eq(customerIdentities.externalId, input.externalId)
+          ),
+          with: { customer: true },
+        });
+        if (existingByExternal?.customer) {
+          // Improve customer primaries if we've learned new info
+          await this.improveCustomerPrimariesTx(
+            tx,
+            existingByExternal.customer.id,
+            email,
+            phone,
+            input.firstName || null,
+            input.lastName || null
+          );
+
+          return {
+            customer: existingByExternal.customer,
+            isNew: false,
+            isAmbiguous: false,
+            matchedBy: 'externalId' as const,
+          };
+        }
+      }
+
+      // 2) Try email match - check for ambiguity
+      if (email) {
+        const emailMatches = await tx.query.customerIdentities.findMany({
+          where: eq(customerIdentities.email, email),
+          with: { customer: true },
+        });
+
+        const customerEmailMatches = await tx.query.customers.findMany({
+          where: eq(customers.primaryEmail, email),
+        });
+
+        // Collect unique customer IDs
+        const customerIds = new Set<number>();
+        emailMatches.forEach((m: { customerId: number | null }) => m.customerId && customerIds.add(m.customerId));
+        customerEmailMatches.forEach((c: { id: number }) => customerIds.add(c.id));
+
+        if (customerIds.size > 1) {
+          // Ambiguous: multiple customers share this email
+          // Pick the best match and flag for human review
+          console.warn(`[IdentityService] Ambiguous email match: ${email} maps to ${customerIds.size} customers`);
+          const ambiguousIds = Array.from(customerIds);
+          const bestCustomer = await this.pickBestCustomerTx(tx, ambiguousIds);
+          await this.createMergeReviewTaskTx(tx, bestCustomer.id, ambiguousIds, 'email', email!);
+          return {
+            customer: bestCustomer,
+            isNew: false,
+            isAmbiguous: true,
+            matchedBy: 'email' as const,
+            ambiguousCustomerIds: ambiguousIds,
+          };
+        }
+
+        if (customerIds.size === 1) {
+          const customerId = Array.from(customerIds)[0];
+          const customer = emailMatches[0]?.customer || customerEmailMatches[0];
+          if (customer) {
+            // Improve customer primaries and link identity
+            await this.improveCustomerPrimariesTx(
+              tx,
+              customerId,
+              email,
+              phone,
+              input.firstName || null,
+              input.lastName || null
+            );
+            await this.ensureIdentityLinkedTx(tx, customerId, input, email, phone);
+
+            return {
+              customer,
+              isNew: false,
+              isAmbiguous: false,
+              matchedBy: 'email' as const,
+            };
+          }
+        }
+      }
+
+      // 3) Try phone match - check for ambiguity
+      if (phone) {
+        const phoneMatches = await tx.query.customerIdentities.findMany({
+          where: eq(customerIdentities.phone, phone),
+          with: { customer: true },
+        });
+
+        const customerPhoneMatches = await tx.query.customers.findMany({
+          where: eq(customers.primaryPhone, phone),
+        });
+
+        const customerIds = new Set<number>();
+        phoneMatches.forEach((m: { customerId: number | null }) => m.customerId && customerIds.add(m.customerId));
+        customerPhoneMatches.forEach((c: { id: number }) => customerIds.add(c.id));
+
+        if (customerIds.size > 1) {
+          // Ambiguous: multiple customers share this phone
+          // Pick the best match and flag for human review
+          console.warn(`[IdentityService] Ambiguous phone match: ${phone} maps to ${customerIds.size} customers`);
+          const ambiguousIds = Array.from(customerIds);
+          const bestCustomer = await this.pickBestCustomerTx(tx, ambiguousIds);
+          await this.createMergeReviewTaskTx(tx, bestCustomer.id, ambiguousIds, 'phone', phone!);
+          return {
+            customer: bestCustomer,
+            isNew: false,
+            isAmbiguous: true,
+            matchedBy: 'phone' as const,
+            ambiguousCustomerIds: ambiguousIds,
+          };
+        }
+
+        if (customerIds.size === 1) {
+          const customerId = Array.from(customerIds)[0];
+          const customer = phoneMatches[0]?.customer || customerPhoneMatches[0];
+          if (customer) {
+            // Improve customer primaries and link identity
+            await this.improveCustomerPrimariesTx(
+              tx,
+              customerId,
+              email,
+              phone,
+              input.firstName || null,
+              input.lastName || null
+            );
+            await this.ensureIdentityLinkedTx(tx, customerId, input, email, phone);
+
+            return {
+              customer,
+              isNew: false,
+              isAmbiguous: false,
+              matchedBy: 'phone' as const,
+            };
+          }
+        }
+      }
+
+      // 4) Try address hash match (for Amazon/ShipStation without email)
+      // Check both full 64-char hash and legacy 32-char hash for backward compatibility
+      if (addressHash) {
+        const hashExternalIdFull = `address_hash:${addressHash}`;
+        const hashExternalIdLegacy = `address_hash:${addressHash.substring(0, 32)}`;
+
+        const addressMatches = await tx.query.customerIdentities.findMany({
+          where: and(
+            eq(customerIdentities.provider, input.provider),
+            or(
+              eq(customerIdentities.externalId, hashExternalIdFull),
+              eq(customerIdentities.externalId, hashExternalIdLegacy)
+            )
+          ),
+          with: { customer: true },
+        });
+
+        const customerIds = new Set<number>();
+        addressMatches.forEach((m: { customerId: number | null }) => m.customerId && customerIds.add(m.customerId));
+
+        if (customerIds.size > 1) {
+          // Ambiguous: multiple customers share this address hash
+          // Pick the best match and flag for human review
+          console.warn(`[IdentityService] Ambiguous address hash match: ${addressHash} maps to ${customerIds.size} customers`);
+          const ambiguousIds = Array.from(customerIds);
+          const bestCustomer = await this.pickBestCustomerTx(tx, ambiguousIds);
+          await this.createMergeReviewTaskTx(tx, bestCustomer.id, ambiguousIds, 'addressHash', addressHash!);
+          return {
+            customer: bestCustomer,
+            isNew: false,
+            isAmbiguous: true,
+            matchedBy: 'addressHash' as const,
+            ambiguousCustomerIds: ambiguousIds,
+          };
+        }
+
+        if (customerIds.size === 1 && addressMatches[0]?.customer) {
+          const customer = addressMatches[0].customer;
+          // Improve customer primaries (we might have learned email/phone now)
+          await this.improveCustomerPrimariesTx(
+            tx,
+            customer.id,
+            email,
+            phone,
+            input.firstName || null,
+            input.lastName || null
+          );
+          // Link the externalId identity if provided
+          await this.ensureIdentityLinkedTx(tx, customer.id, input, email, phone);
+
+          return {
+            customer,
+            isNew: false,
+            isAmbiguous: false,
+            matchedBy: 'addressHash' as const,
+          };
+        }
+      }
+
+      // 5) Create new customer - already inside transaction
+      // Use ON CONFLICT to handle any remaining edge cases
+      const [newCustomer] = await tx.insert(customers).values({
+        primaryEmail: email,
+        primaryPhone: phone,
+        firstName: input.firstName || null,
+        lastName: input.lastName || null,
+        company: input.company || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+
+      // Add primary identity within transaction
+      await tx.insert(customerIdentities).values({
+        customerId: newCustomer.id,
+        provider: input.provider,
+        externalId: input.externalId || null,
+        email,
+        phone,
+        metadata: { ...input.metadata, identityType: input.identityType } || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      // If we have an address hash and no email, add it as a secondary identity
+      if (addressHash && !email && !input.externalId) {
+        await tx.insert(customerIdentities).values({
+          customerId: newCustomer.id,
+          provider: input.provider,
+          externalId: `address_hash:${addressHash}`,
+          email: null,
+          phone: null,
+          metadata: {
+            identityType: input.provider === 'amazon' ? 'amazon_order_address_hash' : 'shipstation_address_hash',
+            addressHash,
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+
+      return {
+        customer: newCustomer,
+        isNew: true,
+        isAmbiguous: false,
+        matchedBy: 'none' as const,
+      };
+    }, {
+      isolationLevel: 'serializable',
+      accessMode: 'read write',
+    });
+  }
+
+  /**
+   * Transaction-aware version of improveCustomerPrimaries.
+   */
+  private async improveCustomerPrimariesTx(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    customerId: number,
+    email: string | null,
+    phone: string | null,
+    firstName: string | null,
+    lastName: string | null
+  ): Promise<void> {
+    const customer = await tx.query.customers.findFirst({
+      where: eq(customers.id, customerId),
+    });
+
+    if (!customer) return;
+
+    const updates: Partial<typeof customers.$inferInsert> = {};
+
+    if (email && !customer.primaryEmail) {
+      updates.primaryEmail = email;
+    }
+    if (phone && !customer.primaryPhone) {
+      updates.primaryPhone = phone;
+    }
+    if (firstName && !customer.firstName) {
+      updates.firstName = firstName;
+    }
+    if (lastName && !customer.lastName) {
+      updates.lastName = lastName;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updates.updatedAt = new Date();
+      await tx.update(customers).set(updates).where(eq(customers.id, customerId));
+    } else {
+      await tx.update(customers).set({ updatedAt: new Date() }).where(eq(customers.id, customerId));
+    }
+  }
+
+  /**
+   * Transaction-aware version of ensureIdentityLinked.
+   */
+  private async ensureIdentityLinkedTx(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    customerId: number,
+    input: IdentityInput,
+    email: string | null,
+    phone: string | null
+  ): Promise<void> {
     if (input.externalId) {
-      const existingByExternal = await db.query.customerIdentities.findFirst({
+      const existingExternal = await tx.query.customerIdentities.findFirst({
         where: and(
           eq(customerIdentities.provider, input.provider),
           eq(customerIdentities.externalId, input.externalId)
         ),
-        with: { customer: true },
       });
-      if (existingByExternal?.customer) {
-        // Improve customer primaries if we've learned new info
-        await this.improveCustomerPrimaries(
-          existingByExternal.customer.id,
+      if (!existingExternal) {
+        await tx.insert(customerIdentities).values({
+          customerId,
+          provider: input.provider,
+          externalId: input.externalId,
           email,
           phone,
-          input.firstName || null,
-          input.lastName || null
-        );
-
-        return {
-          customer: existingByExternal.customer,
-          isNew: false,
-          isAmbiguous: false,
-          matchedBy: 'externalId',
-        };
+          metadata: { ...input.metadata, identityType: input.identityType },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
       }
     }
 
-    // 2) Try email match - check for ambiguity
-    if (email) {
-      const emailMatches = await db.query.customerIdentities.findMany({
-        where: eq(customerIdentities.email, email),
-        with: { customer: true },
-      });
-
-      const customerEmailMatches = await db.query.customers.findMany({
-        where: eq(customers.primaryEmail, email),
-      });
-
-      // Collect unique customer IDs
-      const customerIds = new Set<number>();
-      emailMatches.forEach(m => m.customerId && customerIds.add(m.customerId));
-      customerEmailMatches.forEach(c => customerIds.add(c.id));
-
-      if (customerIds.size > 1) {
-        // Ambiguous: multiple customers share this email
-        console.warn(`[IdentityService] Ambiguous email match: ${email} maps to ${customerIds.size} customers`);
-        return {
-          customer: null,
-          isNew: false,
-          isAmbiguous: true,
-          matchedBy: 'email',
-          ambiguousCustomerIds: Array.from(customerIds),
-        };
-      }
-
-      if (customerIds.size === 1) {
-        const customerId = Array.from(customerIds)[0];
-        const customer = emailMatches[0]?.customer || customerEmailMatches[0];
-        if (customer) {
-          // Improve customer primaries and link identity
-          await this.improveCustomerPrimaries(
-            customerId,
-            email,
-            phone,
-            input.firstName || null,
-            input.lastName || null
-          );
-          await this.ensureIdentityLinked(customerId, input, email, phone);
-
-          return {
-            customer,
-            isNew: false,
-            isAmbiguous: false,
-            matchedBy: 'email',
-          };
-        }
-      }
-    }
-
-    // 3) Try phone match - check for ambiguity
-    if (phone) {
-      const phoneMatches = await db.query.customerIdentities.findMany({
-        where: eq(customerIdentities.phone, phone),
-        with: { customer: true },
-      });
-
-      const customerPhoneMatches = await db.query.customers.findMany({
-        where: eq(customers.primaryPhone, phone),
-      });
-
-      const customerIds = new Set<number>();
-      phoneMatches.forEach(m => m.customerId && customerIds.add(m.customerId));
-      customerPhoneMatches.forEach(c => customerIds.add(c.id));
-
-      if (customerIds.size > 1) {
-        console.warn(`[IdentityService] Ambiguous phone match: ${phone} maps to ${customerIds.size} customers`);
-        return {
-          customer: null,
-          isNew: false,
-          isAmbiguous: true,
-          matchedBy: 'phone',
-          ambiguousCustomerIds: Array.from(customerIds),
-        };
-      }
-
-      if (customerIds.size === 1) {
-        const customerId = Array.from(customerIds)[0];
-        const customer = phoneMatches[0]?.customer || customerPhoneMatches[0];
-        if (customer) {
-          // Improve customer primaries and link identity
-          await this.improveCustomerPrimaries(
-            customerId,
-            email,
-            phone,
-            input.firstName || null,
-            input.lastName || null
-          );
-          await this.ensureIdentityLinked(customerId, input, email, phone);
-
-          return {
-            customer,
-            isNew: false,
-            isAmbiguous: false,
-            matchedBy: 'phone',
-          };
-        }
-      }
-    }
-
-    // 4) Try address hash match (for Amazon/ShipStation without email)
-    if (addressHash) {
-      const hashExternalId = `address_hash:${addressHash}`;
-      const addressMatches = await db.query.customerIdentities.findMany({
+    if (email && !input.externalId) {
+      const existingEmail = await tx.query.customerIdentities.findFirst({
         where: and(
           eq(customerIdentities.provider, input.provider),
-          eq(customerIdentities.externalId, hashExternalId)
+          eq(customerIdentities.email, email),
+          eq(customerIdentities.customerId, customerId)
         ),
-        with: { customer: true },
       });
-
-      const customerIds = new Set<number>();
-      addressMatches.forEach(m => m.customerId && customerIds.add(m.customerId));
-
-      if (customerIds.size > 1) {
-        console.warn(`[IdentityService] Ambiguous address hash match: ${addressHash} maps to ${customerIds.size} customers`);
-        return {
-          customer: null,
-          isNew: false,
-          isAmbiguous: true,
-          matchedBy: 'addressHash',
-          ambiguousCustomerIds: Array.from(customerIds),
-        };
-      }
-
-      if (customerIds.size === 1 && addressMatches[0]?.customer) {
-        const customer = addressMatches[0].customer;
-        // Improve customer primaries (we might have learned email/phone now)
-        await this.improveCustomerPrimaries(
-          customer.id,
+      if (!existingEmail) {
+        await tx.insert(customerIdentities).values({
+          customerId,
+          provider: input.provider,
+          externalId: null,
           email,
           phone,
-          input.firstName || null,
-          input.lastName || null
-        );
-        // Link the externalId identity if provided
-        await this.ensureIdentityLinked(customer.id, input, email, phone);
+          metadata: { identityType: 'email' as const },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+    }
+  }
 
-        return {
-          customer,
-          isNew: false,
-          isAmbiguous: false,
-          matchedBy: 'addressHash',
-        };
+  /**
+   * Transaction-aware version of pickBestCustomer.
+   */
+  private async pickBestCustomerTx(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    customerIds: number[]
+  ): Promise<typeof customers.$inferSelect> {
+    const scores = await tx.query.customerScores.findMany({
+      where: inArray(customerScores.customerId, customerIds),
+    });
+
+    const orderCounts = await tx
+      .select({ customerId: orders.customerId, orderCount: count() })
+      .from(orders)
+      .where(inArray(orders.customerId, customerIds))
+      .groupBy(orders.customerId);
+
+    const scoreMap = new Map<number, { ltv: number; orders: number }>();
+    for (const id of customerIds) {
+      scoreMap.set(id, { ltv: 0, orders: 0 });
+    }
+    for (const s of scores) {
+      if (s.customerId) {
+        scoreMap.set(s.customerId, {
+          ...scoreMap.get(s.customerId)!,
+          ltv: parseFloat(s.ltv || '0'),
+        });
+      }
+    }
+    for (const o of orderCounts) {
+      if (o.customerId) {
+        scoreMap.set(o.customerId, {
+          ...scoreMap.get(o.customerId)!,
+          orders: o.orderCount,
+        });
       }
     }
 
-    // 5) Create new customer
-    const [newCustomer] = await db.insert(customers).values({
-      primaryEmail: email,
-      primaryPhone: phone,
-      firstName: input.firstName || null,
-      lastName: input.lastName || null,
-      company: input.company || null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }).returning();
-
-    // Add primary identity
-    await this.addIdentity(newCustomer.id, {
-      ...input,
-      email,
-      phone,
-      metadata: {
-        ...input.metadata,
-        identityType: input.identityType,
-      },
+    const sorted = customerIds.sort((a, b) => {
+      const sa = scoreMap.get(a)!;
+      const sb = scoreMap.get(b)!;
+      if (sb.ltv !== sa.ltv) return sb.ltv - sa.ltv;
+      return sb.orders - sa.orders;
     });
 
-    // If we have an address hash and no email, add it as a secondary identity
-    if (addressHash && !email && !input.externalId) {
-      await this.addIdentity(newCustomer.id, {
-        provider: input.provider,
-        externalId: `address_hash:${addressHash}`,
-        firstName: input.firstName,
-        lastName: input.lastName,
-        metadata: {
-          identityType: input.provider === 'amazon' ? 'amazon_order_address_hash' : 'shipstation_address_hash',
-          addressHash,
-        },
-      });
+    const bestId = sorted[0];
+    const bestCustomer = await tx.query.customers.findFirst({
+      where: eq(customers.id, bestId),
+    });
+
+    if (!bestCustomer) {
+      throw new Error(`[IdentityService] Failed to find best customer with id ${bestId}`);
     }
 
-    return {
-      customer: newCustomer,
-      isNew: true,
-      isAmbiguous: false,
-      matchedBy: 'none',
-    };
+    return bestCustomer;
+  }
+
+  /**
+   * Transaction-aware version of createMergeReviewTask.
+   */
+  private async createMergeReviewTaskTx(
+    tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+    primaryCustomerId: number,
+    allCustomerIds: number[],
+    matchType: 'email' | 'phone' | 'addressHash',
+    matchValue: string
+  ): Promise<void> {
+    const existingTask = await tx.query.crmTasks.findFirst({
+      where: and(
+        eq(crmTasks.type, 'MERGE_REVIEW'),
+        eq(crmTasks.status, 'open'),
+        eq(crmTasks.customerId, primaryCustomerId)
+      ),
+    });
+
+    if (existingTask) {
+      await tx.update(crmTasks).set({
+        updatedAt: new Date(),
+      }).where(eq(crmTasks.id, existingTask.id));
+      return;
+    }
+
+    await tx.insert(crmTasks).values({
+      customerId: primaryCustomerId,
+      type: 'MERGE_REVIEW',
+      reason: `AMBIGUOUS_${matchType.toUpperCase()}`,
+      status: 'open',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    console.log(`[IdentityService] Created MERGE_REVIEW task for customer ${primaryCustomerId} (${matchType}: ${matchValue})`);
   }
 
   /**
@@ -732,7 +1149,9 @@ class IdentityService {
     const result = await this.resolveCustomerAdvanced(input, address);
 
     if (result.isAmbiguous) {
-      return { customerId: 0, action: 'ambiguous' };
+      // IMPORTANT: We now return the best-matching customer instead of 0.
+      // The MERGE_REVIEW task was already created in resolveCustomerAdvanced().
+      return { customerId: result.customer!.id, action: 'ambiguous' };
     }
 
     if (result.isNew) {

@@ -2,8 +2,9 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { recordCallEnded, recordCallStarted } from '@/services/telephony/TelephonyService';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
-const WEBHOOK_SECRET = process.env.TELEPHONY_WEBHOOK_SECRET;
+const WEBHOOK_SECRET = env.TELEPHONY_WEBHOOK_SECRET;
 
 const EventSchema = z.object({
   eventType: z.enum(['started', 'ended']),

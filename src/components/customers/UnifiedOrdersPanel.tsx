@@ -5,51 +5,30 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusPill } from '@/components/ui/status-pill';
 import { EmptyState } from '@/components/layout/EmptyState';
-import { Package, ShoppingCart, Store, Truck, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react';
-
-interface OrderItem {
-  sku: string | null;
-  title: string | null;
-  quantity: number;
-  price: string;
-}
-
-interface Order {
-  id: number;
-  provider: string;
-  externalId: string | null;
-  orderNumber: string | null;
-  status: string;
-  financialStatus: string;
-  total: string;
-  currency: string;
-  placedAt: string | null;
-  items: OrderItem[];
-}
-
-interface ProviderStats {
-  count: number;
-  total: string;
-}
+import { Package, ShoppingCart, Store, Truck, ChevronDown, ChevronRight, Ship } from 'lucide-react';
+import type { Order } from '@/lib/contracts';
 
 interface UnifiedOrdersPanelProps {
   orders: Order[];
-  ordersByProvider?: Record<string, ProviderStats & { orders: Array<{ id: number; orderNumber: string | null; total: string; status: string; placedAt: string | null }> }>;
 }
 
 const providerConfig: Record<string, { icon: React.ElementType; label: string; color: string }> = {
   shopify: { icon: Store, label: 'Shopify', color: 'text-green-600 dark:text-green-400' },
   amazon: { icon: Package, label: 'Amazon', color: 'text-orange-600 dark:text-orange-400' },
+  amazon_fba: { icon: Ship, label: 'Amazon FBA', color: 'text-orange-500 dark:text-orange-300' },
   qbo: { icon: ShoppingCart, label: 'QuickBooks', color: 'text-blue-600 dark:text-blue-400' },
+  shipstation: { icon: Truck, label: 'ShipStation', color: 'text-purple-600 dark:text-purple-400' },
+  klaviyo: { icon: ShoppingCart, label: 'Klaviyo', color: 'text-pink-600 dark:text-pink-400' },
+  self_reported: { icon: Package, label: 'Self-Reported', color: 'text-teal-600 dark:text-teal-400' },
   manual: { icon: Package, label: 'Manual', color: 'text-gray-600 dark:text-gray-400' },
 };
 
-function formatCurrency(value: string | null, currency = 'USD') {
+function formatCurrency(value: string | null, currency?: string | null) {
   if (!value) return '$0.00';
   const num = parseFloat(value);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency,
+    currency: currency || 'USD',
   }).format(num);
 }
 
@@ -189,7 +168,7 @@ export function UnifiedOrdersPanel({ orders }: UnifiedOrdersPanelProps) {
     return acc;
   }, {} as Record<string, Order[]>);
 
-  const providerOrder = ['shopify', 'amazon', 'qbo', 'manual'];
+  const providerOrder = ['shopify', 'amazon', 'amazon_fba', 'qbo', 'shipstation', 'klaviyo', 'self_reported', 'manual'];
   const sortedProviders = Object.keys(grouped).sort((a, b) => {
     const aIdx = providerOrder.indexOf(a);
     const bIdx = providerOrder.indexOf(b);

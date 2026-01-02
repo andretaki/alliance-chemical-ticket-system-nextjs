@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, RefreshCw, FileText, Loader2, Ticket } from 'lucide-react';
-import type { RagResultItem } from '@/services/rag/ragTypes';
+import { RagSimilarResultsResponseSchema, type RagResultItem } from '@/lib/contracts';
+import { useApiQuery } from '@/hooks/useApiQuery';
 
 interface SimilarTicketsPanelProps {
   ticketId: number;
@@ -47,28 +48,14 @@ function SkeletonResult() {
 }
 
 export function SimilarTicketsPanel({ ticketId }: SimilarTicketsPanelProps) {
-  const [results, setResults] = useState<RagResultItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/rag/similar-tickets?ticketId=${ticketId}`);
-      if (!response.ok) throw new Error('Failed to fetch similar tickets');
-      const data = await response.json();
-      setResults(data.results || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load similar tickets');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [ticketId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const url = useMemo(() => `/api/rag/similar-tickets?ticketId=${ticketId}`, [ticketId]);
+  const {
+    data,
+    error,
+    isLoading,
+    refetch,
+  } = useApiQuery(url, { schema: RagSimilarResultsResponseSchema });
+  const results: RagResultItem[] = data?.results || [];
 
   return (
     <section className="space-y-3">
@@ -83,7 +70,7 @@ export function SimilarTicketsPanel({ ticketId }: SimilarTicketsPanelProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={load}
+          onClick={() => void refetch()}
           disabled={isLoading}
           className="h-7 px-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
         >
@@ -98,7 +85,7 @@ export function SimilarTicketsPanel({ ticketId }: SimilarTicketsPanelProps) {
       {/* Error State */}
       {error && (
         <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-2.5">
-          <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+          <p className="text-xs text-red-700 dark:text-red-400">{error.message}</p>
         </div>
       )}
 

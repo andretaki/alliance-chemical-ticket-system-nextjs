@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/env';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const host = request.headers.get('host') || 'localhost';
   const protocol = request.headers.get('x-forwarded-proto') || 'http';
   const baseUrl = `${protocol}://${host}`;
-  
+
   // Different robots.txt for different environments
-  const isProduction = process.env.NODE_ENV === 'production' && 
+  const isProduction = env.NODE_ENV === 'production' &&
                       host.includes('alliance-chemical-ticket-system-nextjs.vercel.app');
   
   let robotsContent: string;

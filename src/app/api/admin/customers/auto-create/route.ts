@@ -4,6 +4,7 @@ import { db, tickets } from '@/lib/db';
 import { and, isNotNull, gte, count } from 'drizzle-orm';
 import { customerAutoCreateService } from '@/services/customerAutoCreateService';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
 // POST: Batch create customers from existing tickets
 export async function POST(request: NextRequest) {
@@ -159,7 +160,7 @@ export async function GET() {
         lastChecked: new Date().toISOString()
       },
       configuration: {
-        enabledViaEnv: process.env.SHOPIFY_AUTO_CREATE_CUSTOMERS !== 'false'
+        enabledViaEnv: env.SHOPIFY_AUTO_CREATE_CUSTOMERS !== 'false'
       }
     });
 

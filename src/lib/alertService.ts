@@ -1,9 +1,10 @@
 import * as graphService from '@/lib/graphService';
 import { Message } from '@microsoft/microsoft-graph-types';
+import { env } from '@/lib/env';
 
 // Define the environment variables for alert recipients
-const ALERT_EMAIL = process.env.ALERT_EMAIL || process.env.MICROSOFT_GRAPH_USER_EMAIL || 'andre@alliancechemical.com';
-const ERROR_THRESHOLD = parseInt(process.env.ERROR_ALERT_THRESHOLD || '3', 10);
+const ALERT_EMAIL = env.ALERT_EMAIL || 'andre@alliancechemical.com';
+const ERROR_THRESHOLD = parseInt(env.ERROR_ALERT_THRESHOLD, 10);
 
 // Track errors to avoid sending too many alerts
 let recentErrors: {timestamp: Date, message: string}[] = [];

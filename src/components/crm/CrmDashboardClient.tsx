@@ -29,24 +29,21 @@ import {
   PieChart,
 } from 'lucide-react';
 import type {
+  CrmDashboardStats,
+  WinRate,
   WhoToTalkToRow,
   PipelineHealthRow,
   StaleOpportunity,
   OpenTask,
-} from '@/services/crm/crmDashboardService';
+} from '@/lib/contracts';
 
 interface CrmDashboardClientProps {
-  stats: {
-    highChurnCustomers: number;
-    staleQuotes: number;
-    openTasks: number;
-    pipelineValue: number;
-  };
+  stats: CrmDashboardStats;
   whoToTalk: WhoToTalkToRow[];
   pipelineHealth: PipelineHealthRow[];
   staleOpportunities: StaleOpportunity[];
   openTasks: OpenTask[];
-  winRate: { won: number; lost: number; winRate: number };
+  winRate: WinRate;
 }
 
 // Format currency
@@ -212,6 +209,8 @@ function TaskRow({ task }: { task: OpenTask }) {
     VIP_TICKET: 'VIP Ticket',
     AR_OVERDUE: 'AR Overdue',
     SLA_BREACH: 'SLA Breach',
+    MERGE_REVIEW: 'Merge Review',
+    MERGE_REQUIRED: 'Merge Review',
   };
 
   const typeTones: Record<string, 'neutral' | 'warning' | 'danger'> = {
@@ -220,6 +219,8 @@ function TaskRow({ task }: { task: OpenTask }) {
     VIP_TICKET: 'warning',
     AR_OVERDUE: 'warning',
     SLA_BREACH: 'danger',
+    MERGE_REVIEW: 'warning',
+    MERGE_REQUIRED: 'warning',
   };
 
   // Determine link destination

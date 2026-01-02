@@ -27,7 +27,7 @@ import { SimilarTicketsPanel } from '@/components/rag/SimilarTicketsPanel';
 // Types
 import type { Ticket, TicketComment, TicketUser } from '@/types/ticket';
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
-import type { CustomerOverview } from '@/services/crm/customerService';
+import type { CustomerOverview } from '@/lib/contracts';
 
 interface TicketViewClientProps {
   initialTicket: Ticket;
@@ -193,22 +193,56 @@ export function TicketViewClient({
     addOptimisticUpdate({ type: 'comment', comment: optimisticComment });
 
     try {
-      const formData = new FormData();
-      formData.append('commentText', commentText);
-      formData.append('isInternalNote', String(isInternalNote));
-      formData.append('sendAsEmail', String(sendAsEmail));
-      attachments.forEach((file) => formData.append('attachments', file));
+      let attachmentIds: number[] = [];
+
+      if (attachments.length > 0) {
+        const uploadData = new FormData();
+        attachments.forEach((file) => uploadData.append('files', file));
+
+        const uploadResponse = await fetch(`/api/tickets/${optimisticTicket.id}/attachments`, {
+          method: 'POST',
+          body: uploadData,
+        });
+
+        const uploadPayload = await uploadResponse.json().catch(() => ({}));
+        if (!uploadResponse.ok) {
+          const message = uploadPayload?.error || 'Failed to upload attachments';
+          throw new Error(message);
+        }
+
+        if (Array.isArray(uploadPayload.attachments)) {
+          attachmentIds = uploadPayload.attachments
+            .map((att: { id?: number }) => att.id)
+            .filter((id: number | undefined): id is number => typeof id === 'number');
+        }
+      }
 
       const response = await fetch(`/api/tickets/${optimisticTicket.id}/reply`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: commentText,
+          isInternalNote,
+          sendAsEmail,
+          attachmentIds: attachmentIds.length ? attachmentIds : undefined,
+        }),
       });
 
-      if (!response.ok) throw new Error('Failed to post comment');
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const message = payload?.error || 'Failed to post comment';
+        throw new Error(message);
+      }
+
+      const emailNotice = sendAsEmail
+        ? (payload?.emailSent === false
+          ? 'Reply saved. Email delivery is currently disabled.'
+          : 'Your reply has been sent to the customer.')
+        : 'Internal note added.';
 
       toast({
         title: 'Comment Posted',
-        description: sendAsEmail ? 'Your reply has been sent to the customer.' : 'Internal note added.',
+        description: emailNotice,
       });
 
       router.refresh();
@@ -233,8 +267,10 @@ export function TicketViewClient({
 
       if (!response.ok) throw new Error('Failed to generate draft');
 
-      const { draft } = await response.json();
-      setAiSuggestion({ type: 'reply', content: draft });
+      const payload = await response.json();
+      const draftText = payload?.draft ?? payload?.draftMessage;
+      if (!draftText) throw new Error('No draft returned');
+      setAiSuggestion({ type: 'reply', content: draftText });
       setShowCopilot(true);
 
       toast({
@@ -265,14 +301,14 @@ export function TicketViewClient({
     setIsLoadingAI(true);
 
     try {
-      const response = await fetch(`/api/tickets/${optimisticTicket.id}/draft-order-status`, {
-        method: 'POST',
-      });
+      const response = await fetch(`/api/tickets/${optimisticTicket.id}/draft-order-status`);
 
       if (!response.ok) throw new Error('Failed to get order status');
 
-      const { draft } = await response.json();
-      setAiSuggestion({ type: 'order_status', content: draft });
+      const payload = await response.json();
+      const draftText = payload?.draft ?? payload?.draftMessage;
+      if (!draftText) throw new Error('No draft returned');
+      setAiSuggestion({ type: 'order_status', content: draftText });
       setShowCopilot(true);
     } catch (error) {
       toast({

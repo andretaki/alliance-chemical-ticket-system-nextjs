@@ -5,7 +5,7 @@ import { useForm, FormProvider, SubmitHandler } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import axios, { AxiosError } from 'axios';
 import { toast } from 'react-hot-toast';
-// import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { quoteFormSchema, QuoteFormData, defaultValues } from './types';
 import CustomerStep from './steps/CustomerStep';
 import ProductsStep from './steps/ProductsStep';
@@ -32,7 +32,7 @@ const QuoteCreationWizard = () => {
   const router = useRouter();
 
   const methods = useForm<QuoteFormData>({
-    // resolver: zodResolver(quoteFormSchema), // Temporarily disabled for troubleshooting
+    resolver: zodResolver(quoteFormSchema) as any,
     mode: 'onBlur',
     defaultValues,
   });

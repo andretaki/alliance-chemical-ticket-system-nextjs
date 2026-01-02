@@ -1,9 +1,10 @@
 import type { NextRequest } from 'next/server';
 import axios from 'axios';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env, getShopifyAccessToken } from '@/lib/env';
 
-const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN!;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN!;
+const SHOPIFY_STORE_DOMAIN = env.SHOPIFY_STORE_DOMAIN || env.SHOPIFY_STORE || '';
+const SHOPIFY_ACCESS_TOKEN = getShopifyAccessToken();
 
 export async function GET(request: NextRequest) {
   try {

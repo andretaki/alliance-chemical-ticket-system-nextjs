@@ -269,6 +269,122 @@ async function refreshOpportunityMetrics() {
   }
 }
 
+/**
+ * Event-driven score recalculation for a single customer.
+ * Call this when orders are created/updated, tickets closed, etc.
+ * Much lighter weight than the full batch job.
+ */
+export async function recalculateCustomerScore(customerId: number): Promise<void> {
+  // Get order metrics for this customer
+  const [metrics] = await db
+    .select({
+      customerId: orders.customerId,
+      totalRevenue: sql<number>`COALESCE(SUM(${orders.total}::numeric), 0)`.as('total_revenue'),
+      last12Revenue: sql<number>`COALESCE(SUM(CASE WHEN ${orders.placedAt} > NOW() - INTERVAL '12 months' THEN ${orders.total}::numeric ELSE 0 END), 0)`.as('last_12_revenue'),
+      orderCount: sql<number>`COUNT(*)::int`.as('order_count'),
+      lastOrderDate: sql<Date | null>`MAX(${orders.placedAt})`.as('last_order_date'),
+      daysSinceLastOrder: sql<number>`COALESCE(EXTRACT(EPOCH FROM (NOW() - MAX(${orders.placedAt}))) / 86400, 9999)::int`.as('days_since_last'),
+    })
+    .from(orders)
+    .where(eq(orders.customerId, customerId))
+    .groupBy(orders.customerId);
+
+  if (!metrics) {
+    console.log(`[recalculateCustomerScore] No orders for customer ${customerId}, skipping.`);
+    return;
+  }
+
+  // Get global quintile boundaries (cached or approximated)
+  // For event-driven updates, we use simplified scoring to avoid full table scans
+  const rScore = scoreRecency(metrics.daysSinceLastOrder);
+
+  // Simplified frequency scoring based on common thresholds
+  const fScore =
+    metrics.orderCount >= 50 ? 5 :
+    metrics.orderCount >= 20 ? 4 :
+    metrics.orderCount >= 10 ? 3 :
+    metrics.orderCount >= 5 ? 2 : 1;
+
+  // Simplified monetary scoring based on common B2B thresholds
+  const revenue = Number(metrics.totalRevenue);
+  const mScore =
+    revenue >= 100000 ? 5 :
+    revenue >= 50000 ? 4 :
+    revenue >= 20000 ? 3 :
+    revenue >= 5000 ? 2 : 1;
+
+  const rawHealth = rScore * 4 + fScore * 3 + mScore * 2;
+  const healthScore = Math.round((rawHealth / 45) * 100);
+  const churnRisk = determineChurnRisk(rScore, fScore, metrics.daysSinceLastOrder);
+
+  // Get previous churn risk for escalation detection
+  const [existingScore] = await db
+    .select({ churnRisk: customerScores.churnRisk })
+    .from(customerScores)
+    .where(eq(customerScores.customerId, customerId))
+    .limit(1);
+
+  const previousChurnRisk = existingScore?.churnRisk || null;
+
+  // Upsert the score
+  await db
+    .insert(customerScores)
+    .values({
+      customerId,
+      rScore,
+      fScore,
+      mScore,
+      ltv: revenue.toFixed(2),
+      last12MonthsRevenue: Number(metrics.last12Revenue).toFixed(2),
+      healthScore,
+      churnRisk,
+      previousChurnRisk: previousChurnRisk as ChurnRisk | null,
+      lastCalculatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: customerScores.customerId,
+      set: {
+        rScore,
+        fScore,
+        mScore,
+        ltv: revenue.toFixed(2),
+        last12MonthsRevenue: Number(metrics.last12Revenue).toFixed(2),
+        healthScore,
+        churnRisk,
+        previousChurnRisk: previousChurnRisk as ChurnRisk | null,
+        lastCalculatedAt: new Date(),
+      },
+    });
+
+  // Create CHURN_WATCH task if escalating to high
+  if (churnRisk === 'high' && previousChurnRisk && previousChurnRisk !== 'high') {
+    const existingTask = await db
+      .select({ id: crmTasks.id })
+      .from(crmTasks)
+      .where(
+        and(
+          eq(crmTasks.customerId, customerId),
+          eq(crmTasks.type, 'CHURN_WATCH'),
+          eq(crmTasks.status, 'open')
+        )
+      )
+      .limit(1);
+
+    if (existingTask.length === 0) {
+      await db.insert(crmTasks).values({
+        customerId,
+        type: 'CHURN_WATCH',
+        reason: 'RISING_CHURN',
+        status: 'open',
+        dueAt: new Date(),
+      });
+      console.log(`[recalculateCustomerScore] Created CHURN_WATCH task for customer ${customerId}`);
+    }
+  }
+
+  console.log(`[recalculateCustomerScore] Updated score for customer ${customerId}: health=${healthScore}, churnRisk=${churnRisk}`);
+}
+
 // Allow running directly with tsx/node
 if (process.argv[1]?.includes('calculateCustomerScores')) {
   calculateCustomerScores()

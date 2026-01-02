@@ -1,3 +1,4 @@
+import { env, getShopifyStoreUrl, getShopifyAccessToken } from '@/lib/env';
 import { qboConfig } from './qboConfig';
 import { shipstationConfig } from './shipstationConfig';
 
@@ -34,9 +35,9 @@ export interface AppConfig {
 
 export const Config: AppConfig = {
   shopify: {
-    storeUrl: process.env.SHOPIFY_STORE || '',
-    adminAccessToken: process.env.SHOPIFY_ACCESS_TOKEN || '',
-    apiVersion: process.env.SHOPIFY_API_VERSION || '2024-04',
+    storeUrl: getShopifyStoreUrl(),
+    adminAccessToken: getShopifyAccessToken(),
+    apiVersion: env.SHOPIFY_API_VERSION,
   },
   qbo: qboConfig,
   shipstation: shipstationConfig,

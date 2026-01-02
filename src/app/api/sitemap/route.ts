@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { env } from '@/lib/env';
 
 interface SitemapUrl {
   loc: string;
@@ -11,9 +12,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const host = request.headers.get('host') || 'localhost';
   const protocol = request.headers.get('x-forwarded-proto') || 'http';
   const baseUrl = `${protocol}://${host}`;
-  
+
   // Only generate sitemap for production
-  const isProduction = process.env.NODE_ENV === 'production' && 
+  const isProduction = env.NODE_ENV === 'production' &&
                       host.includes('alliance-chemical-ticket-system-nextjs.vercel.app');
   
   if (!isProduction) {

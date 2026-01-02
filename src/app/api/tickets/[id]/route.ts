@@ -7,6 +7,7 @@ import { checkTicketViewAccess, checkTicketModifyAccess, checkTicketDeleteAccess
 import { rateLimiters } from '@/lib/rateLimiting';
 import { enqueueRagJob } from '@/services/rag/ragIngestionService';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
 // --- Zod Schema for Validation ---
 const updateTicketSchema = z.object({
@@ -224,7 +225,7 @@ export async function PUT(
           columns: { email: true, name: true }
         });
         if (newAssigneeUser?.email) {
-          const ticketUrl = `${process.env.NEXT_PUBLIC_APP_URL}/tickets/${ticketId}`;
+          const ticketUrl = `${env.NEXT_PUBLIC_APP_URL}/tickets/${ticketId}`;
           const emailSubject = `Ticket Assigned: #${ticketId} - ${currentTicket.title}`;
           const emailBody = `<p>Hello ${newAssigneeUser.name || 'User'},</p><p>You have been assigned ticket #${ticketId}: "${currentTicket.title}".</p><p>You can view the ticket details here:</p><p><a href="${ticketUrl}">${ticketUrl}</a></p><p>Thank you,<br/>Ticket System</p>`;
           const emailSent = await sendNotificationEmail({ recipientEmail: newAssigneeUser.email, recipientName: newAssigneeUser.name || undefined, subject: emailSubject, htmlBody: emailBody, senderName: "Ticket System" });

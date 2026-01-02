@@ -19,10 +19,11 @@ import {
   Ticket,
   Clock,
 } from 'lucide-react';
-import type { OpenTask } from '@/services/crm/crmDashboardService';
+import type { OpenTask } from '@/lib/contracts';
 
 interface TasksPageClientProps {
   initialTasks: OpenTask[];
+  initialFilter?: string | null;
 }
 
 // Task type display config
@@ -32,6 +33,8 @@ const taskTypeLabels: Record<string, string> = {
   VIP_TICKET: 'VIP Ticket',
   AR_OVERDUE: 'AR Overdue',
   SLA_BREACH: 'SLA Breach',
+  MERGE_REVIEW: 'Merge Review',
+  MERGE_REQUIRED: 'Merge Review',
 };
 
 const taskTypeTones: Record<string, 'neutral' | 'warning' | 'danger'> = {
@@ -40,6 +43,8 @@ const taskTypeTones: Record<string, 'neutral' | 'warning' | 'danger'> = {
   VIP_TICKET: 'warning',
   AR_OVERDUE: 'warning',
   SLA_BREACH: 'danger',
+  MERGE_REVIEW: 'warning',
+  MERGE_REQUIRED: 'warning',
 };
 
 const taskTypeIcons: Record<string, React.ElementType> = {
@@ -48,6 +53,8 @@ const taskTypeIcons: Record<string, React.ElementType> = {
   VIP_TICKET: Ticket,
   AR_OVERDUE: Clock,
   SLA_BREACH: Ticket,
+  MERGE_REVIEW: Building2,
+  MERGE_REQUIRED: Building2,
 };
 
 // Format date relative
@@ -98,7 +105,11 @@ function TaskRow({
   const handleComplete = async () => {
     setIsLoading(true);
     try {
-      await fetch(`/api/tasks/${task.id}/complete`, { method: 'POST' });
+      const response = await fetch(`/api/tasks/${task.id}/complete`, { method: 'POST' });
+      const payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.error?.message || 'Failed to complete task');
+      }
       onComplete(task.id);
     } catch (error) {
       console.error('Failed to complete task:', error);
@@ -110,7 +121,11 @@ function TaskRow({
   const handleDismiss = async () => {
     setIsLoading(true);
     try {
-      await fetch(`/api/tasks/${task.id}/dismiss`, { method: 'POST' });
+      const response = await fetch(`/api/tasks/${task.id}/dismiss`, { method: 'POST' });
+      const payload = await response.json();
+      if (!payload.success) {
+        throw new Error(payload.error?.message || 'Failed to dismiss task');
+      }
       onDismiss(task.id);
     } catch (error) {
       console.error('Failed to dismiss task:', error);
@@ -188,9 +203,9 @@ function TaskRow({
   );
 }
 
-export default function TasksPageClient({ initialTasks }: TasksPageClientProps) {
+export default function TasksPageClient({ initialTasks, initialFilter }: TasksPageClientProps) {
   const [tasks, setTasks] = useState<OpenTask[]>(initialTasks);
-  const [filter, setFilter] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string | null>(initialFilter ?? null);
 
   const handleComplete = (id: number) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));

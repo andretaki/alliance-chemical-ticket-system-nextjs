@@ -9,10 +9,15 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-export default async function TasksPage() {
+interface TasksPageProps {
+  searchParams: Promise<{ type?: string }>;
+}
+
+export default async function TasksPage({ searchParams }: TasksPageProps) {
+  const params = await searchParams;
   const tasks = await getOpenTasks({ limit: 100 });
 
   return (
-    <TasksPageClient initialTasks={tasks} />
+    <TasksPageClient initialTasks={tasks} initialFilter={params.type || null} />
   );
 }

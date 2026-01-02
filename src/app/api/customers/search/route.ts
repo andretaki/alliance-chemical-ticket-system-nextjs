@@ -9,6 +9,7 @@ import { shopifyApi, ApiVersion, LATEST_API_VERSION, LogSeverity } from '@shopif
 import '@shopify/shopify-api/adapters/node';
 import { Config } from '@/config/appConfig';
 import { getOrderTrackingInfo } from '@/lib/shipstationService';
+import { env } from '@/lib/env';
 import {
   searchShipStationCustomerByEmail,
   searchShipStationCustomerByName,
@@ -187,8 +188,8 @@ async function searchExternalSources(query: string, searchType: string): Promise
   try {
     // Initialize Shopify client
     const shopify = shopifyApi({
-      apiKey: process.env.SHOPIFY_API_KEY || 'dummyAPIKeyIfNotUsedForAuth',
-      apiSecretKey: process.env.SHOPIFY_API_SECRET || 'dummySecretIfNotUsedForAuth',
+      apiKey: env.SHOPIFY_API_KEY || 'dummyAPIKeyIfNotUsedForAuth',
+      apiSecretKey: env.SHOPIFY_API_SECRET || 'dummySecretIfNotUsedForAuth',
       scopes: ['read_customers', 'read_orders'],
       hostName: Config.shopify.storeUrl.replace(/^https?:\/\//, ''),
       apiVersion: Config.shopify.apiVersion as ApiVersion || LATEST_API_VERSION,

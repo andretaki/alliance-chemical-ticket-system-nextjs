@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import { ShopifyService } from '@/services/shopify/ShopifyService';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
 // API endpoint to search products directly from Shopify
 export async function GET(request: NextRequest) {
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
             productIdShopify: product.legacyResourceId,
             name: product.title,
             handleShopify: product.handle,
-            pageUrl: product.onlineStoreUrl || `https://${process.env.NEXT_PUBLIC_SHOPIFY_STORE_URL}/products/${product.handle}`,
+            pageUrl: product.onlineStoreUrl || `https://${env.NEXT_PUBLIC_SHOPIFY_STORE_URL}/products/${product.handle}`,
             primaryImageUrl: product.featuredImage?.url || null,
             description: product.descriptionHtml ?
               product.descriptionHtml.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim() : null,

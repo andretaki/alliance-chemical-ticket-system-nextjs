@@ -2,9 +2,10 @@ import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
 import axios from 'axios';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
-const SHIPSTATION_API_KEY = process.env.SHIPSTATION_API_KEY;
-const SHIPSTATION_API_SECRET = process.env.SHIPSTATION_API_SECRET;
+const SHIPSTATION_API_KEY = env.SHIPSTATION_API_KEY;
+const SHIPSTATION_API_SECRET = env.SHIPSTATION_API_SECRET;
 const SHIPSTATION_BASE_URL = 'https://ssapi.shipstation.com';
 
 interface ShipStationOrderItem {

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, RefreshCw, MessageSquare, Loader2, Eye, EyeOff } from 'lucide-react';
-import type { RagResultItem } from '@/services/rag/ragTypes';
+import { RagSimilarResultsResponseSchema, type RagResultItem } from '@/lib/contracts';
+import { useApiQuery } from '@/hooks/useApiQuery';
 
 interface SimilarRepliesPanelProps {
   ticketId: number;
@@ -47,33 +48,22 @@ function SkeletonResult() {
 }
 
 export function SimilarRepliesPanel({ ticketId }: SimilarRepliesPanelProps) {
-  const [results, setResults] = useState<RagResultItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [includeInternal, setIncludeInternal] = useState(false);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        ticketId: String(ticketId),
-      });
-      if (includeInternal) params.set('includeInternal', 'true');
-      const response = await fetch(`/api/rag/similar-replies?${params.toString()}`);
-      if (!response.ok) throw new Error('Failed to fetch similar replies');
-      const data = await response.json();
-      setResults(data.results || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to load similar replies');
-    } finally {
-      setIsLoading(false);
-    }
+  const url = useMemo(() => {
+    const params = new URLSearchParams({
+      ticketId: String(ticketId),
+    });
+    if (includeInternal) params.set('includeInternal', 'true');
+    return `/api/rag/similar-replies?${params.toString()}`;
   }, [ticketId, includeInternal]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  const {
+    data,
+    error,
+    isLoading,
+    refetch,
+  } = useApiQuery(url, { schema: RagSimilarResultsResponseSchema });
+  const results: RagResultItem[] = data?.results || [];
 
   return (
     <section className="space-y-3">
@@ -105,7 +95,7 @@ export function SimilarRepliesPanel({ ticketId }: SimilarRepliesPanelProps) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={load}
+            onClick={() => void refetch()}
             disabled={isLoading}
             className="h-7 px-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           >
@@ -121,7 +111,7 @@ export function SimilarRepliesPanel({ ticketId }: SimilarRepliesPanelProps) {
       {/* Error State */}
       {error && (
         <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-2.5">
-          <p className="text-xs text-red-700 dark:text-red-400">{error}</p>
+          <p className="text-xs text-red-700 dark:text-red-400">{error.message}</p>
         </div>
       )}
 

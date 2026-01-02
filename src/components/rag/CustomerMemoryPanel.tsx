@@ -8,17 +8,10 @@ import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/layout/EmptyState';
 import { StatusPill } from '@/components/ui/status-pill';
 import { Search, ExternalLink, Database, MessageSquare, Mail, FileText, Loader2, Brain } from 'lucide-react';
-import type { RagResultItem, RagTruthResult } from '@/services/rag/ragTypes';
+import { ApiResponseSchema, RagQueryResponseSchema, type RagQueryResponse, type RagResultItem, type RagTruthResult } from '@/lib/contracts';
 
 interface CustomerMemoryPanelProps {
   customerId: number;
-}
-
-interface RagQueryResponse {
-  intent: string;
-  truthResults?: RagTruthResult[];
-  evidenceResults: RagResultItem[];
-  confidence: 'low' | 'medium' | 'high';
 }
 
 const confidenceConfig = {
@@ -128,12 +121,14 @@ export function CustomerMemoryPanel({ customerId }: CustomerMemoryPanelProps) {
   const [queryText, setQueryText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [denyReason, setDenyReason] = useState<string | null>(null);
   const [results, setResults] = useState<RagQueryResponse | null>(null);
 
   const runQuery = useCallback(async () => {
     if (!queryText.trim()) return;
     setIsLoading(true);
     setError(null);
+    setDenyReason(null);
 
     try {
       const response = await fetch('/api/rag/query', {
@@ -146,11 +141,23 @@ export function CustomerMemoryPanel({ customerId }: CustomerMemoryPanelProps) {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('RAG query failed');
+      const json = await response.json();
+      const parsed = ApiResponseSchema(RagQueryResponseSchema).safeParse(json);
+      if (!parsed.success) {
+        throw new Error('Invalid API response');
       }
-      const data = (await response.json()) as RagQueryResponse;
-      setResults(data);
+      if (!parsed.data.success) {
+        const reason = (parsed.data.error.details as { denyReason?: string } | undefined)?.denyReason;
+        if (reason) {
+          setDenyReason(reason);
+          setError(`Access denied: ${reason}`);
+          return;
+        }
+        setError(parsed.data.error.message);
+        return;
+      }
+
+      setResults(parsed.data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to query customer memory');
     } finally {
@@ -205,6 +212,9 @@ export function CustomerMemoryPanel({ customerId }: CustomerMemoryPanelProps) {
         {error && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
             <p className="text-sm text-destructive">{error}</p>
+            {denyReason && (
+              <p className="mt-1 text-xs text-destructive/80">Deny reason: {denyReason}</p>
+            )}
           </div>
         )}
 

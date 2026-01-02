@@ -18,8 +18,9 @@ import {
   type AmazonOrder,
   type AmazonOrderItem,
 } from '@/lib/amazonSpService';
-import { identityService } from '@/services/crm/identityService';
+import { identityService, type SyncMetrics, createSyncMetrics, logSyncMetrics } from '@/services/crm/identityService';
 import { enqueueRagJob } from '@/services/rag/ragIngestionService';
+import { resetPaidLateFlags } from './arLateJob';
 
 interface SyncCursor {
   lastUpdatedAt?: string;
@@ -51,15 +52,12 @@ async function updateCursor(cursorValue: SyncCursor, itemsSynced: number, error?
   });
 }
 
-async function upsertAmazonOrder(amazonOrder: AmazonOrder, items: AmazonOrderItem[]) {
+async function upsertAmazonOrder(amazonOrder: AmazonOrder, items: AmazonOrderItem[], metrics: SyncMetrics) {
   const total = amazonOrder.OrderTotal?.Amount ?? '0';
   const currency = amazonOrder.OrderTotal?.CurrencyCode ?? 'USD';
 
-  // Resolve or create customer using email if available, otherwise address hash fallback
-  const hasBuyerEmail = !!amazonOrder.BuyerEmail;
+  // Build address for identity resolution (used as fallback when email is missing)
   const shippingAddress = amazonOrder.ShippingAddress;
-
-  // Build address for hash fallback when email is missing
   const address = shippingAddress ? {
     name: shippingAddress.Name || amazonOrder.BuyerName || '',
     address1: shippingAddress.AddressLine1 || '',
@@ -70,26 +68,29 @@ async function upsertAmazonOrder(amazonOrder: AmazonOrder, items: AmazonOrderIte
     country: shippingAddress.CountryCode || 'US',
   } : undefined;
 
-  const resolvedCustomer = hasBuyerEmail
-    ? await identityService.resolveOrCreateCustomer({
-        provider: 'amazon',
-        externalId: amazonOrder.AmazonOrderId,
-        email: amazonOrder.BuyerEmail,
-        firstName: amazonOrder.BuyerName?.split(' ')[0] || null,
-        lastName: amazonOrder.BuyerName?.split(' ').slice(1).join(' ') || null,
-      })
-    : await identityService.resolveOrCreateCustomerWithAddressHash({
-        provider: 'amazon',
-        externalId: amazonOrder.AmazonOrderId,
-        firstName: amazonOrder.BuyerName?.split(' ')[0] || null,
-        lastName: amazonOrder.BuyerName?.split(' ').slice(1).join(' ') || null,
-      }, address);
+  // Use upsertCustomerWithMetrics for proper ambiguity detection and race condition handling
+  // This automatically uses address hash fallback when email is not available
+  const result = await identityService.upsertCustomerWithMetrics({
+    provider: 'amazon',
+    externalId: amazonOrder.AmazonOrderId,
+    email: amazonOrder.BuyerEmail || null,
+    firstName: amazonOrder.BuyerName?.split(' ')[0] || null,
+    lastName: amazonOrder.BuyerName?.split(' ').slice(1).join(' ') || null,
+  }, address);
+
+  // Track metrics
+  if (result.action === 'created') metrics.created++;
+  else if (result.action === 'updated') metrics.updated++;
+  else if (result.action === 'linked') metrics.linked++;
+  else if (result.action === 'ambiguous') metrics.ambiguous++;
+
+  const isAmbiguous = result.action === 'ambiguous';
 
   const fulfillmentStatus = mapAmazonOrderStatus(amazonOrder.OrderStatus);
   const financialStatus = mapAmazonFinancialStatus(amazonOrder);
 
   const [savedOrder] = await db.insert(orders).values({
-    customerId: resolvedCustomer.id,
+    customerId: result.customerId,
     provider: 'amazon',
     externalId: amazonOrder.AmazonOrderId,
     orderNumber: amazonOrder.AmazonOrderId,
@@ -114,10 +115,12 @@ async function upsertAmazonOrder(amazonOrder: AmazonOrder, items: AmazonOrderIte
   }).onConflictDoUpdate({
     target: [orders.provider, orders.externalId],
     set: {
-      customerId: resolvedCustomer.id,
+      customerId: result.customerId,
       status: fulfillmentStatus as any,
       financialStatus: financialStatus as any,
       total,
+      // NOTE: lateFlag intentionally omitted - managed by AR job only
+      // dueAt intentionally omitted - not overwritten if set by AR job
       metadata: {
         amazonOrderId: amazonOrder.AmazonOrderId,
         fulfillmentChannel: amazonOrder.FulfillmentChannel,
@@ -158,10 +161,10 @@ async function upsertAmazonOrder(amazonOrder: AmazonOrder, items: AmazonOrderIte
   // Sync FBA shipments if applicable
   if (amazonOrder.FulfillmentChannel === 'AFN' &&
       (amazonOrder.OrderStatus === 'Shipped' || amazonOrder.OrderStatus === 'PartiallyShipped')) {
-    await syncFbaShipments(amazonOrder, orderId, resolvedCustomer.id);
+    await syncFbaShipments(amazonOrder, orderId, result.customerId);
   }
 
-  return savedOrder;
+  return { ...savedOrder, isAmbiguous };
 }
 
 async function syncFbaShipments(amazonOrder: AmazonOrder, orderId: number, customerId: number) {
@@ -257,6 +260,9 @@ export async function syncAmazonOrders({
   let failed = 0;
   let latestUpdatedAt = since;
 
+  // Track identity resolution metrics
+  const metrics = createSyncMetrics();
+
   try {
     while (page < maxPages) {
       const { orders: amazonOrders, nextToken: newNextToken } = await fetchAmazonOrdersPage({
@@ -278,8 +284,14 @@ export async function syncAmazonOrders({
             columns: { id: true },
           });
 
-          await upsertAmazonOrder(amazonOrder, items);
+          const savedOrder = await upsertAmazonOrder(amazonOrder, items, metrics);
           total += 1;
+          metrics.fetched += 1;
+
+          // Log ambiguous matches for visibility
+          if (savedOrder.isAmbiguous) {
+            console.warn(`[syncAmazonOrders] Order ${amazonOrder.AmazonOrderId} linked to ambiguous customer ${savedOrder.customerId} - MERGE_REVIEW task created`);
+          }
 
           if (existing) {
             updated += 1;
@@ -306,15 +318,25 @@ export async function syncAmazonOrders({
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
+    // Reset late flags for orders that have been paid
+    // This catches cases where Amazon sync updates financial status to 'paid'
+    const resetCount = await resetPaidLateFlags();
+    if (resetCount > 0) {
+      console.log(`[syncAmazonOrders] Reset ${resetCount} late flags for paid orders`);
+    }
+
     // Update cursor for next run
     await updateCursor({
       lastUpdatedAt: latestUpdatedAt.toISOString(),
       nextToken: nextToken || undefined,
     }, total);
 
+    // Log identity resolution metrics
+    logSyncMetrics('Amazon', metrics);
+
     console.log(`[syncAmazonOrders] Completed. Synced ${total} orders (created: ${created}, updated: ${updated}, failed: ${failed}) across ${page} page(s).`);
 
-    return { success: true, total, created, updated, failed, pages: page };
+    return { success: true, total, created, updated, failed, pages: page, lateResets: resetCount, metrics };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[syncAmazonOrders] Failed:', error);

@@ -1,16 +1,17 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/lib/db";
-import { 
-  users, 
-  accounts, 
-  sessions, 
+import {
+  users,
+  accounts,
+  sessions,
   verificationTokens,
   userRoleEnum,
-  userApprovalStatusEnum 
+  userApprovalStatusEnum
 } from "@/db/schema";
 import bcrypt from "bcryptjs";
 import "../types/auth"; // Import the type extensions
+import { env } from "@/lib/env";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -111,10 +112,10 @@ export const auth = betterAuth({
   ],
   
   trustedOrigins: [
-    process.env.NEXTAUTH_URL || "http://localhost:3001",
-    process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001",
+    env.NEXTAUTH_URL || "http://localhost:3001",
+    env.NEXT_PUBLIC_APP_URL || "http://localhost:3001",
   ],
-  
-  secret: process.env.NEXTAUTH_SECRET || process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.NEXTAUTH_URL || process.env.BETTER_AUTH_URL || "http://localhost:3001",
+
+  secret: env.NEXTAUTH_SECRET || env.BETTER_AUTH_SECRET,
+  baseURL: env.NEXTAUTH_URL || env.BETTER_AUTH_URL || "http://localhost:3001",
 }); 

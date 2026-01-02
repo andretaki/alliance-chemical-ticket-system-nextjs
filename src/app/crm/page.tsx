@@ -8,6 +8,7 @@ import {
   getWinRateByStage,
 } from '@/services/crm/crmDashboardService';
 import CrmDashboardClient from '@/components/crm/CrmDashboardClient';
+import CrmDashboardErrorBoundary from '@/components/crm/CrmDashboardErrorBoundary';
 
 export const metadata: Metadata = {
   title: 'CRM - Alliance Chemical',
@@ -27,13 +28,15 @@ export default async function CrmPage() {
   ]);
 
   return (
-    <CrmDashboardClient
-      stats={stats}
-      whoToTalk={whoToTalk}
-      pipelineHealth={pipelineHealth}
-      staleOpportunities={staleOpportunities}
-      openTasks={openTasks}
-      winRate={winRate}
-    />
+    <CrmDashboardErrorBoundary>
+      <CrmDashboardClient
+        stats={stats}
+        whoToTalk={whoToTalk}
+        pipelineHealth={pipelineHealth}
+        staleOpportunities={staleOpportunities}
+        openTasks={openTasks}
+        winRate={winRate}
+      />
+    </CrmDashboardErrorBoundary>
   );
 }

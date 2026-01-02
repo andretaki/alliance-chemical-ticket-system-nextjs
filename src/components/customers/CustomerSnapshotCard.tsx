@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Building2, Mail, Phone, ExternalLink, AlertCircle } from 'lucide-react';
-import type { CustomerOverview } from '@/services/crm/customerService';
+import type { CustomerOverview } from '@/lib/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

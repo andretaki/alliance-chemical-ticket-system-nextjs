@@ -1,5 +1,17 @@
+import { z } from 'zod';
 import { db, customers, customerScores, orders, tickets, calls, opportunities, crmTasks } from '@/lib/db';
 import { eq, sql, desc, and, or, isNull, ne } from 'drizzle-orm';
+import {
+  StaleOpportunitySchema,
+  OpenTaskSchema,
+  WhoToTalkToRowSchema,
+  PipelineHealthRowSchema,
+  parseQueryResults,
+  type WhoToTalkToRow,
+  type PipelineHealthRow,
+  type StaleOpportunity,
+  type OpenTask,
+} from '@/lib/contracts';
 
 /**
  * CRM Dashboard Service
@@ -8,64 +20,30 @@ import { eq, sql, desc, and, or, isNull, ne } from 'drizzle-orm';
  * 1. "Who to talk to today" view
  * 2. Pipeline health view
  * 3. Open tasks
+ *
+ * All raw SQL queries are validated with Zod schemas to ensure type safety.
  */
 
-export interface WhoToTalkToRow {
-  customerId: number;
-  firstName: string | null;
-  lastName: string | null;
-  company: string | null;
-  primaryEmail: string | null;
-  primaryPhone: string | null;
-  isVip: boolean;
+// Raw SQL result schema for win rate query
+const WinRateRawSchema = z.object({
+  won: z.union([z.string(), z.number()]).transform(v => Number(v) || 0),
+  lost: z.union([z.string(), z.number()]).transform(v => Number(v) || 0),
+});
 
-  // Scores
-  healthScore: number | null;
-  churnRisk: 'low' | 'medium' | 'high' | null;
-  ltv: string | null;
-  last12MonthsRevenue: string | null;
-
-  // Activity
-  lastOrderDate: Date | null;
-  lastTicketDate: Date | null;
-  lastCallDate: Date | null;
-
-  // Open items
-  openTicketCount: number;
-  openOpportunityCount: number;
+// Helper to normalize db.execute results (handles both array and { rows: [] } formats)
+function normalizeExecuteResult<T>(result: unknown): T[] {
+  if (Array.isArray(result)) return result as T[];
+  if (result && typeof result === 'object' && 'rows' in result) {
+    const rows = (result as { rows?: unknown }).rows;
+    if (Array.isArray(rows)) return rows as T[];
+  }
+  return [];
 }
 
-export interface PipelineHealthRow {
-  stage: 'lead' | 'quote_sent' | 'won' | 'lost';
-  count: number;
-  totalValue: number;
-  staleCount: number;
-}
+// Re-export types for backward compatibility
+export type { StaleOpportunity, OpenTask };
 
-export interface StaleOpportunity {
-  id: number;
-  customerId: number;
-  customerName: string | null;
-  company: string | null;
-  title: string;
-  estimatedValue: string | null;
-  daysInStage: number;
-  ownerName: string | null;
-}
-
-export interface OpenTask {
-  id: number;
-  type: string;
-  reason: string | null;
-  customerId: number | null;
-  customerName: string | null;
-  opportunityId: number | null;
-  opportunityTitle: string | null;
-  ticketId: number | null;
-  dueAt: Date | null;
-  assigneeName: string | null;
-  createdAt: Date;
-}
+export type { WhoToTalkToRow, PipelineHealthRow };
 
 /**
  * Get the "Who to talk to today" list.
@@ -111,7 +89,7 @@ export async function getWhoToTalkToday(options?: {
     .orderBy(desc(sql`${customerScores.ltv}::numeric`))
     .limit(limit);
 
-  return result;
+  return parseQueryResults(WhoToTalkToRowSchema, result, 'crm.who_to_talk');
 }
 
 /**
@@ -130,7 +108,7 @@ export async function getPipelineHealth(): Promise<PipelineHealthRow[]> {
     .where(isNull(opportunities.closedAt))
     .groupBy(opportunities.stage);
 
-  return result;
+  return parseQueryResults(PipelineHealthRowSchema, result, 'crm.pipeline_health');
 }
 
 /**
@@ -157,7 +135,8 @@ export async function getStaleOpportunities(limit = 20): Promise<StaleOpportunit
     LIMIT ${limit}
   `);
 
-  return result as unknown as StaleOpportunity[];
+  const rows = normalizeExecuteResult<unknown>(result);
+  return z.array(StaleOpportunitySchema).parse(rows);
 }
 
 /**
@@ -173,10 +152,9 @@ export async function getWinRateByStage(days = 90): Promise<{ won: number; lost:
       AND closed_at > NOW() - INTERVAL '${sql.raw(days.toString())} days'
   `);
 
-  const rows = result as unknown as { won: string; lost: string }[];
-  const row = rows[0];
-  const won = parseInt(row?.won || '0', 10);
-  const lost = parseInt(row?.lost || '0', 10);
+  const rows = normalizeExecuteResult<unknown>(result);
+  const parsed = WinRateRawSchema.safeParse(rows[0]);
+  const { won, lost } = parsed.success ? parsed.data : { won: 0, lost: 0 };
   const total = won + lost;
   const winRate = total > 0 ? Math.round((won / total) * 100) : 0;
 
@@ -217,7 +195,8 @@ export async function getOpenTasks(options?: {
     LIMIT ${limit}
   `);
 
-  return result as unknown as OpenTask[];
+  const rows = normalizeExecuteResult<unknown>(result);
+  return z.array(OpenTaskSchema).parse(rows);
 }
 
 /**
@@ -274,7 +253,8 @@ export async function getOpenTasksForOpportunity(opportunityId: number): Promise
     ORDER BY t.due_at ASC NULLS LAST, t.created_at DESC
   `);
 
-  return result as unknown as OpenTask[];
+  const rows = normalizeExecuteResult<unknown>(result);
+  return z.array(OpenTaskSchema).parse(rows);
 }
 
 /**

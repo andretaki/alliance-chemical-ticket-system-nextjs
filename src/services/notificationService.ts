@@ -2,6 +2,7 @@ import type { SimpleQuoteEmailData } from '@/types/quoteInterfaces';
 import { sendNotificationEmail } from '@/lib/email';
 import { db, tickets } from '@/lib/db';
 import { eq } from 'drizzle-orm';
+import { env } from '@/lib/env';
 
 // =============================================================================
 // Interfaces
@@ -28,7 +29,7 @@ interface TicketClosureParams {
 // =============================================================================
 
 export class NotificationService {
-  private readonly salesTeamEmail = process.env.SALES_TEAM_EMAIL || 'sales@alliancechemical.com';
+  private readonly salesTeamEmail = env.SALES_TEAM_EMAIL;
 
   /**
    * Core email sending method using Microsoft Graph via lib/email
@@ -233,7 +234,7 @@ export class NotificationService {
    */
   public async handleCreditApplicationRequest(email: string, customerName?: string): Promise<void> {
     const subject = "Alliance Chemical - Credit Application Form";
-    const creditApplicationUrl = process.env.CREDIT_APPLICATION_URL || "https://apply.alliancechemical.com";
+    const creditApplicationUrl = env.CREDIT_APPLICATION_URL || "https://apply.alliancechemical.com";
 
     const textContent = `
 Dear ${customerName || 'Valued Customer'},

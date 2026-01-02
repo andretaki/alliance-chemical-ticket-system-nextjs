@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
 interface HealthCheckResult {
   status: 'healthy' | 'unhealthy' | 'degraded';
@@ -75,7 +76,7 @@ export async function GET(): Promise<NextResponse<HealthCheckResult | { success:
         total: Math.round(memUsage.heapTotal / 1024 / 1024), // MB
         percentage: Math.round(memPercentage),
       },
-      environment: process.env.NODE_ENV || 'unknown',
+      environment: env.NODE_ENV,
     },
   };
 

@@ -1,6 +1,7 @@
 import DOMPurify from 'isomorphic-dompurify';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { env } from '@/lib/env';
 
 // Input validation schemas
 export const securitySchemas = {
@@ -468,7 +469,7 @@ export class SecurityValidator {
    */
   static validateCronAuth(request: Request): { isValid: boolean; error?: string } {
     const authHeader = request.headers.get('authorization');
-    const expectedToken = process.env.CRON_SECRET;
+    const expectedToken = env.CRON_SECRET;
     
     if (!expectedToken) {
       return { isValid: false, error: 'CRON_SECRET not configured' };

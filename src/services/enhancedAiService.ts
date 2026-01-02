@@ -5,6 +5,7 @@
 
 import { GoogleGenerativeAI, GenerativeModel } from '@google/generative-ai';
 import type { SimpleQuoteEmailData } from '@/types/quoteInterfaces';
+import { getGoogleApiKey } from '@/lib/env';
 
 interface ProductRecommendation {
   productId: string;
@@ -50,7 +51,7 @@ let _model: GenerativeModel | null = null;
 function getModel(): GenerativeModel {
   if (_model) return _model;
 
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = getGoogleApiKey();
   if (!apiKey) {
     throw new Error("Enhanced AI Service: GOOGLE_API_KEY is missing.");
   }

@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI, GenerationConfig, HarmCategory, HarmBlockThreshold, type GenerativeModel } from '@google/generative-ai';
 import { OrderTrackingInfo } from '@/lib/shipstationService';
 import { getCarrierInfo, generateTrackingLink } from '@/lib/orderResponseService';
+import { env, getGoogleApiKey } from '@/lib/env';
 
 // Interface for AI-drafted order status response
 export interface AIDraftedOrderStatus {
@@ -17,21 +18,20 @@ export interface AIDraftedOrderStatus {
 
 // Initialize Gemini Model for order status drafting
 let geminiModel: GenerativeModel | null = null;
-const GEMINI_MODEL_NAME = process.env.GEMINI_MODEL_NAME || "models/gemini-2.5-flash-preview-05-20";
 
 function initializeGeminiForOrderStatus(): GenerativeModel | null {
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = getGoogleApiKey();
   if (!apiKey) {
     console.error("CRITICAL: GOOGLE_API_KEY not set in aiOrderStatusService.");
     return null;
   }
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME });
-    console.log(`[AIOrderStatusService] Google AI Model (${GEMINI_MODEL_NAME}) initialized.`);
+    const model = genAI.getGenerativeModel({ model: env.GEMINI_MODEL_NAME });
+    console.log(`[AIOrderStatusService] Google AI Model (${env.GEMINI_MODEL_NAME}) initialized.`);
     return model;
   } catch (e: any) {
-    console.error(`[AIOrderStatusService] Failed to init Google AI (${GEMINI_MODEL_NAME}): ${e.message}`);
+    console.error(`[AIOrderStatusService] Failed to init Google AI (${env.GEMINI_MODEL_NAME}): ${e.message}`);
     return null;
   }
 }
@@ -39,9 +39,9 @@ function initializeGeminiForOrderStatus(): GenerativeModel | null {
 geminiModel = initializeGeminiForOrderStatus();
 
 const SHIPSTATION_CONFIG = {
-  endpoint: process.env.SHIPSTATION_API_ENDPOINT || 'https://ssapi.shipstation.com',
-  key: process.env.SHIPSTATION_API_KEY || '',
-  secret: process.env.SHIPSTATION_API_SECRET || ''
+  endpoint: 'https://ssapi.shipstation.com',
+  key: env.SHIPSTATION_API_KEY || '',
+  secret: env.SHIPSTATION_API_SECRET || ''
 };
 
 // Helper function to extract just the first name for greetings

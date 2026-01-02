@@ -1,4 +1,5 @@
 import { ShopifyService } from './shopify/ShopifyService';
+import { env } from '@/lib/env';
 
 export interface CustomerCreateData {
   email: string;
@@ -146,7 +147,7 @@ export class CustomerAutoCreateService {
    * This could be moved to a config file or environment variable
    */
   public isAutoCreateEnabled(): boolean {
-    return process.env.SHOPIFY_AUTO_CREATE_CUSTOMERS !== 'false';
+    return env.SHOPIFY_AUTO_CREATE_CUSTOMERS !== 'false';
   }
 
   /**

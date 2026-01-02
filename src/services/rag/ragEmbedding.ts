@@ -24,7 +24,7 @@ function getOpenAiClient(): OpenAI {
 
 function getGeminiClient(): GoogleGenAI {
   if (_gemini) return _gemini;
-  const apiKey = process.env.GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY;
+  const apiKey = env.GOOGLE_AI_API_KEY || env.GEMINI_API_KEY || env.GOOGLE_API_KEY;
   if (!apiKey) {
     throw new Error('RAG embeddings require GOOGLE_AI_API_KEY or GEMINI_API_KEY when provider is gemini.');
   }
@@ -77,7 +77,7 @@ export async function embedTexts(
   if (!texts.length) return [];
 
   const useMock =
-    process.env.NODE_ENV === 'test' ||
+    env.NODE_ENV === 'test' ||
     RAG_EMBEDDING_PROVIDER === 'mock';
 
   if (useMock) {

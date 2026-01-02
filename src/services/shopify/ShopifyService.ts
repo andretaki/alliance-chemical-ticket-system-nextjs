@@ -4,6 +4,7 @@ import { Config } from '@/config/appConfig';
 import type { AppDraftOrderInput, ShopifyDraftOrderGQLResponse, ShopifyMoney, DraftOrderLineItemInput, DraftOrderAddressInput } from '@/agents/quoteAssistant/quoteInterfaces';
 import { mapCountryToCode, mapProvinceToCode } from '@/utils/addressUtils';
 import { withResilience } from '@/lib/resilience';
+import { env } from '@/lib/env';
 
 // Define types for Shopify Product and Variant Nodes
 interface ShopifyProductNode {
@@ -175,8 +176,8 @@ function getShopifyApi() {
   }
 
   _shopify = shopifyApi({
-    apiKey: process.env.SHOPIFY_API_KEY || "dummyAPIKeyIfNotUsedForAuth",
-    apiSecretKey: process.env.SHOPIFY_API_SECRET || "dummySecretIfNotUsedForAuth",
+    apiKey: env.SHOPIFY_API_KEY || "dummyAPIKeyIfNotUsedForAuth",
+    apiSecretKey: env.SHOPIFY_API_SECRET || "dummySecretIfNotUsedForAuth",
     scopes: ['read_products', 'write_draft_orders', 'read_draft_orders', 'write_orders', 'read_orders', 'read_customers', 'write_customers'],
     hostName: Config.shopify.storeUrl.replace(/^https?:\/\//, ''),
     apiVersion: Config.shopify.apiVersion as ApiVersion || LATEST_API_VERSION,

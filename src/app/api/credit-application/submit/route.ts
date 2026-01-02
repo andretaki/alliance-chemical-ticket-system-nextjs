@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { eq } from 'drizzle-orm';
 import { outboxService } from '@/services/outboxService';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { env } from '@/lib/env';
 
 // Define the shape of the incoming data from the external form
 const creditAppSchema = z.object({
@@ -53,7 +54,7 @@ function formatTicketDescription(data: z.infer<typeof creditAppSchema>): string 
 export async function POST(request: NextRequest) {
   // 1. Security Check: Validate API Key
   const apiKey = request.headers.get('x-api-key');
-  if (apiKey !== process.env.CREDIT_APP_API_KEY) {
+  if (apiKey !== env.CREDIT_APP_API_KEY) {
     return apiError('unauthorized', 'Unauthorized', null, { status: 401 });
   }
 

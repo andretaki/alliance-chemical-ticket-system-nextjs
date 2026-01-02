@@ -62,11 +62,11 @@ export async function GET(request: Request) {
     }
 
     // Send a single summary notification to a manager
-    const managerEmail = process.env.SLA_ALERT_EMAIL || 'manager@alliancechemical.com';
+    const managerEmail = env.SLA_ALERT_EMAIL || 'manager@alliancechemical.com';
     const subject = `SLA Breach Alert: ${ticketsToFlag.length} Ticket(s) Affected`;
     const body = `<p>The following tickets have breached their SLA:</p>
                 <ul>
-                  ${ticketsToFlag.map((t) => `<li><a href="${process.env.NEXT_PUBLIC_APP_URL}/tickets/${t.id}">Ticket #${t.id}: ${t.title}</a></li>`).join('')}
+                  ${ticketsToFlag.map((t) => `<li><a href="${env.NEXT_PUBLIC_APP_URL}/tickets/${t.id}">Ticket #${t.id}: ${t.title}</a></li>`).join('')}
                 </ul>
                 <p>Please review them immediately.</p>`;
 

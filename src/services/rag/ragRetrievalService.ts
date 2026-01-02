@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { db, ragChunks, ragSources, ticketComments, tickets } from '@/lib/db';
 import { RAG_DEFAULT_TOP_K, RAG_FTS_LIMIT, RAG_RRF_K, RAG_VECTOR_LIMIT } from './ragConfig';
-import { embedTexts } from './ragEmbedding';
+import { embedQuery } from './ragEmbedding';
 import { buildRagAccessWhere, canViewRagRow } from './ragRbac';
 import { classifyIntent, extractIdentifiers, type RagIdentifiers } from './ragIntent';
 import { structuredLookup } from './ragStructuredLookup';
@@ -329,7 +329,7 @@ async function performFtsSearch(queryText: string, options: HybridSearchOptions,
 
 async function performVectorSearch(queryText: string, options: HybridSearchOptions, extraFilter: SQL): Promise<{ rows: SearchRow[]; durationMs: number }> {
   const start = Date.now();
-  const [embedding] = await embedTexts([queryText]);
+  const embedding = await embedQuery(queryText);
   if (!embedding) return { rows: [], durationMs: Date.now() - start };
 
   const vectorLiteral = `[${embedding.join(',')}]`;

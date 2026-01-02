@@ -20,14 +20,14 @@ import { env } from '@/lib/env';
 // =============================================================================
 
 export function getUserEmail(): string {
-  const email = process.env.SHARED_MAILBOX_ADDRESS || '';
+  const email = env.SHARED_MAILBOX_ADDRESS || '';
   if (!email) {
     throw new Error('Microsoft Graph configuration is incomplete. SHARED_MAILBOX_ADDRESS is missing.');
   }
   return email;
 }
 
-export const userEmail = process.env.SHARED_MAILBOX_ADDRESS || '';
+export const userEmail = env.SHARED_MAILBOX_ADDRESS || '';
 
 const RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000;
@@ -42,9 +42,9 @@ let _graphClient: Client | null = null;
 function getGraphClient(): Client {
   if (_graphClient) return _graphClient;
 
-  const tenantId = process.env.MICROSOFT_GRAPH_TENANT_ID;
-  const clientId = process.env.MICROSOFT_GRAPH_CLIENT_ID;
-  const clientSecret = process.env.MICROSOFT_GRAPH_CLIENT_SECRET;
+  const tenantId = env.MICROSOFT_GRAPH_TENANT_ID;
+  const clientId = env.MICROSOFT_GRAPH_CLIENT_ID;
+  const clientSecret = env.MICROSOFT_GRAPH_CLIENT_SECRET;
 
   if (!tenantId || !clientId || !clientSecret) {
     throw new Error('Microsoft Graph configuration is incomplete. Check your .env file.');

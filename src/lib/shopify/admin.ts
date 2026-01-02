@@ -1,6 +1,7 @@
 import { Shopify, ApiVersion, LATEST_API_VERSION, shopifyApi, LogSeverity } from '@shopify/shopify-api';
 import '@shopify/shopify-api/adapters/node';
 import { Config } from '@/config/appConfig';
+import { env } from '@/lib/env';
 
 // Initialize Shopify API
 if (!Config.shopify.storeUrl || !Config.shopify.adminAccessToken) {
@@ -10,8 +11,8 @@ if (!Config.shopify.storeUrl || !Config.shopify.adminAccessToken) {
 }
 
 const shopify = shopifyApi({
-  apiKey: process.env.SHOPIFY_API_KEY || "dummyAPIKeyIfNotUsedForAuth",
-  apiSecretKey: process.env.SHOPIFY_API_SECRET || "dummySecretIfNotUsedForAuth",
+  apiKey: env.SHOPIFY_API_KEY || "dummyAPIKeyIfNotUsedForAuth",
+  apiSecretKey: env.SHOPIFY_API_SECRET || "dummySecretIfNotUsedForAuth",
   scopes: ['read_products', 'write_draft_orders', 'read_draft_orders', 'write_orders', 'read_orders', 'read_customers'],
   hostName: Config.shopify.storeUrl.replace(/^https?:\/\//, ''),
   apiVersion: Config.shopify.apiVersion as ApiVersion || LATEST_API_VERSION,
