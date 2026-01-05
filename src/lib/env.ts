@@ -91,8 +91,8 @@ const envSchema = z.object({
   INTERNAL_EMAIL_DOMAIN: z.string().default('alliancechemical.com'),
   SHOPIFY_AUTO_CREATE_CUSTOMERS: z.string().default('true'),
 
-  // Security - REQUIRED in production
-  CRON_SECRET: z.string().min(16, 'CRON_SECRET must be at least 16 characters'),
+  // Security - validated at runtime in cron routes
+  CRON_SECRET: z.string().min(16, 'CRON_SECRET must be at least 16 characters').optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
