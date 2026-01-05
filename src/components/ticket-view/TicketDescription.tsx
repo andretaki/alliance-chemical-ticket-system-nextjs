@@ -4,6 +4,7 @@ import React from 'react';
 import { format } from 'date-fns';
 import DOMPurify from 'dompurify';
 import type { AttachmentData } from '@/types/ticket';
+import { Ticket, Paperclip, FileText, Image, FileArchive } from 'lucide-react';
 
 interface TicketDescriptionProps {
   ticket: {
@@ -24,17 +25,18 @@ const formatFileSize = (bytes?: number): string => {
 };
 
 // Helper function for determining file icon
-const getFileIconClass = (mimeType?: string | null): string => {
-  if (!mimeType) return 'fa-file';
+const getFileIcon = (mimeType?: string | null): React.ReactNode => {
+  const iconClass = "w-4 h-4 text-primary";
+  if (!mimeType) return <FileText className={iconClass} />;
   const mt = mimeType.toLowerCase();
-  if (mt.startsWith('image/')) return 'fa-file-image';
-  if (mt === 'application/pdf') return 'fa-file-pdf';
-  if (mt.includes('word') || mt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'fa-file-word';
-  if (mt.includes('excel') || mt === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'fa-file-excel';
-  if (mt.includes('powerpoint') || mt === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'fa-file-powerpoint';
-  if (mt.includes('zip') || mt.includes('compressed') || mt.includes('archive')) return 'fa-file-archive';
-  if (mt.startsWith('text/')) return 'fa-file-alt';
-  return 'fa-file';
+  if (mt.startsWith('image/')) return <Image className={iconClass} />;
+  if (mt === 'application/pdf') return <FileText className={iconClass} />;
+  if (mt.includes('word')) return <FileText className={iconClass} />;
+  if (mt.includes('excel')) return <FileText className={iconClass} />;
+  if (mt.includes('powerpoint')) return <FileText className={iconClass} />;
+  if (mt.includes('zip') || mt.includes('compressed') || mt.includes('archive')) return <FileArchive className={iconClass} />;
+  if (mt.startsWith('text/')) return <FileText className={iconClass} />;
+  return <FileText className={iconClass} />;
 };
 
 // Attachment List Component
@@ -42,7 +44,7 @@ const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: 
   if (!attachments || attachments.length === 0) return null;
   return (
     <div className="attachment-list">
-      {title && <div className="attachment-header mb-2 text-muted small"><i className="fas fa-paperclip me-1"></i>{title} ({attachments.length})</div>}
+      {title && <div className="attachment-header mb-2 text-muted small flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />{title} ({attachments.length})</div>}
       <div className="list-group list-group-flush">
         {attachments.map(att => (
           <a
@@ -54,7 +56,7 @@ const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: 
             title={`Download ${att.originalFilename}`}
           >
             <div className="d-flex align-items-center text-truncate me-2">
-              <i className={`fas ${getFileIconClass(att.mimeType)} me-2 text-primary fa-fw`}></i>
+              <span className="me-2">{getFileIcon(att.mimeType)}</span>
               <span className="text-truncate small">{att.originalFilename}</span>
             </div>
             <span className="badge bg-light text-dark ms-2">{formatFileSize(att.fileSize)}</span>
@@ -88,7 +90,7 @@ export default function TicketDescription({ ticket }: TicketDescriptionProps) {
       <div className="message-header d-flex justify-content-between align-items-center px-3 py-2 bg-light border-bottom">
         <div className="d-flex align-items-center">
           <div className="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style={{ width: '32px', height: '32px' }}>
-            <i className="fas fa-ticket-alt text-white"></i>
+            <Ticket className="w-4 h-4 text-white" />
           </div>
           <strong>Original Request</strong>
         </div>

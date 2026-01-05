@@ -235,7 +235,7 @@ export class TicketService {
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
-      data,
+      tickets: data,  // renamed from 'data' to 'tickets' to avoid double-nesting confusion
       pagination: {
         page,
         limit,

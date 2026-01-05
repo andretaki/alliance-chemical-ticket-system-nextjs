@@ -4,7 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Modal, Button, Form, ListGroup, Spinner, Alert } from 'react-bootstrap';
 import { useDebounce } from 'use-debounce';
 import axios from 'axios';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
+import { X } from 'lucide-react';
 
 interface TicketSearchResult {
   id: number;
@@ -36,9 +37,12 @@ export default function MergeTicketModal({ show, onHide, primaryTicketId, onMerg
     }
     setIsSearching(true);
     try {
+      // API returns: { success, data: { tickets: [...], pagination } }
       const { data } = await axios.get(`/api/tickets?search=${term}`);
+      const raw = data?.data?.tickets;
+      const tickets = Array.isArray(raw) ? raw : [];
       // Filter out the primary ticket and already selected tickets
-      setSearchResults(data.data.filter((t: TicketSearchResult) => 
+      setSearchResults(tickets.filter((t: TicketSearchResult) =>
         t.id !== primaryTicketId && !selectedTickets.some(st => st.id === t.id)
       ));
     } catch (err) {
@@ -142,7 +146,7 @@ export default function MergeTicketModal({ show, onHide, primaryTicketId, onMerg
               <ListGroup.Item key={ticket.id} className="d-flex justify-content-between align-items-center">
                 <span>#{ticket.id}: {ticket.title}</span>
                 <Button variant="outline-danger" size="sm" onClick={() => removeTicketFromMergeList(ticket.id)}>
-                  <i className="fas fa-times"></i>
+                  <X className="w-4 h-4" />
                 </Button>
               </ListGroup.Item>
             ))}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Info } from 'lucide-react';
 
 interface Signature {
   id: number;
@@ -196,7 +197,7 @@ export function SignatureManager() {
 
       {signatures.length === 0 && (
         <div className="alert alert-info">
-          <i className="fas fa-info-circle me-2"></i>
+          <Info className="w-4 h-4 me-2" />
           You haven&apos;t created any signatures yet. Create your first signature above.
         </div>
       )}

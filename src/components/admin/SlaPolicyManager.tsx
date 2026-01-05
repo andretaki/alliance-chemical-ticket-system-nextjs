@@ -1,8 +1,30 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Button, Card, Table, Modal, Form, Alert, Badge } from 'react-bootstrap';
 import axios from 'axios';
+import { Clock, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface SlaPolicy {
   id: number;
@@ -54,7 +76,7 @@ export default function SlaPolicyManager() {
       } else {
         await axios.post('/api/admin/sla-policies', formData);
       }
-      
+
       setShowModal(false);
       setEditingPolicy(null);
       resetForm();
@@ -79,7 +101,7 @@ export default function SlaPolicyManager() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this SLA policy?')) return;
-    
+
     try {
       await axios.delete(`/api/admin/sla-policies/${id}`);
       fetchPolicies();
@@ -106,25 +128,24 @@ export default function SlaPolicyManager() {
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
   };
 
-  const getPriorityBadgeVariant = (priority: string) => {
+  const getPriorityBadgeVariant = (priority: string): 'destructive' | 'secondary' | 'outline' | 'default' => {
     switch (priority) {
-      case 'urgent': return 'danger';
-      case 'high': return 'warning';
-      case 'medium': return 'info';
-      case 'low': return 'secondary';
-      default: return 'secondary';
+      case 'urgent': return 'destructive';
+      case 'high': return 'secondary';
+      case 'medium': return 'default';
+      case 'low': return 'outline';
+      default: return 'outline';
     }
   };
 
   return (
     <Card>
-      <Card.Header className="d-flex justify-content-between align-items-center">
-        <h5 className="mb-0">
-          <i className="fas fa-clock me-2"></i>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Clock className="w-4 h-4" />
           SLA Policy Management
-        </h5>
+        </CardTitle>
         <Button
-          variant="primary"
           size="sm"
           onClick={() => {
             resetForm();
@@ -132,126 +153,133 @@ export default function SlaPolicyManager() {
             setShowModal(true);
           }}
         >
-          <i className="fas fa-plus me-1"></i>
+          <Plus className="w-4 h-4 mr-1" />
           Add Policy
         </Button>
-      </Card.Header>
-      <Card.Body>
+      </CardHeader>
+      <CardContent>
         {error && (
-          <Alert variant="danger" onClose={() => setError(null)} dismissible>
-            {error}
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription className="flex items-center justify-between">
+              {error}
+              <Button variant="ghost" size="sm" onClick={() => setError(null)}>
+                Dismiss
+              </Button>
+            </AlertDescription>
           </Alert>
         )}
 
         {loading ? (
           <div className="text-center py-4">
-            <div className="spinner-border" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
+            <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
           </div>
         ) : (
-          <Table responsive hover>
-            <thead>
-              <tr>
-                <th>Policy Name</th>
-                <th>Priority</th>
-                <th>First Response</th>
-                <th>Resolution</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table aria-label="SLA policies">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Policy Name</TableHead>
+                <TableHead>Priority</TableHead>
+                <TableHead>First Response</TableHead>
+                <TableHead>Resolution</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {policies.map((policy) => (
-                <tr key={policy.id}>
-                  <td className="fw-semibold">{policy.name}</td>
-                  <td>
-                    <Badge bg={getPriorityBadgeVariant(policy.priority)}>
+                <TableRow key={policy.id}>
+                  <TableCell className="font-medium">{policy.name}</TableCell>
+                  <TableCell>
+                    <Badge variant={getPriorityBadgeVariant(policy.priority)}>
                       {policy.priority.toUpperCase()}
                     </Badge>
-                  </td>
-                  <td>{formatMinutes(policy.firstResponseMinutes)}</td>
-                  <td>{formatMinutes(policy.resolutionMinutes)}</td>
-                  <td>
-                    <Badge bg={policy.isActive ? 'success' : 'secondary'}>
+                  </TableCell>
+                  <TableCell>{formatMinutes(policy.firstResponseMinutes)}</TableCell>
+                  <TableCell>{formatMinutes(policy.resolutionMinutes)}</TableCell>
+                  <TableCell>
+                    <Badge variant={policy.isActive ? 'default' : 'secondary'}>
                       {policy.isActive ? 'Active' : 'Inactive'}
                     </Badge>
-                  </td>
-                  <td>
-                    <div className="d-flex gap-1">
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
                       <Button
-                        variant="outline-primary"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleEdit(policy)}
                       >
-                        <i className="fas fa-edit"></i>
+                        <Pencil className="w-4 h-4" />
                       </Button>
                       <Button
-                        variant="outline-danger"
+                        variant="outline"
                         size="sm"
+                        className="text-destructive hover:text-destructive"
                         onClick={() => handleDelete(policy.id)}
                       >
-                        <i className="fas fa-trash"></i>
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
               {policies.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-4">
                     No SLA policies configured yet.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
+            </TableBody>
           </Table>
         )}
-      </Card.Body>
+      </CardContent>
 
       {/* Add/Edit Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {editingPolicy ? 'Edit SLA Policy' : 'Add New SLA Policy'}
-          </Modal.Title>
-        </Modal.Header>
-        <Form onSubmit={handleSubmit}>
-          <Modal.Body>
-            <div className="row">
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
-                  <Form.Label>Policy Name</Form.Label>
-                  <Form.Control
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPolicy ? 'Edit SLA Policy' : 'Add New SLA Policy'}
+            </DialogTitle>
+            <DialogDescription>
+              Configure response and resolution times for this SLA policy.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name" required>Policy Name</Label>
+                  <Input
+                    id="name"
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     required
                     placeholder="e.g., Standard Support Policy"
                   />
-                </Form.Group>
-              </div>
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
-                  <Form.Label>Priority Level</Form.Label>
-                  <Form.Select
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="priority" required>Priority Level</Label>
+                  <select
+                    id="priority"
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value as any })}
                     required
+                    className="h-9 w-full rounded-lg border border-input bg-background px-3 py-1.5 text-sm shadow-sm transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                     <option value="urgent">Urgent</option>
-                  </Form.Select>
-                </Form.Group>
+                  </select>
+                </div>
               </div>
-            </div>
-            <div className="row">
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
-                  <Form.Label>First Response Time (minutes)</Form.Label>
-                  <Form.Control
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstResponse" required>First Response Time (minutes)</Label>
+                  <Input
+                    id="firstResponse"
                     type="number"
                     value={formData.firstResponseMinutes}
                     onChange={(e) => setFormData({ ...formData, firstResponseMinutes: parseInt(e.target.value) || 0 })}
@@ -259,15 +287,14 @@ export default function SlaPolicyManager() {
                     min="1"
                     placeholder="60"
                   />
-                  <Form.Text className="text-muted">
+                  <p className="text-xs text-muted-foreground">
                     Time until first response is due
-                  </Form.Text>
-                </Form.Group>
-              </div>
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
-                  <Form.Label>Resolution Time (minutes)</Form.Label>
-                  <Form.Control
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="resolution" required>Resolution Time (minutes)</Label>
+                  <Input
+                    id="resolution"
                     type="number"
                     value={formData.resolutionMinutes}
                     onChange={(e) => setFormData({ ...formData, resolutionMinutes: parseInt(e.target.value) || 0 })}
@@ -275,35 +302,38 @@ export default function SlaPolicyManager() {
                     min="1"
                     placeholder="480"
                   />
-                  <Form.Text className="text-muted">
+                  <p className="text-xs text-muted-foreground">
                     Time until resolution is due
-                  </Form.Text>
-                </Form.Group>
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isActive"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <Label htmlFor="isActive" className="font-normal">Active Policy</Label>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Only active policies will be applied to new tickets
+                </p>
               </div>
             </div>
-            <Form.Group className="mb-3">
-              <Form.Check
-                type="switch"
-                id="isActive"
-                label="Active Policy"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-              />
-              <Form.Text className="text-muted">
-                Only active policies will be applied to new tickets
-              </Form.Text>
-            </Form.Group>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button variant="primary" type="submit">
-              {editingPolicy ? 'Update Policy' : 'Create Policy'}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingPolicy ? 'Update Policy' : 'Create Policy'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
-} 
+}

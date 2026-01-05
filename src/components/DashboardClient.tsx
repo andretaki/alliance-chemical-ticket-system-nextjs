@@ -54,6 +54,21 @@ interface DashboardStats {
   slaCompliance: number;
 }
 
+// Bulletproof ticket extraction - handles any API shape
+function normalizeTickets(payload: any): TicketSummary[] {
+  const candidate =
+    payload?.data?.tickets ??
+    payload?.data?.data ??
+    payload?.tickets ??
+    payload?.data;
+
+  if (Array.isArray(candidate)) return candidate;
+  if (Array.isArray(candidate?.data)) return candidate.data;
+  if (Array.isArray(candidate?.tickets)) return candidate.tickets;
+
+  return [];
+}
+
 // Ticket Row Component for lists
 function TicketRow({ ticket }: { ticket: TicketSummary }) {
   const timeAgo = (dateString: string) => {
@@ -133,9 +148,10 @@ export default function DashboardClient() {
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch('/api/tickets');
-      const data = await res.json();
-      const allTickets: TicketSummary[] = data.data || [];
+      const payload = await res.json();
 
+      // Use bulletproof normalizer to extract tickets array
+      const allTickets = normalizeTickets(payload);
       setTickets(allTickets);
 
       // Calculate stats
@@ -173,17 +189,19 @@ export default function DashboardClient() {
     return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Filter tickets for different views
-  const urgentTickets = tickets
+  // Filter tickets for different views (ensure tickets is always an array)
+  const ticketList = Array.isArray(tickets) ? tickets : [];
+
+  const urgentTickets = ticketList
     .filter((t) => ['high', 'urgent'].includes(t.priority) && t.status !== 'closed')
     .slice(0, 5);
 
-  const recentTickets = tickets
+  const recentTickets = ticketList
     .filter((t) => t.status !== 'closed')
     .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .slice(0, 5);
 
-  const newTickets = tickets.filter((t) => t.status === 'new').slice(0, 5);
+  const newTickets = ticketList.filter((t) => t.status === 'new').slice(0, 5);
 
   return (
     <PageShell size="wide">

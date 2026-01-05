@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { Tooltip, OverlayTrigger } from 'react-bootstrap';
+import { Clock, Hourglass, Flame } from 'lucide-react';
 
 interface SlaTimerProps {
   label: string;
@@ -27,12 +28,12 @@ export default function SlaTimer({ label, dueDate, isBreached }: SlaTimerProps) 
         setUrgency('breached');
         return;
       }
-      
+
       const diffHours = diffMs / (1000 * 60 * 60);
 
       if (diffHours < 1) setUrgency('warning');
       else setUrgency('normal');
-      
+
       setTimeLeft(formatDistanceToNowStrict(due, { addSuffix: true }));
     };
 
@@ -48,11 +49,11 @@ export default function SlaTimer({ label, dueDate, isBreached }: SlaTimerProps) 
     warning: 'text-warning',
     breached: 'text-danger fw-bold animate-pulse',
   };
-  
-  const iconClasses = {
-    normal: 'fas fa-clock',
-    warning: 'fas fa-hourglass-half',
-    breached: 'fas fa-fire-alt',
+
+  const icons = {
+    normal: <Clock className="w-4 h-4" />,
+    warning: <Hourglass className="w-4 h-4" />,
+    breached: <Flame className="w-4 h-4" />,
   };
 
   const fullDate = new Date(dueDate).toLocaleString();
@@ -63,7 +64,7 @@ export default function SlaTimer({ label, dueDate, isBreached }: SlaTimerProps) 
       overlay={<Tooltip id={`tooltip-sla-${label}`}>{label} due on {fullDate}</Tooltip>}
     >
       <div className={`d-flex align-items-center gap-2 small ${colorClasses[urgency]}`}>
-        <i className={iconClasses[urgency]}></i>
+        {icons[urgency]}
         <span>{timeLeft}</span>
       </div>
     </OverlayTrigger>

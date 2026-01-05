@@ -109,8 +109,10 @@ export default function PriorityChartClient() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await axios.get<{ data: TicketSummary[] }>('/api/tickets');
-      const tickets = res.data.data;
+      // API returns: { success, data: { tickets: [...], pagination } }
+      const res = await axios.get('/api/tickets');
+      const raw = res.data?.data?.tickets;
+      const tickets: TicketSummary[] = Array.isArray(raw) ? raw : [];
 
       // Process data - count tickets by priority
       const counts: Record<string, number> = {};

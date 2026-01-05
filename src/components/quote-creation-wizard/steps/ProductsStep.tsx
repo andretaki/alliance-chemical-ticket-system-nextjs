@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useFormContext, useFieldArray } from 'react-hook-form';
 import axios from 'axios';
 import Image from 'next/image';
+import { ImageIcon, Trash2, Plus } from 'lucide-react';
 import { QuoteFormData, createNewLineItem } from '../types';
 
 // Interfaces from the old component, adapted for this step
@@ -102,13 +103,13 @@ const ProductsStep = () => {
         <div>
             <h5 className="mb-3">Product Selection</h5>
             <div className="table-responsive">
-                <table className="table table-bordered">
+                <table className="table table-bordered" aria-label="Quote line items">
                     <thead className="table-light">
                         <tr>
-                            <th style={{ width: '45%' }}>Product Search</th>
-                            <th style={{ width: '35%' }}>Selected Product</th>
-                            <th style={{ width: '10%' }}>Qty</th>
-                            <th style={{ width: '5%' }}>Action</th>
+                            <th scope="col" style={{ width: '45%' }}>Product Search</th>
+                            <th scope="col" style={{ width: '35%' }}>Selected Product</th>
+                            <th scope="col" style={{ width: '10%' }}>Qty</th>
+                            <th scope="col" style={{ width: '5%' }}>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -140,7 +141,7 @@ const ProductsStep = () => {
                                                                     <Image src={result.parentProduct.primaryImageUrl} alt={result.parentProduct.name} width={30} height={30} className="object-fit-contain me-2 rounded border"/>
                                                                 ) : (
                                                                     <div className="bg-light d-flex align-items-center justify-content-center rounded border me-2" style={{ width: '30px', height: '30px' }}>
-                                                                        <i className="fas fa-image text-muted"></i>
+                                                                        <ImageIcon className="w-4 h-4 text-muted" />
                                                                     </div>
                                                                 )}
                                                                 <div>
@@ -176,7 +177,7 @@ const ProductsStep = () => {
                                 </td>
                                 <td className="align-middle text-center">
                                     {fields.length > 1 && (
-                                        <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => remove(index)}><i className="fas fa-trash-alt"></i></button>
+                                        <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => remove(index)}><Trash2 className="w-4 h-4" /></button>
                                     )}
                                 </td>
                             </tr>
@@ -185,7 +186,7 @@ const ProductsStep = () => {
                 </table>
             </div>
             <button type="button" className="btn btn-outline-primary" onClick={() => append(createNewLineItem())}>
-                <i className="fas fa-plus me-2"></i>Add Another Product
+                <Plus className="w-4 h-4 me-2" />Add Another Product
             </button>
              {errors.lineItems?.root && (
                 <div className="text-danger small mt-2">{errors.lineItems.root.message}</div>

@@ -75,121 +75,234 @@ export class CustomerRepository {
   }
 
   /**
-   * Search unified customer database by query string.
-   * Searches across: email, phone, name, company, and linked identities.
-   * Returns customers with their linked providers for deduplication.
+   * Smart customer search with two-stage pipeline.
+   *
+   * Stage A (Candidates): Fast indexed lookups with explicit thresholds
+   * - Uses GIN trigram indexes on search_name, company
+   * - Array membership for emails (= ANY(all_emails))
+   * - FTS on tsv
+   *
+   * Stage B (Ranking): Score candidates with GREATEST() to avoid double-counting
+   * - exact_email > exact_name > prefix > name_similarity > company > fts
+   * - Returns match_reasons[] and debug_scores for observability
+   *
+   * Uses customer_search_documents read model (denormalized, trigger-maintained)
    */
   async searchCustomers(query: string, options: { limit?: number; type?: 'auto' | 'email' | 'phone' | 'name' } = {}) {
     const { limit = 20, type = 'auto' } = options;
-    const searchTerm = `%${query.trim()}%`;
-    const exactTerm = query.trim().toLowerCase();
+    const trimmedQuery = query.trim();
 
-    // Detect search type if auto
+    // Don't search empty queries
+    if (!trimmedQuery) {
+      return { customers: [], searchType: type, totalCount: 0 };
+    }
+
+    // Normalized variants for different matching strategies
+    const exactTerm = trimmedQuery.toLowerCase();
+    const normalizedQuery = trimmedQuery.replace(/\s+/g, '').toLowerCase(); // "andretaki"
+    const tokenizedQuery = trimmedQuery.toLowerCase(); // "andre taki" (preserves spaces)
+
+    // Detect search type (determines which fields to prioritize)
     let searchType = type;
     if (type === 'auto') {
-      if (query.includes('@')) {
+      if (trimmedQuery.includes('@')) {
         searchType = 'email';
-      } else if (/^\+?[\d\s\-\(\)\.]{7,}$/.test(query.replace(/\s/g, ''))) {
+      } else if (/^\+?[\d\s\-\(\)\.]{7,}$/.test(trimmedQuery.replace(/\s/g, ''))) {
         searchType = 'phone';
       } else {
         searchType = 'name';
       }
     }
 
-    // Build search conditions based on type
-    const buildConditions = () => {
-      if (searchType === 'email') {
-        return or(
-          ilike(customers.primaryEmail, searchTerm),
-          sql`EXISTS (
-            SELECT 1 FROM ticketing_prod.customer_identities ci
-            WHERE ci.customer_id = ${customers.id}
-            AND LOWER(ci.email) LIKE LOWER(${searchTerm})
-          )`
-        );
-      }
-      if (searchType === 'phone') {
-        // Normalize phone for comparison (strip non-digits)
-        const normalizedPhone = query.replace(/\D/g, '');
-        const phonePattern = `%${normalizedPhone.slice(-10)}%`; // Last 10 digits
-        return or(
-          sql`REGEXP_REPLACE(${customers.primaryPhone}, '[^0-9]', '', 'g') LIKE ${phonePattern}`,
-          sql`EXISTS (
-            SELECT 1 FROM ticketing_prod.customer_identities ci
-            WHERE ci.customer_id = ${customers.id}
-            AND REGEXP_REPLACE(ci.phone, '[^0-9]', '', 'g') LIKE ${phonePattern}
-          )`
-        );
-      }
-      // Name search - search firstName, lastName, company, and identity names
-      return or(
-        ilike(customers.firstName, searchTerm),
-        ilike(customers.lastName, searchTerm),
-        ilike(customers.company, searchTerm),
-        sql`CONCAT(${customers.firstName}, ' ', ${customers.lastName}) ILIKE ${searchTerm}`,
-        sql`EXISTS (
-          SELECT 1 FROM ticketing_prod.customer_identities ci
-          WHERE ci.customer_id = ${customers.id}
-          AND (ci.email ILIKE ${searchTerm} OR ci.phone ILIKE ${searchTerm})
-        )`
-      );
-    };
+    // Phone normalization (digits only, last 10)
+    const normalizedPhone = trimmedQuery.replace(/\D/g, '');
+    const phonePattern = normalizedPhone.length >= 7 ? `%${normalizedPhone.slice(-10)}%` : null;
 
-    // Execute search query
-    const results = await db
-      .select({
-        id: customers.id,
-        primaryEmail: customers.primaryEmail,
-        primaryPhone: customers.primaryPhone,
-        firstName: customers.firstName,
-        lastName: customers.lastName,
-        company: customers.company,
-        isVip: customers.isVip,
-        createdAt: customers.createdAt,
-      })
-      .from(customers)
-      .where(buildConditions())
-      .orderBy(
-        // Prioritize exact matches
-        sql`CASE
-          WHEN LOWER(${customers.primaryEmail}) = ${exactTerm} THEN 0
-          WHEN LOWER(${customers.firstName}) = ${exactTerm} THEN 1
-          WHEN LOWER(${customers.lastName}) = ${exactTerm} THEN 2
-          ELSE 3
-        END`,
-        desc(customers.updatedAt)
+    // Two-stage search using CTE
+    // Stage A: Candidate retrieval (uses indexes, explicit thresholds, wide net)
+    // Stage B: Scoring with GREATEST() to avoid double-counting correlated signals
+    const results = await db.execute<{
+      customer_id: number;
+      first_name: string | null;
+      last_name: string | null;
+      company: string | null;
+      primary_email: string | null;
+      primary_phone: string | null;
+      is_vip: boolean;
+      customer_updated_at: Date | null;
+      identity_providers: string[];
+      final_score: number;
+      matched_field: string;
+      match_reasons: string[];
+      debug_scores: Record<string, number>;
+    }>(sql`
+      WITH candidates AS (
+        -- Stage A: Fast candidate retrieval using explicit thresholds (no % operator)
+        SELECT DISTINCT customer_id
+        FROM ticketing_prod.customer_search_documents
+        WHERE
+          ${searchType === 'email' ? sql`
+            (
+              -- Exact email match (B-tree)
+              lower(primary_email) = ${exactTerm} OR
+              -- Email in identities array (GIN)
+              ${exactTerm} = ANY(all_emails) OR
+              -- Partial email match with explicit threshold
+              similarity(lower(primary_email), ${exactTerm}) > 0.25
+            )
+          ` : searchType === 'phone' && phonePattern ? sql`
+            (
+              -- Phone in array (GIN)
+              ${normalizedPhone.slice(-10)} = ANY(all_phones) OR
+              -- Partial phone match
+              search_phones LIKE ${phonePattern}
+            )
+          ` : sql`
+            (
+              -- Exact email (B-tree index)
+              lower(primary_email) = ${exactTerm} OR
+              -- Email in identities (GIN array)
+              ${exactTerm} = ANY(all_emails) OR
+              -- Name trigram with explicit threshold (GIN trgm)
+              similarity(search_name, ${normalizedQuery}) > 0.25 OR
+              -- Word similarity on tokenized name
+              word_similarity(search_name_tokens, ${tokenizedQuery}) > 0.35 OR
+              -- Company trigram with explicit threshold
+              similarity(lower(company), ${exactTerm}) > 0.25 OR
+              -- FTS fallback
+              tsv @@ websearch_to_tsquery('simple', ${trimmedQuery})
+            )
+          `}
+        LIMIT 200  -- Cap candidates for performance
+      ),
+      scored AS (
+        -- Stage B: Scoring on candidate set with GREATEST() to avoid double-counting
+        SELECT
+          d.customer_id,
+          d.first_name,
+          d.last_name,
+          d.company,
+          d.primary_email,
+          d.primary_phone,
+          d.is_vip,
+          d.customer_updated_at,
+          d.identity_providers,
+
+          -- Final score: exact matches + GREATEST(name_signals) + GREATEST(email_signals) + company + fts
+          (
+            -- Exact email (1.0) - highest priority
+            CASE WHEN lower(d.primary_email) = ${exactTerm} THEN 1.0 ELSE 0.0 END +
+            -- Exact email in identities (0.95)
+            CASE WHEN ${exactTerm} = ANY(d.all_emails) AND lower(d.primary_email) != ${exactTerm} THEN 0.95 ELSE 0.0 END +
+            -- Exact first/last name (0.9)
+            CASE WHEN lower(d.first_name) = ${exactTerm} OR lower(d.last_name) = ${exactTerm} THEN 0.9 ELSE 0.0 END +
+            -- Prefix match on name (0.85)
+            CASE WHEN d.search_name_tokens LIKE ${exactTerm + '%'} THEN 0.85 ELSE 0.0 END +
+            -- Phone match (0.9)
+            ${phonePattern ? sql`CASE WHEN d.search_phones LIKE ${phonePattern} THEN 0.9 ELSE 0.0 END` : sql`0.0`} +
+            -- Name similarity: use GREATEST to avoid double-counting correlated signals
+            GREATEST(
+              COALESCE(strict_word_similarity(d.search_name_tokens, ${tokenizedQuery}), 0),
+              COALESCE(word_similarity(d.search_name_tokens, ${tokenizedQuery}), 0),
+              COALESCE(similarity(d.search_name, ${normalizedQuery}), 0)
+            ) * 0.8 +
+            -- Email similarity (only if not exact match)
+            CASE WHEN lower(d.primary_email) != ${exactTerm} AND ${exactTerm} != ALL(COALESCE(d.all_emails, '{}'))
+              THEN COALESCE(similarity(lower(d.primary_email), ${exactTerm}), 0) * 0.5
+              ELSE 0.0 END +
+            -- Company similarity
+            COALESCE(similarity(lower(d.company), ${exactTerm}), 0) * 0.4 +
+            -- FTS rank (low weight, tie-breaker)
+            COALESCE(ts_rank_cd(d.tsv, websearch_to_tsquery('simple', ${trimmedQuery})), 0) * 0.2
+          ) AS final_score,
+
+          -- Primary matched field for UI display
+          CASE
+            WHEN lower(d.primary_email) = ${exactTerm} THEN 'email'
+            WHEN ${exactTerm} = ANY(d.all_emails) THEN 'email'
+            WHEN lower(d.first_name) = ${exactTerm} OR lower(d.last_name) = ${exactTerm} THEN 'name'
+            ${phonePattern ? sql`WHEN d.search_phones LIKE ${phonePattern} THEN 'phone'` : sql``}
+            WHEN GREATEST(
+              COALESCE(word_similarity(d.search_name_tokens, ${tokenizedQuery}), 0),
+              COALESCE(similarity(d.search_name, ${normalizedQuery}), 0)
+            ) > 0.4 THEN 'name'
+            WHEN similarity(lower(d.company), ${exactTerm}) > 0.4 THEN 'company'
+            ELSE 'fts'
+          END AS matched_field,
+
+          -- Match reasons array for debugging
+          ARRAY_REMOVE(ARRAY[
+            CASE WHEN lower(d.primary_email) = ${exactTerm} THEN 'exact_email' END,
+            CASE WHEN ${exactTerm} = ANY(d.all_emails) AND lower(d.primary_email) != ${exactTerm} THEN 'identity_email' END,
+            CASE WHEN lower(d.first_name) = ${exactTerm} OR lower(d.last_name) = ${exactTerm} THEN 'exact_name' END,
+            CASE WHEN d.search_name_tokens LIKE ${exactTerm + '%'} THEN 'prefix_name' END,
+            CASE WHEN word_similarity(d.search_name_tokens, ${tokenizedQuery}) > 0.4 THEN 'word_sim_name' END,
+            CASE WHEN similarity(d.search_name, ${normalizedQuery}) > 0.4 THEN 'trgm_name' END,
+            CASE WHEN similarity(lower(d.company), ${exactTerm}) > 0.3 THEN 'trgm_company' END,
+            ${phonePattern ? sql`CASE WHEN d.search_phones LIKE ${phonePattern} THEN 'phone_match' END` : sql`NULL`},
+            CASE WHEN ts_rank_cd(d.tsv, websearch_to_tsquery('simple', ${trimmedQuery})) > 0.01 THEN 'fts' END
+          ], NULL) AS match_reasons,
+
+          -- Debug scores for tuning (JSON object)
+          jsonb_build_object(
+            'name_word_sim', COALESCE(word_similarity(d.search_name_tokens, ${tokenizedQuery}), 0),
+            'name_strict_sim', COALESCE(strict_word_similarity(d.search_name_tokens, ${tokenizedQuery}), 0),
+            'name_trgm', COALESCE(similarity(d.search_name, ${normalizedQuery}), 0),
+            'email_trgm', COALESCE(similarity(lower(d.primary_email), ${exactTerm}), 0),
+            'company_trgm', COALESCE(similarity(lower(d.company), ${exactTerm}), 0),
+            'fts_rank', COALESCE(ts_rank_cd(d.tsv, websearch_to_tsquery('simple', ${trimmedQuery})), 0)
+          ) AS debug_scores
+        FROM ticketing_prod.customer_search_documents d
+        INNER JOIN candidates c ON c.customer_id = d.customer_id
       )
-      .limit(limit);
+      SELECT *
+      FROM scored
+      WHERE final_score > 0.1  -- Filter out very weak matches
+      ORDER BY
+        final_score DESC,
+        is_vip DESC,
+        customer_updated_at DESC NULLS LAST,
+        customer_id DESC
+      LIMIT ${limit}
+    `);
 
-    // Fetch linked providers for each customer
-    const customerIds = results.map(r => r.id);
-    const identities = customerIds.length > 0
-      ? await db.query.customerIdentities.findMany({
-          where: inArray(customerIdentities.customerId, customerIds),
-          columns: { customerId: true, provider: true, externalId: true, email: true },
-        })
-      : [];
+    // Transform results
+    const resultRows = results as unknown as Array<{
+      customer_id: number;
+      first_name: string | null;
+      last_name: string | null;
+      company: string | null;
+      primary_email: string | null;
+      primary_phone: string | null;
+      is_vip: boolean;
+      customer_updated_at: Date | null;
+      identity_providers: string[];
+      final_score: number;
+      matched_field: string;
+      match_reasons: string[];
+      debug_scores: Record<string, number>;
+    }>;
 
-    // Group identities by customer
-    const identitiesByCustomer = new Map<number, typeof identities>();
-    for (const identity of identities) {
-      if (!identity.customerId) continue;
-      const existing = identitiesByCustomer.get(identity.customerId) || [];
-      existing.push(identity);
-      identitiesByCustomer.set(identity.customerId, existing);
-    }
+    const customers = resultRows.map(row => ({
+      id: row.customer_id,
+      primaryEmail: row.primary_email,
+      primaryPhone: row.primary_phone,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      company: row.company,
+      isVip: row.is_vip,
+      source: 'unified' as const,
+      linkedProviders: row.identity_providers || [],
+      score: row.final_score,
+      matchedField: row.matched_field as 'email' | 'phone' | 'name' | 'company' | 'fts',
+      matchReasons: row.match_reasons || [],
+      debugScores: row.debug_scores,
+    }));
 
     return {
-      customers: results.map(customer => ({
-        ...customer,
-        source: 'unified' as const,
-        linkedProviders: [...new Set(
-          (identitiesByCustomer.get(customer.id) || []).map(i => i.provider)
-        )],
-        identities: identitiesByCustomer.get(customer.id) || [],
-      })),
+      customers,
       searchType,
-      totalCount: results.length,
+      totalCount: customers.length,
     };
   }
 

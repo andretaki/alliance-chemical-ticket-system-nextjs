@@ -41,6 +41,19 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
       conversationId
     } = options;
 
+    const loadAttachmentBuffer = async (attachment: TicketAttachment): Promise<Buffer | null> => {
+      if (!attachment.storagePath) return null;
+      if (attachment.storagePath.startsWith('http://') || attachment.storagePath.startsWith('https://')) {
+        const response = await fetch(attachment.storagePath);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch attachment: ${response.status} ${response.statusText}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      }
+      return await fs.readFile(attachment.storagePath);
+    };
+
     // Get the current user's session
     const { session } = await getServerSession();
     const userEmail = session?.user?.email || 'sales@alliancechemical.com';
@@ -61,20 +74,25 @@ export async function sendTicketReplyEmail(options: TicketReplyEmailOptions): Pr
     }
 
     // Add attachments if provided
-    let processedAttachments: { name: string; contentType: string; contentBytes: string; }[] = [];
-    if (attachments && attachments.length > 0) {      
-      processedAttachments = await Promise.all(attachments.map(async (att) => {
-        let contentBytes = '';
-        if (att.storagePath) {
-          const fileBuffer = await fs.readFile(att.storagePath);
-          contentBytes = fileBuffer.toString('base64');
+    const processedAttachments: { name: string; contentType: string; contentBytes: string }[] = [];
+    if (attachments && attachments.length > 0) {
+      for (const att of attachments) {
+        try {
+          const fileBuffer = await loadAttachmentBuffer(att);
+          if (!fileBuffer || fileBuffer.length === 0) continue;
+          processedAttachments.push({
+            name: att.originalFilename || 'attachment',
+            contentType: att.mimeType || 'application/octet-stream',
+            contentBytes: fileBuffer.toString('base64'),
+          });
+        } catch (error) {
+          console.warn('Email Service: Failed to load attachment, skipping:', {
+            attachmentId: att.id,
+            storagePath: att.storagePath,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
-        return {
-          name: att.originalFilename,
-          contentType: att.mimeType,
-          contentBytes: contentBytes
-        };
-      }));
+      }
     }
 
     // Send the email using graphService with the user's email

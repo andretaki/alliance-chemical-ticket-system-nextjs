@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { format, formatDistanceToNow, isPast } from 'date-fns';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
+import { RefreshCw, Shield, Trash2 } from 'lucide-react';
 
 interface Subscription {
   id: string;
@@ -82,10 +83,10 @@ export default function SubscriptionManager() {
     <div>
       <div className="d-flex justify-content-end gap-2 mb-3">
         <button className="btn btn-sm btn-outline-secondary" onClick={fetchSubscriptions} disabled={isLoading || isActionLoading}>
-          <i className="fas fa-sync-alt me-1"></i> Refresh
+          <RefreshCw className="w-4 h-4 me-1" /> Refresh
         </button>
         <button className="btn btn-sm btn-primary" onClick={handleEnsure} disabled={isLoading || isActionLoading}>
-            {isActionLoading ? <span className="spinner-border spinner-border-sm"></span> : <><i className="fas fa-shield-alt me-1"></i> Ensure Active</>}
+            {isActionLoading ? <span className="spinner-border spinner-border-sm"></span> : <><Shield className="w-4 h-4 me-1" /> Ensure Active</>}
         </button>
       </div>
 
@@ -93,14 +94,14 @@ export default function SubscriptionManager() {
         <div className="text-center"><span className="spinner-border"></span></div>
       ) : (
         <div className="table-responsive">
-          <table className="table table-sm">
+          <table className="table table-sm" aria-label="Email subscriptions">
             <thead>
               <tr>
-                <th>Status</th>
-                <th>ID</th>
-                <th>Notification URL</th>
-                <th>Expires</th>
-                <th>Actions</th>
+                <th scope="col">Status</th>
+                <th scope="col">ID</th>
+                <th scope="col">Notification URL</th>
+                <th scope="col">Expires</th>
+                <th scope="col">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +124,7 @@ export default function SubscriptionManager() {
                       </td>
                       <td>
                         <button className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(sub.id)} disabled={isActionLoading}>
-                          <i className="fas fa-trash"></i>
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
                     </tr>

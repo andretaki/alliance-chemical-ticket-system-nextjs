@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useFormContext } from 'react-hook-form';
 import axios from 'axios';
+import { User, ShoppingCart, Settings, MapPin, Truck, Calculator } from 'lucide-react';
 import { QuoteFormData } from '../types';
 
 const ReviewStep = () => {
@@ -106,7 +107,7 @@ const ReviewStep = () => {
       {/* Customer Information */}
       <div className="card mb-4">
         <div className="card-header bg-primary text-white">
-          <h6 className="mb-0"><i className="fas fa-user me-2"></i>Customer Information</h6>
+          <h6 className="mb-0 d-flex align-items-center"><User className="w-4 h-4 me-2" />Customer Information</h6>
         </div>
         <div className="card-body">
           <div className="row">
@@ -123,18 +124,18 @@ const ReviewStep = () => {
       {/* Products */}
       <div className="card mb-4">
         <div className="card-header bg-success text-white">
-          <h6 className="mb-0"><i className="fas fa-shopping-cart me-2"></i>Products ({validLineItems.length} item{validLineItems.length !== 1 ? 's' : ''})</h6>
+          <h6 className="mb-0 d-flex align-items-center"><ShoppingCart className="w-4 h-4 me-2" />Products ({validLineItems.length} item{validLineItems.length !== 1 ? 's' : ''})</h6>
         </div>
         <div className="card-body">
           {validLineItems.length > 0 ? (
             <div className="table-responsive">
-              <table className="table table-sm">
+              <table className="table table-sm" aria-label="Quote products">
                 <thead>
                   <tr>
-                    <th>Product</th>
-                    <th className="text-center">Qty</th>
-                    <th className="text-end">Unit Price</th>
-                    <th className="text-end">Total</th>
+                    <th scope="col">Product</th>
+                    <th scope="col" className="text-center">Qty</th>
+                    <th scope="col" className="text-end">Unit Price</th>
+                    <th scope="col" className="text-end">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -164,7 +165,7 @@ const ReviewStep = () => {
       {/* Quote Type & Options */}
       <div className="card mb-4">
         <div className="card-header bg-info text-white">
-          <h6 className="mb-0"><i className="fas fa-cog me-2"></i>Quote Options</h6>
+          <h6 className="mb-0 d-flex align-items-center"><Settings className="w-4 h-4 me-2" />Quote Options</h6>
         </div>
         <div className="card-body">
           <div className="row">
@@ -194,7 +195,7 @@ const ReviewStep = () => {
       {/* Addresses */}
       <div className="card mb-4">
         <div className="card-header bg-secondary text-white">
-          <h6 className="mb-0"><i className="fas fa-map-marker-alt me-2"></i>Addresses</h6>
+          <h6 className="mb-0 d-flex align-items-center"><MapPin className="w-4 h-4 me-2" />Addresses</h6>
         </div>
         <div className="card-body">
           <div className="row">
@@ -240,7 +241,7 @@ const ReviewStep = () => {
       {formData.quoteType === 'material_and_delivery' && (
         <div className="card mb-4">
           <div className="card-header bg-warning text-dark">
-            <h6 className="mb-0"><i className="fas fa-shipping-fast me-2"></i>Shipping Options</h6>
+            <h6 className="mb-0 d-flex align-items-center"><Truck className="w-4 h-4 me-2" />Shipping Options</h6>
           </div>
           <div className="card-body">
             {isCalculatingShipping ? (
@@ -283,7 +284,7 @@ const ReviewStep = () => {
                   onClick={calculateShipping}
                   disabled={!formData.shippingAddress?.address1}
                 >
-                  <i className="fas fa-calculator me-2"></i>Calculate Shipping
+                  <Calculator className="w-4 h-4 me-2" />Calculate Shipping
                 </button>
               </div>
             )}
@@ -294,25 +295,25 @@ const ReviewStep = () => {
       {/* Price Summary */}
       <div className="card border-success">
         <div className="card-header bg-success text-white">
-          <h6 className="mb-0"><i className="fas fa-calculator me-2"></i>Price Summary</h6>
+          <h6 className="mb-0 d-flex align-items-center"><Calculator className="w-4 h-4 me-2" />Price Summary</h6>
         </div>
         <div className="card-body">
           <div className="row">
             <div className="col-md-6 offset-md-6">
-              <table className="table table-borderless mb-0">
+              <table className="table table-borderless mb-0" aria-label="Price summary">
                 <tbody>
                   <tr>
-                    <td>Subtotal:</td>
+                    <th scope="row" className="fw-normal">Subtotal:</th>
                     <td className="text-end fw-medium">${priceSummary.subtotal.toFixed(2)}</td>
                   </tr>
                   {formData.quoteType === 'material_and_delivery' && (
                     <tr>
-                      <td>
+                      <th scope="row" className="fw-normal">
                         Shipping:
                         {selectedShippingRate !== null && shippingRates[selectedShippingRate] && (
                           <small className="text-muted d-block">{shippingRates[selectedShippingRate].title}</small>
                         )}
-                      </td>
+                      </th>
                       <td className="text-end fw-medium">
                         {priceSummary.shipping !== null ? (
                           `$${priceSummary.shipping.toFixed(2)}`
@@ -323,7 +324,7 @@ const ReviewStep = () => {
                     </tr>
                   )}
                   <tr className="border-top border-2 border-success">
-                    <td className="fw-bold h6 mb-0">Total:</td>
+                    <th scope="row" className="fw-bold h6 mb-0">Total:</th>
                     <td className="text-end fw-bold h6 mb-0 text-success">
                       ${priceSummary.total.toFixed(2)} {priceSummary.currencyCode}
                     </td>

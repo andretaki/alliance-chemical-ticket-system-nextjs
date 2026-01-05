@@ -143,9 +143,8 @@ export async function POST(
     const emailRequested = Boolean(requestBody.sendAsEmail && verifiedTicket.senderEmail);
     let emailSent = false;
 
-    // EMAIL INTEGRATION DISABLED - Comment saved but email not sent
     // If this is an email reply, send it
-    if (false && emailRequested) { // DISABLED
+    if (emailRequested) {
       try {
         // --- Determine Threading Headers ---
         let inReplyToId: string | undefined = undefined;

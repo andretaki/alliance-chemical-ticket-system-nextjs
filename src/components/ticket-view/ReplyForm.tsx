@@ -3,6 +3,24 @@
 import React, { FormEvent, ChangeEvent, useRef, useState, useEffect } from 'react';
 import axios from 'axios';
 import RichTextEditor from './RichTextEditor';
+import {
+  CheckCircle,
+  Search,
+  ArrowUp,
+  Check,
+  Clock,
+  X,
+  Lock,
+  Send,
+  Smile,
+  Sparkles,
+  Zap,
+  Paperclip,
+  AlertTriangle,
+  FileText,
+  Image,
+  FileArchive,
+} from 'lucide-react';
 
 interface CannedResponse {
   id: number;
@@ -15,7 +33,7 @@ interface QuickAction {
   id: string;
   label: string;
   content: string;
-  icon: string;
+  icon: React.ReactNode;
   variant: string;
 }
 
@@ -43,11 +61,11 @@ interface ReplyFormProps {
 
 // Quick action templates
 const QUICK_ACTIONS: QuickAction[] = [
-  { id: 'acknowledge', label: 'Acknowledge', content: 'Thank you for contacting us. I have received your message and will get back to you shortly.', icon: 'fa-check-circle', variant: 'outline-success' },
-  { id: 'investigating', label: 'Investigating', content: 'I am currently investigating this issue and will update you as soon as I have more information.', icon: 'fa-search', variant: 'outline-info' },
-  { id: 'escalate', label: 'Escalating', content: 'I am escalating this to our specialist team who will be in touch with you shortly.', icon: 'fa-arrow-up', variant: 'outline-warning' },
-  { id: 'resolved', label: 'Resolved', content: 'This issue has been resolved. Please let me know if you need any further assistance.', icon: 'fa-check', variant: 'outline-success' },
-  { id: 'followup', label: 'Follow Up', content: 'I wanted to follow up on your recent inquiry. Is there anything else I can help you with?', icon: 'fa-clock', variant: 'outline-primary' },
+  { id: 'acknowledge', label: 'Acknowledge', content: 'Thank you for contacting us. I have received your message and will get back to you shortly.', icon: <CheckCircle className="w-3.5 h-3.5" />, variant: 'outline-success' },
+  { id: 'investigating', label: 'Investigating', content: 'I am currently investigating this issue and will update you as soon as I have more information.', icon: <Search className="w-3.5 h-3.5" />, variant: 'outline-info' },
+  { id: 'escalate', label: 'Escalating', content: 'I am escalating this to our specialist team who will be in touch with you shortly.', icon: <ArrowUp className="w-3.5 h-3.5" />, variant: 'outline-warning' },
+  { id: 'resolved', label: 'Resolved', content: 'This issue has been resolved. Please let me know if you need any further assistance.', icon: <Check className="w-3.5 h-3.5" />, variant: 'outline-success' },
+  { id: 'followup', label: 'Follow Up', content: 'I wanted to follow up on your recent inquiry. Is there anything else I can help you with?', icon: <Clock className="w-3.5 h-3.5" />, variant: 'outline-primary' },
 ];
 
 // Helper functions
@@ -59,17 +77,18 @@ const formatFileSize = (bytes?: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const getFileIconClass = (mimeType?: string | null): string => {
-  if (!mimeType) return 'fa-file';
+const getFileIcon = (mimeType?: string | null): React.ReactNode => {
+  const iconClass = "w-4 h-4 text-primary";
+  if (!mimeType) return <FileText className={iconClass} />;
   const mt = mimeType.toLowerCase();
-  if (mt.startsWith('image/')) return 'fa-file-image';
-  if (mt === 'application/pdf') return 'fa-file-pdf';
-  if (mt.includes('word')) return 'fa-file-word';
-  if (mt.includes('excel')) return 'fa-file-excel';
-  if (mt.includes('powerpoint')) return 'fa-file-powerpoint';
-  if (mt.includes('zip') || mt.includes('compressed')) return 'fa-file-archive';
-  if (mt.startsWith('text/')) return 'fa-file-alt';
-  return 'fa-file';
+  if (mt.startsWith('image/')) return <Image className={iconClass} />;
+  if (mt === 'application/pdf') return <FileText className={iconClass} />;
+  if (mt.includes('word')) return <FileText className={iconClass} />;
+  if (mt.includes('excel')) return <FileText className={iconClass} />;
+  if (mt.includes('powerpoint')) return <FileText className={iconClass} />;
+  if (mt.includes('zip') || mt.includes('compressed')) return <FileArchive className={iconClass} />;
+  if (mt.startsWith('text/')) return <FileText className={iconClass} />;
+  return <FileText className={iconClass} />;
 };
 
 export default function ReplyForm({
@@ -188,7 +207,7 @@ export default function ReplyForm({
   const getReplyModeConfig = () => {
     if (isInternalNote) {
       return {
-        icon: 'fas fa-lock',
+        icon: <Lock className="w-4 h-4" />,
         label: 'Internal Note',
         description: 'Only visible to your team',
         buttonText: 'Save Note',
@@ -196,7 +215,7 @@ export default function ReplyForm({
       };
     }
     return {
-      icon: 'fas fa-paper-plane',
+      icon: <Send className="w-4 h-4" />,
       label: 'Email Reply',
       description: `Will be sent to ${senderEmail}`,
       buttonText: scheduleFor ? 'Schedule Send' : priority === 'urgent' ? 'Send Urgent' : 'Send Email',
@@ -224,11 +243,11 @@ export default function ReplyForm({
                 <button
                   key={action.id}
                   type="button"
-                  className={`btn btn-sm ${action.variant}`}
+                  className={`btn btn-sm ${action.variant} inline-flex items-center gap-1`}
                   onClick={() => handleQuickAction(action)}
                   disabled={isSubmittingComment}
                 >
-                  <i className={`fas ${action.icon} me-1`}></i>
+                  {action.icon}
                   {action.label}
                 </button>
               ))}
@@ -238,7 +257,7 @@ export default function ReplyForm({
               className="btn btn-sm btn-outline-secondary"
               onClick={() => setShowQuickActions(false)}
             >
-              <i className="fas fa-times"></i>
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -311,28 +330,28 @@ export default function ReplyForm({
                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                 disabled={isSubmittingComment}
               >
-                <i className="fas fa-smile"></i>
+                <Smile className="w-4 h-4" />
               </button>
-              
+
               {insertSuggestedResponse && (
-                <button 
-                  type="button" 
-                  className="btn btn-sm btn-outline-info" 
-                  onClick={insertSuggestedResponse} 
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-info inline-flex items-center gap-1"
+                  onClick={insertSuggestedResponse}
                   disabled={isSubmittingComment}
                   title="Insert AI suggested reply"
                 >
-                  <i className="fas fa-magic me-1"></i> AI
+                  <Sparkles className="w-4 h-4" /> AI
                 </button>
               )}
-              
+
               {!showQuickActions && !isInternalNote && (
                 <button
                   type="button"
-                  className="btn btn-sm btn-outline-primary"
+                  className="btn btn-sm btn-outline-primary inline-flex items-center gap-1"
                   onClick={() => setShowQuickActions(true)}
                 >
-                  <i className="fas fa-bolt me-1"></i> Quick Actions
+                  <Zap className="w-4 h-4" /> Quick Actions
                 </button>
               )}
             </div>
@@ -370,7 +389,7 @@ export default function ReplyForm({
               <div className="attachments-list mb-2">
                 {files.map((file, index) => (
                   <div key={index} className="attachment-item d-inline-flex align-items-center bg-white border rounded p-1 me-2 mb-1 small">
-                    <i className={`fas ${getFileIconClass(file.type)} me-2 text-primary fa-fw`}></i>
+                    <span className="me-2">{getFileIcon(file.type)}</span>
                     <span className="text-truncate" style={{maxWidth: '150px'}}>{file.name}</span>
                     <span className="text-muted ms-2">{formatFileSize(file.size)}</span>
                     <button type="button" className="btn-close ms-2" style={{fontSize: '0.6rem'}} onClick={() => removeFile(index)} disabled={isSubmittingComment}></button>
@@ -378,8 +397,8 @@ export default function ReplyForm({
                 ))}
               </div>
             )}
-            <div 
-              className={`attachment-drop-zone text-center p-2 border-2 border-dashed rounded ${isDragOver ? 'border-primary bg-primary bg-opacity-10' : 'border-light'}`} 
+            <div
+              className={`attachment-drop-zone text-center p-2 border-2 border-dashed rounded cursor-pointer inline-flex items-center justify-center gap-1 ${isDragOver ? 'border-primary bg-primary bg-opacity-10' : 'border-light'}`}
               onClick={() => fileInputRef.current?.click()}
             >
               <input
@@ -390,9 +409,9 @@ export default function ReplyForm({
                 className="d-none"
                 disabled={isSubmittingComment || files.length >= 5}
               />
-              <i className="fas fa-paperclip me-1"></i>
-              {isDragOver 
-                ? "Drop files here" 
+              <Paperclip className="w-4 h-4" />
+              {isDragOver
+                ? "Drop files here"
                 : files.length > 0
                   ? `Add more files (${files.length}/5)`
                   : "Attach Files (drag & drop or click)"}
@@ -423,15 +442,15 @@ export default function ReplyForm({
             
             {/* Status Indicators */}
             {scheduleFor && (
-              <small className="text-info">
-                <i className="fas fa-clock me-1"></i>
+              <small className="text-info inline-flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
                 Scheduled for {new Date(scheduleFor).toLocaleString()}
               </small>
             )}
-            
+
             {priority !== 'normal' && (
-              <small className={`text-${priority === 'urgent' ? 'danger' : 'warning'}`}>
-                <i className="fas fa-exclamation-triangle me-1"></i>
+              <small className={`text-${priority === 'urgent' ? 'danger' : 'warning'} inline-flex items-center gap-1`}>
+                <AlertTriangle className="w-3.5 h-3.5" />
                 {priority.toUpperCase()} Priority
               </small>
             )}
@@ -440,16 +459,16 @@ export default function ReplyForm({
           <div className="d-flex align-items-center gap-2">
             <button
               type="submit"
-              className={`btn btn-sm ${replyMode.buttonClass}`}
+              className={`btn btn-sm ${replyMode.buttonClass} inline-flex items-center gap-1`}
               disabled={isSubmittingComment || !canSubmit}
             >
               {isSubmittingComment ? (
                 <>
-                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                   Sending...
                 </>
               ) : (
-                <><i className={`${replyMode.icon} me-1`}></i> {replyMode.buttonText}</>
+                <>{replyMode.icon} {replyMode.buttonText}</>
               )}
             </button>
           </div>

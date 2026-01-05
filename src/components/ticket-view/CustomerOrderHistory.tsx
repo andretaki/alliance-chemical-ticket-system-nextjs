@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
+import { History, Loader2, ChevronUp, ChevronDown, AlertTriangle, Inbox, Ship, ExternalLink, ShoppingBag, ShoppingCart, Truck } from 'lucide-react';
 
 interface OrderHistoryItem {
   shopifyOrderGID: string;
@@ -99,8 +100,8 @@ export default function CustomerOrderHistory({ customerEmail, className = '' }: 
   return (
     <div className={`card shadow-sm mb-4 ${className}`}>
       <div className="card-header bg-light d-flex justify-content-between align-items-center">
-        <h6 className="mb-0 d-flex align-items-center">
-          <i className="fas fa-history me-2 text-secondary"></i>
+        <h6 className="mb-0 d-flex align-items-center gap-2">
+          <History className="w-4 h-4 text-secondary" />
           Order History
         </h6>
         <button
@@ -109,9 +110,11 @@ export default function CustomerOrderHistory({ customerEmail, className = '' }: 
           disabled={isLoading}
         >
           {isLoading ? (
-            <i className="fas fa-spinner fa-spin"></i>
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : isExpanded ? (
+            <ChevronUp className="w-4 h-4" />
           ) : (
-            <i className={`fas fa-chevron-${isExpanded ? 'up' : 'down'}`}></i>
+            <ChevronDown className="w-4 h-4" />
           )}
         </button>
       </div>
@@ -128,15 +131,15 @@ export default function CustomerOrderHistory({ customerEmail, className = '' }: 
           )}
           
           {error && (
-            <div className="alert alert-warning m-3 py-2 mb-0">
-              <i className="fas fa-exclamation-triangle me-2"></i>
+            <div className="alert alert-warning m-3 py-2 mb-0 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4" />
               <small>{error}</small>
             </div>
           )}
-          
+
           {!isLoading && !error && orders.length === 0 && (
             <div className="text-center py-3 text-muted">
-              <i className="fas fa-inbox fa-2x mb-2 d-block text-muted opacity-50"></i>
+              <Inbox className="w-8 h-8 mx-auto mb-2 text-muted opacity-50" />
               <small>No order history found for this customer</small>
             </div>
           )}
@@ -149,32 +152,32 @@ export default function CustomerOrderHistory({ customerEmail, className = '' }: 
                     <div>
                       <h6 className="mb-1">
                         {order.shipStationUrl ? (
-                          <a 
-                            href={order.shipStationUrl} 
-                            target="_blank" 
+                          <a
+                            href={order.shipStationUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
-                            className="text-primary text-decoration-none fw-bold"
+                            className="text-primary text-decoration-none fw-bold inline-flex items-center gap-1"
                             title="View in ShipStation"
                           >
-                            <i className="fas fa-ship me-1"></i>
+                            <Ship className="w-4 h-4" />
                             {order.shopifyOrderName}
-                            <i className="fas fa-external-link-alt fa-xs ms-1"></i>
+                            <ExternalLink className="w-3 h-3" />
                           </a>
                         ) : (
-                          <span className="fw-bold text-muted">
-                            <i className="fas fa-ship me-1"></i>
+                          <span className="fw-bold text-muted inline-flex items-center gap-1">
+                            <Ship className="w-4 h-4" />
                             {order.shopifyOrderName}
                           </span>
                         )}
                         {order.shopifyAdminUrl && (
-                          <a 
-                            href={order.shopifyAdminUrl} 
-                            target="_blank" 
+                          <a
+                            href={order.shopifyAdminUrl}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="btn btn-sm btn-outline-secondary ms-2"
                             title="View in Shopify Admin"
                           >
-                            <i className="fab fa-shopify fa-xs"></i>
+                            <ShoppingBag className="w-3 h-3" />
                           </a>
                         )}
                       </h6>
@@ -211,16 +214,18 @@ export default function CustomerOrderHistory({ customerEmail, className = '' }: 
                   </div>
                   
                   {order.itemSummary && (
-                    <div className="small text-muted mb-2">
-                      <i className="fas fa-shopping-cart me-1"></i>
+                    <div className="small text-muted mb-2 flex items-center gap-1">
+                      <ShoppingCart className="w-3.5 h-3.5" />
                       {order.itemSummary}
                     </div>
                   )}
-                  
+
                   {order.trackingNumbers && order.trackingNumbers.length > 0 && (
                     <div className="small">
-                      <i className="fas fa-truck me-1 text-secondary"></i>
-                      <strong>Tracking:</strong>
+                      <span className="flex items-center gap-1">
+                        <Truck className="w-3.5 h-3.5 text-secondary" />
+                        <strong>Tracking:</strong>
+                      </span>
                       <div className="mt-1">
                         {order.trackingNumbers.map((trackingNumber, index) => (
                           <span key={index} className="badge bg-light text-dark border me-1 font-monospace">

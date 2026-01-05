@@ -79,8 +79,10 @@ export default function TypeChartClient() {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await axios.get<{ data: TicketSummary[] }>('/api/tickets');
-      const tickets = res.data.data;
+      // API returns: { success, data: { tickets: [...], pagination } }
+      const res = await axios.get('/api/tickets');
+      const raw = res.data?.data?.tickets;
+      const tickets: TicketSummary[] = Array.isArray(raw) ? raw : [];
 
       // Process data
       const counts: Record<string, number> = {};

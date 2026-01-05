@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Alert, Button, Card, Form, Spinner } from 'react-bootstrap';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface ResolutionConfig {
   autoCloseEnabled: boolean;

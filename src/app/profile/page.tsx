@@ -63,14 +63,14 @@ export default function ProfilePage() {
                 
                 <div className="mt-3">
                   <h5>Account Details</h5>
-                  <table className="table table-striped">
+                  <table className="table table-striped" aria-label="Account details">
                     <tbody>
                       <tr>
-                        <th style={{width: '150px'}}>User ID:</th>
+                        <th scope="row" style={{width: '150px'}}>User ID:</th>
                         <td>{session.data.user.id}</td>
                       </tr>
                       <tr>
-                        <th>Role:</th>
+                        <th scope="row">Role:</th>
                         <td>
                           <span className="badge bg-primary">User</span>
                         </td>

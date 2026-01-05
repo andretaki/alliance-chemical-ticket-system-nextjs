@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { RefreshCw, AlertTriangle, Settings, Users, Search, CheckCircle } from 'lucide-react';
 
 interface CustomerAutoCreateStatus {
   autoCreateEnabled: boolean;
@@ -112,14 +113,14 @@ export default function CustomerAutoCreateManager() {
           onClick={fetchStatus}
           disabled={isLoading}
         >
-          <i className="fas fa-sync-alt me-1"></i>
+          <RefreshCw className="w-4 h-4 me-1" />
           Refresh
         </button>
       </div>
 
       {error && (
         <div className="alert alert-danger">
-          <i className="fas fa-exclamation-triangle me-2"></i>
+          <AlertTriangle className="w-4 h-4 me-2" />
           {error}
         </div>
       )}
@@ -129,7 +130,7 @@ export default function CustomerAutoCreateManager() {
         <div className="card mb-4">
           <div className="card-header">
             <h5 className="mb-0">
-              <i className="fas fa-cog me-2"></i>
+              <Settings className="w-4 h-4 me-2" />
               Configuration & Status
             </h5>
           </div>
@@ -180,7 +181,7 @@ export default function CustomerAutoCreateManager() {
       <div className="card">
         <div className="card-header">
           <h5 className="mb-0">
-            <i className="fas fa-users me-2"></i>
+            <Users className="w-4 h-4 me-2" />
             Batch Create Customers from Existing Tickets
           </h5>
         </div>
@@ -247,7 +248,7 @@ export default function CustomerAutoCreateManager() {
                   </>
                 ) : (
                   <>
-                    <i className={`fas ${dryRun ? 'fa-search' : 'fa-users'} me-2`}></i>
+                    {dryRun ? <Search className="w-4 h-4 me-2" /> : <Users className="w-4 h-4 me-2" />}
                     {dryRun ? 'Preview' : 'Create Customers'}
                   </>
                 )}
@@ -260,7 +261,7 @@ export default function CustomerAutoCreateManager() {
             <div className={`alert ${batchResult.success ? 'alert-success' : 'alert-danger'}`}>
               {batchResult.dryRun ? (
                 <div>
-                  <h6><i className="fas fa-search me-2"></i>Preview Results</h6>
+                  <h6 className="d-flex align-items-center"><Search className="w-4 h-4 me-2" />Preview Results</h6>
                   <p className="mb-2">{batchResult.message}</p>
                   {batchResult.preview && batchResult.preview.length > 0 && (
                     <div className="mt-3">
@@ -298,7 +299,7 @@ export default function CustomerAutoCreateManager() {
                 </div>
               ) : batchResult.success ? (
                 <div>
-                  <h6><i className="fas fa-check-circle me-2"></i>Batch Creation Completed</h6>
+                  <h6 className="d-flex align-items-center"><CheckCircle className="w-4 h-4 me-2" />Batch Creation Completed</h6>
                   {batchResult.summary && (
                     <div className="row g-2 mt-2">
                       <div className="col-3">
@@ -330,7 +331,7 @@ export default function CustomerAutoCreateManager() {
                 </div>
               ) : (
                 <div>
-                  <h6><i className="fas fa-exclamation-triangle me-2"></i>Error</h6>
+                  <h6 className="d-flex align-items-center"><AlertTriangle className="w-4 h-4 me-2" />Error</h6>
                   <p className="mb-0">{batchResult.error}</p>
                 </div>
               )}

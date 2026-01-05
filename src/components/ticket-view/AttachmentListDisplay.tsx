@@ -1,22 +1,24 @@
 import React from 'react';
 import { AttachmentData } from '@/types/ticket';
+import { Paperclip, FileText, Image, FileArchive } from 'lucide-react';
 
 interface AttachmentListProps {
   attachments: AttachmentData[];
   title?: string;
 }
 
-const getFileIcon = (mimeType: string | undefined): string => {
-  if (!mimeType) return 'fa-file';
+const getFileIcon = (mimeType: string | undefined): React.ReactNode => {
+  const iconClass = "w-4 h-4 text-primary";
+  if (!mimeType) return <FileText className={iconClass} />;
   const mt = mimeType.toLowerCase();
-  if (mt.startsWith('image/')) return 'fa-file-image';
-  if (mt === 'application/pdf') return 'fa-file-pdf';
-  if (mt.includes('word') || mt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'fa-file-word';
-  if (mt.includes('excel') || mt === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'fa-file-excel';
-  if (mt.includes('powerpoint') || mt === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'fa-file-powerpoint';
-  if (mt.includes('zip') || mt.includes('compressed') || mt.includes('archive')) return 'fa-file-archive';
-  if (mt.startsWith('text/')) return 'fa-file-alt';
-  return 'fa-file';
+  if (mt.startsWith('image/')) return <Image className={iconClass} />;
+  if (mt === 'application/pdf') return <FileText className={iconClass} />;
+  if (mt.includes('word')) return <FileText className={iconClass} />;
+  if (mt.includes('excel')) return <FileText className={iconClass} />;
+  if (mt.includes('powerpoint')) return <FileText className={iconClass} />;
+  if (mt.includes('zip') || mt.includes('compressed') || mt.includes('archive')) return <FileArchive className={iconClass} />;
+  if (mt.startsWith('text/')) return <FileText className={iconClass} />;
+  return <FileText className={iconClass} />;
 };
 
 const formatFileSize = (bytes: number | undefined): string => {
@@ -35,7 +37,7 @@ const AttachmentListDisplay: React.FC<AttachmentListProps> = ({ attachments, tit
 
   return (
     <div className="attachment-list">
-      {title && <div className="attachment-header mb-2 text-muted small"><i className="fas fa-paperclip me-1"></i>{title} ({attachments.length})</div>}
+      {title && <div className="attachment-header mb-2 text-muted small flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />{title} ({attachments.length})</div>}
       <div className="list-group list-group-flush">
         {attachments.map((attachment) => (
           <a
@@ -47,7 +49,7 @@ const AttachmentListDisplay: React.FC<AttachmentListProps> = ({ attachments, tit
             title={`Download ${attachment.originalFilename}`}
           >
             <div className="d-flex align-items-center text-truncate me-2">
-              <i className={`fas ${getFileIcon(attachment.mimeType)} me-2 text-primary fa-fw`}></i>
+              <span className="me-2">{getFileIcon(attachment.mimeType)}</span>
               <span className="text-truncate small">{attachment.originalFilename}</span>
             </div>
             <span className="badge bg-light text-dark ms-2">{formatFileSize(attachment.fileSize)}</span>

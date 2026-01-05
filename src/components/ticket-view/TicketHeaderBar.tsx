@@ -3,8 +3,7 @@
 import React, { ChangeEvent, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button, Dropdown, Form, Nav, Navbar, Spinner, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faExternalLinkAlt, faInfoCircle, faPaperPlane, faRedo, faSync, faTicketAlt, faBell, faUsers, faKeyboard } from '@fortawesome/free-solid-svg-icons';
+import { Ticket, Info, Send, RotateCcw, RefreshCw, Bell, Users, Keyboard, Wand2, CheckCircle, AlertTriangle, AlertCircle, FolderOpen, Play, Clock, Check } from 'lucide-react';
 import { Ticket as TicketData, TicketUser as BaseUser } from '@/types/ticket';
 import { ticketStatusEnum } from '@/db/schema';
 
@@ -110,26 +109,26 @@ export default function TicketHeaderBar({
 
   const getSmartStatusTransitions = () => {
     const currentStatus = ticket.status;
-    const suggestedStatuses = [];
+    const suggestedStatuses: Array<{ value: string; label: string; icon: React.ReactNode; reason: string }> = [];
 
     switch (currentStatus) {
       case 'new':
-        suggestedStatuses.push({ value: 'open', label: 'Open', icon: 'fa-folder-open', reason: 'Start working on this ticket' });
+        suggestedStatuses.push({ value: 'open', label: 'Open', icon: <FolderOpen className="w-4 h-4" />, reason: 'Start working on this ticket' });
         if (ticket.assignee) {
-          suggestedStatuses.push({ value: 'in_progress', label: 'In Progress', icon: 'fa-play', reason: 'Assigned and ready to work' });
+          suggestedStatuses.push({ value: 'in_progress', label: 'In Progress', icon: <Play className="w-4 h-4" />, reason: 'Assigned and ready to work' });
         }
         break;
       case 'open':
-        suggestedStatuses.push({ value: 'in_progress', label: 'In Progress', icon: 'fa-play', reason: 'Begin active work' });
-        suggestedStatuses.push({ value: 'pending_customer', label: 'Pending Customer', icon: 'fa-clock', reason: 'Waiting for customer response' });
+        suggestedStatuses.push({ value: 'in_progress', label: 'In Progress', icon: <Play className="w-4 h-4" />, reason: 'Begin active work' });
+        suggestedStatuses.push({ value: 'pending_customer', label: 'Pending Customer', icon: <Clock className="w-4 h-4" />, reason: 'Waiting for customer response' });
         break;
       case 'in_progress':
-        suggestedStatuses.push({ value: 'pending_customer', label: 'Pending Customer', icon: 'fa-clock', reason: 'Waiting for customer input' });
-        suggestedStatuses.push({ value: 'closed', label: 'Resolve', icon: 'fa-check', reason: 'Issue resolved' });
+        suggestedStatuses.push({ value: 'pending_customer', label: 'Pending Customer', icon: <Clock className="w-4 h-4" />, reason: 'Waiting for customer input' });
+        suggestedStatuses.push({ value: 'closed', label: 'Resolve', icon: <Check className="w-4 h-4" />, reason: 'Issue resolved' });
         break;
       case 'pending_customer':
-        suggestedStatuses.push({ value: 'in_progress', label: 'Resume Work', icon: 'fa-play', reason: 'Customer responded' });
-        suggestedStatuses.push({ value: 'closed', label: 'Resolve', icon: 'fa-check', reason: 'No response needed' });
+        suggestedStatuses.push({ value: 'in_progress', label: 'Resume Work', icon: <Play className="w-4 h-4" />, reason: 'Customer responded' });
+        suggestedStatuses.push({ value: 'closed', label: 'Resolve', icon: <Check className="w-4 h-4" />, reason: 'No response needed' });
         break;
     }
 
@@ -142,12 +141,12 @@ export default function TicketHeaderBar({
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string): React.ReactNode => {
     switch (type) {
-      case 'success': return 'fa-check-circle text-success';
-      case 'warning': return 'fa-exclamation-triangle text-warning';
-      case 'danger': return 'fa-exclamation-circle text-danger';
-      default: return 'fa-info-circle text-info';
+      case 'success': return <CheckCircle className="w-4 h-4 text-success" />;
+      case 'warning': return <AlertTriangle className="w-4 h-4 text-warning" />;
+      case 'danger': return <AlertCircle className="w-4 h-4 text-danger" />;
+      default: return <Info className="w-4 h-4 text-info" />;
     }
   };
 
@@ -159,7 +158,7 @@ export default function TicketHeaderBar({
           <ol className="breadcrumb mb-0 py-2">
             <li className="breadcrumb-item">
               <Link href="/tickets" className="text-decoration-none">
-                <i className="fas fa-ticket-alt me-1"></i>Tickets
+                <Ticket className="w-4 h-4 me-1" />Tickets
               </Link>
             </li>
             <li className="breadcrumb-item active" aria-current="page">
@@ -171,7 +170,7 @@ export default function TicketHeaderBar({
 
       <Navbar bg="dark" variant="dark" expand="lg" className="ticket-header-bar p-2">
         <div className="d-flex align-items-center text-white me-3">
-          <FontAwesomeIcon icon={faTicketAlt} className="me-2" />
+          <Ticket className="w-5 h-5 me-2" />
           <Navbar.Brand className="mb-0">
             <span className="fw-bold">#{ticket.id}</span>
             <span className="mx-2">•</span>
@@ -202,7 +201,7 @@ export default function TicketHeaderBar({
                   </>
                 ) : (
                   <>
-                    <i className="fas fa-magic me-2"></i>
+                    <Wand2 className="w-4 h-4 me-2" />
                     <span>Draft AI Reply</span>
                   </>
                 )}
@@ -227,7 +226,7 @@ export default function TicketHeaderBar({
                 }
               >
                 <div className="d-flex align-items-center text-info me-2">
-                  <FontAwesomeIcon icon={faUsers} className="me-1" />
+                  <Users className="w-4 h-4 me-1" />
                   <Badge bg="info" className="rounded-pill">
                     {activeUsers.length}
                   </Badge>
@@ -243,7 +242,7 @@ export default function TicketHeaderBar({
                 className="position-relative"
                 style={{ border: 'none' }}
               >
-                <FontAwesomeIcon icon={faBell} />
+                <Bell className="w-4 h-4" />
                 {unreadNotifications > 0 && (
                   <Badge 
                     bg="danger" 
@@ -266,7 +265,7 @@ export default function TicketHeaderBar({
                       className={`small ${!notification.read ? 'bg-light' : ''}`}
                     >
                       <div className="d-flex align-items-start">
-                        <i className={`fas ${getNotificationIcon(notification.type)} me-2 mt-1`}></i>
+                        <span className="me-2 mt-1">{getNotificationIcon(notification.type)}</span>
                         <div className="flex-grow-1">
                           <div>{notification.message}</div>
                           <div className="text-muted" style={{ fontSize: '0.75rem' }}>
@@ -296,7 +295,7 @@ export default function TicketHeaderBar({
               }
             >
               <Button variant="outline-light" size="sm" style={{ border: 'none' }}>
-                <FontAwesomeIcon icon={faKeyboard} />
+                <Keyboard className="w-4 h-4" />
               </Button>
             </OverlayTrigger>
 
@@ -314,7 +313,7 @@ export default function TicketHeaderBar({
                   {isLoadingOrderStatusDraft ? (
                     <Spinner as="span" animation="border" size="sm" />
                   ) : (
-                    <><FontAwesomeIcon icon={faInfoCircle} className="me-1" /> Order Status</>
+                    <><Info className="w-4 h-4 me-1" /> Order Status</>
                   )}
                 </Button>
               </OverlayTrigger>
@@ -334,7 +333,7 @@ export default function TicketHeaderBar({
                   {isResendingInvoice ? (
                     <Spinner as="span" animation="border" size="sm" />
                   ) : (
-                    <><FontAwesomeIcon icon={faPaperPlane} className="me-1" /> Resend Invoice</>
+                    <><Send className="w-4 h-4 me-1" /> Resend Invoice</>
                   )}
                 </Button>
               </OverlayTrigger>
@@ -351,7 +350,7 @@ export default function TicketHeaderBar({
 
             {isClosed ? (
               <Button variant="success" size="sm" onClick={onReopenTicket}>
-                <FontAwesomeIcon icon={faRedo} className="me-1" /> Reopen Ticket
+                <RotateCcw className="w-4 h-4 me-1" /> Reopen Ticket
               </Button>
             ) : (
               <Dropdown>
@@ -362,7 +361,7 @@ export default function TicketHeaderBar({
                   {smartStatusTransitions.length > 0 && (
                     <>
                       <Dropdown.Header>
-                        <i className="fas fa-magic me-1"></i>Suggested Actions
+                        <Wand2 className="w-4 h-4 me-1" />Suggested Actions
                       </Dropdown.Header>
                       {smartStatusTransitions.map(status => (
                         <Dropdown.Item 
@@ -370,7 +369,7 @@ export default function TicketHeaderBar({
                           onClick={() => handleStatusSelectChange({ target: { value: status.value } } as any)}
                           className="d-flex align-items-center"
                         >
-                          <i className={`fas ${status.icon} me-2 text-primary`}></i>
+                          <span className="me-2 text-primary">{status.icon}</span>
                           <div>
                             <div>{status.label}</div>
                             <small className="text-muted">{status.reason}</small>
@@ -426,8 +425,8 @@ export default function TicketHeaderBar({
                 placement="bottom"
                 overlay={<Tooltip>AI suggestion available in conversation</Tooltip>}
               >
-                <div className="ai-indicator text-info" style={{ cursor: 'help' }}>
-                  <FontAwesomeIcon icon={faSync} spin />
+                <div className="ai-indicator text-info d-flex align-items-center" style={{ cursor: 'help' }}>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
                   <span className="ms-1">AI</span>
                 </div>
               </OverlayTrigger>

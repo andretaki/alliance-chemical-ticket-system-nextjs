@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { Eye, Pencil, Trash2, Loader2, Check, X } from 'lucide-react';
 
 interface TicketDisplayProps {
   ticket: {
@@ -146,19 +147,19 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, deleteTicket }) =
                 href={`/tickets/${ticket.id}`}
                 className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 transition-colors"
               >
-                <i className="fas fa-eye text-xs" />
+                <Eye className="w-3.5 h-3.5" />
               </Link>
               <Link
                 href={`/tickets/${ticket.id}/edit`}
                 className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-gray-500 dark:hover:text-gray-300 dark:hover:bg-gray-800 transition-colors"
               >
-                <i className="fas fa-pen text-xs" />
+                <Pencil className="w-3.5 h-3.5" />
               </Link>
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="w-7 h-7 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:text-gray-500 dark:hover:text-red-400 dark:hover:bg-red-400/10 transition-colors"
               >
-                <i className="fas fa-trash text-xs" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </>
           ) : (
@@ -166,15 +167,15 @@ const TicketDisplay: React.FC<TicketDisplayProps> = ({ ticket, deleteTicket }) =
               <button
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="w-7 h-7 flex items-center justify-center rounded bg-red-500 text-white text-xs"
+                className="w-7 h-7 flex items-center justify-center rounded bg-red-500 text-white"
               >
-                {isDeleting ? <i className="fas fa-spinner fa-spin" /> : <i className="fas fa-check" />}
+                {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="w-7 h-7 flex items-center justify-center rounded bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300 text-xs"
+                className="w-7 h-7 flex items-center justify-center rounded bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
               >
-                <i className="fas fa-times" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}

@@ -87,7 +87,8 @@ export function OpportunitiesListClient({ initial, pipelineHealth = [] }: Props)
 
     const res = await fetch(`/api/opportunities?${params.toString()}`);
     const json = await res.json();
-    setData(json.data || []);
+    const raw = json?.data;
+    setData(Array.isArray(raw) ? raw : []);
     setLoading(false);
   };
 
@@ -218,17 +219,17 @@ export function OpportunitiesListClient({ initial, pipelineHealth = [] }: Props)
           </div>
 
         <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-sm" aria-label="Opportunities list">
             <thead className="bg-muted/40 text-xs uppercase text-muted-foreground font-medium">
               <tr>
-                <th className="px-4 py-3 text-left">Title</th>
-                <th className="px-4 py-3 text-left">Customer</th>
-                <th className="px-4 py-3 text-left">Stage</th>
-                <th className="px-4 py-3 text-left">Value</th>
-                <th className="px-4 py-3 text-left">Owner</th>
-                <th className="px-4 py-3 text-left">Division</th>
-                <th className="px-4 py-3 text-left">Source</th>
-                <th className="px-4 py-3 text-left">Created</th>
+                <th scope="col" className="px-4 py-3 text-left">Title</th>
+                <th scope="col" className="px-4 py-3 text-left">Customer</th>
+                <th scope="col" className="px-4 py-3 text-left">Stage</th>
+                <th scope="col" className="px-4 py-3 text-left">Value</th>
+                <th scope="col" className="px-4 py-3 text-left">Owner</th>
+                <th scope="col" className="px-4 py-3 text-left">Division</th>
+                <th scope="col" className="px-4 py-3 text-left">Source</th>
+                <th scope="col" className="px-4 py-3 text-left">Created</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60 bg-card">

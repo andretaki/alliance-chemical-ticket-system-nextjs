@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Accordion, Nav } from 'react-bootstrap';
+import { Info } from 'lucide-react';
 import TicketDetailsSidebar from './TicketDetailsSidebar';
 import CustomerOrderHistory from './CustomerOrderHistory';
 import SlaTimer from './SlaTimer';
@@ -26,7 +27,7 @@ export default function TicketContextSidebar({ ticket, relatedQuote, quoteAdminU
           <Accordion.Item eventKey="0" className="border-0">
             <Accordion.Header as="div" className="w-100">
                 <div className="d-flex justify-content-between align-items-center w-100 pe-3">
-                    <span><i className="fas fa-info-circle me-2"></i>Details</span>
+                    <span className="d-flex align-items-center"><Info className="w-4 h-4 me-2" />Details</span>
                     <div className="d-flex gap-2">
                         <SlaTimer
                             label="First Response"

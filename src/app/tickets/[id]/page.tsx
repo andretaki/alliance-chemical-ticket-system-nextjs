@@ -7,6 +7,7 @@ import { ShopifyService } from '@/services/shopify/ShopifyService';
 import { Config } from '@/config/appConfig';
 import { getServerSession } from '@/lib/auth-helpers';
 import { customerService } from '@/services/crm/customerService';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 
 interface TicketViewPageProps {
   params: Promise<{ id: string }>;
@@ -109,14 +110,26 @@ export default async function TicketViewPage({ params: paramsPromise }: TicketVi
   };
 
   return (
-    <TicketViewClient
-      initialTicket={serializedTicket as any}
-      sidebarTickets={sidebarTickets}
-      relatedQuote={relatedQuote.quote}
-      quoteAdminUrl={relatedQuote.adminUrl}
-      currentUser={session.user}
-      customerOverview={customerOverview}
-    />
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-3 border-b bg-muted/30">
+        <Breadcrumb
+          items={[
+            { label: 'Tickets', href: '/tickets' },
+            { label: `#${ticketId}` },
+          ]}
+        />
+      </div>
+      <div className="flex-1 min-h-0">
+        <TicketViewClient
+          initialTicket={serializedTicket as any}
+          sidebarTickets={sidebarTickets}
+          relatedQuote={relatedQuote.quote}
+          quoteAdminUrl={relatedQuote.adminUrl}
+          currentUser={session.user}
+          customerOverview={customerOverview}
+        />
+      </div>
+    </div>
   );
 }
 

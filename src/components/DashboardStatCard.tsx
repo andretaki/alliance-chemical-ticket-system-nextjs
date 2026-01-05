@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { ArrowUp, ArrowDown, ArrowRight } from 'lucide-react';
 
 interface DashboardStatCardProps {
   title: string;
@@ -54,7 +55,7 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
           </div>
           {change && (
             <div className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold backdrop-blur-md border ${change.isPositive ? changeBadgeClasses.positive : changeBadgeClasses.negative}`}>
-              <i className={`fas fa-arrow-${change.isPositive ? 'up' : 'down'}`} />
+              {change.isPositive ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
               <span>{Math.abs(change.value)}%</span>
             </div>
           )}
@@ -82,7 +83,7 @@ const DashboardStatCard: React.FC<DashboardStatCardProps> = ({
             <Link href={footerLink} className="group/footer flex justify-between items-center text-sm font-semibold text-foreground-muted hover:text-gray-900 dark:hover:text-white transition-colors duration-200">
               <span>{footerText}</span>
               <div className="w-6 h-6 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-md transition-transform duration-200 group-hover/footer:translate-x-1">
-                <i className="fas fa-arrow-right" />
+                <ArrowRight className="w-4 h-4" />
               </div>
             </Link>
           </div>

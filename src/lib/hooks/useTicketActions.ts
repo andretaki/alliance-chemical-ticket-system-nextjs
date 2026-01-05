@@ -1,6 +1,6 @@
 import { useState, useCallback, ChangeEvent } from 'react';
 import axios, { AxiosError } from 'axios';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Ticket as TicketData, TicketUser as BaseUser } from '@/types/ticket';
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
 import { useRouter } from 'next/router';

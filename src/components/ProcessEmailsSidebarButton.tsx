@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import axios from 'axios';
+import { RefreshCw } from 'lucide-react';
 
 const ProcessEmailsSidebarButton: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -35,7 +36,7 @@ const ProcessEmailsSidebarButton: React.FC = () => {
         </>
       ) : (
         <>
-          <i className="fas fa-sync-alt me-1"></i>
+          <RefreshCw className="w-4 h-4 me-1" />
           Process Emails
         </>
       )}

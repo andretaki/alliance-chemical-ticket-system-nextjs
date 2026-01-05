@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import axios, { AxiosError } from 'axios';
+import { Undo2, Check } from 'lucide-react';
 import { ticketStatusEnum } from '@/db/schema'; // Import enum
 
 interface MarkButtonProps {
@@ -63,7 +64,6 @@ const MarkButtonClient: React.FC<MarkButtonProps> = ({ initialStatus, ticketId, 
   const buttonClass = isCurrentlyResolved
     ? 'btn btn-outline-secondary btn-sm w-100 text-start' // Use outline buttons for consistency
     : 'btn btn-outline-success btn-sm w-100 text-start';
-  const iconClass = isCurrentlyResolved ? 'fas fa-undo' : 'fas fa-check';
 
   return (
     <>
@@ -73,7 +73,7 @@ const MarkButtonClient: React.FC<MarkButtonProps> = ({ initialStatus, ticketId, 
         disabled={isLoading}
         title={buttonText} // Add title for accessibility
       >
-        <i className={iconClass}></i> {isLoading ? 'Updating...' : buttonText}
+        {isCurrentlyResolved ? <Undo2 className="w-4 h-4 me-1" /> : <Check className="w-4 h-4 me-1" />} {isLoading ? 'Updating...' : buttonText}
       </button>
       {/* Display error specifically for this button */}
       {error && <small className="text-danger d-block mt-1">{error}</small>}

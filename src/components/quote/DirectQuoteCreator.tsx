@@ -1,15 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Input, Modal } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Input, Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui';
 import { enhancedAiService } from '@/services/enhancedAiService';
 import { cn } from '@/utils/cn';
+import { ShoppingCart, FileText, Brain, Check, Trash2, Rocket } from 'lucide-react';
 
 interface QuoteOption {
   id: 'shopify_draft' | 'qbo_estimate';
   title: string;
   description: string;
-  icon: string;
+  icon: React.ReactNode;
   benefits: string[];
   recommended?: boolean;
 }
@@ -50,7 +51,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
       id: 'shopify_draft',
       title: 'Shopify Draft Order',
       description: 'Create an interactive draft order in Shopify',
-      icon: 'fas fa-shopping-cart',
+      icon: <ShoppingCart className="w-6 h-6" />,
       benefits: [
         'Customer can review and approve online',
         'Automatic inventory management',
@@ -64,7 +65,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
       id: 'qbo_estimate',
       title: 'QuickBooks Estimate',
       description: 'Generate a professional estimate in QuickBooks',
-      icon: 'fas fa-file-invoice-dollar',
+      icon: <FileText className="w-6 h-6" />,
       benefits: [
         'Professional PDF generation',
         'Accounting integration',
@@ -198,8 +199,8 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
     return (
       <Card className="animate-pulse">
         <CardContent className="p-8 text-center">
-          <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary text-2xl mx-auto mb-4">
-            <i className="fas fa-brain animate-pulse" />
+          <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center text-primary mx-auto mb-4">
+            <Brain className="w-8 h-8 animate-pulse" />
           </div>
           <h3 className="text-gray-900 dark:text-white font-medium mb-2">AI is analyzing the inquiry...</h3>
           <p className="text-gray-600 dark:text-gray-300">Identifying products, pricing, and best quote option</p>
@@ -215,7 +216,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
         <Card variant="glass">
           <CardHeader>
             <CardTitle className="flex items-center gap-3">
-              <i className="fas fa-brain text-primary" />
+              <Brain className="w-5 h-5 text-primary" />
               AI Quote Intelligence
               <Badge variant={quoteIntelligence.complexity === 'simple' ? 'success' : 'warning'}>
                 {quoteIntelligence.complexity}
@@ -275,10 +276,10 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     <div className={cn(
-                      'w-12 h-12 rounded-lg flex items-center justify-center text-xl',
+                      'w-12 h-12 rounded-lg flex items-center justify-center',
                       option.recommended ? 'bg-success/20 text-success' : 'bg-primary/20 text-primary'
                     )}>
-                      <i className={option.icon} />
+                      {option.icon}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
@@ -291,7 +292,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
                       <ul className="space-y-1">
                         {option.benefits.slice(0, 3).map((benefit, index) => (
                           <li key={index} className="text-gray-500 dark:text-gray-400 text-xs flex items-center gap-2">
-                            <i className="fas fa-check text-success w-3" />
+                            <Check className="w-3 h-3 text-success" />
                             {benefit}
                           </li>
                         ))}
@@ -329,7 +330,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
                       onClick={() => removeProduct(product.id)}
                       className="text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300"
                     >
-                      <i className="fas fa-trash" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
 
@@ -380,7 +381,7 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
       <div className="flex justify-end">
         <Button
           size="lg"
-          leftIcon={<i className="fas fa-rocket" />}
+          leftIcon={<Rocket className="w-4 h-4" />}
           onClick={handleCreateQuote}
           disabled={!selectedOption || products.length === 0}
         >
@@ -389,44 +390,46 @@ const DirectQuoteCreator: React.FC<DirectQuoteCreatorProps> = ({
       </div>
 
       {/* Confirmation Modal */}
-      <Modal
-        isOpen={showConfirmModal}
-        onClose={() => setShowConfirmModal(false)}
-        title={`Create ${selectedOption === 'shopify_draft' ? 'Shopify Draft Order' : 'QuickBooks Estimate'}`}
-        size="lg"
-      >
-        <div className="space-y-4">
-          <p className="text-gray-600 dark:text-gray-300">
-            You&apos;re about to create a {selectedOption === 'shopify_draft' ? 'Shopify Draft Order' : 'QuickBooks Estimate'}
-            for {customerEmail} with a total value of ${getTotalValue().toFixed(2)}.
-          </p>
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>
+              Create {selectedOption === 'shopify_draft' ? 'Shopify Draft Order' : 'QuickBooks Estimate'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-gray-600 dark:text-gray-300">
+              You&apos;re about to create a {selectedOption === 'shopify_draft' ? 'Shopify Draft Order' : 'QuickBooks Estimate'}
+              for {customerEmail} with a total value of ${getTotalValue().toFixed(2)}.
+            </p>
 
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-            <h4 className="text-gray-900 dark:text-white font-medium mb-2">Quote Summary:</h4>
-            <ul className="space-y-1">
-              {products.map(product => (
-                <li key={product.id} className="text-gray-600 dark:text-gray-300 text-sm flex justify-between">
-                  <span>{product.name} (x{product.quantity})</span>
-                  <span>${product.totalPrice.toFixed(2)}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+              <h4 className="text-gray-900 dark:text-white font-medium mb-2">Quote Summary:</h4>
+              <ul className="space-y-1">
+                {products.map(product => (
+                  <li key={product.id} className="text-gray-600 dark:text-gray-300 text-sm flex justify-between">
+                    <span>{product.name} (x{product.quantity})</span>
+                    <span>${product.totalPrice.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
-          <div className="flex gap-3 justify-end">
-            <Button variant="ghost" onClick={() => setShowConfirmModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmCreateQuote}
-              loading={isCreating}
-              leftIcon={<i className="fas fa-check" />}
-            >
-              Confirm & Create
-            </Button>
+            <div className="flex gap-3 justify-end">
+              <Button variant="ghost" onClick={() => setShowConfirmModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmCreateQuote}
+                loading={isCreating}
+                leftIcon={<Check className="w-4 h-4" />}
+              >
+                Confirm & Create
+              </Button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

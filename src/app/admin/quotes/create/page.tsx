@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   description: 'Create a new quote for a customer.',
 };
 
+// Force dynamic rendering to avoid SSG issues with client components
+export const dynamic = 'force-dynamic';
+
 export default function CreateQuotePage() {
   return (
     <div className="container py-4">

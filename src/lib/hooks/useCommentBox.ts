@@ -1,6 +1,6 @@
 import { useState, useCallback, FormEvent } from 'react';
 import axios, { AxiosError } from 'axios';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { AttachmentData, TicketComment as CommentData } from '@/types/ticket';
 
 interface UseCommentBoxProps {

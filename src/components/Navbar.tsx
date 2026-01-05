@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSession, signOut } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation'; // Added for programmatic navigation after logout
+import { UserCircle, LogOut, LogIn } from 'lucide-react';
 
 export default function Navbar() {
     const { data: session, isPending } = useSession();
@@ -45,27 +46,27 @@ export default function Navbar() {
                     <div className="flex items-center gap-4">
                         {isAuthenticated && session ? (
                             <>
-                                <Link 
-                                    href="/profile" 
+                                <Link
+                                    href="/profile"
                                     className="flex items-center gap-2 text-foreground-muted hover:text-foreground transition-colors"
                                 >
-                                    <i className="fas fa-user-circle"></i>
+                                    <UserCircle className="w-5 h-5" />
                                     <span>{session.user?.name || session.user?.email}</span>
                                 </Link>
-                                <button 
+                                <button
                                     onClick={handleLogout}
                                     className="flex items-center gap-2 px-4 py-2 rounded-md bg-danger/80 text-white hover:bg-danger transition-colors"
                                 >
-                                    <i className="fas fa-sign-out-alt"></i>
+                                    <LogOut className="w-4 h-4" />
                                     Logout
                                 </button>
                             </>
                         ) : (
-                            <Link 
-                                href="/auth/signin" 
+                            <Link
+                                href="/auth/signin"
                                 className="flex items-center gap-2 px-4 py-2 rounded-md bg-primary/80 text-white hover:bg-primary transition-colors"
                             >
-                                <i className="fas fa-sign-in-alt"></i>
+                                <LogIn className="w-4 h-4" />
                                 Sign In
                             </Link>
                         )}

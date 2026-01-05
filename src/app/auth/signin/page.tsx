@@ -4,6 +4,7 @@ import { signIn } from '@/lib/auth-client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { Clock, AlertTriangle, LogIn } from 'lucide-react';
 
 // Create a separate component for the sign-in form that uses useSearchParams
 function SignInForm() {
@@ -89,7 +90,7 @@ function SignInForm() {
               {errorInfo && (
                 <div className={`alert alert-${errorInfo.type} border-0 shadow-sm`} role="alert">
                   <div className="d-flex align-items-start">
-                    <i className={`fas ${errorInfo.type === 'warning' ? 'fa-clock' : 'fa-exclamation-triangle'} me-3 mt-1`}></i>
+                    {errorInfo.type === 'warning' ? <Clock className="w-5 h-5 me-3 mt-1" /> : <AlertTriangle className="w-5 h-5 me-3 mt-1" />}
                     <div>
                       <h6 className="alert-heading mb-1">{errorInfo.title}</h6>
                       <p className="mb-0 small">{errorInfo.message}</p>
@@ -132,7 +133,7 @@ function SignInForm() {
                       </>
                     ) : (
                       <>
-                        <i className="fas fa-sign-in-alt me-2"></i>
+                        <LogIn className="w-5 h-5 me-2" />
                         Sign In
                       </>
                     )}

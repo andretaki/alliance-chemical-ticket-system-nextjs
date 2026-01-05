@@ -102,15 +102,15 @@ export default function ManageUsersPage() {
             {users.length === 0 ? (
               <p>No users found for the selected filter.</p>
             ) : (
-              <table className="table table-striped">
+              <table className="table table-striped" aria-label="User management">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Registered</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Registered</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
                   </tr>
                 </thead>
                 <tbody>

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui';
 import { StatusBadge, PriorityBadge } from '@/components/StatusBadge';
 import { cn } from '@/utils/cn';
+import { Ticket, Mail, AlertTriangle, CheckCircle, Clock, Star, ArrowUp, ArrowDown, Eye, Plus, FileText, Users, BarChart3 } from 'lucide-react';
 
 interface DashboardStats {
   totalTickets: number;
@@ -97,42 +98,42 @@ const ModernDashboard: React.FC = () => {
     {
       title: 'Total Tickets',
       value: stats.totalTickets,
-      icon: 'fas fa-ticket',
+      icon: <Ticket className="w-6 h-6" />,
       color: 'text-primary',
       change: { value: 12, isPositive: true }
     },
     {
       title: 'Open Tickets',
       value: stats.openTickets,
-      icon: 'fas fa-envelope-open',
+      icon: <Mail className="w-6 h-6" />,
       color: 'text-warning',
       change: { value: 5, isPositive: false }
     },
     {
       title: 'Urgent Tickets',
       value: stats.urgentTickets,
-      icon: 'fas fa-exclamation-triangle',
+      icon: <AlertTriangle className="w-6 h-6" />,
       color: 'text-danger',
       change: { value: 2, isPositive: false }
     },
     {
       title: 'Resolved Today',
       value: stats.resolvedToday,
-      icon: 'fas fa-check-circle',
+      icon: <CheckCircle className="w-6 h-6" />,
       color: 'text-success',
       change: { value: 8, isPositive: true }
     },
     {
       title: 'Avg Response Time',
       value: stats.avgResponseTime,
-      icon: 'fas fa-clock',
+      icon: <Clock className="w-6 h-6" />,
       color: 'text-secondary',
       change: { value: 15, isPositive: true }
     },
     {
       title: 'Customer Satisfaction',
       value: `${stats.customerSatisfaction}/5`,
-      icon: 'fas fa-star',
+      icon: <Star className="w-6 h-6" />,
       color: 'text-success',
       change: { value: 3, isPositive: true }
     }
@@ -217,7 +218,7 @@ const ModernDashboard: React.FC = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className={cn(
-                  'w-12 h-12 rounded-lg flex items-center justify-center text-white text-xl',
+                  'w-12 h-12 rounded-lg flex items-center justify-center text-white',
                   'bg-gradient-to-br shadow-lg',
                   stat.color === 'text-primary' && 'from-primary to-primary-hover shadow-primary/30',
                   stat.color === 'text-warning' && 'from-warning to-warning-hover shadow-warning/30',
@@ -225,15 +226,15 @@ const ModernDashboard: React.FC = () => {
                   stat.color === 'text-success' && 'from-success to-success-hover shadow-success/30',
                   stat.color === 'text-secondary' && 'from-secondary to-secondary-hover shadow-secondary/30'
                 )}>
-                  <i className={stat.icon} />
+                  {stat.icon}
                 </div>
-                
+
                 {stat.change && (
-                  <Badge 
+                  <Badge
                     variant={stat.change.isPositive ? 'success' : 'danger'}
-                    className="text-xs"
+                    className="text-xs flex items-center gap-1"
                   >
-                    <i className={`fas fa-arrow-${stat.change.isPositive ? 'up' : 'down'} mr-1`} />
+                    {stat.change.isPositive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
                     {stat.change.value}%
                   </Badge>
                 )}
@@ -310,8 +311,8 @@ const ModernDashboard: React.FC = () => {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -319,7 +320,7 @@ const ModernDashboard: React.FC = () => {
                       }}
                       aria-label={`View ticket ${ticket.id}`}
                     >
-                      <i className="fas fa-eye" />
+                      <Eye className="w-4 h-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -333,8 +334,8 @@ const ModernDashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card variant="outline" interactive className="hover:scale-105 transition-transform">
           <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-primary text-xl mx-auto mb-4">
-              <i className="fas fa-plus" />
+            <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center text-primary mx-auto mb-4">
+              <Plus className="w-6 h-6" />
             </div>
             <h3 className="text-gray-900 dark:text-white font-medium mb-2">New Ticket</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">Create a new support ticket</p>
@@ -343,8 +344,8 @@ const ModernDashboard: React.FC = () => {
 
         <Card variant="outline" interactive className="hover:scale-105 transition-transform">
           <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-success/20 rounded-lg flex items-center justify-center text-success text-xl mx-auto mb-4">
-              <i className="fas fa-file-invoice-dollar" />
+            <div className="w-12 h-12 bg-success/20 rounded-lg flex items-center justify-center text-success mx-auto mb-4">
+              <FileText className="w-6 h-6" />
             </div>
             <h3 className="text-gray-900 dark:text-white font-medium mb-2">Generate Quote</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">Create a customer quote</p>
@@ -353,8 +354,8 @@ const ModernDashboard: React.FC = () => {
 
         <Card variant="outline" interactive className="hover:scale-105 transition-transform">
           <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-warning/20 rounded-lg flex items-center justify-center text-warning text-xl mx-auto mb-4">
-              <i className="fas fa-users" />
+            <div className="w-12 h-12 bg-warning/20 rounded-lg flex items-center justify-center text-warning mx-auto mb-4">
+              <Users className="w-6 h-6" />
             </div>
             <h3 className="text-gray-900 dark:text-white font-medium mb-2">Manage Customers</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">View and edit customer data</p>
@@ -363,8 +364,8 @@ const ModernDashboard: React.FC = () => {
 
         <Card variant="outline" interactive className="hover:scale-105 transition-transform">
           <CardContent className="p-6 text-center">
-            <div className="w-12 h-12 bg-secondary/20 rounded-lg flex items-center justify-center text-secondary text-xl mx-auto mb-4">
-              <i className="fas fa-chart-bar" />
+            <div className="w-12 h-12 bg-secondary/20 rounded-lg flex items-center justify-center text-secondary mx-auto mb-4">
+              <BarChart3 className="w-6 h-6" />
             </div>
             <h3 className="text-gray-900 dark:text-white font-medium mb-2">View Reports</h3>
             <p className="text-gray-500 dark:text-gray-400 text-sm">Analytics and insights</p>

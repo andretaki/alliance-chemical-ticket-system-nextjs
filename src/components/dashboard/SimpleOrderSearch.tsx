@@ -5,27 +5,28 @@ import { useDebounce } from 'use-debounce';
 import axios from 'axios';
 import Link from 'next/link';
 import { OrderSearchResult } from '@/types/orderSearch';
+import { Receipt, CheckCircle, Clock, PauseCircle, HelpCircle, Ticket, ShoppingBag, Ship, FileText, Search, XCircle } from 'lucide-react';
 
 // This is the new "Customer 360" Card component
 const SearchResultCard: React.FC<{ result: OrderSearchResult }> = ({ result }) => {
     const getStatusInfo = () => {
         const fulfillment = result.fulfillmentStatus?.replace(/_/g, ' ') || 'Unknown';
         const shipstation = result.shipStationStatus?.replace(/_/g, ' ') || 'Awaiting Shipment';
-        
+
         let colorClasses = 'bg-gray-200 text-gray-800'; // Default
-        let icon = 'fa-question-circle';
+        let icon: React.ReactNode = <HelpCircle className="w-4 h-4" />;
 
         const lowerFulfillment = fulfillment.toLowerCase();
         const lowerShipstation = shipstation.toLowerCase();
 
         if (lowerFulfillment.includes('fulfilled') || lowerShipstation.includes('shipped')) {
-            colorClasses = 'bg-green-100 text-green-800'; icon = 'fa-check-circle';
+            colorClasses = 'bg-green-100 text-green-800'; icon = <CheckCircle className="w-4 h-4" />;
         } else if (lowerFulfillment.includes('unfulfilled') || lowerShipstation.includes('awaiting')) {
-            colorClasses = 'bg-yellow-100 text-yellow-800'; icon = 'fa-clock';
+            colorClasses = 'bg-yellow-100 text-yellow-800'; icon = <Clock className="w-4 h-4" />;
         } else if (lowerShipstation.includes('on hold')) {
-            colorClasses = 'bg-red-100 text-red-800'; icon = 'fa-pause-circle';
+            colorClasses = 'bg-red-100 text-red-800'; icon = <PauseCircle className="w-4 h-4" />;
         }
-        
+
         const statusText = lowerFulfillment.includes('fulfilled') ? fulfillment : shipstation;
 
         return { text: statusText, colorClasses, icon };
@@ -37,11 +38,11 @@ const SearchResultCard: React.FC<{ result: OrderSearchResult }> = ({ result }) =
         <div className="bg-white border border-gray-200 dark:bg-gray-800/50 dark:border-gray-700 rounded-2xl mb-4 shadow-lg transition-all duration-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:shadow-2xl hover:-translate-y-1">
             <header className="px-6 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                    <i className="fas fa-receipt text-primary"></i>
+                    <Receipt className="w-5 h-5 text-primary" />
                     <span>Order {result.shopifyOrderName}</span>
                 </h3>
                 <div className={`px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-2 ${statusInfo.colorClasses}`}>
-                    <i className={`fas ${statusInfo.icon}`}></i>
+                    {statusInfo.icon}
                     <span>{statusInfo.text}</span>
                 </div>
             </header>
@@ -69,21 +70,21 @@ const SearchResultCard: React.FC<{ result: OrderSearchResult }> = ({ result }) =
             <footer className="px-6 py-3 bg-gray-50 dark:bg-gray-900/50 rounded-b-2xl flex justify-end items-center gap-2 flex-wrap">
                 {result.relatedTicketUrl && (
                     <Link href={result.relatedTicketUrl} className="px-3 py-1 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-500/20 dark:text-blue-300 dark:hover:bg-blue-500/40 dark:hover:text-white transition-all text-sm flex items-center gap-2" title="View Related Ticket">
-                        <i className="fas fa-ticket-alt"></i> Ticket #{result.relatedTicketId}
+                        <Ticket className="w-4 h-4" /> Ticket #{result.relatedTicketId}
                     </Link>
                 )}
                 {result.shopifyAdminUrl && (
                     <a href={result.shopifyAdminUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-500/20 dark:text-green-300 dark:hover:bg-green-500/40 dark:hover:text-white transition-all text-sm flex items-center gap-2" title="View in Shopify">
-                        <i className="fab fa-shopify"></i> Shopify
+                        <ShoppingBag className="w-4 h-4" /> Shopify
                     </a>
                 )}
                 {result.shipStationUrl && (
                     <a href={result.shipStationUrl} target="_blank" rel="noopener noreferrer" className="px-3 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-500/20 dark:text-gray-300 dark:hover:bg-gray-500/40 dark:hover:text-white transition-all text-sm flex items-center gap-2" title="View in ShipStation">
-                        <i className="fas fa-ship"></i> ShipStation
+                        <Ship className="w-4 h-4" /> ShipStation
                     </a>
                 )}
                 <Link href={`/admin/quotes/create`} className="px-4 py-1 rounded-lg bg-gradient-to-r from-primary to-primary-hover text-white font-bold hover:scale-105 transition-transform text-sm flex items-center gap-2" title="Create a new quote for this customer">
-                    <i className="fas fa-file-invoice-dollar"></i> New Quote
+                    <FileText className="w-4 h-4" /> New Quote
                 </Link>
             </footer>
         </div>
@@ -131,7 +132,7 @@ export default function SimpleOrderSearch({ placeholder = "Search Orders, Custom
   return (
     <div className="w-100 mx-auto">
       <div className="relative mb-4">
-          <i className="fas fa-search absolute top-1/2 left-4 -translate-y-1/2 text-gray-400"></i>
+          <Search className="w-5 h-5 absolute top-1/2 left-4 -translate-y-1/2 text-gray-400" />
           <input
               type="text"
               value={query}
@@ -146,7 +147,7 @@ export default function SimpleOrderSearch({ placeholder = "Search Orders, Custom
               )}
               {query && !isSearching && (
                   <button onClick={clearSearch} className="text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors">
-                      <i className="fas fa-times-circle"></i>
+                      <XCircle className="w-5 h-5" />
                   </button>
               )}
           </div>
@@ -164,7 +165,7 @@ export default function SimpleOrderSearch({ placeholder = "Search Orders, Custom
 
           {!isSearching && debouncedQuery.length >= 2 && results.length === 0 && (
               <div className="text-center text-gray-500 dark:text-gray-400 p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50 dark:bg-gray-800/50">
-                  <i className="fas fa-search text-3xl mb-3"></i>
+                  <Search className="w-8 h-8 mx-auto mb-3" />
                   <p className="font-semibold">No results found for &quot;{debouncedQuery}&quot;</p>
                   <p className="text-sm">Try an order number, customer name, or email.</p>
               </div>

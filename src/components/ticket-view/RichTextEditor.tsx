@@ -4,6 +4,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
+import { Bold, Italic, List, ListOrdered, Link as LinkIcon, Unlink, Trash2 } from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
@@ -57,7 +58,7 @@ const RichTextEditor = ({
           disabled={readOnly}
           title="Bold"
         >
-          <i className="fas fa-bold"></i>
+          <Bold className="w-4 h-4" />
         </button>
         <button
           type="button"
@@ -66,7 +67,7 @@ const RichTextEditor = ({
           disabled={readOnly}
           title="Italic"
         >
-          <i className="fas fa-italic"></i>
+          <Italic className="w-4 h-4" />
         </button>
         <button
           type="button"
@@ -75,7 +76,7 @@ const RichTextEditor = ({
           disabled={readOnly}
           title="Bullet List"
         >
-          <i className="fas fa-list-ul"></i>
+          <List className="w-4 h-4" />
         </button>
         <button
           type="button"
@@ -84,7 +85,7 @@ const RichTextEditor = ({
           disabled={readOnly}
           title="Numbered List"
         >
-          <i className="fas fa-list-ol"></i>
+          <ListOrdered className="w-4 h-4" />
         </button>
         <button
           type="button"
@@ -98,7 +99,7 @@ const RichTextEditor = ({
           disabled={readOnly}
           title="Insert Link"
         >
-          <i className="fas fa-link"></i>
+          <LinkIcon className="w-4 h-4" />
         </button>
         <button
           type="button"
@@ -107,7 +108,7 @@ const RichTextEditor = ({
           disabled={!editor?.isActive('link') || readOnly}
           title="Remove Link"
         >
-          <i className="fas fa-unlink"></i>
+          <Unlink className="w-4 h-4" />
         </button>
         <button
           type="button"
@@ -116,7 +117,7 @@ const RichTextEditor = ({
           disabled={readOnly || !editor?.getText().length}
           title="Clear Content"
         >
-          <i className="fas fa-trash"></i>
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
       <EditorContent

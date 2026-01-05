@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Alert, Button, Card, Form, Row, Col, Spinner, Modal, Badge, Accordion } from 'react-bootstrap';
 import Link from 'next/link';
+import { User, Wand2, Truck, FileText, StickyNote, Bot, Clock, Info, ArrowLeft, Plus, Check } from 'lucide-react';
 
 interface CustomerFormData {
   firstName: string;
@@ -428,7 +429,7 @@ const CreateCustomerClient: React.FC = () => {
           <Card.Header className="d-flex justify-content-between align-items-center">
             <div>
               <h5 className="mb-0">
-                <i className="fas fa-user me-2 text-primary"></i>
+                <User className="w-4 h-4 me-2 text-primary" />
                 Personal Information
               </h5>
             </div>
@@ -445,7 +446,7 @@ const CreateCustomerClient: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <i className="fas fa-magic me-2"></i>
+                  <Wand2 className="w-4 h-4 me-2" />
                   Generate AI Suggestions
                 </>
               )}
@@ -550,7 +551,7 @@ const CreateCustomerClient: React.FC = () => {
         <Card className="mb-4">
           <Card.Header>
             <h5 className="mb-0">
-              <i className="fas fa-shipping-fast me-2 text-primary"></i>
+              <Truck className="w-4 h-4 me-2 text-primary" />
               Shipping Address
             </h5>
           </Card.Header>
@@ -639,7 +640,7 @@ const CreateCustomerClient: React.FC = () => {
         <Card className="mb-4">
           <Card.Header>
             <h5 className="mb-0">
-              <i className="fas fa-file-invoice me-2 text-primary"></i>
+              <FileText className="w-4 h-4 me-2 text-primary" />
               Billing Address
             </h5>
           </Card.Header>
@@ -738,11 +739,11 @@ const CreateCustomerClient: React.FC = () => {
         <Card className="mb-4">
           <Card.Header>
             <h5 className="mb-0">
-              <i className="fas fa-sticky-note me-2 text-primary"></i>
+              <StickyNote className="w-4 h-4 me-2 text-primary" />
               Additional Information
               {formData.notes.includes('**AI') && (
                 <Badge bg="success" className="ms-2">
-                  <i className="fas fa-robot me-1"></i>
+                  <Bot className="w-3 h-3 me-1" />
                   AI Enhanced
                 </Badge>
               )}
@@ -760,7 +761,7 @@ const CreateCustomerClient: React.FC = () => {
               />
               <Form.Text className="text-muted">
                 {formData.notes.includes('**AI') && (
-                  <><i className="fas fa-info-circle me-1"></i>This section contains AI-generated suggestions. You can edit them before saving.</>
+                  <><Info className="w-4 h-4 me-1" />This section contains AI-generated suggestions. You can edit them before saving.</>
                 )}
               </Form.Text>
             </Form.Group>
@@ -770,7 +771,7 @@ const CreateCustomerClient: React.FC = () => {
         {/* Action Buttons */}
         <div className="d-flex justify-content-between">
           <Link href="/admin" className="btn btn-outline-secondary">
-            <i className="fas fa-arrow-left me-2"></i>
+            <ArrowLeft className="w-4 h-4 me-2" />
             Back to Admin
           </Link>
           
@@ -787,7 +788,7 @@ const CreateCustomerClient: React.FC = () => {
               </>
             ) : (
               <>
-                <i className="fas fa-plus me-2"></i>
+                <Plus className="w-4 h-4 me-2" />
                 Create Customer
               </>
             )}
@@ -799,7 +800,7 @@ const CreateCustomerClient: React.FC = () => {
       <Modal show={showAiModal} onHide={() => setShowAiModal(false)} size="xl">
         <Modal.Header closeButton>
           <Modal.Title>
-            <i className="fas fa-robot me-2 text-primary"></i>
+            <Bot className="w-5 h-5 me-2 text-primary" />
             AI Customer Communication Suggestions
           </Modal.Title>
         </Modal.Header>
@@ -808,7 +809,7 @@ const CreateCustomerClient: React.FC = () => {
             <>
               <Alert variant="info" className="mb-4">
                 <div className="d-flex align-items-center">
-                  <i className="fas fa-clock me-2"></i>
+                  <Clock className="w-4 h-4 me-2" />
                   <div>
                     <strong>Estimated Time Savings: {aiSuggestions.estimatedCostSavings.timeInMinutes} minutes</strong>
                     <br />
@@ -960,7 +961,7 @@ const CreateCustomerClient: React.FC = () => {
             Cancel
           </Button>
           <Button variant="primary" onClick={applySelectedSuggestions}>
-            <i className="fas fa-check me-2"></i>
+            <Check className="w-4 h-4 me-2" />
             Apply Selected Suggestions
           </Button>
         </Modal.Footer>

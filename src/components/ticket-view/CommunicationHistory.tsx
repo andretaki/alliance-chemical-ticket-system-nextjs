@@ -6,6 +6,7 @@ import DOMPurify from 'dompurify';
 import AttachmentListDisplay from './AttachmentListDisplay';
 import { isAISuggestionNote, extractAISuggestionContent } from '@/utils/aiSuggestionHelpers';
 import type { TicketComment, Ticket as TicketData, AttachmentData, TicketUser as BaseUser } from '@/types/ticket';
+import { MessageSquare, Copy, Send } from 'lucide-react';
 
 // Type definitions
 // type BaseUser = { id: string; name: string | null; email: string | null; };
@@ -21,19 +22,6 @@ interface CommunicationHistoryProps {
 }
 
 // Helper Functions
-const getFileIconClass = (mimeType?: string | null): string => {
-  if (!mimeType) return 'fa-file';
-  const mt = mimeType.toLowerCase();
-  if (mt.startsWith('image/')) return 'fa-file-image';
-  if (mt === 'application/pdf') return 'fa-file-pdf';
-  if (mt.includes('word')) return 'fa-file-word';
-  if (mt.includes('excel')) return 'fa-file-excel';
-  if (mt.includes('powerpoint')) return 'fa-file-powerpoint';
-  if (mt.includes('zip') || mt.includes('compressed')) return 'fa-file-archive';
-  if (mt.startsWith('text/')) return 'fa-file-alt';
-  return 'fa-file';
-};
-
 const formatFileSize = (bytes?: number): string => {
   if (bytes === undefined || bytes === null || bytes < 0) return '';
   if (bytes === 0) return '0 B';
@@ -66,7 +54,7 @@ export default function CommunicationHistory({
       <div className="communication-empty text-center py-5">
         <div className="empty-state">
           <div className="empty-icon mb-3">
-            <i className="fas fa-comments fa-3x text-muted opacity-25"></i>
+            <MessageSquare className="w-12 h-12 text-muted opacity-25" />
           </div>
           <h5 className="text-muted">No messages yet</h5>
           <p className="text-muted mb-0">This conversation will appear here once messages are added.</p>
@@ -105,8 +93,8 @@ export default function CommunicationHistory({
                     <div className="ai-suggestion-content">
                       <div className="suggested-text" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(aiContent) }} />
                       <div className="d-flex gap-2 mt-2">
-                        <button className="btn btn-sm btn-outline-primary" onClick={() => navigator.clipboard.writeText(aiContent)}><i className="fas fa-copy me-1"></i>Copy</button>
-                        <button className="btn btn-sm btn-primary" onClick={() => handleApproveAndSendDraft(aiContent)} disabled={isSubmittingComment}><i className="fas fa-paper-plane me-1"></i>Use & Send</button>
+                        <button className="btn btn-sm btn-outline-primary inline-flex items-center gap-1" onClick={() => navigator.clipboard.writeText(aiContent)}><Copy className="w-4 h-4" />Copy</button>
+                        <button className="btn btn-sm btn-primary inline-flex items-center gap-1" onClick={() => handleApproveAndSendDraft(aiContent)} disabled={isSubmittingComment}><Send className="w-4 h-4" />Use & Send</button>
                       </div>
                     </div>
                   </div>

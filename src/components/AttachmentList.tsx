@@ -1,8 +1,38 @@
 import React from 'react';
 import type { AttachmentData } from '@/types/ticket';
+import { Paperclip, FileText, Image, FileArchive } from 'lucide-react';
 
 interface AttachmentListProps {
   attachments: AttachmentData[];
+}
+
+// Helper function to get appropriate icon based on file extension
+function getFileIcon(fileName: string): React.ReactNode {
+  const extension = fileName.split('.').pop()?.toLowerCase();
+  const iconClass = "w-4 h-4";
+
+  switch (extension) {
+    case 'pdf':
+    case 'doc':
+    case 'docx':
+    case 'xls':
+    case 'xlsx':
+    case 'ppt':
+    case 'pptx':
+    case 'txt':
+      return <FileText className={iconClass} />;
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+      return <Image className={iconClass} />;
+    case 'zip':
+    case 'rar':
+    case '7z':
+      return <FileArchive className={iconClass} />;
+    default:
+      return <FileText className={iconClass} />;
+  }
 }
 
 const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) => {
@@ -12,8 +42,8 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) => {
 
   return (
     <div className="attachment-list">
-      <h6 className="mb-2">
-        <i className="fas fa-paperclip me-2"></i>
+      <h6 className="mb-2 flex items-center gap-2">
+        <Paperclip className="w-4 h-4" />
         Attachments ({attachments.length})
       </h6>
       <div className="list-group">
@@ -25,7 +55,7 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) => {
             rel="noopener noreferrer"
             className="list-group-item list-group-item-action d-flex align-items-center"
           >
-            <i className={`fas ${getFileIcon(attachment.filename || attachment.originalFilename)} me-2`}></i>
+            <span className="me-2">{getFileIcon(attachment.filename || attachment.originalFilename)}</span>
             <div className="flex-grow-1">
               <div className="d-flex justify-content-between align-items-center">
                 <span className="text-truncate" style={{ maxWidth: '300px' }}>
@@ -41,38 +71,6 @@ const AttachmentList: React.FC<AttachmentListProps> = ({ attachments }) => {
       </div>
     </div>
   );
-};
-
-// Helper function to get appropriate icon based on file extension
-function getFileIcon(fileName: string): string {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  
-  switch (extension) {
-    case 'pdf':
-      return 'fa-file-pdf';
-    case 'doc':
-    case 'docx':
-      return 'fa-file-word';
-    case 'xls':
-    case 'xlsx':
-      return 'fa-file-excel';
-    case 'ppt':
-    case 'pptx':
-      return 'fa-file-powerpoint';
-    case 'jpg':
-    case 'jpeg':
-    case 'png':
-    case 'gif':
-      return 'fa-file-image';
-    case 'zip':
-    case 'rar':
-    case '7z':
-      return 'fa-file-archive';
-    case 'txt':
-      return 'fa-file-alt';
-    default:
-      return 'fa-file';
-  }
 }
 
 // Helper function to format file size

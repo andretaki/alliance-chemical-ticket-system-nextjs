@@ -6,6 +6,25 @@ import Link from 'next/link';
 import { useSession } from '@/lib/auth-client';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui';
+import {
+  Home,
+  Ticket,
+  FileText,
+  Users,
+  BarChart3,
+  Settings,
+  UserCog,
+  SlidersHorizontal,
+  Plug,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Menu,
+  Plus,
+  Bell,
+  User,
+  LogOut,
+} from 'lucide-react';
 
 interface ModernLayoutProps {
   children: React.ReactNode;
@@ -14,7 +33,7 @@ interface ModernLayoutProps {
 interface SidebarItem {
   href: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   badge?: string;
   isActive?: boolean;
   subItems?: SidebarItem[];
@@ -53,43 +72,43 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
     {
       href: '/dashboard',
       label: 'Dashboard',
-      icon: 'fas fa-home',
+      icon: <Home className="w-5 h-5" />,
       isActive: pathname === '/dashboard'
     },
     {
       href: '/tickets',
       label: 'Tickets',
-      icon: 'fas fa-ticket',
+      icon: <Ticket className="w-5 h-5" />,
       badge: '5',
       isActive: pathname?.startsWith('/tickets') || false
     },
     {
       href: '/quotes',
       label: 'Quotes',
-      icon: 'fas fa-file-invoice-dollar',
+      icon: <FileText className="w-5 h-5" />,
       isActive: pathname?.startsWith('/quotes') || false
     },
     {
       href: '/customers',
       label: 'Customers',
-      icon: 'fas fa-users',
+      icon: <Users className="w-5 h-5" />,
       isActive: pathname?.startsWith('/customers') || false
     },
     ...(isManager ? [{
       href: '/reports',
       label: 'Reports',
-      icon: 'fas fa-chart-bar',
+      icon: <BarChart3 className="w-5 h-5" />,
       isActive: pathname?.startsWith('/reports') || false
     }] : []),
     ...(isAdmin ? [{
       href: '/admin',
       label: 'Administration',
-      icon: 'fas fa-cog',
+      icon: <Settings className="w-5 h-5" />,
       isActive: pathname?.startsWith('/admin') || false,
       subItems: [
-        { href: '/admin/users', label: 'Users', icon: 'fas fa-user-cog', isActive: pathname === '/admin/users' },
-        { href: '/admin/settings', label: 'Settings', icon: 'fas fa-sliders-h', isActive: pathname === '/admin/settings' },
-        { href: '/admin/integrations', label: 'Integrations', icon: 'fas fa-plug', isActive: pathname === '/admin/integrations' }
+        { href: '/admin/users', label: 'Users', icon: <UserCog className="w-4 h-4" />, isActive: pathname === '/admin/users' },
+        { href: '/admin/settings', label: 'Settings', icon: <SlidersHorizontal className="w-4 h-4" />, isActive: pathname === '/admin/settings' },
+        { href: '/admin/integrations', label: 'Integrations', icon: <Plug className="w-4 h-4" />, isActive: pathname === '/admin/integrations' }
       ]
     }] : [])
   ];
@@ -142,7 +161,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
               aria-label="Alliance Chemical Ticket System"
             >
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary-hover rounded-lg flex items-center justify-center">
-                <i className="fas fa-ticket text-white" />
+                <Ticket className="w-4 h-4 text-white" />
               </div>
               {!sidebarCollapsed && <span>Alliance Chemical</span>}
             </Link>
@@ -153,7 +172,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
               className="hidden lg:flex w-8 h-8 items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
               aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <i className={`fas fa-angle-${sidebarCollapsed ? 'right' : 'left'}`} />
+              {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             </button>
 
             {/* Close Button (Mobile) */}
@@ -162,7 +181,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
               className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
               aria-label="Close sidebar"
             >
-              <i className="fas fa-times" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
@@ -181,7 +200,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
                   )}
                   aria-current={item.isActive ? 'page' : undefined}
                 >
-                  <i className={`${item.icon} w-5 flex-shrink-0`} aria-hidden="true" />
+                  <span className="flex-shrink-0" aria-hidden="true">{item.icon}</span>
                   {!sidebarCollapsed && (
                     <>
                       <span className="flex-1">{item.label}</span>
@@ -210,7 +229,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
                         )}
                         aria-current={subItem.isActive ? 'page' : undefined}
                       >
-                        <i className={`${subItem.icon} w-4 flex-shrink-0`} aria-hidden="true" />
+                        <span className="flex-shrink-0" aria-hidden="true">{subItem.icon}</span>
                         <span>{subItem.label}</span>
                       </Link>
                     ))}
@@ -244,7 +263,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
                   variant="ghost"
                   size="sm"
                   fullWidth
-                  leftIcon={<i className="fas fa-user" />}
+                  leftIcon={<User className="w-4 h-4" />}
                   asChild
                 >
                   <Link href="/profile">Profile</Link>
@@ -253,7 +272,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
                   variant="ghost"
                   size="sm"
                   fullWidth
-                  leftIcon={<i className="fas fa-sign-out-alt" />}
+                  leftIcon={<LogOut className="w-4 h-4" />}
                   onClick={() => {
                     // Handle logout
                   }}
@@ -280,7 +299,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
               className="lg:hidden w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 dark:hover:bg-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
               aria-label="Open sidebar"
             >
-              <i className="fas fa-bars" />
+              <Menu className="w-4 h-4" />
             </button>
 
             {/* Page Title */}
@@ -294,14 +313,14 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ children }) => {
             <Button
               variant="ghost"
               size="sm"
-              leftIcon={<i className="fas fa-plus" />}
+              leftIcon={<Plus className="w-4 h-4" />}
             >
               New Ticket
             </Button>
             <Button
               variant="ghost"
               size="sm"
-              leftIcon={<i className="fas fa-bell" />}
+              leftIcon={<Bell className="w-4 h-4" />}
             >
               <span className="sr-only">Notifications</span>
             </Button>

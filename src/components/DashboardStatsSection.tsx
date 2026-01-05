@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import Link from 'next/link';
 import { ticketStatusEnum, ticketPriorityEnum } from '@/db/schema';
+import { Ticket, AlertCircle, PlusCircle, CheckCircle } from 'lucide-react';
 
 interface TicketSummary {
   id: number;
@@ -15,7 +16,7 @@ interface TicketSummary {
 interface StatCardProps {
   label: string;
   value: number | string;
-  icon: string;
+  icon: React.ReactNode;
   href?: string;
   variant?: 'default' | 'danger' | 'success' | 'warning';
   isLoading?: boolean;
@@ -33,7 +34,7 @@ function StatCard({ label, value, icon, href, variant = 'default', isLoading }: 
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:bg-gray-50 shadow-sm transition-colors dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700/50">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-medium text-gray-500 uppercase tracking-wide dark:text-gray-400">{label}</span>
-        <i className={`${icon} text-sm ${variantStyles[variant]}`} />
+        <span className={variantStyles[variant]}>{icon}</span>
       </div>
       {isLoading ? (
         <div className="h-8 w-16 bg-gray-100 rounded animate-pulse dark:bg-gray-700" />
@@ -74,8 +75,10 @@ const DashboardStatsSection: React.FC = () => {
   const fetchStats = useCallback(async () => {
     setError(null);
     try {
-      const res = await axios.get<{ data: TicketSummary[] }>('/api/tickets');
-      const tickets = res.data.data;
+      // API returns: { success, data: { tickets: [...], pagination } }
+      const res = await axios.get('/api/tickets');
+      const raw = res.data?.data?.tickets;
+      const tickets: TicketSummary[] = Array.isArray(raw) ? raw : [];
 
       const active = tickets.filter(t =>
         activeStatuses.includes(t.status as typeof activeStatuses[number])
@@ -122,14 +125,14 @@ const DashboardStatsSection: React.FC = () => {
       <StatCard
         label="Active"
         value={stats.active}
-        icon="fas fa-ticket-alt"
+        icon={<Ticket className="w-4 h-4" />}
         href="/tickets"
         isLoading={isLoading}
       />
       <StatCard
         label="Critical"
         value={stats.critical}
-        icon="fas fa-exclamation-circle"
+        icon={<AlertCircle className="w-4 h-4" />}
         href="/tickets?priority=high,urgent"
         variant="danger"
         isLoading={isLoading}
@@ -137,14 +140,14 @@ const DashboardStatsSection: React.FC = () => {
       <StatCard
         label="New Today"
         value={stats.newToday}
-        icon="fas fa-plus-circle"
+        icon={<PlusCircle className="w-4 h-4" />}
         variant="success"
         isLoading={isLoading}
       />
       <StatCard
         label="Resolved"
         value={stats.resolved}
-        icon="fas fa-check-circle"
+        icon={<CheckCircle className="w-4 h-4" />}
         variant="warning"
         isLoading={isLoading}
       />

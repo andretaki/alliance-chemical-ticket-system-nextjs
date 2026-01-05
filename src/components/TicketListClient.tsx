@@ -93,6 +93,21 @@ interface TicketListClientProps {
 
 type FilterPreset = 'all' | 'my_tickets' | 'unassigned';
 
+// Bulletproof ticket extraction - handles any API shape
+function normalizeTickets(payload: any): TicketListEntry[] {
+  const candidate =
+    payload?.data?.tickets ??
+    payload?.data?.data ??
+    payload?.tickets ??
+    payload?.data;
+
+  if (Array.isArray(candidate)) return candidate;
+  if (Array.isArray(candidate?.data)) return candidate.data;
+  if (Array.isArray(candidate?.tickets)) return candidate.tickets;
+
+  return [];
+}
+
 // Time ago helper
 function timeAgo(dateString: string): string {
   const date = new Date(dateString);
@@ -380,8 +395,10 @@ export default function TicketListClient({ limit, showSearch = true }: TicketLis
         params.append('sortOrder', sortOrder);
 
         const res = await fetch(`/api/tickets?${params.toString()}`);
-        const data = await res.json();
-        let fetchedTickets = data.data || [];
+        const payload = await res.json();
+
+        // Use bulletproof normalizer to extract tickets array
+        let fetchedTickets = normalizeTickets(payload);
 
         // Apply limit if embedded
         if (limit && limit > 0) {

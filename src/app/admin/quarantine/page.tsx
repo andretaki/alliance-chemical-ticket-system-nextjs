@@ -5,7 +5,8 @@ import { useSession } from '@/lib/auth-client';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { format } from 'date-fns';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
+import { Check, MessageCircle, Ban, Trash2 } from 'lucide-react';
 
 interface QuarantinedEmail {
   id: number;
@@ -137,14 +138,14 @@ export default function QuarantineReviewPage() {
       <div className="card shadow-sm">
         <div className="card-body">
           <div className="table-responsive">
-            <table className="table table-hover">
+            <table className="table table-hover" aria-label="Quarantined emails">
               <thead>
                 <tr>
-                  <th>Received</th>
-                  <th>From</th>
-                  <th>Subject</th>
-                  <th>AI Reason</th>
-                  <th>Actions</th>
+                  <th scope="col">Received</th>
+                  <th scope="col">From</th>
+                  <th scope="col">Subject</th>
+                  <th scope="col">AI Reason</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -159,10 +160,10 @@ export default function QuarantineReviewPage() {
                       <td><small className="text-muted">{email.aiReason || 'N/A'}</small></td>
                       <td>
                         <div className="btn-group btn-group-sm">
-                          <button className="btn btn-outline-success" onClick={() => openModal(email, 'approve-ticket')} title="Approve as Ticket"><i className="fas fa-check"></i></button>
-                          <button className="btn btn-outline-info" onClick={() => openModal(email, 'approve-comment')} title="Approve as Comment"><i className="fas fa-comment-dots"></i></button>
-                          <button className="btn btn-outline-warning" onClick={() => openModal(email, 'reject-spam')} title="Reject as Spam"><i className="fas fa-ban"></i></button>
-                          <button className="btn btn-outline-danger" onClick={() => openModal(email, 'delete')} title="Delete Permanently"><i className="fas fa-trash"></i></button>
+                          <button className="btn btn-outline-success" onClick={() => openModal(email, 'approve-ticket')} title="Approve as Ticket"><Check className="w-4 h-4" /></button>
+                          <button className="btn btn-outline-info" onClick={() => openModal(email, 'approve-comment')} title="Approve as Comment"><MessageCircle className="w-4 h-4" /></button>
+                          <button className="btn btn-outline-warning" onClick={() => openModal(email, 'reject-spam')} title="Reject as Spam"><Ban className="w-4 h-4" /></button>
+                          <button className="btn btn-outline-danger" onClick={() => openModal(email, 'delete')} title="Delete Permanently"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>

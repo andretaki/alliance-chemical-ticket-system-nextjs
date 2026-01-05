@@ -4,6 +4,18 @@ import React from 'react';
 import { format } from 'date-fns';
 import DOMPurify from 'dompurify';
 import type { AttachmentData } from '@/types/ticket';
+import {
+  FileText,
+  Image,
+  FileArchive,
+  Paperclip,
+  UserPen,
+  Lock,
+  Bot,
+  Send,
+  Mail,
+  Copy,
+} from 'lucide-react';
 
 // Helper function for formatting file size
 const formatFileSize = (bytes?: number): string => {
@@ -15,24 +27,25 @@ const formatFileSize = (bytes?: number): string => {
 };
 
 // Helper function for determining file icon
-const getFileIconClass = (mimeType?: string | null): string => {
-  if (!mimeType) return 'fa-file';
+const getFileIcon = (mimeType?: string | null): React.ReactNode => {
+  const iconClass = "w-4 h-4 text-primary";
+  if (!mimeType) return <FileText className={iconClass} />;
   const mt = mimeType.toLowerCase();
-  if (mt.startsWith('image/')) return 'fa-file-image';
-  if (mt === 'application/pdf') return 'fa-file-pdf';
-  if (mt.includes('word') || mt === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'fa-file-word';
-  if (mt.includes('excel') || mt === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') return 'fa-file-excel';
-  if (mt.includes('powerpoint') || mt === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') return 'fa-file-powerpoint';
-  if (mt.includes('zip') || mt.includes('compressed') || mt.includes('archive')) return 'fa-file-archive';
-  if (mt.startsWith('text/')) return 'fa-file-alt';
-  return 'fa-file';
+  if (mt.startsWith('image/')) return <Image className={iconClass} />;
+  if (mt === 'application/pdf') return <FileText className={iconClass} />;
+  if (mt.includes('word')) return <FileText className={iconClass} />;
+  if (mt.includes('excel')) return <FileText className={iconClass} />;
+  if (mt.includes('powerpoint')) return <FileText className={iconClass} />;
+  if (mt.includes('zip') || mt.includes('compressed') || mt.includes('archive')) return <FileArchive className={iconClass} />;
+  if (mt.startsWith('text/')) return <FileText className={iconClass} />;
+  return <FileText className={iconClass} />;
 };
 
 const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: string }> = ({ attachments, title }) => {
   if (!attachments || attachments.length === 0) return null;
   return (
     <div className="attachment-list mt-2">
-      {title && <div className="attachment-header mb-1 text-muted small"><i className="fas fa-paperclip me-1"></i>{title} ({attachments.length})</div>}
+      {title && <div className="attachment-header mb-1 text-muted small flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" />{title} ({attachments.length})</div>}
       <div className="list-group list-group-flush">
         {attachments.map(att => (
           <a
@@ -44,7 +57,7 @@ const AttachmentListDisplay: React.FC<{ attachments?: AttachmentData[], title?: 
             title={`Download ${att.originalFilename}`}
           >
             <div className="d-flex align-items-center text-truncate me-2">
-              <i className={`fas ${getFileIconClass(att.mimeType)} me-2 text-primary fa-fw`}></i>
+              <span className="me-2">{getFileIcon(att.mimeType)}</span>
               <span className="text-truncate small">{att.originalFilename}</span>
             </div>
             <span className="badge bg-light text-dark ms-2">{formatFileSize(att.fileSize)}</span>
@@ -93,32 +106,32 @@ const CommunicationItem: React.FC<CommunicationItemProps> = ({
   let itemClasses = `communication-item mb-3 border rounded shadow-sm overflow-hidden`;
   let headerClasses = `message-header px-3 py-2 d-flex justify-content-between align-items-center`;
   let avatarBg = 'bg-secondary';
-  let avatarIcon = 'fas fa-user-edit';
+  let avatarIcon: React.ReactNode = <UserPen className="w-4 h-4" />;
   let badge;
 
   if (isInternalNote) {
     itemClasses += ' bg-warning-subtle border-warning';
     headerClasses += ' bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25';
     avatarBg = 'bg-warning text-dark';
-    avatarIcon = 'fas fa-lock';
+    avatarIcon = <Lock className="w-4 h-4" />;
     badge = <span className="badge bg-warning text-dark ms-2">Internal Note</span>;
   } else if (isDraftReply) {
     itemClasses += ' bg-primary-subtle border-primary';
     headerClasses += ' bg-primary bg-opacity-10 border-bottom border-primary border-opacity-25';
     avatarBg = 'bg-primary text-white';
-    avatarIcon = 'fas fa-robot';
+    avatarIcon = <Bot className="w-4 h-4" />;
     badge = <span className="badge bg-primary ms-2">AI Suggested Reply</span>;
   } else if (isOutgoingReply) {
     itemClasses += ' bg-info-subtle border-info';
     headerClasses += ' bg-info bg-opacity-10 border-bottom border-info border-opacity-25';
     avatarBg = 'bg-info text-white';
-    avatarIcon = 'fas fa-paper-plane';
+    avatarIcon = <Send className="w-4 h-4" />;
     badge = <span className="badge bg-info text-dark ms-2" title="Sent as email">Sent</span>;
   } else if (isFromCustomer || isInitialDescription) {
     itemClasses += ' bg-success-subtle border-success';
     headerClasses += ' bg-success bg-opacity-10 border-bottom border-success border-opacity-25';
     avatarBg = 'bg-success text-white';
-    avatarIcon = 'fas fa-envelope';
+    avatarIcon = <Mail className="w-4 h-4" />;
     badge = <span className="badge bg-success ms-2" title="Received via Email">Received</span>;
   } else {
     itemClasses += ' bg-light border-light-subtle';
@@ -133,7 +146,7 @@ const CommunicationItem: React.FC<CommunicationItemProps> = ({
       <div className={headerClasses}>
         <div className="d-flex align-items-center">
           <div className={`avatar-icon rounded-circle d-flex align-items-center justify-content-center me-2 ${avatarBg}`} style={{ width: '32px', height: '32px', fontSize: '0.9rem' }}>
-            <i className={avatarIcon}></i>
+            {avatarIcon}
           </div>
           <div>
             <strong className="d-block text-dark">{fromName}</strong>
@@ -164,20 +177,20 @@ const CommunicationItem: React.FC<CommunicationItemProps> = ({
         <AttachmentListDisplay attachments={attachments} />
         {isDraftReply && onApproveAndSendDraft && (
           <div className="draft-actions mt-3 d-flex gap-2">
-            <button 
-              className="btn btn-sm btn-outline-secondary" 
-              onClick={() => navigator.clipboard.writeText(draftContent)} 
+            <button
+              className="btn btn-sm btn-outline-secondary inline-flex items-center gap-1"
+              onClick={() => navigator.clipboard.writeText(draftContent)}
               title="Copy reply text"
             >
-              <i className="fas fa-copy"></i> Copy
+              <Copy className="w-4 h-4" /> Copy
             </button>
-            <button 
-              className="btn btn-sm btn-primary" 
-              onClick={() => onApproveAndSendDraft(draftContent)} 
-              disabled={isSubmittingComment} 
+            <button
+              className="btn btn-sm btn-primary inline-flex items-center gap-1"
+              onClick={() => onApproveAndSendDraft(draftContent)}
+              disabled={isSubmittingComment}
               title="Send this reply as an email"
             >
-              <i className="fas fa-paper-plane me-1"></i> Approve & Send Email
+              <Send className="w-4 h-4" /> Approve & Send Email
             </button>
           </div>
         )}

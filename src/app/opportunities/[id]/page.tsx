@@ -4,6 +4,7 @@ import { getOpportunityById } from '@/services/opportunityService';
 import { getOpenTasksForOpportunity } from '@/services/crm/crmDashboardService';
 import { OpportunityDetailClient } from '@/components/opportunities/OpportunityDetailClient';
 import { PageShell } from '@/components/layout/PageShell';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 
 interface PageProps {
   params: any;
@@ -45,8 +46,18 @@ export default async function OpportunityDetailPage({ params }: PageProps) {
   }));
 
   return (
-    <PageShell size="wide">
-      <OpportunityDetailClient opportunity={serialized as any} openTasks={serializedTasks} />
-    </PageShell>
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-3 border-b bg-muted/30">
+        <Breadcrumb
+          items={[
+            { label: 'Opportunities', href: '/opportunities' },
+            { label: opportunity.title },
+          ]}
+        />
+      </div>
+      <PageShell size="wide">
+        <OpportunityDetailClient opportunity={serialized as any} openTasks={serializedTasks} />
+      </PageShell>
+    </div>
   );
 }

@@ -6,6 +6,23 @@ import axios, { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import { ticketPriorityEnum, ticketStatusEnum, ticketTypeEcommerceEnum } from '@/db/schema';
 import Link from 'next/link';
+import {
+  Ticket,
+  ArrowLeft,
+  AlertCircle,
+  X,
+  CheckCircle,
+  FileText,
+  Info,
+  Settings,
+  User as UserIcon,
+  Mail,
+  Phone,
+  Building,
+  ShoppingCart,
+  Truck,
+  Plus,
+} from 'lucide-react';
 
 interface User {
   id: string;
@@ -232,7 +249,7 @@ const CreateTicketClient: React.FC = () => {
           <div className="header-content">
             <div className="header-main">
               <div className="header-icon">
-                <i className="fas fa-ticket-alt" />
+                <Ticket />
               </div>
               <div className="header-text">
                 <h1 className="header-title">
@@ -247,7 +264,7 @@ const CreateTicketClient: React.FC = () => {
               className="back-btn"
               onClick={() => router.back()}
             >
-              <i className="fas fa-arrow-left" />
+              <ArrowLeft className="w-4 h-4" />
               <span>Back</span>
             </button>
           </div>
@@ -257,10 +274,10 @@ const CreateTicketClient: React.FC = () => {
         {error && !Object.keys(fieldErrors).length && (
           <div className="alert alert-error">
             <div className="alert-content">
-              <i className="fas fa-exclamation-circle alert-icon" />
+              <AlertCircle className="alert-icon" />
               <div className="alert-text">{error}</div>
               <button type="button" className="alert-close" onClick={() => setError(null)}>
-                <i className="fas fa-times" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -269,7 +286,7 @@ const CreateTicketClient: React.FC = () => {
         {createdTicketId && (
           <div className="alert alert-success">
             <div className="alert-content">
-              <i className="fas fa-check-circle alert-icon" />
+              <CheckCircle className="alert-icon" />
               <div className="alert-text">
                 <div className="alert-title">Ticket Created Successfully!</div>
                 <div className="alert-subtitle">Your ticket has been created and assigned ID #{createdTicketId}</div>
@@ -278,7 +295,7 @@ const CreateTicketClient: React.FC = () => {
                 href={`/tickets/${createdTicketId}/create-quote`} 
                 className="quote-btn"
               >
-                <i className="fas fa-file-invoice-dollar" />
+                <FileText className="w-4 h-4" />
                 Create Quote
               </Link>
             </div>
@@ -293,7 +310,7 @@ const CreateTicketClient: React.FC = () => {
             <div className="form-section">
               <div className="section-header">
                 <div className="section-icon">
-                  <i className="fas fa-info-circle" />
+                  <Info />
                 </div>
                 <div className="section-title">Basic Information</div>
               </div>
@@ -341,7 +358,7 @@ const CreateTicketClient: React.FC = () => {
             <div className="form-section">
               <div className="section-header">
                 <div className="section-icon">
-                  <i className="fas fa-cogs" />
+                  <Settings />
                 </div>
                 <div className="section-title">Ticket Settings</div>
               </div>
@@ -433,7 +450,7 @@ const CreateTicketClient: React.FC = () => {
             <div className="form-section">
               <div className="section-header">
                 <div className="section-icon">
-                  <i className="fas fa-user" />
+                  <UserIcon />
                 </div>
                 <div className="section-title">Customer Information</div>
               </div>
@@ -445,7 +462,7 @@ const CreateTicketClient: React.FC = () => {
                   </label>
                   <div className="input-wrapper">
                     <div className="input-icon">
-                      <i className="fas fa-envelope" />
+                      <Mail className="w-4 h-4" />
                     </div>
                     <input
                       type="email"
@@ -464,7 +481,7 @@ const CreateTicketClient: React.FC = () => {
                   </label>
                   <div className="input-wrapper">
                     <div className="input-icon">
-                      <i className="fas fa-phone" />
+                      <Phone className="w-4 h-4" />
                     </div>
                     <input
                       type="tel"
@@ -483,7 +500,7 @@ const CreateTicketClient: React.FC = () => {
                   </label>
                   <div className="input-wrapper">
                     <div className="input-icon">
-                      <i className="fas fa-building" />
+                      <Building className="w-4 h-4" />
                     </div>
                     <input
                       type="text"
@@ -502,7 +519,7 @@ const CreateTicketClient: React.FC = () => {
                   </label>
                   <div className="input-wrapper">
                     <div className="input-icon">
-                      <i className="fas fa-shopping-cart" />
+                      <ShoppingCart className="w-4 h-4" />
                     </div>
                     <input
                       type="text"
@@ -522,7 +539,7 @@ const CreateTicketClient: React.FC = () => {
               <div className="form-section shipping-section">
                 <div className="section-header">
                   <div className="section-icon">
-                    <i className="fas fa-shipping-fast" />
+                    <Truck />
                   </div>
                   <div className="section-title">Shipping Address</div>
                   <div className="section-badge">
@@ -712,7 +729,7 @@ const CreateTicketClient: React.FC = () => {
                 onClick={() => router.back()}
                 disabled={isSubmitting}
               >
-                <i className="fas fa-times" />
+                <X className="w-4 h-4" />
                 <span>Cancel</span>
               </button>
               <button
@@ -729,7 +746,7 @@ const CreateTicketClient: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <i className="fas fa-plus" />
+                    <Plus className="w-4 h-4" />
                     <span>Create Ticket</span>
                   </>
                 )}

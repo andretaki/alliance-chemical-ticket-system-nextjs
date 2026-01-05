@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import type { AppDraftOrderInput, DraftOrderLineItemInput, DraftOrderCustomerInput, DraftOrderAddressInput, ProductVariantData, ParentProductData, DraftOrderOutput } from '@/agents/quoteAssistant/quoteInterfaces';
 import DOMPurify from 'dompurify';
 import Image from 'next/image'; // For Next.js optimized images
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
+import { ImageIcon, Trash2, Plus, FileText } from 'lucide-react';
 
 // Updated SearchResult interface to match backend
 interface SearchResult {
@@ -504,7 +505,7 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                               )}
                               {!result.parentProduct.primaryImageUrl && (
                                 <div className="me-2 rounded bg-light d-flex align-items-center justify-content-center" style={{width: '40px', height: '40px'}}>
-                                  <i className="fas fa-image text-muted"></i>
+                                  <ImageIcon className="w-4 h-4 text-muted" />
                                 </div>
                               )}
                               <div>
@@ -557,15 +558,15 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
                   <div className="col-md-1 align-self-center mt-4 pt-2">
                     {lineItems.length > 1 && (
                       <button type="button" className="btn btn-danger btn-sm" onClick={() => removeLineItem(index)} title="Remove Item">
-                        <i className="fas fa-trash"></i>
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     )}
                   </div>
                 </div>
               );
             })}
-            <button type="button" className="btn btn-outline-secondary btn-sm mt-2" onClick={addLineItem}>
-              <i className="fas fa-plus me-1"></i> Add Item
+            <button type="button" className="btn btn-outline-secondary btn-sm mt-2 d-inline-flex align-items-center gap-1" onClick={addLineItem}>
+              <Plus className="w-4 h-4" /> Add Item
             </button>
           </fieldset>
           
@@ -734,14 +735,14 @@ const CreateQuoteClient: React.FC<CreateQuoteClientProps> = ({ ticketId, initial
           </div>
 
           <div className="d-flex justify-content-end">
-            <button type="submit" className="btn btn-success btn-lg" disabled={isLoading}>
+            <button type="submit" className="btn btn-success btn-lg d-inline-flex align-items-center gap-2" disabled={isLoading}>
               {isLoading ? (
                 <>
-                  <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                   Creating & Sending Quote...
                 </>
               ) : (
-                <><i className="fas fa-file-invoice-dollar me-2"></i> Create Draft Order & Send Invoice</>
+                <><FileText className="w-5 h-5" /> Create Draft Order & Send Invoice</>
               )}
             </button>
           </div>

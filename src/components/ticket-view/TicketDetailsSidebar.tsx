@@ -6,6 +6,28 @@ import { RagSearchInterface } from '@/components/RagSearchInterface';
 import CustomerOrderHistory from './CustomerOrderHistory';
 import type { ShopifyDraftOrderGQLResponse } from '@/agents/quoteAssistant/quoteInterfaces';
 import type { Ticket, TicketUser } from '@/types/ticket';
+import {
+  AlertTriangle,
+  Clock,
+  ChevronUp,
+  ChevronDown,
+  ArrowUp,
+  GitBranch,
+  Phone,
+  ListTodo,
+  Smile,
+  Frown,
+  Meh,
+  User,
+  Mail,
+  Settings,
+  ShoppingCart,
+  Truck,
+  Link2,
+  FileText,
+  ExternalLink,
+  Brain,
+} from 'lucide-react';
 
 interface TicketDetailsSidebarProps {
   ticket: Ticket;
@@ -16,7 +38,7 @@ interface TicketDetailsSidebarProps {
 interface SmartAction {
   id: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   variant: string;
   action: () => void;
   condition?: boolean;
@@ -116,7 +138,8 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
           fetch(`/api/customers/preferences?email=${encodeURIComponent(ticket.senderEmail)}`).then(r => r.json()).catch(() => null)
         ]);
         
-        setRelatedTickets(relatedRes.tickets || []);
+        const raw = relatedRes?.tickets ?? relatedRes?.data?.tickets;
+        setRelatedTickets(Array.isArray(raw) ? raw : []);
         setCustomerPreferences(prefsRes);
       } catch (error) {
         console.error('Failed to fetch related data:', error);
@@ -145,7 +168,7 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
     {
       id: 'escalate',
       label: 'Escalate',
-      icon: 'fas fa-arrow-up',
+      icon: <ArrowUp className="w-4 h-4" />,
       variant: 'outline-warning',
       action: () => console.log('Escalate ticket'),
       condition: ticket.priority !== 'urgent'
@@ -153,7 +176,7 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
     {
       id: 'merge',
       label: 'Find Similar',
-      icon: 'fas fa-code-branch',
+      icon: <GitBranch className="w-4 h-4" />,
       variant: 'outline-info',
       action: () => console.log('Find similar tickets'),
       condition: relatedTickets.length > 0
@@ -161,7 +184,7 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
     {
       id: 'schedule',
       label: 'Schedule Call',
-      icon: 'fas fa-phone',
+      icon: <Phone className="w-4 h-4" />,
       variant: 'outline-primary',
       action: () => console.log('Schedule call'),
       condition: !!ticket.senderPhone
@@ -169,7 +192,7 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
     {
       id: 'create_task',
       label: 'Create Task',
-      icon: 'fas fa-tasks',
+      icon: <ListTodo className="w-4 h-4" />,
       variant: 'outline-secondary',
       action: () => console.log('Create task')
     }
@@ -179,15 +202,15 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
     <div className="ticket-details-sidebar">
       {/* SLA Alert */}
       {slaStatus.isBreached && (
-        <div className="alert alert-danger alert-sm mb-3">
-          <i className="fas fa-exclamation-triangle me-2"></i>
+        <div className="alert alert-danger alert-sm mb-3 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4" />
           <strong>SLA Breached!</strong> Overdue by {Math.abs(slaStatus.remainingHours).toFixed(1)} hours
         </div>
       )}
-      
+
       {slaStatus.isAtRisk && !slaStatus.isBreached && (
-        <div className="alert alert-warning alert-sm mb-3">
-          <i className="fas fa-clock me-2"></i>
+        <div className="alert alert-warning alert-sm mb-3 flex items-center gap-2">
+          <Clock className="w-4 h-4" />
           <strong>SLA At Risk!</strong> {slaStatus.remainingHours.toFixed(1)} hours remaining
         </div>
       )}
@@ -196,11 +219,11 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
       <div className="card shadow-sm mb-4">
         <div className="card-header bg-light d-flex justify-content-between align-items-center">
           <h6 className="mb-0">Quick Actions</h6>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary"
             onClick={() => toggleSection('actions')}
           >
-            <i className={`fas fa-chevron-${expandedSections.has('actions') ? 'up' : 'down'}`}></i>
+            {expandedSections.has('actions') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
         {expandedSections.has('actions') && (
@@ -209,10 +232,10 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
               {smartActions.filter(action => action.condition !== false).map(action => (
                 <button
                   key={action.id}
-                  className={`btn btn-sm ${action.variant}`}
+                  className={`btn btn-sm ${action.variant} inline-flex items-center gap-2`}
                   onClick={action.action}
                 >
-                  <i className={`${action.icon} me-2`}></i>
+                  {action.icon}
                   {action.label}
                 </button>
               ))}
@@ -225,11 +248,11 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
       <div className="card shadow-sm mb-4">
         <div className="card-header bg-light d-flex justify-content-between align-items-center">
           <h6 className="mb-0">Ticket Details</h6>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary"
             onClick={() => toggleSection('details')}
           >
-            <i className={`fas fa-chevron-${expandedSections.has('details') ? 'up' : 'down'}`}></i>
+            {expandedSections.has('details') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
         {expandedSections.has('details') && (
@@ -251,8 +274,8 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
             {ticket.sentiment && (
               <li className="list-group-item d-flex justify-content-between align-items-center">
                 <span className="text-muted">Sentiment</span>
-                <span className={getSentimentClass(ticket.sentiment)}>
-                  <i className={`fas fa-${ticket.sentiment === 'positive' ? 'smile' : ticket.sentiment === 'negative' ? 'frown' : 'meh'} me-1`}></i>
+                <span className={`${getSentimentClass(ticket.sentiment)} inline-flex items-center gap-1`}>
+                  {ticket.sentiment === 'positive' ? <Smile className="w-4 h-4" /> : ticket.sentiment === 'negative' ? <Frown className="w-4 h-4" /> : <Meh className="w-4 h-4" />}
                   {ticket.sentiment?.toUpperCase()}
                 </span>
               </li>
@@ -283,43 +306,43 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
       <div className="card shadow-sm mb-4">
         <div className="card-header bg-light d-flex justify-content-between align-items-center">
           <h6 className="mb-0">Customer Information</h6>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary"
             onClick={() => toggleSection('customer')}
           >
-            <i className={`fas fa-chevron-${expandedSections.has('customer') ? 'up' : 'down'}`}></i>
+            {expandedSections.has('customer') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
         {expandedSections.has('customer') && (
           <div className="card-body">
-            <p className="mb-1">
-              <i className="fas fa-user-circle fa-fw me-2 text-muted"></i>
+            <p className="mb-1 flex items-center gap-2">
+              <User className="w-4 h-4 text-muted" />
               {ticket.senderName || ticket.reporter?.name || 'N/A'}
             </p>
             {(ticket.senderEmail || ticket.reporter?.email) && (
-              <p className="mb-1 small">
-                <i className="fas fa-envelope fa-fw me-2 text-muted"></i>
+              <p className="mb-1 small flex items-center gap-2">
+                <Mail className="w-4 h-4 text-muted" />
                 <a href={`mailto:${ticket.senderEmail || ticket.reporter?.email}`} className="text-primary">
                   {ticket.senderEmail || ticket.reporter?.email}
                 </a>
               </p>
             )}
             {ticket.senderPhone && (
-              <p className="mb-1 small">
-                <i className="fas fa-phone fa-fw me-2 text-muted"></i>
+              <p className="mb-1 small flex items-center gap-2">
+                <Phone className="w-4 h-4 text-muted" />
                 <a href={`tel:${ticket.senderPhone}`} className="text-primary">
                   {ticket.senderPhone}
                 </a>
               </p>
             )}
-            
+
             {/* Customer Preferences */}
             {customerPreferences && (
               <>
                 <hr className="my-2" />
                 <div className="small">
-                  <p className="mb-1">
-                    <i className="fas fa-cog fa-fw me-2 text-muted"></i>
+                  <p className="mb-1 flex items-center gap-2">
+                    <Settings className="w-4 h-4 text-muted" />
                     <strong>Preferences:</strong>
                   </p>
                   {customerPreferences.preferredContactMethod && (
@@ -335,17 +358,17 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
                 </div>
               </>
             )}
-            
+
             {(ticket.orderNumber || ticket.trackingNumber) && <hr className="my-2" />}
             {ticket.orderNumber && (
-              <p className="mb-1">
-                <i className="fas fa-shopping-cart fa-fw me-2 text-muted"></i>
+              <p className="mb-1 flex items-center gap-2">
+                <ShoppingCart className="w-4 h-4 text-muted" />
                 <strong>Order:</strong> {ticket.orderNumber}
               </p>
             )}
             {ticket.trackingNumber && (
-              <p className="mb-0">
-                <i className="fas fa-truck fa-fw me-2 text-muted"></i>
+              <p className="mb-0 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-muted" />
                 <strong>Tracking:</strong> {ticket.trackingNumber}
               </p>
             )}
@@ -357,15 +380,15 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
       {relatedTickets.length > 0 && (
         <div className="card shadow-sm mb-4">
           <div className="card-header bg-light d-flex justify-content-between align-items-center">
-            <h6 className="mb-0">
-              <i className="fas fa-link me-2 text-info"></i>
+            <h6 className="mb-0 flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-info" />
               Related Tickets ({relatedTickets.length})
             </h6>
-            <button 
+            <button
               className="btn btn-sm btn-outline-secondary"
               onClick={() => toggleSection('related')}
             >
-              <i className={`fas fa-chevron-${expandedSections.has('related') ? 'up' : 'down'}`}></i>
+              {expandedSections.has('related') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
           </div>
           {expandedSections.has('related') && (
@@ -406,8 +429,8 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
       {relatedQuote && (
         <div className="card shadow-sm mb-4">
           <div className="card-header bg-light">
-            <h6 className="mb-0">
-              <i className="fas fa-file-invoice-dollar me-2 text-success"></i>
+            <h6 className="mb-0 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-success" />
               Related Quote
             </h6>
           </div>
@@ -422,8 +445,8 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
               <strong>Items:</strong> {relatedQuote.lineItems?.edges?.length || 0}
             </p>
             {quoteAdminUrl && (
-              <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success">
-                <i className="fas fa-external-link-alt me-1"></i>
+              <a href={quoteAdminUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline-success inline-flex items-center gap-1">
+                <ExternalLink className="w-4 h-4" />
                 View in Shopify
               </a>
             )}
@@ -440,15 +463,15 @@ export default function TicketDetailsSidebar({ ticket, relatedQuote, quoteAdminU
       {/* AI Knowledge Search */}
       <div className="card shadow-sm">
         <div className="card-header bg-light d-flex justify-content-between align-items-center">
-          <h6 className="mb-0">
-            <i className="fas fa-brain me-2 text-info"></i>
+          <h6 className="mb-0 flex items-center gap-2">
+            <Brain className="w-4 h-4 text-info" />
             AI Knowledge Search
           </h6>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary"
             onClick={() => toggleSection('ai')}
           >
-            <i className={`fas fa-chevron-${expandedSections.has('ai') ? 'up' : 'down'}`}></i>
+            {expandedSections.has('ai') ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
         </div>
         {expandedSections.has('ai') && (

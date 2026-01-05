@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Ticket as TicketData } from '@/types/ticket';
 
 export function useTicketData(initialTicket: TicketData) {

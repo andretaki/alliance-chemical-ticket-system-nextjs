@@ -14,6 +14,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { Section } from '@/components/layout/Section';
 import { StatCard } from '@/components/layout/StatCard';
 import { Badge } from '@/components/ui/badge';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { StatusPill } from '@/components/ui/status-pill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, ShoppingBag, Ticket, Wallet, Users, Phone, Mail, Info, PhoneMissed, PhoneIncoming, PhoneOutgoing, Play, TrendingDown, ListTodo, Activity, DollarSign } from 'lucide-react';
@@ -128,6 +129,13 @@ export default async function CustomerPage({ params }: PageProps) {
 
   return (
     <PageShell size="wide">
+      <Breadcrumb
+        items={[
+          { label: 'Customers', href: '/customers' },
+          { label: name },
+        ]}
+        className="mb-4"
+      />
       <div className="space-y-3 border-b border-border/60 pb-5">
         <PageHeader
           eyebrow="Customer 360"

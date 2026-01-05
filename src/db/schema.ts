@@ -1102,6 +1102,26 @@ export const amazonSpTokens = ticketingProdSchema.table('amazon_sp_tokens', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// --- OAuth token refresh locks ---
+export const oauthTokenLocks = ticketingProdSchema.table('oauth_token_locks', {
+  id: serial('id').primaryKey(),
+  provider: varchar('provider', { length: 32 }).notNull().unique(),
+  accessToken: text('access_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at', { withTimezone: true }),
+  refreshLockUntil: timestamp('refresh_lock_until', { withTimezone: true }),
+  lockHolderId: text('lock_holder_id'),
+  refreshStartedAt: timestamp('refresh_started_at', { withTimezone: true }),
+  lastRefreshedAt: timestamp('last_refreshed_at', { withTimezone: true }),
+  metadata: jsonb('metadata').default({}).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    providerIndex: index('idx_oauth_token_locks_provider').on(table.provider),
+    expiresIndex: index('idx_oauth_token_locks_expires').on(table.accessTokenExpiresAt),
+  };
+});
+
 // --- RAG tables ---
 export const ragSources = ticketingProdSchema.table('rag_sources', {
   id: uuid('id').primaryKey().$defaultFn(() => crypto.randomUUID()),

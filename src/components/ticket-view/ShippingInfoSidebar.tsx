@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { Truck, ExternalLink } from 'lucide-react';
 
 interface ShippingInfoSidebarProps {
   extractedStatus: string | null;
@@ -24,7 +25,7 @@ export default function ShippingInfoSidebar({
   return (
     <div className="shipping-info-sidebar card shadow-sm mb-4">
       <div className="card-header bg-light d-flex align-items-center">
-        <i className="fas fa-truck me-2 text-primary"></i>
+        <Truck className="w-4 h-4 me-2 text-primary" />
         <h3 className="h6 mb-0">Shipping Information</h3>
       </div>
       <div className="card-body p-0">
@@ -80,7 +81,7 @@ export default function ShippingInfoSidebar({
             rel="noopener noreferrer"
             className="btn btn-sm btn-outline-primary d-flex align-items-center justify-content-center"
           >
-            <i className="fas fa-external-link-alt me-1"></i> Track Package
+            <ExternalLink className="w-4 h-4 me-1" /> Track Package
           </a>
         </div>
       )}
