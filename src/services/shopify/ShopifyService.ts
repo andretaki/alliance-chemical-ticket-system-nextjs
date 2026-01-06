@@ -1633,4 +1633,122 @@ export class ShopifyService {
       hasNextPage: Boolean(pageInfo.hasNextPage),
     };
   }
+
+  /**
+   * Fetch variant metafields for ShipperHQ shipping data
+   * Returns shipping groups, dimensional groups, and dimensions
+   */
+  public async getVariantShippingMetafields(variantIds: string[]): Promise<Map<string, {
+    sku: string;
+    weight: number;
+    weightUnit: string;
+    shippingGroups: string[];
+    dimensionalGroup: string | null;
+    dimensions: { width: number; height: number; length: number } | null;
+  }>> {
+    const result = new Map();
+
+    if (variantIds.length === 0) return result;
+
+    // Build GIDs if needed
+    const gids = variantIds.map(id =>
+      id.startsWith('gid://') ? id : `gid://shopify/ProductVariant/${id}`
+    );
+
+    const query = `
+      query GetVariantMetafields($ids: [ID!]!) {
+        nodes(ids: $ids) {
+          ... on ProductVariant {
+            id
+            legacyResourceId
+            sku
+            inventoryItem {
+              measurement {
+                weight {
+                  value
+                  unit
+                }
+              }
+            }
+            metafields(first: 20) {
+              edges {
+                node {
+                  namespace
+                  key
+                  value
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      console.log(`[ShopifyService] Fetching metafields for ${gids.length} variants`);
+
+      const response: any = await this.requestWithTimeout(query, {
+        variables: { ids: gids },
+        retries: 2
+      });
+
+      if (response.errors) {
+        console.error('[ShopifyService] GraphQL errors fetching metafields:', response.errors);
+        return result;
+      }
+
+      const nodes = response.data?.nodes || [];
+
+      for (const node of nodes) {
+        if (!node || !node.legacyResourceId) continue;
+
+        const metafields = node.metafields?.edges || [];
+        const metafieldMap: Record<string, string> = {};
+
+        for (const edge of metafields) {
+          const mf = edge.node;
+          if (mf) {
+            metafieldMap[`${mf.namespace}.${mf.key}`] = mf.value;
+          }
+        }
+
+        // Parse shipping groups (comma-separated or hyphen-separated)
+        const shippingGroupsRaw = metafieldMap['global.SHIPPING_GROUPS'] || '';
+        const shippingGroups = shippingGroupsRaw
+          .split(/[,\-]/)
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 0);
+
+        // Parse dimensions from global metafields
+        const width = parseFloat(metafieldMap['global.WIDTH'] || '0');
+        const height = parseFloat(metafieldMap['global.HEIGHT'] || '0');
+        const length = parseFloat(metafieldMap['global.LENGTH'] || '0');
+
+        const dimensions = (width > 0 && height > 0 && length > 0)
+          ? { width, height, length }
+          : null;
+
+        // Get weight from inventoryItem
+        const weightData = node.inventoryItem?.measurement?.weight;
+        const weight = weightData?.value || 0;
+        const weightUnit = weightData?.unit || 'POUNDS';
+
+        result.set(node.legacyResourceId, {
+          sku: node.sku || '',
+          weight,
+          weightUnit,
+          shippingGroups,
+          dimensionalGroup: metafieldMap['global.DIMENSIONAL_GROUPS'] || null,
+          dimensions,
+        });
+      }
+
+      console.log(`[ShopifyService] Retrieved metafields for ${result.size} variants`);
+      return result;
+
+    } catch (error) {
+      console.error('[ShopifyService] Error fetching variant metafields:', error);
+      return result;
+    }
+  }
 }

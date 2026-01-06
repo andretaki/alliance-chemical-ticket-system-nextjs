@@ -51,6 +51,9 @@ const envSchema = z.object({
   SHIPSTATION_API_KEY: z.string().optional(),
   SHIPSTATION_API_SECRET: z.string().optional(),
 
+  // ShipperHQ
+  SHIPPERHQ_ACCESS_TOKEN: z.string().optional(),
+
   // Amazon SP-API
   AMAZON_SP_CLIENT_ID: z.string().optional(),
   AMAZON_SP_CLIENT_SECRET: z.string().optional(),
@@ -132,6 +135,7 @@ export const integrations = {
   google: !!(env.GOOGLE_API_KEY || env.GOOGLE_AI_API_KEY || env.GEMINI_API_KEY),
   microsoft: !!env.MICROSOFT_CLIENT_ID && !!env.MICROSOFT_CLIENT_SECRET,
   shipstation: !!env.SHIPSTATION_API_KEY && !!env.SHIPSTATION_API_SECRET,
+  shipperhq: !!env.SHIPPERHQ_ACCESS_TOKEN,
   microsoftGraph: !!env.MICROSOFT_GRAPH_CLIENT_ID && !!env.MICROSOFT_GRAPH_CLIENT_SECRET,
   amazonSpApi: !!env.AMAZON_SP_CLIENT_ID && !!env.AMAZON_SP_CLIENT_SECRET && !!env.AMAZON_SP_REFRESH_TOKEN,
 } as const;

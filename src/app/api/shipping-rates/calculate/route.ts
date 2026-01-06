@@ -1,30 +1,46 @@
 import type { NextRequest } from 'next/server';
 import { getServerSession } from '@/lib/auth-helpers';
-import { ShopifyService } from '@/services/shopify/ShopifyService';
-import type { DraftOrderLineItemInput, ShopifyMoney } from '@/agents/quoteAssistant/quoteInterfaces';
 import { apiSuccess, apiError } from '@/lib/apiResponse';
+import { getShipperHQService, type ShipperHQItem } from '@/services/shipperhq';
+import { ShopifyService } from '@/services/shopify/ShopifyService';
 
-// Interface for Shopify shipping rate response
-interface ShippingRateResponse {
-  availableShippingRates?: Array<{
-    handle: string;
-    title: string;
-    price: ShopifyMoney;
-  }>;
-  subtotalPriceSet: { shopMoney: ShopifyMoney } | null;
-  totalPriceSet: { shopMoney: ShopifyMoney } | null;
-  totalShippingPriceSet?: { shopMoney: ShopifyMoney } | null;
-  totalTaxSet?: { shopMoney: ShopifyMoney } | null;
+interface LineItemInput {
+  numericVariantIdShopify: string;
+  quantity: number;
+  title?: string;
 }
 
-// Define the shipping rate type
-interface ShippingRate {
-  handle: string;
-  title: string;
-  price: ShopifyMoney;
+interface ShippingAddressInput {
+  address1: string;
+  address2?: string;
+  city: string;
+  province: string; // State/province code like "TX", "CA"
+  country: string;  // "United States" or "US", etc.
+  zip: string;
+  firstName?: string;
+  lastName?: string;
+  company?: string;
+  phone?: string;
 }
 
-// API endpoint to calculate shipping rates for quote creation
+/**
+ * Map country name to country code
+ */
+function mapCountryToCode(country: string): string {
+  const countryMap: Record<string, string> = {
+    'united states': 'US',
+    'usa': 'US',
+    'us': 'US',
+    'canada': 'CA',
+    'ca': 'CA',
+  };
+  return countryMap[country.toLowerCase()] || country;
+}
+
+/**
+ * API endpoint to calculate shipping rates using ShipperHQ
+ * Fetches product metafields from Shopify for shipping dimensions/groups
+ */
 export async function POST(request: NextRequest) {
   try {
     // Authenticate the request
@@ -38,7 +54,10 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { lineItems, shippingAddress } = body;
+    const { lineItems, shippingAddress } = body as {
+      lineItems: LineItemInput[];
+      shippingAddress: ShippingAddressInput;
+    };
 
     // Validate inputs
     if (!lineItems || !Array.isArray(lineItems) || lineItems.length === 0) {
@@ -50,42 +69,114 @@ export async function POST(request: NextRequest) {
       return apiError('validation_error', 'Complete shipping address is required', null, { status: 400 });
     }
 
-    // Create a temporary draft order to calculate shipping
+    // Get ShipperHQ service
+    const shipperHQ = getShipperHQService();
+    if (!shipperHQ) {
+      console.error('[shipping-rates] ShipperHQ service not available - SHIPPERHQ_ACCESS_TOKEN not configured');
+      return apiError('configuration_error', 'Shipping rate calculation is not configured', null, { status: 503 });
+    }
+
+    // Filter valid line items
+    const validLineItems = lineItems.filter(item =>
+      item.numericVariantIdShopify && item.quantity > 0
+    );
+
+    if (validLineItems.length === 0) {
+      return apiError('validation_error', 'No valid line items with variant IDs', null, { status: 400 });
+    }
+
+    // Fetch variant metafields from Shopify (SKU, weight, dimensions, shipping groups)
+    const variantIds = validLineItems.map(item => item.numericVariantIdShopify);
+
+    console.log('[shipping-rates] Fetching metafields for variants:', variantIds);
+
     const shopifyService = new ShopifyService();
-    
-    try {
-      // Convert province to province code (2-letter code)
-      const addressWithCodes = {
-        ...shippingAddress,
-        provinceCode: shippingAddress.province,
-        countryCode: shippingAddress.country === 'United States' ? 'US' : 'CA'
+    const variantMetafields = await shopifyService.getVariantShippingMetafields(variantIds);
+
+    console.log('[shipping-rates] Retrieved metafields for', variantMetafields.size, 'variants');
+
+    // Build ShipperHQ items with metafield data
+    const shipperHQItems: ShipperHQItem[] = validLineItems.map(item => {
+      const metafield = variantMetafields.get(item.numericVariantIdShopify);
+
+      // Convert weight to pounds if needed
+      let weightInPounds = metafield?.weight || 1;
+      if (metafield?.weightUnit === 'KILOGRAMS') {
+        weightInPounds = weightInPounds * 2.20462;
+      } else if (metafield?.weightUnit === 'GRAMS') {
+        weightInPounds = weightInPounds * 0.00220462;
+      } else if (metafield?.weightUnit === 'OUNCES') {
+        weightInPounds = weightInPounds / 16;
+      }
+
+      const shipperHQItem: ShipperHQItem = {
+        itemId: item.numericVariantIdShopify,
+        sku: metafield?.sku || `VAR-${item.numericVariantIdShopify}`,
+        quantity: item.quantity,
+        weight: weightInPounds,
       };
 
-      // Use the Shopify GraphQL API to calculate shipping
-      const rawRates: any[] = await shopifyService.calculateShippingRates(
-        lineItems.filter((item: DraftOrderLineItemInput) => 
-          item.numericVariantIdShopify && item.quantity > 0
-        ),
-        addressWithCodes
-      );
+      // Add shipping groups if present
+      if (metafield?.shippingGroups && metafield.shippingGroups.length > 0) {
+        shipperHQItem.shippingGroups = metafield.shippingGroups;
+      }
 
-      // Transform rates to the format expected by the client
-      const transformedRates = rawRates.map(rate => ({
-        handle: rate.handle,
-        title: rate.title,
-        price: parseFloat(rate.price.amount),
-        currencyCode: rate.price.currencyCode,
-      }));
+      // Add dimensional group if present
+      if (metafield?.dimensionalGroup) {
+        shipperHQItem.dimensionalGroup = metafield.dimensionalGroup;
+      }
 
-      // Return the transformed rates
-      return apiSuccess({ rates: transformedRates });
-    } catch (error: any) {
-      console.error('Error calculating shipping rates:', error);
+      // Add dimensions if present
+      if (metafield?.dimensions) {
+        shipperHQItem.dimensions = metafield.dimensions;
+      }
 
-      return apiError('shopify_error', 'Failed to calculate shipping rates', { message: error.message || 'Unknown error' }, { status: 500 });
+      return shipperHQItem;
+    });
+
+    console.log('[shipping-rates] Calculating rates for items:', JSON.stringify(shipperHQItems, null, 2));
+    console.log('[shipping-rates] Shipping address:', shippingAddress);
+
+    // Calculate rates using ShipperHQ
+    const result = await shipperHQ.calculateRatesForAddress(shipperHQItems, {
+      city: shippingAddress.city,
+      state: shippingAddress.province,
+      zip: shippingAddress.zip,
+      country: mapCountryToCode(shippingAddress.country),
+    });
+
+    if (result.error) {
+      console.error('[shipping-rates] ShipperHQ error:', result.error);
+      return apiError('shipping_error', result.error, null, { status: 400 });
     }
-  } catch (error) {
-    console.error('API error in shipping calculation:', error);
-    return apiError('internal_error', 'Internal server error', null, { status: 500 });
+
+    // Transform rates to the format expected by the client
+    const transformedRates = result.rates.map(rate => ({
+      handle: `${rate.carrierCode}_${rate.methodCode}`,
+      title: rate.methodTitle || `${rate.carrierTitle} - ${rate.methodCode}`,
+      price: rate.price,
+      currencyCode: 'USD',
+      carrierCode: rate.carrierCode,
+      carrierTitle: rate.carrierTitle,
+      methodCode: rate.methodCode,
+      deliveryDate: rate.deliveryDate,
+      isFreight: rate.isFreight,
+    }));
+
+    console.log('[shipping-rates] Returning', transformedRates.length, 'rates');
+
+    return apiSuccess({
+      rates: transformedRates,
+      selectedRate: result.selectedRate ? {
+        handle: `${result.selectedRate.carrierCode}_${result.selectedRate.methodCode}`,
+        title: result.selectedRate.methodTitle,
+        price: result.selectedRate.price,
+        currencyCode: 'USD',
+      } : null,
+    });
+
+  } catch (error: any) {
+    console.error('[shipping-rates] API error:', error);
+    return apiError('internal_error', error.message || 'Internal server error', null, { status: 500 });
   }
-} 
+}
