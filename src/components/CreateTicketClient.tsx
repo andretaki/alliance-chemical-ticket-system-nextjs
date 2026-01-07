@@ -91,8 +91,8 @@ const CreateTicketClient: React.FC = () => {
     const fetchUsers = async () => {
       setIsLoadingUsers(true);
       try {
-        const usersRes = await axios.get<User[]>('/api/users');
-        setUsers(usersRes.data);
+        const usersRes = await axios.get<{ success: boolean; data: User[] }>('/api/users');
+        setUsers(usersRes.data.data || []);
       } catch (err) {
         console.error('Error loading users:', err);
         setError('Failed to load user list. Assignee dropdown may be incomplete.');

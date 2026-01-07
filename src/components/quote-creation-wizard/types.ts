@@ -7,6 +7,11 @@ export const lineItemSchema = z.object({
   productDisplay: z.string().optional(),
   unitPrice: z.number().optional(),
   currencyCode: z.string().optional(),
+  // Extended product info for display
+  productName: z.string().optional(),
+  variantTitle: z.string().optional(),
+  sku: z.string().optional(),
+  imageUrl: z.string().optional(),
 });
 
 // Schema for a shipping/billing address

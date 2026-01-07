@@ -73,10 +73,96 @@ const CustomerStep = () => {
     }
     setIsSearching(true);
     try {
-      const response = await axios.get<{ customers: CustomerSearchResult[] }>(
-        `/api/customers/search?query=${encodeURIComponent(term.trim())}`
-      );
-      setSearchResults(response.data.customers || []);
+      // Search with source=all to get both unified and external results
+      const response = await axios.get<{
+        success: boolean;
+        data: {
+          unified: Array<{
+            id: number;
+            primaryEmail: string | null;
+            primaryPhone: string | null;
+            firstName: string | null;
+            lastName: string | null;
+            company: string | null;
+          }>;
+          external: CustomerSearchResult[];
+        };
+      }>(`/api/customers/search?query=${encodeURIComponent(term.trim())}&source=all`);
+
+      // Score function for relevance ranking
+      const scoreResult = (result: { firstName: string; lastName: string; email: string; company: string }, searchTerm: string): number => {
+        const query = searchTerm.toLowerCase().trim();
+        const queryParts = query.split(/\s+/).filter(p => p.length > 0);
+        const firstName = (result.firstName || '').toLowerCase();
+        const lastName = (result.lastName || '').toLowerCase();
+        const email = (result.email || '').toLowerCase();
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        let score = 0;
+
+        // Exact full name match (highest priority)
+        if (fullName === query) score += 100;
+        // Exact reversed name match
+        else if (`${lastName} ${firstName}`.trim() === query) score += 95;
+        // Two-part query matching first AND last name
+        else if (queryParts.length >= 2) {
+          const [first, ...rest] = queryParts;
+          const last = rest[rest.length - 1];
+          if (firstName === first && lastName === last) score += 90;
+          else if (firstName.startsWith(first) && lastName.startsWith(last)) score += 80;
+          else if (firstName.includes(first) && lastName.includes(last)) score += 60;
+        }
+        // Single word matching first or last name exactly
+        else if (firstName === query || lastName === query) score += 70;
+        // Partial matches
+        else if (firstName.startsWith(query) || lastName.startsWith(query)) score += 50;
+        else if (fullName.includes(query)) score += 30;
+
+        // Email exact match bonus
+        if (email === query) score += 100;
+        else if (email.includes(query)) score += 20;
+
+        return score;
+      };
+
+      // Map unified results
+      const unified: CustomerSearchResult[] = (response.data.data?.unified || []).map(u => ({
+        id: String(u.id),
+        email: u.primaryEmail || '',
+        firstName: u.firstName || '',
+        lastName: u.lastName || '',
+        phone: u.primaryPhone || '',
+        company: u.company || '',
+        source: 'unified',
+      }));
+
+      // Map external results
+      const external: CustomerSearchResult[] = (response.data.data?.external || []).map(e => ({
+        id: e.id,
+        email: e.email || '',
+        firstName: e.firstName || '',
+        lastName: e.lastName || '',
+        phone: e.phone || '',
+        company: e.company || '',
+        source: e.source || 'external',
+        defaultAddress: e.defaultAddress,
+      }));
+
+      // Combine and sort by relevance score (highest first)
+      const combined = [...unified, ...external].sort((a, b) => {
+        const scoreA = scoreResult(a, term);
+        const scoreB = scoreResult(b, term);
+        return scoreB - scoreA; // Descending order
+      });
+
+      // Debug: show top 5 results with their scores
+      console.log('[CustomerStep] Search results sorted by relevance:');
+      combined.slice(0, 5).forEach((c, i) => {
+        const score = scoreResult(c, term);
+        console.log(`  ${i + 1}. ${c.firstName} ${c.lastName} (${c.source}) - score: ${score}`);
+      });
+
+      setSearchResults(combined);
     } catch (error) {
       console.error('Customer search failed:', error);
       setSearchResults([]);

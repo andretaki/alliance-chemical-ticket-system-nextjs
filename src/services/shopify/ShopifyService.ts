@@ -491,13 +491,6 @@ export class ShopifyService {
                     displayName
                     price
                     inventoryQuantity
-                    weight
-                    weightUnit
-                    taxable
-                    requiresShipping
-                    image {
-                      url
-                    }
                   }
                 }
               }
@@ -508,13 +501,18 @@ export class ShopifyService {
     `;
     
     try {
-      console.log(`[ShopifyService] Directly searching products with query: "${query}"`);
+      // Format query for Shopify's search syntax
+      // Escape special characters and use field prefixes for better matching
+      const escapedQuery = query.replace(/[\\:"']/g, '\\$&');
+      const formattedQuery = `title:*${escapedQuery}* OR sku:*${escapedQuery}* OR vendor:*${escapedQuery}*`;
+
+      console.log(`[ShopifyService] Directly searching products with query: "${query}" (formatted: "${formattedQuery}")`);
       const response: any = await this.graphqlClient.request(
         searchQuery,
         {
-          variables: { 
-            query: query,
-            first: 25 
+          variables: {
+            query: formattedQuery,
+            first: 25
           },
           retries: 1
         }

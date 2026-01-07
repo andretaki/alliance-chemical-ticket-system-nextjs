@@ -129,15 +129,17 @@ export async function GET(req: NextRequest) {
         isVip: c.isVip,
         source: 'unified' as const,
         linkedProviders: c.linkedProviders,
+        score: c.score,
+        matchedField: c.matchedField,
+        matchReasons: c.matchReasons,
       }));
       response.searchType = unifiedResult.searchType;
       response.meta.unifiedCount = unifiedResult.totalCount;
     }
 
     // Step 2: Search external sources if:
-    // - source=all or source=external
-    // - AND (no unified results OR source=external)
-    const shouldSearchExternal = source === 'external' || (source === 'all' && response.unified.length === 0);
+    // - source=external OR source=all (always search Shopify for best results)
+    const shouldSearchExternal = source === 'external' || source === 'all';
 
     if (shouldSearchExternal) {
       const externalResults = await searchExternalSources(query, type);
@@ -175,7 +177,8 @@ export async function GET(req: NextRequest) {
     return apiSuccess(response);
   } catch (err) {
     console.error('[customer-search] Error:', err);
-    return apiError('server_error', 'Failed to search customers', undefined, { status: 500 });
+    console.error('[customer-search] Error stack:', err instanceof Error ? err.stack : 'No stack');
+    return apiError('server_error', 'Failed to search customers', err instanceof Error ? err.message : String(err), { status: 500 });
   }
 }
 
